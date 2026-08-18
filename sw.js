@@ -1,9 +1,10 @@
 // Service Worker do Haras — Gestão Equina
-// Cache simples "primeiro o cache, rede como reserva", pra abrir o app mesmo sem internet depois de
-// instalado ("Adicionar à tela de início"). Só entra em ação quando o app é servido por http/https
-// (ex: GitHub Pages, Netlify) — não faz nada abrindo o arquivo direto do computador (file://), que é
-// como o app roda hoje. Isso não muda nada nos dados: eles continuam só no localStorage do aparelho.
-const CACHE_NAME = 'haras-gestao-equina-v1';
+// Cache "rede primeiro" — sempre busca a versão mais nova quando tem internet, e só usa o que está
+// guardado se a rede falhar (offline), depois de instalado ("Adicionar à tela de início"). Só entra em
+// ação quando o app é servido por http/https (ex: GitHub Pages, Netlify) — não faz nada abrindo o
+// arquivo direto do computador (file://). Isso não muda nada nos dados: eles continuam só no
+// localStorage do aparelho.
+const CACHE_NAME = 'haras-gestao-equina-v2';
 const APP_SHELL = [
   './app_145.html',
   './manifest.json',
@@ -30,18 +31,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// "Rede primeiro, cache como reserva": sempre busca a versão mais nova quando tem internet — importante
+// enquanto o app ainda muda com frequência. Só usa o que está guardado no cache se a rede falhar
+// (offline), pra não deixar ninguém preso numa versão antiga depois de uma atualização.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request).then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request).then((response) => {
+      if (response && response.status === 200 && response.type === 'basic') {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
