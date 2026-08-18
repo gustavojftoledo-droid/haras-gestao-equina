@@ -834,8 +834,9 @@
         <div class="f"><label>Data de</label><input type="date" id="finFiltroDe"></div>
         <div class="f"><label>Data até</label><input type="date" id="finFiltroAte"></div>
       </div>
+      <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+        <thead><tr><th>Data</th><th>Origem</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
         <tbody id="finTbody"></tbody>
       </table></div>
     </div>
@@ -6683,6 +6684,52 @@ function buildPedigreeTree(h){
 // Livro-caixa simples: lançamentos manuais de entrada e saída, com categoria (lista aberta, editável
 // igual às outras — usa o mesmo mecanismo de aux/AUX_META/AUX_CASCADE do resto do app) e um resumo
 // (entradas / saídas / saldo) calculado em cima do que está filtrado na tela no momento.
+//
+// Além dos lançamentos manuais, a lista mostra (só pra leitura, sem duplicar digitação) duas fontes
+// que já existem em outras telas:
+//   - Manejos de Casco/Dente com custo — reaproveita a mesma conta que o Relatório Financeiro de
+//     Manejos já usa (calcularTotalLancamentoManejo), pra não ter dois jeitos de somar a mesma coisa.
+//   - Compras de Estoque (entradas manuais) — quantidade × valor cadastrado no produto. Como o valor
+//     do produto pode ter sido atualizado depois da compra, esse número é uma estimativa com o preço
+//     atual, não necessariamente o que foi pago naquele dia.
+// Esses dois não viram registros de verdade em `lancamentos` — são calculados na hora, então nunca
+// ficam desatualizados nem duplicam se você editar o manejo ou o produto depois.
+function parseValorLivre(str){
+  if(str===undefined || str===null || str==='') return null;
+  const limpo = String(str).replace(/[^\d,.-]/g,'').trim();
+  if(!limpo) return null;
+  const normalizado = limpo.includes(',') ? limpo.replace(/\./g,'').replace(',','.') : limpo;
+  const n = Number(normalizado);
+  return (isFinite(n) && n>0) ? n : null;
+}
+function lancamentosDerivadosManejos(){
+  return manejos.map(m=>{
+    const total = calcularTotalLancamentoManejo(m);
+    if(!total || total<=0) return null;
+    const qtd = (m.animais||[]).length;
+    return {
+      id: 'auto_mj_'+m.id, origemId: m.id, origem: 'manejos',
+      data: m.data, tipo: 'saida',
+      categoria: m.tipo==='Dente' ? 'Odontologia' : 'Ferrageamento',
+      descricao: `${m.tipo} — ${qtd} ${pluralAnimal(qtd)}${m.ferrador?(' · '+m.ferrador):''}`,
+      valor: total
+    };
+  }).filter(Boolean);
+}
+function lancamentosDerivadosEstoque(){
+  return estoqueMovimentos.filter(mv=> mv.tipoMov==='entrada' && mv.origem==='manual').map(mv=>{
+    const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
+    const valorUnit = parseValorLivre(produto ? produto.valor : null);
+    const qtd = Number(mv.quantidade)||0;
+    if(!valorUnit || qtd<=0) return null;
+    return {
+      id: 'auto_mv_'+mv.id, origemId: mv.produtoId, origem: 'estoque',
+      data: mv.data, tipo: 'saida', categoria: 'Compra de Estoque',
+      descricao: `${qtd} ${mv.unidade||''} de ${mv.produtoNome||(produto?produto.nome:'')}`.trim(),
+      valor: qtd*valorUnit
+    };
+  }).filter(Boolean);
+}
 function renderFinanceiroStats(lista){
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const totalEntrada = lista.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
@@ -6693,14 +6740,20 @@ function renderFinanceiroStats(lista){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtR(totalSaida)}</div><div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldo>=0?'var(--green)':'var(--burgundy)'};">${fmtR(saldo)}</div><div class="stat-label">Saldo do que está listado</div></div>`;
 }
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque' };
 function renderFinanceiro(){
-  populateSelectFilter('finFiltroCategoria', lancamentos.map(l=>l.categoria));
+  const todos = [
+    ...lancamentos.map(l=>({...l, origem:'manual'})),
+    ...lancamentosDerivadosManejos(),
+    ...lancamentosDerivadosEstoque()
+  ];
+  populateSelectFilter('finFiltroCategoria', todos.map(l=>l.categoria));
   const termo = (document.getElementById('finSearch').value||'').toLowerCase();
   const tipo = document.getElementById('finFiltroTipo').value;
   const categoria = document.getElementById('finFiltroCategoria').value;
   const de = document.getElementById('finFiltroDe').value;
   const ate = document.getElementById('finFiltroAte').value;
-  const filtered = lancamentos.filter(l=>
+  const filtered = todos.filter(l=>
     (!termo || (l.descricao||'').toLowerCase().includes(termo)) &&
     (!tipo || l.tipo===tipo) &&
     (!categoria || l.categoria===categoria) &&
@@ -6709,21 +6762,37 @@ function renderFinanceiro(){
   renderFinanceiroStats(filtered);
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const tbody = document.getElementById('finTbody');
-  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">${lancamentos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(l=>`<tr>
+  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">${todos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(l=>{
+    const acoes = l.origem==='manual'
+      ? `<button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button>`
+      : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${l.origem==='manejos'?'Manejos':'Estoque'}</button>`;
+    return `<tr>
     <td>${fmtDate(l.data)}</td>
+    <td><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
     <td><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span></td>
     <td>${l.categoria||''}</td>
     <td>${l.descricao||''}</td>
     <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(l.valor)}</td>
-    <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button></td>
-  </tr>`).join('');
+    <td style="white-space:nowrap;">${acoes}</td>
+  </tr>`;
+  }).join('');
   tbody.querySelectorAll('[data-editfin]').forEach(b=>b.addEventListener('click', ()=>openLancamentoEdit(b.dataset.editfin)));
   tbody.querySelectorAll('[data-delfin]').forEach(b=>b.addEventListener('click', async ()=>{
     if(!(await showConfirm('Excluir este lançamento?'))) return;
     lancamentos = lancamentos.filter(l=>l.id!==b.dataset.delfin);
     await storeSet('financeiro_lancamentos', lancamentos, true);
     renderFinanceiro();
+  }));
+  tbody.querySelectorAll('[data-verorigemfin]').forEach(b=>b.addEventListener('click', ()=>{
+    const tipoOrigem = b.dataset.tipoorigemfin, id = b.dataset.idorigemfin;
+    if(tipoOrigem==='manejos'){
+      irParaView('manejos');
+      setTimeout(()=>openManejoEdit(id), 30);
+    } else if(tipoOrigem==='estoque'){
+      irParaView('estoque');
+      setTimeout(()=>document.querySelector('#view-estoque [data-etab="movimentos"]').click(), 30);
+    }
   }));
 }
 ['finSearch','finFiltroTipo','finFiltroCategoria','finFiltroDe','finFiltroAte'].forEach(id=>{
