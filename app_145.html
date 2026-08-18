@@ -1024,9 +1024,10 @@
       <div class="field"><label>Data</label><input type="date" id="fin_data"></div>
       <div class="field"><label>Tipo</label><select id="fin_tipo"><option value="saida">Saída</option><option value="entrada">Entrada</option></select></div>
       <div class="field full"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="fin_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="finCategoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="finCategoria" data-selid="fin_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="finCategoria" data-selid="fin_categoria" title="Excluir valor selecionado">🗑</button></div></div>
-      <div class="field full"><label>Descrição</label><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela"></div>
+      <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor (R$)</label><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00"></div>
     </div>
+    <div class="hint-text" id="fin_vozStatus" style="display:none;margin:-6px 0 12px;"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteLancamento" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayLancamento">Cancelar</button><button type="button" class="btn" id="btnSaveLancamento">Salvar Lançamento <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -7134,6 +7135,49 @@ function openLancamentoEdit(id){
   openModal('overlayLancamento');
 }
 document.getElementById('btnNewLancamento').addEventListener('click', openLancamentoNew);
+
+/* ---- Comando de voz: dita o lançamento inteiro e preenche o formulário ----
+   Nunca salva sozinho — só preenche os campos, você confere e clica em Salvar. Usa a Web Speech API
+   do navegador (funciona no Chrome; o áudio é processado pelos servidores do Google pra virar texto,
+   não é local). Se o navegador não suportar, o botão avisa em vez de travar. */
+const SpeechRecCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+function extrairValorFala(t){
+  let m = t.match(/(\d+(?:[.,]\d+)?)\s*reais/) || t.match(/r\$\s*(\d+(?:[.,]\d+)?)/i) || t.match(/(\d+(?:[.,]\d+)?)/);
+  return m ? Number(m[1].replace(',','.')) : null;
+}
+function parseComandoLancamento(texto){
+  const t = texto.toLowerCase();
+  const tipo = /\bentrada\b|\brecebi\b|\bvenda\b|\brecebimento\b/.test(t) ? 'entrada' : 'saida';
+  const valor = extrairValorFala(t);
+  let categoria = '';
+  (aux.finCategoria||[]).forEach(c=>{ if(t.includes(c.toLowerCase())) categoria = c; });
+  return { tipo, valor, categoria, descricao: texto };
+}
+document.getElementById('btnVozLancamento').addEventListener('click', ()=>{
+  const status = document.getElementById('fin_vozStatus');
+  if(!SpeechRecCtor){
+    showAlert('Comando de voz não é suportado nesse navegador — funciona no Chrome (computador ou Android).');
+    return;
+  }
+  const rec = new SpeechRecCtor();
+  rec.lang = 'pt-BR'; rec.interimResults = false; rec.maxAlternatives = 1;
+  status.style.display = 'block'; status.style.color = 'var(--brass)'; status.textContent = '🎤 Ouvindo... fale o lançamento (ex: "saída de ferrageamento 300 reais").';
+  rec.start();
+  rec.onresult = (e)=>{
+    const texto = e.results[0][0].transcript;
+    const r = parseComandoLancamento(texto);
+    document.getElementById('fin_tipo').value = r.tipo;
+    if(r.valor) document.getElementById('fin_valor').value = r.valor;
+    if(r.categoria) document.getElementById('fin_categoria').value = r.categoria;
+    document.getElementById('fin_descricao').value = r.descricao;
+    status.style.color = 'var(--ok)';
+    status.textContent = '🎤 Ouvi: "'+texto+'" — confira os campos antes de salvar.';
+  };
+  rec.onerror = (e)=>{
+    status.style.color = 'var(--burgundy)';
+    status.textContent = e.error==='not-allowed' ? '🎤 Permissão de microfone negada.' : '🎤 Não consegui entender — tenta de novo.';
+  };
+});
 document.getElementById('btnSaveLancamento').addEventListener('click', async ()=>{
   const data = f('fin_data');
   if(!data){ showAlert('Informe a data do lançamento.'); return; }
