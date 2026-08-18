@@ -3083,16 +3083,36 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     const valorVenda = parseValorLivre(data.valor);
     if(valorVenda){
       const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-      const pergunta = `${data.nome} foi marcado como Vendido, valor ${fmtR(valorVenda)}. Lançar essa venda como entrada no Financeiro agora?`;
-      if(await showConfirm(pergunta)){
-        lancamentos = [...lancamentos, {
-          id: 'fn_'+Date.now(), data: toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
-          descricao: `Venda de ${data.nome}`+(data.comprador?(' — comprador: '+data.comprador):''),
-          valor: valorVenda, origemAnimalId: data.id
-        }];
-        await storeSet('financeiro_lancamentos', lancamentos);
-        renderFinanceiro();
-        showAlert('Lançado no Financeiro: entrada de '+fmtR(valorVenda)+' — Venda de Animal.');
+      // O campo Valor do animal é texto livre — se a pessoa digitou "US$ ...", o número já vem sem o
+      // "US$" (parseValorLivre só entende dígitos). O Financeiro só lança em Reais, então nunca dá pra
+      // simplesmente usar esse número como se fosse R$ — a cotação varia e o sistema não sabe qual usar.
+      // Nesse caso pergunta o valor em Reais direto, em vez de lançar o número do dólar por engano.
+      const ehDolar = /us\$|u\$s|usd|d[oó]lar/i.test(data.valor||'');
+      if(ehDolar){
+        const valorReaisStr = await showPrompt(`${data.nome} foi vendido por US$ ${valorVenda.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})} (dólares). O Financeiro só lança em Reais — informe quanto isso deu em R$ (a cotação varia), ou deixe em branco pra não lançar agora:`, '');
+        const valorReais = parseValorLivre(valorReaisStr);
+        if(valorReais){
+          lancamentos = [...lancamentos, {
+            id: 'fn_'+Date.now(), data: toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
+            descricao: `Venda de ${data.nome} (US$ ${valorVenda.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})}, convertido pra Reais)`+(data.comprador?(' — comprador: '+data.comprador):''),
+            valor: valorReais, origemAnimalId: data.id
+          }];
+          await storeSet('financeiro_lancamentos', lancamentos);
+          renderFinanceiro();
+          showAlert('Lançado no Financeiro: entrada de '+fmtR(valorReais)+' — Venda de Animal.');
+        }
+      } else {
+        const pergunta = `${data.nome} foi marcado como Vendido, valor ${fmtR(valorVenda)}. Lançar essa venda como entrada no Financeiro agora?`;
+        if(await showConfirm(pergunta)){
+          lancamentos = [...lancamentos, {
+            id: 'fn_'+Date.now(), data: toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
+            descricao: `Venda de ${data.nome}`+(data.comprador?(' — comprador: '+data.comprador):''),
+            valor: valorVenda, origemAnimalId: data.id
+          }];
+          await storeSet('financeiro_lancamentos', lancamentos);
+          renderFinanceiro();
+          showAlert('Lançado no Financeiro: entrada de '+fmtR(valorVenda)+' — Venda de Animal.');
+        }
       }
     }
   }
