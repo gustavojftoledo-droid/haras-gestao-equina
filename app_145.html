@@ -445,10 +445,16 @@
         <div id="rview_fichas">
           <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
           <div id="relFichaSelectorHost" style="margin:10px 0 16px;"></div>
+          <div class="filters" style="margin-bottom:10px;">
+            <div class="f"><label>Custo por Animal — período de</label><input type="date" id="relCustoDe"></div>
+            <div class="f"><label>até</label><input type="date" id="relCustoAte"></div>
+            <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Manejos e Veterinária). Em branco = todo o histórico.</span></div>
+          </div>
           <div class="toolbar-row">
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="btn btn-sm" id="btnGerarRel1Ficha">Relatório 1 — Ficha Completa (Genealogia) <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button>
               <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel2Ficha">Relatório 2 — Lista Resumida <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+2)</span></button>
+              <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel3Ficha">Relatório 3 — Custo por Animal <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+3)</span></button>
             </div>
             <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelFicha" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelFicha" style="display:none;">⬇ Baixar PDF</button>
           </div>
@@ -721,7 +727,7 @@
           <button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button>
         </div>
         <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Dieta</th><th>Animais</th><th>Itens</th><th>Observações</th><th></th></tr></thead>
+          <thead><tr><th>Dieta</th><th>Animais</th><th>Itens</th><th>Custo estimado/mês</th><th>Observações</th><th></th></tr></thead>
           <tbody id="dtTbody"></tbody>
         </table></div>
       </div>
@@ -2077,7 +2083,7 @@ document.addEventListener('keydown', (e)=>{
 // Animais têm 1 e 2; Treinos tem 1, 2 e 3). Funciona também dentro do Histórico de Manejos: com um
 // lançamento aberto pra edição, Alt+1 baixa o relatório daquele lançamento (só tem um ali).
 const RELATORIO_NUMERO_CONTEXTUAL = {
-  animais: { tabId:'atab_relatorios', subTabId:'rtab_fichas', botoes:{'1':'btnGerarRel1Ficha','2':'btnGerarRel2Ficha'} },
+  animais: { tabId:'atab_relatorios', subTabId:'rtab_fichas', botoes:{'1':'btnGerarRel1Ficha','2':'btnGerarRel2Ficha','3':'btnGerarRel3Ficha'} },
   manejos: { tabId:'mtab_relatorios', botoes:{'1':'btnGerarRelManejo1','2':'btnGerarRelManejo2'} },
   treinos: { tabId:'ttab_relatorios', botoes:{'1':'btnGerarRel1Treino','2':'btnGerarRel2Treino','3':'btnGerarRel3Treino'} }
 };
@@ -5774,7 +5780,8 @@ document.getElementById('btnSaveDietaAnimais').addEventListener('click', async (
 
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
-  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="5" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
+  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   tbody.innerHTML = dietas.map(d=>{
     const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
     const nAnimais = (d.animais||[]).length;
@@ -5782,10 +5789,15 @@ function renderDietas(){
     const modoTxt = d.modoConsumo==='automatico'
       ? `<span class="pill st-outro" title="Dias: ${(d.diasSemana||[]).map((v,i)=>v?DIAS_SEMANA_LABEL[i]:null).filter(Boolean).join(', ')}">⚙ Automático</span>${d.ultimoConsumoAuto===hoje?' <span style="color:var(--ok);font-size:11px;">✓ já registrado hoje</span>':''}`
       : '<span class="pill st-outro">Manual</span>';
+    const custo = custoDietaResumo(d);
+    const custoTxt = custo.mensalTotal>0
+      ? `${fmtR(custo.mensalTotal)}${nAnimais>0?` <span style="color:var(--muted);font-size:11px;">(${fmtR(custo.mensalPorAnimal)}/animal)</span>`:''}${custo.temItemSemPreco?' <span title="Algum item sem valor cadastrado no Estoque — custo real é maior" style="color:var(--warn);">⚠</span>':''}`
+      : '<span style="color:var(--muted);">—</span>';
     return `<tr>
       <td><strong>${d.nome}</strong><br>${modoTxt}</td>
       <td>${nAnimais>0 ? animaisComOlhoHTML(d.animais) : '<span style="color:var(--muted);">Nenhum ainda</span>'}</td>
       <td style="font-size:12px;">${itensResumo||'—'}</td>
+      <td style="font-size:12.5px;">${custoTxt}</td>
       <td>${d.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-consumir="${d.id}">Registrar consumo (hoje)</button>
@@ -7364,8 +7376,90 @@ function gerarRelatorioFicha2(){
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
+// ---- Relatório 3 — Custo por Animal ----
+// Junta Manejos (Casco/Dente) + Veterinária (medicamentos aplicados) num período, mais a Dieta atual
+// como estimativa mensal à parte (Dietas não têm data de início/fim, então não dá pra somar com
+// precisão dentro de um período — melhor mostrar como estimativa contínua do que fingir exatidão).
+function custoManejosPorAnimal(animalId, de, ate){
+  let total = 0;
+  manejos.forEach(m=>{
+    if(m.tipo!=='Casco' && m.tipo!=='Dente') return;
+    if(de && m.data<de) return;
+    if(ate && m.data>ate) return;
+    const a = (m.animais||[]).find(x=>x.id===animalId);
+    if(!a) return;
+    const base = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
+    const extra = Number(a.valorExtra)||0;
+    const qtdAnimais = (m.animais||[]).length || 1;
+    total += base + extra + ((Number(m.deslocamento)||0) / qtdAnimais);
+  });
+  return total;
+}
+function custoVeterinariaPorAnimal(animalId, de, ate){
+  let total = 0;
+  tratamentos.forEach(t=>{
+    if(de && t.dataInicio<de) return;
+    if(ate && t.dataInicio>ate) return;
+    if(!(t.animais||[]).some(a=>a.id===animalId)) return;
+    const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
+    const valorUnit = parseValorLivre(prod ? prod.valor : null);
+    if(!valorUnit) return;
+    total += valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
+  });
+  return total;
+}
+function custoDietaResumo(d){
+  let diarioPorAnimal = 0, temItemSemPreco = false;
+  (d.itens||[]).forEach(it=>{
+    const prod = estoqueProdutos.find(p=>p.id===it.produtoId);
+    const valorUnit = parseValorLivre(prod ? prod.valor : null);
+    if(valorUnit) diarioPorAnimal += valorUnit * (Number(it.quantidade)||0);
+    else temItemSemPreco = true;
+  });
+  const freqMensal = d.modoConsumo==='automatico' ? ((d.diasSemana||[]).filter(Boolean).length/7)*30 : 30;
+  const qtdAnimais = (d.animais||[]).length || 0;
+  return { diarioPorAnimal, mensalPorAnimal: diarioPorAnimal*freqMensal, mensalTotal: diarioPorAnimal*freqMensal*qtdAnimais, temItemSemPreco };
+}
+function custoDietaMensalPorAnimal(animalId){
+  let total = 0;
+  dietas.forEach(d=>{ if((d.animais||[]).some(a=>a.id===animalId)) total += custoDietaResumo(d).mensalPorAnimal; });
+  return total;
+}
+function gerarRelatorioFicha3(){
+  const lista = fichaSelecionados();
+  if(lista.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
+  const de = f('relCustoDe'), ate = f('relCustoAte');
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const host = document.getElementById('relFichaResult');
+  let totalGeral = 0;
+  const linhas = lista.map(h=>{
+    const custoManejos = custoManejosPorAnimal(h.id, de, ate);
+    const custoVet = custoVeterinariaPorAnimal(h.id, de, ate);
+    const custoDietaMes = custoDietaMensalPorAnimal(h.id);
+    const totalPeriodo = custoManejos + custoVet;
+    totalGeral += totalPeriodo;
+    return { h, custoManejos, custoVet, custoDietaMes, totalPeriodo };
+  });
+  host.innerHTML = `<div class="report-card print-block">
+    <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
+    <div class="subtitle" style="margin-bottom:14px;">Manejos e Veterinária ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'}. A coluna Dieta é uma estimativa mensal da dieta atual do animal — não soma no total do período, porque a dieta não tem data de início/fim registrada.</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Animal</th><th>Manejos</th><th>Veterinária</th><th>Total do período</th><th>Dieta (estimativa/mês)</th></tr></thead>
+      <tbody>${linhas.map(r=>`<tr>
+        <td><button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.h.nome||''}</strong></td>
+        <td>${fmtR(r.custoManejos)}</td>
+        <td>${fmtR(r.custoVet)}</td>
+        <td style="font-weight:600;">${fmtR(r.totalPeriodo)}</td>
+        <td style="color:var(--muted);">${r.custoDietaMes>0?fmtR(r.custoDietaMes):'—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL DO PERÍODO (Manejos + Veterinária): ${fmtR(totalGeral)}</h2>
+  </div>`;
+  document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
+}
 document.getElementById('btnGerarRel1Ficha').addEventListener('click', gerarRelatorioFicha1);
 document.getElementById('btnGerarRel2Ficha').addEventListener('click', gerarRelatorioFicha2);
+document.getElementById('btnGerarRel3Ficha').addEventListener('click', gerarRelatorioFicha3);
 document.getElementById('btnPrintRelFicha').addEventListener('click', ()=>window.print());
 
 // Baixar PDF de verdade (não só imprimir) pros relatórios que hoje só tinham "🖨 Imprimir" — reaproveita
