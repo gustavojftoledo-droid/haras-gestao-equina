@@ -7325,7 +7325,7 @@ function interpretarDataFalada(texto){
   if(/\bontem\b/.test(t)){ const d=new Date(); d.setDate(d.getDate()-1); return toISODate(d); }
   let m = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
   if(m){ let ano=m[3]; if(ano.length===2) ano='20'+ano; return ano+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
-  m = t.match(/(\d{1,2})\D+(?:de\s+)?([a-zç]+)(?:\D+(\d{4}))?/);
+  m = t.match(/(\d{1,2})\s*(?:de\s+)?([a-zç]+)(?:\s*(?:de\s+)?(\d{4}))?/);
   if(m && MESES_FALA[m[2]]){
     const dia = m[1].padStart(2,'0'), mes = String(MESES_FALA[m[2]]).padStart(2,'0'), ano = m[3] || String(new Date().getFullYear());
     return ano+'-'+mes+'-'+dia;
