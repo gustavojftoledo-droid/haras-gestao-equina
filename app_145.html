@@ -471,9 +471,8 @@
           <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
           <div id="relFichaSelectorHost" style="margin:10px 0 16px;"></div>
           <div class="filters" style="margin-bottom:10px;">
-            <div class="f"><label>Custo por Animal — período de</label><input type="date" id="relCustoDe"></div>
-            <div class="f"><label>até</label><input type="date" id="relCustoAte"></div>
-            <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Manejos e Veterinária). Em branco = todo o histórico.</span></div>
+            <div class="f"><label>Custo por Animal — período</label><div id="relCustoPeriodo"></div></div>
+            <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Manejos e Veterinária). Sem período = todo o histórico.</span></div>
           </div>
           <div class="toolbar-row">
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -864,8 +863,7 @@
         <div class="f grow"><label>Buscar</label><input type="text" id="finSearch" placeholder="Descrição..."></div>
         <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
         <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
-        <div class="f"><label>Data de</label><input type="date" id="finFiltroDe"></div>
-        <div class="f"><label>Data até</label><input type="date" id="finFiltroAte"></div>
+        <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
       </div>
       <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
       <div class="grid-wrap"><table class="grid">
@@ -1067,6 +1065,16 @@
         <span class="hint-text" id="manejoValorTotalDisplayDente" style="font-weight:600;"></span>
       </div>
       <div class="hint-text" style="margin-top:6px;">Dica: pra um animal específico que custa mais, marque ele abaixo, escreva a observação e coloque o valor extra ao lado — o total já soma sozinho.</div>
+    </div>
+    <div id="manejoMedFields" style="display:none;margin-bottom:16px;">
+      <div class="form-grid cols3">
+        <div class="field"><label>Medicamento</label><input type="text" id="m_medicamento" list="dl_medicamentos" placeholder="Digite pra buscar (cadastrado no Estoque)"></div>
+        <div class="field"><label>Quantidade por animal</label><input type="number" step="0.01" id="m_medQuantidade" placeholder="Ex: 2"></div>
+      </div>
+      <div class="section-label" style="border-top:none;padding-top:0;margin-top:12px;">Utensílios usados <span style="font-family:'Inter';font-size:11px;color:var(--muted);">(ex: seringa, agulha — opcional, também dá baixa no estoque)</span></div>
+      <div id="manejoUtensiliosHost" style="margin:8px 0;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAddManejoUtensilio">+ Adicionar utensílio</button>
+      <div class="hint-text" style="margin-top:10px;">Dá baixa no estoque (medicamento + utensílios, por animal selecionado) e entra no Financeiro e no custo por animal — do mesmo jeito que Casco/Dente. Editar um lançamento já salvo não repete a baixa automaticamente.</div>
     </div>
     <div id="manejoSelectorHost"></div>
     <div class="modal-actions">
@@ -3248,7 +3256,7 @@ function gerarRelatorioManejos(){
 // Soma o valor total (animais + deslocamento) de um lançamento — Casco e Dente têm valor; Vacina e
 // Vermífugo não têm cobrança e entram como R$ 0,00 no total do período.
 function calcularTotalLancamentoManejo(m){
-  if(m.tipo!=='Casco' && m.tipo!=='Dente') return 0;
+  if(m.tipo!=='Casco' && m.tipo!=='Dente' && m.tipo!=='Vacina' && m.tipo!=='Vermífugo') return 0;
   const totalAnimais = (m.animais||[]).reduce((s,a)=>{
     const base = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
     const extra = Number(a.valorExtra)||0;
@@ -3693,8 +3701,56 @@ function atualizarCamposCascoVisibilidade(){
   const tipoAtual = document.getElementById('m_tipo').value;
   document.getElementById('manejoCascoFields').style.display = (tipoAtual==='Casco') ? 'block' : 'none';
   document.getElementById('manejoDenteFields').style.display = (tipoAtual==='Dente') ? 'block' : 'none';
+  document.getElementById('manejoMedFields').style.display = (tipoAtual==='Vacina' || tipoAtual==='Vermífugo') ? 'block' : 'none';
   if(typeof manejoSelector!=='undefined' && manejoSelector.draw) manejoSelector.draw();
   atualizarValorTotalManejo();
+}
+// ---- Utensílios usados numa aplicação de Vacina/Vermífugo — mesmo mecanismo já usado em Veterinária ----
+let manejoUtensiliosState = [];
+function renderManejoUtensilios(){
+  const host = document.getElementById('manejoUtensiliosHost');
+  const produtos = estoqueProdutos.filter(p=>p.tipo!=='Alimento');
+  if(manejoUtensiliosState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum utensílio adicionado.</div>'; return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Utensílio</div><div>Qtd por animal</div><div></div>
+    </div>` +
+    manejoUtensiliosState.map((it,idx)=>{
+      const prod = produtos.find(p=>p.id===it.produtoId);
+      const un = prod ? prod.unidade : '';
+      return `<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;margin-bottom:8px;">
+        <select data-mufield="produtoId" data-idx="${idx}">
+          <option value="">Selecione...</option>
+          ${produtos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}
+        </select>
+        <input type="number" step="0.01" data-mufield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="${un||'—'}">
+        <button type="button" class="btn btn-sm btn-danger" data-muremove="${idx}" title="Remover">✕</button>
+      </div>`;
+    }).join('');
+  host.querySelectorAll('[data-mufield]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const idx=Number(el.dataset.idx), field=el.dataset.mufield;
+      manejoUtensiliosState[idx][field] = el.value;
+      if(field==='produtoId') renderManejoUtensilios();
+    });
+  });
+  host.querySelectorAll('[data-muremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ manejoUtensiliosState.splice(Number(btn.dataset.muremove),1); renderManejoUtensilios(); });
+  });
+}
+document.getElementById('btnAddManejoUtensilio').addEventListener('click', ()=>{
+  manejoUtensiliosState.push({produtoId:'', quantidade:''});
+  renderManejoUtensilios();
+});
+// Confere se dá pra dar baixa em tudo (medicamento + utensílios) ANTES de mexer no estoque — tudo ou nada.
+function checarEstoqueParaBaixa(itens){
+  const faltando = [];
+  itens.forEach(it=>{
+    const p = estoqueProdutos.find(x=>x.id===it.produtoId);
+    if(!p) return;
+    const atual = Number(p.quantidade)||0;
+    if(atual < it.quantidade) faltando.push({ nome:p.nome, falta: it.quantidade-atual, unidade:p.unidade });
+  });
+  return faltando;
 }
 function preencherValorRefCasco(){
   const subtipo = document.getElementById('m_subtipoCasco').value;
@@ -3752,6 +3808,8 @@ document.getElementById('btnNewManejo').addEventListener('click', async ()=>{
   document.getElementById('m_subtipoCasco').value='Casqueado mãos';
   document.getElementById('m_deslocamento').value = config.deslocamentoFerrador || '';
   document.getElementById('m_valorDente').value = '';
+  document.getElementById('m_medicamento').value = ''; document.getElementById('m_medQuantidade').value = '';
+  manejoUtensiliosState = []; renderManejoUtensilios(); refreshDatalists();
   // Se quem está logado é um usuário com perfil "Ferrador", preenche o campo Ferrador automaticamente
   // com o nome dele (e garante que o nome já esteja na lista de opções). Qualquer outro perfil vê o campo em branco.
   if(currentUser && currentUser.perfil==='ferrador'){
@@ -3784,6 +3842,15 @@ function openManejoEdit(id){
   if(m.tipo==='Dente'){
     document.getElementById('m_valorDente').value = (m.valor!==undefined && m.valor!==null) ? m.valor : '';
   }
+  if(m.tipo==='Vacina' || m.tipo==='Vermífugo'){
+    refreshDatalists();
+    document.getElementById('m_medicamento').value = m.medicamentoNome||'';
+    document.getElementById('m_medQuantidade').value = (m.medQuantidade!==undefined && m.medQuantidade!==null) ? m.medQuantidade : '';
+    manejoUtensiliosState = (m.utensilios||[]).map(u=>({produtoId:u.produtoId, quantidade:u.quantidade}));
+  } else {
+    manejoUtensiliosState = [];
+  }
+  renderManejoUtensilios();
   atualizarCamposCascoVisibilidade();
   manejoSelector.setSelected(m.animais||[]);
   atualizarValorTotalManejo();
@@ -3833,6 +3900,25 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     const valorDenteAtual = Number(document.getElementById('m_valorDente').value)||0;
     selected.forEach(a=>{ a.valorBase = valorDenteAtual; });
   }
+  // Vacina/Vermífugo: precisa de um medicamento já cadastrado no Estoque (mesma exigência da Veterinária)
+  // — é ele que define o custo por animal e a baixa no estoque.
+  let medicamento = null, utensiliosValidos = [], medQuantidade = 0;
+  if(tipo==='Vacina' || tipo==='Vermífugo'){
+    const nomeMed = f('m_medicamento').trim();
+    if(!nomeMed){ showAlert('Informe o medicamento usado (cadastre no Estoque primeiro, se ainda não tiver).'); return; }
+    medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMed.toLowerCase());
+    if(!medicamento){ showAlert('Não achei "'+nomeMed+'" nos medicamentos do Estoque. Confira a digitação ou cadastre esse produto lá primeiro (tipo Medicamento).'); document.getElementById('m_medicamento').focus(); return; }
+    medQuantidade = Number(f('m_medQuantidade'));
+    if(!medQuantidade || medQuantidade<=0){ showAlert('Informe a quantidade por animal.'); return; }
+    utensiliosValidos = manejoUtensiliosState.filter(u=>u.produtoId && Number(u.quantidade)>0).map(u=>{
+      const up = estoqueProdutos.find(p=>p.id===u.produtoId);
+      return { produtoId:u.produtoId, produtoNome: up?up.nome:'', quantidade:Number(u.quantidade), unidade: up?up.unidade:'' };
+    });
+    const custoUnitMed = custoUnitarioProduto(medicamento)||0;
+    const custoUtensiliosPorAnimal = utensiliosValidos.reduce((s,u)=> s + (custoUnitarioProduto(estoqueProdutos.find(p=>p.id===u.produtoId))||0)*u.quantidade, 0);
+    const custoPorAnimal = custoUnitMed*medQuantidade + custoUtensiliosPorAnimal;
+    selected.forEach(a=>{ a.valorBase = custoPorAnimal; });
+  }
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
   if(tipo==='Casco'){
     registro.subtipoCasco = tipoGeral;
@@ -3846,6 +3932,29 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     const valorDente = document.getElementById('m_valorDente').value;
     registro.valor = valorDente==='' ? null : Number(valorDente);
   }
+  if(tipo==='Vacina' || tipo==='Vermífugo'){
+    registro.medicamentoId = medicamento.id; registro.medicamentoNome = medicamento.nome;
+    registro.medQuantidade = medQuantidade; registro.utensilios = utensiliosValidos;
+    registro.valor = selected.length ? selected[0].valorBase : 0;
+  }
+  // Baixa automática no estoque (medicamento + utensílios, pela quantidade de animais) — só em lançamento
+  // NOVO, pra não dar baixa de novo cada vez que você reabre e salva o mesmo lançamento pra editar outra coisa.
+  let avisoBaixa = '';
+  if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo')){
+    const itensBaixa = [{ produtoId: medicamento.id, quantidade: medQuantidade*selected.length }];
+    utensiliosValidos.forEach(u=> itensBaixa.push({ produtoId: u.produtoId, quantidade: u.quantidade*selected.length }));
+    const faltando = checarEstoqueParaBaixa(itensBaixa);
+    if(faltando.length>0){
+      const msg = 'Estoque insuficiente pra dar baixa: '+faltando.map(f=>`${f.nome} (falta ${f.falta}${f.unidade?(' '+f.unidade):''})`).join(', ')+'. Salvar o manejo mesmo assim, sem dar baixa no estoque?';
+      if(!(await showConfirm(msg))) return;
+      avisoBaixa = ' (sem baixa no estoque — saldo insuficiente)';
+    } else {
+      for(const it of itensBaixa){
+        await registrarMovimento(it.produtoId, 'saida', it.quantidade, 'veterinaria', tipo+' aplicada em manejo', data);
+      }
+      renderEstoque();
+    }
+  }
   if(editingManejoId){
     manejos = manejos.map(m=> m.id===editingManejoId ? registro : m);
   } else {
@@ -3853,6 +3962,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   }
   await storeSet('manejos_list', manejos);
   closeModal('overlayManejo'); renderManejos();
+  if(avisoBaixa) showAlert('Lançamento salvo'+avisoBaixa+'.');
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
@@ -5806,7 +5916,8 @@ document.getElementById('btnSaidaProduto').addEventListener('click', async ()=>{
   if(!qtdStr || isNaN(qtd) || qtd<=0){ showAlert('Informe uma quantidade válida.'); return; }
   const dataStr = await showPrompt('Data da saída (deixe em branco para hoje):', 'DD/MM/AAAA');
   const motivo = await showPrompt('Motivo da saída (opcional):', 'Ex: uso, perda, empréstimo...');
-  const r = await registrarMovimento(editingProdutoId, 'saida', qtd, 'manual', motivo||'Saída manual', parseDataMov(dataStr));
+  const valorStr = await showPrompt('Recebeu algum valor de volta? (opcional — ex: devolução ao fornecedor). Deixe em branco se não.', 'Ex: R$ 50,00');
+  const r = await registrarMovimento(editingProdutoId, 'saida', qtd, 'manual', motivo||'Saída manual', parseDataMov(dataStr), valorStr||'');
   if(!r.ok){ showAlert('Não é possível dar essa saída — saldo em estoque insuficiente (falta '+r.faltando+(r.produto&&r.produto.unidade?(' '+r.produto.unidade):'')+'). Registre uma entrada primeiro.'); return; }
   showAlert('Saída registrada.');
   openProdutoEdit(editingProdutoId); renderEstoque();
@@ -6946,40 +7057,37 @@ function lancamentosDerivadosManejos(){
     const total = calcularTotalLancamentoManejo(m);
     if(!total || total<=0) return null;
     const qtd = (m.animais||[]).length;
+    const CATEGORIA_MANEJO = { Dente:'Odontologia', Vacina:'Vacina', 'Vermífugo':'Vermífugo' };
+    const detalheMed = m.medicamentoNome ? (' · '+m.medicamentoNome) : '';
     return {
       id: 'auto_mj_'+m.id, origemId: m.id, origem: 'manejos',
       data: m.data, tipo: 'saida',
-      categoria: m.tipo==='Dente' ? 'Odontologia' : 'Ferrageamento',
-      descricao: `${m.tipo} — ${qtd} ${pluralAnimal(qtd)}${m.ferrador?(' · '+m.ferrador):''}`,
+      categoria: CATEGORIA_MANEJO[m.tipo] || 'Ferrageamento',
+      descricao: `${m.tipo} — ${qtd} ${pluralAnimal(qtd)}${m.ferrador?(' · '+m.ferrador):''}${detalheMed}`,
       valor: total
     };
   }).filter(Boolean);
 }
 function lancamentosDerivadosEstoque(){
-  return estoqueMovimentos.filter(mv=> mv.tipoMov==='entrada' && mv.origem==='manual').map(mv=>{
+  const out = [];
+  estoqueMovimentos.filter(mv=>mv.origem==='manual').forEach(mv=>{
     const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
     const qtd = Number(mv.quantidade)||0;
-    if(qtd<=0) return null;
-    // Se essa movimentação já guarda o valor total pago (mv.valor), usa ele direto — é o mais exato,
-    // porque reflete o que foi pago naquele dia, não o preço atual do produto. Senão, cai pro preço
-    // cadastrado no produto (current price, é a melhor estimativa disponível pra entradas antigas).
-    if(mv.valor && Number(mv.valor)>0){
-      return {
-        id: 'auto_mv_'+mv.id, origemId: mv.produtoId, origem: 'estoque',
-        data: mv.data, tipo: 'saida', categoria: 'Compra de Estoque',
-        descricao: `${qtd} ${mv.unidade||''} de ${mv.produtoNome||(produto?produto.nome:'')}`.trim(),
-        valor: Number(mv.valor)
-      };
+    if(qtd<=0) return;
+    const desc = `${qtd} ${mv.unidade||''} de ${mv.produtoNome||(produto?produto.nome:'')}`.trim();
+    if(mv.tipoMov==='entrada'){
+      // Se essa movimentação já guarda o valor total pago (mv.valor), usa ele direto — é o mais exato,
+      // porque reflete o que foi pago naquele dia, não o preço atual do produto. Senão, cai pro preço
+      // cadastrado no produto (current price, é a melhor estimativa disponível pra entradas antigas).
+      const valorTotal = (mv.valor && Number(mv.valor)>0) ? Number(mv.valor) : (qtd * (custoUnitarioProduto(produto)||0));
+      if(valorTotal>0) out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'saida', categoria:'Compra de Estoque', descricao:desc, valor:valorTotal });
+    } else if(mv.tipoMov==='saida' && mv.valor && Number(mv.valor)>0){
+      // Saída manual com valor preenchido = você recebeu dinheiro de volta (devolução ao fornecedor,
+      // venda de excesso etc.) — vira entrada no Financeiro, não despesa.
+      out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'entrada', categoria:'Devolução de Estoque', descricao:'Devolução: '+desc, valor:Number(mv.valor) });
     }
-    const valorUnit = custoUnitarioProduto(produto);
-    if(!valorUnit) return null;
-    return {
-      id: 'auto_mv_'+mv.id, origemId: mv.produtoId, origem: 'estoque',
-      data: mv.data, tipo: 'saida', categoria: 'Compra de Estoque',
-      descricao: `${qtd} ${mv.unidade||''} de ${mv.produtoNome||(produto?produto.nome:'')}`.trim(),
-      valor: qtd*valorUnit
-    };
-  }).filter(Boolean);
+  });
+  return out;
 }
 function renderFinanceiroStats(lista){
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -7062,8 +7170,7 @@ function renderFinanceiro(){
   const termo = (document.getElementById('finSearch').value||'').toLowerCase();
   const tipo = document.getElementById('finFiltroTipo').value;
   const categoria = document.getElementById('finFiltroCategoria').value;
-  const de = document.getElementById('finFiltroDe').value;
-  const ate = document.getElementById('finFiltroAte').value;
+  const { de, ate } = finFiltroPeriodo.getRange();
   const filtered = todos.filter(l=>
     (!termo || (l.descricao||'').toLowerCase().includes(termo)) &&
     (!tipo || l.tipo===tipo) &&
@@ -7106,7 +7213,8 @@ function renderFinanceiro(){
     }
   }));
 }
-['finSearch','finFiltroTipo','finFiltroCategoria','finFiltroDe','finFiltroAte'].forEach(id=>{
+const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
+['finSearch','finFiltroTipo','finFiltroCategoria'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderFinanceiro);
 });
 function openLancamentoNew(){
@@ -7641,7 +7749,7 @@ function gerarRelatorioFicha2(){
 function custoManejosPorAnimal(animalId, de, ate){
   let total = 0;
   manejos.forEach(m=>{
-    if(m.tipo!=='Casco' && m.tipo!=='Dente') return;
+    if(m.tipo!=='Casco' && m.tipo!=='Dente' && m.tipo!=='Vacina' && m.tipo!=='Vermífugo') return;
     if(de && m.data<de) return;
     if(ate && m.data>ate) return;
     const a = (m.animais||[]).find(x=>x.id===animalId);
@@ -7683,10 +7791,11 @@ function custoDietaMensalPorAnimal(animalId){
   dietas.forEach(d=>{ if((d.animais||[]).some(a=>a.id===animalId)) total += custoDietaResumo(d).mensalPorAnimal; });
   return total;
 }
+const relCustoPeriodo = createDateRangePicker(document.getElementById('relCustoPeriodo'), {});
 function gerarRelatorioFicha3(){
   const lista = fichaSelecionados();
   if(lista.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
-  const de = f('relCustoDe'), ate = f('relCustoAte');
+  const { de, ate } = relCustoPeriodo.getRange();
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const host = document.getElementById('relFichaResult');
   let totalGeral = 0;
