@@ -740,7 +740,7 @@
           <div class="f"><label>Data até</label><input type="date" id="movFiltroAte"></div>
         </div>
         <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Produto</th><th>Movimento</th><th>Qtd</th><th>Origem</th><th>Motivo / Observações</th></tr></thead>
+          <thead><tr><th>Data</th><th>Produto</th><th>Movimento</th><th>Qtd</th><th>Valor</th><th>Origem</th><th>Motivo / Observações</th><th></th></tr></thead>
           <tbody id="movTbody"></tbody>
         </table></div>
       </div>
@@ -1238,7 +1238,7 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
       <div class="field" id="n_sexoWrap" style="display:none;"><label>Sexo</label><select id="n_sexoAnimal"><option value="MASCULINO">Macho</option><option value="FEMININO">Fêmea</option></select></div>
     </div>
     <div class="modal-actions">
-      <div></div>
+      <div><button type="button" class="btn btn-danger" id="btnDeleteNasc" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayNasc">Cancelar</button><button type="button" class="btn" id="btnSaveNasc">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
@@ -1263,7 +1263,12 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
         </select></div>
         <div class="field" id="pd_minimoWrap"><label>Estoque mínimo <span style="font-weight:400;text-transform:none;letter-spacing:0;">(dispara o alerta amarelo/vermelho)</span></label><input type="number" step="0.01" id="pd_minimo" placeholder="Opcional"></div>
         <div class="field full" id="pd_projecaoWrap" style="display:none;background:#F4F0E4;border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12.5px;color:var(--muted);"></div>
-        <div class="field"><label>Valor <span style="font-weight:400;text-transform:none;letter-spacing:0;">(por unidade, opcional)</span></label><input type="text" id="pd_valor" placeholder="Ex: R$ 25,00"></div>
+        <div class="field"><label>Valor <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><input type="text" id="pd_valor" placeholder="Ex: R$ 25,00"></div>
+        <div class="field" id="pd_valorTipoWrap" style="display:none;">
+          <label>Esse valor é...</label>
+          <select id="pd_valorPorPacote"><option value="nao" id="pd_valorPorPacote_nao">Por unidade</option><option value="sim">Pela embalagem inteira</option></select>
+          <div id="pd_valorPreview" style="font-size:11.5px;color:var(--muted);margin-top:3px;"></div>
+        </div>
         <div class="field"><label>Validade</label><input type="date" id="pd_validade"></div>
         <div class="field full"><label>Observações</label><textarea id="pd_obs" rows="2" spellcheck="true" lang="pt-BR"></textarea></div>
       </div>
@@ -1289,9 +1294,27 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="histProdutoTitulo">Histórico</div><button class="modal-close" data-close="overlayHistoricoProduto">✕</button></div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Data</th><th>Movimento</th><th>Qtd</th><th>Origem</th><th>Motivo / Observações</th></tr></thead>
+      <thead><tr><th>Data</th><th>Movimento</th><th>Qtd</th><th>Valor</th><th>Origem</th><th>Motivo / Observações</th><th></th></tr></thead>
       <tbody id="histProdutoTbody"></tbody>
     </table></div>
+  </div>
+</div>
+
+<!-- EDITAR MOVIMENTAÇÃO DE ESTOQUE -->
+<div class="overlay" id="overlayEditarMov">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="movEditTitulo">Editar Movimentação</div><button class="modal-close" data-close="overlayEditarMov">✕</button></div>
+    <div class="hint-text" style="margin-bottom:12px;" id="movEditSubtitulo"></div>
+    <div class="form-grid">
+      <div class="field"><label>Data</label><input type="date" id="mv_edit_data"></div>
+      <div class="field"><label>Quantidade</label><input type="number" step="0.01" min="0" id="mv_edit_quantidade"></div>
+      <div class="field"><label>Valor total pago <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><input type="text" id="mv_edit_valor" placeholder="Ex: R$ 150,00"></div>
+      <div class="field full"><label>Motivo / Observações</label><input type="text" id="mv_edit_motivo"></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteMov">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayEditarMov">Cancelar</button><button type="button" class="btn" id="btnSaveMov">Salvar</button></div>
+    </div>
   </div>
 </div>
 
@@ -1499,7 +1522,7 @@ let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 let relSelecoes = {}; // lembra a última seleção de animais de cada seletor de relatório (persistido)
-let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null;
+let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null;
 let config = { gestacaoDias: 340, valoresCasco: { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 100, 'Ferrado completo': 200 }, deslocamentoFerrador: 0 }; // tempo médio de gestação da égua (~11 meses); ajustável em Nascimentos → "Tempo de gestação". valoresCasco/deslocamentoFerrador: valores de referência do ferrageamento, ajustáveis em Manejos → "⚙ Editar valores de referência"
 let aux = { status:[], pelagem:[], categoria:[], proprietarios:[], unidade:[], tipotreino:[], localtreino:[], treinador:[], tipoProduto:[], nomeProduto:[] };
 let dietaItensState = [];
@@ -4384,6 +4407,7 @@ document.getElementById('n_confirm').addEventListener('change', e=>{
 document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
+  document.getElementById('btnDeleteNasc').style.display = 'none';
   ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_nomeWrap').style.display='none';
@@ -4395,6 +4419,7 @@ function openNascEdit(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
   editingNascId = id;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Editar Cobertura';
+  document.getElementById('btnDeleteNasc').style.display = 'inline-block';
   document.getElementById('n_matriz').value = n.matriz||'';
   document.getElementById('n_pai').value = n.pai||'';
   document.getElementById('n_receptora').value = n.receptora||'';
@@ -4464,6 +4489,15 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   nascimentos = editingNascId ? nascimentos.map(x=>x.id===editingNascId?record:x) : [...nascimentos, record];
   await storeSet('nascimentos_list', nascimentos);
   closeModal('overlayNasc'); refreshDatalists(); renderHorses(); renderNascimentos();
+});
+document.getElementById('btnDeleteNasc').addEventListener('click', async ()=>{
+  if(!editingNascId) return;
+  const n = nascimentos.find(x=>x.id===editingNascId);
+  const avisoAnimal = n && n.animalId ? '\n\nO animal já cadastrado a partir desse nascimento NÃO é apagado — só o registro de cobertura/nascimento.' : '';
+  if(!(await showConfirm('Excluir este registro de cobertura/nascimento?'+avisoAnimal))) return;
+  nascimentos = nascimentos.filter(x=>x.id!==editingNascId);
+  await storeSet('nascimentos_list', nascimentos, true);
+  closeModal('overlayNasc'); renderNascimentos();
 });
 
 // Confirmação de prenhez: pode clicar quantas vezes forem necessárias (ex: reconfirmar em cada visita
@@ -4645,7 +4679,7 @@ document.getElementById('btnPrintRelNasc').addEventListener('click', ()=>window.
 // consumeEstoque(produtoId, quantidade, origem, motivo). NÃO EXISTE ESTOQUE NEGATIVO: se não tiver
 // saldo suficiente, a movimentação de saída é BLOQUEADA por inteiro (nada é gravado, a quantidade não
 // se mexe) e a função retorna {ok:false, suficiente:false, faltando} pro chamador avisar o usuário.
-async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo, dataMov){
+async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo, dataMov, valor){
   const p = estoqueProdutos.find(x=>x.id===produtoId);
   if(!p) return { ok:false, suficiente:false };
   const qtd = Number(quantidade)||0;
@@ -4660,11 +4694,48 @@ async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo
     data: dataMov || new Date().toISOString().slice(0,10),
     produtoId, produtoNome: p.nome, produtoTipo: p.tipo, tipoMov, quantidade: qtd, unidade: p.unidade||'',
     origem: origem||'manual', motivo: motivo||'',
+    valor: parseValorLivre(valor) || '',
     obs: ''
   });
   await storeSet('estoque_produtos', estoqueProdutos);
   await storeSet('estoque_movimentos', estoqueMovimentos);
   return { ok:true, suficiente:true, produto:p };
+}
+// Edita uma movimentação já registrada (data, quantidade, valor, motivo — não dá pra trocar entrada↔saída
+// nem o produto; se precisar disso, exclui e lança de novo). Refaz a conta da quantidade em estoque do
+// produto: desfaz o efeito antigo e aplica o novo, sempre bloqueando se resultar em estoque negativo.
+async function editarMovimento(movId, novosDados){
+  const mov = estoqueMovimentos.find(m=>m.id===movId); if(!mov) return { ok:false };
+  const p = estoqueProdutos.find(x=>x.id===mov.produtoId); if(!p) return { ok:false };
+  const efeitoAntigo = mov.tipoMov==='entrada' ? Number(mov.quantidade) : -Number(mov.quantidade);
+  const semEfeitoAntigo = (Number(p.quantidade)||0) - efeitoAntigo;
+  const novaQtdMov = Number(novosDados.quantidade)||0;
+  const efeitoNovo = mov.tipoMov==='entrada' ? novaQtdMov : -novaQtdMov;
+  const novaQtdProduto = semEfeitoAntigo + efeitoNovo;
+  if(novaQtdProduto < 0) return { ok:false, motivo:'negativo' };
+  p.quantidade = novaQtdProduto;
+  mov.data = novosDados.data || mov.data;
+  mov.quantidade = novaQtdMov;
+  mov.valor = parseValorLivre(novosDados.valor) || '';
+  mov.motivo = novosDados.motivo || '';
+  await storeSet('estoque_produtos', estoqueProdutos);
+  await storeSet('estoque_movimentos', estoqueMovimentos);
+  return { ok:true };
+}
+// Exclui uma movimentação, desfazendo o efeito dela na quantidade atual do produto.
+async function excluirMovimento(movId){
+  const mov = estoqueMovimentos.find(m=>m.id===movId); if(!mov) return { ok:false };
+  const p = estoqueProdutos.find(x=>x.id===mov.produtoId);
+  if(p){
+    const efeito = mov.tipoMov==='entrada' ? Number(mov.quantidade) : -Number(mov.quantidade);
+    const nova = (Number(p.quantidade)||0) - efeito;
+    if(nova < 0) return { ok:false, motivo:'negativo' };
+    p.quantidade = nova;
+    await storeSet('estoque_produtos', estoqueProdutos);
+  }
+  estoqueMovimentos = estoqueMovimentos.filter(m=>m.id!==movId);
+  await storeSet('estoque_movimentos', estoqueMovimentos, true);
+  return { ok:true };
 }
 async function consumeEstoque(produtoId, quantidade, origem, motivo, dataMov){
   return registrarMovimento(produtoId, 'saida', quantidade, origem, motivo, dataMov);
@@ -5001,6 +5072,30 @@ function atualizarModoAlertaUI(){
 }
 document.getElementById('pd_alertaModo').addEventListener('change', atualizarModoAlertaUI);
 
+// Mostra (só quando o produto tem "Conteúdo por embalagem" preenchido) a escolha de como o Valor foi
+// digitado — por unidade de controle ou pela embalagem inteira — com uma prévia calculada na hora, pra
+// você mesmo conferir se bate com o que pagou de verdade antes de salvar.
+function atualizarValorTipoUI(){
+  const peso = Number(f('pd_pesoSaco'))||0;
+  const wrap = document.getElementById('pd_valorTipoWrap');
+  const un = f('pd_unidade')||'unidade';
+  document.getElementById('pd_valorPorPacote_nao').textContent = 'Por '+un;
+  const preview = document.getElementById('pd_valorPreview');
+  if(peso<=0){ wrap.style.display='none'; preview.textContent=''; return; }
+  wrap.style.display='';
+  const valorNum = parseValorLivre(f('pd_valor'));
+  if(!valorNum){ preview.textContent=''; return; }
+  if(f('pd_valorPorPacote')==='sim'){
+    preview.textContent = '= R$ '+(valorNum/peso).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})+' por '+un;
+  } else {
+    preview.textContent = '= R$ '+(valorNum*peso).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})+' pela embalagem de '+peso+' '+un;
+  }
+}
+['pd_valor','pd_pesoSaco','pd_valorPorPacote'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', atualizarValorTipoUI);
+  document.getElementById(id).addEventListener('change', atualizarValorTipoUI);
+});
+document.getElementById('pd_unidade').addEventListener('change', atualizarValorTipoUI);
 function openProdutoNew(){
   editingProdutoId=null;
   document.getElementById('pdModalTitle').textContent = 'Novo Produto';
@@ -5013,8 +5108,10 @@ function openProdutoNew(){
   document.getElementById('pd_classe').value = '';
   document.getElementById('pd_alertaModo').value = 'fixo';
   document.getElementById('pd_dataCadastroView').value = fmtDate(new Date().toISOString().slice(0,10))+' (hoje)';
+  document.getElementById('pd_valorPorPacote').value = 'nao';
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
+  atualizarValorTipoUI();
   openModal('overlayProduto');
 }
 function openProdutoEdit(id){
@@ -5034,10 +5131,12 @@ function openProdutoEdit(id){
   document.getElementById('pd_alertaModo').value=p.alertaModo==='projetado'?'projetado':'fixo';
   document.getElementById('pd_minimo').value=p.minimo!=null?p.minimo:'';
   document.getElementById('pd_valor').value=p.valor||'';
+  document.getElementById('pd_valorPorPacote').value = p.valorPorPacote ? 'sim' : 'nao';
   document.getElementById('pd_validade').value=p.validade||'';
   document.getElementById('pd_obs').value=p.obs||'';
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
+  atualizarValorTipoUI();
   openModal('overlayProduto');
 }
 // Classe do Medicamento só faz sentido (e só aparece) quando o Tipo escolhido é "Medicamento".
@@ -5047,23 +5146,80 @@ function atualizarClasseMedicamentoVisibilidade(){
 }
 document.getElementById('pd_tipo_aux').addEventListener('change', atualizarClasseMedicamentoVisibilidade);
 document.getElementById('btnNewProduto').addEventListener('click', openProdutoNew);
-document.getElementById('btnHistoricoProduto').addEventListener('click', ()=>{
+const ORIGEM_MOV_LABEL = {manual:'Manual', dieta:'Dieta', veterinaria:'Veterinária', ajuste:'Reajuste', nota_fiscal:'Nota fiscal'};
+function fmtValorMov(v){ return v ? 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '—'; }
+function renderHistoricoProduto(){
   if(!editingProdutoId) return;
   const p = estoqueProdutos.find(x=>x.id===editingProdutoId); if(!p) return;
   document.getElementById('histProdutoTitulo').textContent = 'Histórico — '+p.nome;
-  const origemLabel = {manual:'Manual', dieta:'Dieta', veterinaria:'Veterinária', ajuste:'Reajuste', nota_fiscal:'Nota fiscal'};
   const movs = estoqueMovimentos.filter(m=>m.produtoId===editingProdutoId).sort((a,b)=> b.data.localeCompare(a.data));
   const tbody = document.getElementById('histProdutoTbody');
   tbody.innerHTML = movs.length===0
-    ? `<tr><td colspan="5" class="empty">Nenhuma movimentação registrada ainda pra esse produto.</td></tr>`
+    ? `<tr><td colspan="7" class="empty">Nenhuma movimentação registrada ainda pra esse produto.</td></tr>`
     : movs.map(m=>`<tr>
         <td>${fmtDate(m.data)}</td>
         <td><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
         <td>${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
-        <td>${origemLabel[m.origem]||m.origem}</td>
+        <td>${fmtValorMov(m.valor)}</td>
+        <td>${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
         <td>${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
+        <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
       </tr>`).join('');
+  tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'produto')));
+}
+document.getElementById('btnHistoricoProduto').addEventListener('click', ()=>{
+  renderHistoricoProduto();
   openModal('overlayHistoricoProduto');
+});
+// Modal de editar/excluir uma movimentação, aberta tanto do Histórico de um produto quanto da aba
+// Movimentações — 'origem' diz pra qual tela voltar a atualizar depois de salvar/excluir.
+let movEditVoltaPara = 'produto';
+function openEditarMov(id, voltaPara){
+  const m = estoqueMovimentos.find(x=>x.id===id); if(!m) return;
+  editingMovId = id;
+  movEditVoltaPara = voltaPara||'produto';
+  document.getElementById('movEditTitulo').textContent = (m.tipoMov==='entrada'?'Editar Entrada':'Editar Saída')+' — '+(m.produtoNome||'');
+  document.getElementById('movEditSubtitulo').textContent = 'Não dá pra trocar entre Entrada/Saída nem o produto aqui — se precisar disso, exclua e lance de novo.';
+  document.getElementById('mv_edit_data').value = m.data||'';
+  document.getElementById('mv_edit_quantidade').value = m.quantidade!=null?m.quantidade:'';
+  document.getElementById('mv_edit_valor').value = m.valor||'';
+  document.getElementById('mv_edit_motivo').value = m.motivo||'';
+  openModal('overlayEditarMov');
+}
+function atualizarTelaAposMov(){
+  if(movEditVoltaPara==='produto') renderHistoricoProduto();
+  renderEstoque();
+  renderMovimentos();
+  if(document.getElementById('view-financeiro').classList.contains('active')) renderFinanceiro();
+}
+document.getElementById('btnSaveMov').addEventListener('click', async ()=>{
+  if(!editingMovId) return;
+  const qtd = Number(f('mv_edit_quantidade'));
+  if(!qtd || qtd<=0){ showAlert('Informe uma quantidade válida.'); return; }
+  const data = f('mv_edit_data');
+  if(!data){ showAlert('Informe a data.'); return; }
+  const r = await editarMovimento(editingMovId, { data, quantidade: qtd, valor: f('mv_edit_valor'), motivo: f('mv_edit_motivo') });
+  if(!r.ok){
+    if(r.motivo==='negativo') showAlert('Essa alteração deixaria o estoque negativo. Ajuste a quantidade.');
+    else showAlert('Não consegui salvar essa alteração.');
+    return;
+  }
+  closeModal('overlayEditarMov');
+  atualizarTelaAposMov();
+  showAlert('Movimentação atualizada.');
+});
+document.getElementById('btnDeleteMov').addEventListener('click', async ()=>{
+  if(!editingMovId) return;
+  if(!(await showConfirm('Excluir esta movimentação? A quantidade em estoque do produto é ajustada de volta.'))) return;
+  const r = await excluirMovimento(editingMovId);
+  if(!r.ok){
+    if(r.motivo==='negativo') showAlert('Não dá pra excluir — deixaria o estoque negativo. Ajuste outras movimentações primeiro.');
+    else showAlert('Não consegui excluir essa movimentação.');
+    return;
+  }
+  closeModal('overlayEditarMov');
+  atualizarTelaAposMov();
+  showAlert('Movimentação excluída.');
 });
 
 document.getElementById('produtoForm').addEventListener('submit', async e=>{
@@ -5079,7 +5235,7 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     quantidade: f('pd_quantidade')===''?0:Number(f('pd_quantidade')),
     alertaModo: f('pd_alertaModo')==='projetado'?'projetado':'fixo',
     minimo: f('pd_minimo')===''?'':Number(f('pd_minimo')),
-    valor: f('pd_valor'),
+    valor: f('pd_valor'), valorPorPacote: f('pd_valorPorPacote')==='sim',
     validade: f('pd_validade'), obs: f('pd_obs'),
     dataCadastro: jaExistia ? jaExistia.dataCadastro : new Date().toISOString().slice(0,10)
   };
@@ -5605,7 +5761,8 @@ document.getElementById('btnEntradaProduto').addEventListener('click', async ()=
   }
   const dataStr = await showPrompt('Data da entrada (deixe em branco para hoje):', 'DD/MM/AAAA');
   const motivo = await showPrompt('Motivo da entrada (opcional):', 'Ex: compra, reposição...');
-  await registrarMovimento(editingProdutoId, 'entrada', qtd, 'manual', motivo||'Entrada manual', parseDataMov(dataStr));
+  const valorStr = await showPrompt('Valor total pago nessa entrada (opcional — ajuda a calcular custo depois):', 'Ex: R$ 150,00');
+  await registrarMovimento(editingProdutoId, 'entrada', qtd, 'manual', motivo||'Entrada manual', parseDataMov(dataStr), valorStr||'');
   showAlert('Entrada registrada: '+qtd+(un?(' '+un):'')+'.');
   openProdutoEdit(editingProdutoId); renderEstoque();
 });
@@ -6530,16 +6687,18 @@ function renderMovimentos(){
   const filtered = estoqueMovimentos.filter(m=> (!tipo||m.tipoMov===tipo) && (!origem||m.origem===origem) && (!de||m.data>=de) && (!ate||m.data<=ate) )
     .sort((a,b)=> b.data.localeCompare(a.data));
   const tbody = document.getElementById('movTbody');
-  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma movimentação encontrada.</td></tr>`; return; }
-  const origemLabel = {manual:'Manual', dieta:'Dieta', veterinaria:'Veterinária', ajuste:'Reajuste', nota_fiscal:'Nota fiscal'};
+  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhuma movimentação encontrada.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(m=>`<tr>
     <td>${fmtDate(m.data)}</td>
     <td>${m.produtoNome||''}</td>
     <td><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
     <td>${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
-    <td>${origemLabel[m.origem]||m.origem}</td>
+    <td>${fmtValorMov(m.valor)}</td>
+    <td>${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
     <td>${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
+    <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
   </tr>`).join('');
+  tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
 }
 ['movFiltroTipo','movFiltroOrigem','movFiltroDe','movFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
 
@@ -6730,6 +6889,17 @@ function buildPedigreeTree(h){
 //     atual, não necessariamente o que foi pago naquele dia.
 // Esses dois não viram registros de verdade em `lancamentos` — são calculados na hora, então nunca
 // ficam desatualizados nem duplicam se você editar o manejo ou o produto depois.
+// Preço por unidade de controle (Kg, L, Frasco...) de um produto — considera se o Valor foi cadastrado
+// por unidade ou pela embalagem inteira (ex: R$ 130 no saco de 25kg vira R$ 5,20/kg). Sem essa conta,
+// produtos comprados em saco/embalagem tinham o custo superestimado em qualquer relatório.
+function custoUnitarioProduto(produto){
+  if(!produto) return null;
+  const valorNum = parseValorLivre(produto.valor);
+  if(!valorNum) return null;
+  const peso = Number(produto.pesoSaco)||0;
+  if(produto.valorPorPacote && peso>0) return valorNum/peso;
+  return valorNum;
+}
 function parseValorLivre(str){
   if(str===undefined || str===null || str==='') return null;
   const limpo = String(str).replace(/[^\d,.-]/g,'').trim();
@@ -6755,9 +6925,21 @@ function lancamentosDerivadosManejos(){
 function lancamentosDerivadosEstoque(){
   return estoqueMovimentos.filter(mv=> mv.tipoMov==='entrada' && mv.origem==='manual').map(mv=>{
     const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
-    const valorUnit = parseValorLivre(produto ? produto.valor : null);
     const qtd = Number(mv.quantidade)||0;
-    if(!valorUnit || qtd<=0) return null;
+    if(qtd<=0) return null;
+    // Se essa movimentação já guarda o valor total pago (mv.valor), usa ele direto — é o mais exato,
+    // porque reflete o que foi pago naquele dia, não o preço atual do produto. Senão, cai pro preço
+    // cadastrado no produto (current price, é a melhor estimativa disponível pra entradas antigas).
+    if(mv.valor && Number(mv.valor)>0){
+      return {
+        id: 'auto_mv_'+mv.id, origemId: mv.produtoId, origem: 'estoque',
+        data: mv.data, tipo: 'saida', categoria: 'Compra de Estoque',
+        descricao: `${qtd} ${mv.unidade||''} de ${mv.produtoNome||(produto?produto.nome:'')}`.trim(),
+        valor: Number(mv.valor)
+      };
+    }
+    const valorUnit = custoUnitarioProduto(produto);
+    if(!valorUnit) return null;
     return {
       id: 'auto_mv_'+mv.id, origemId: mv.produtoId, origem: 'estoque',
       data: mv.data, tipo: 'saida', categoria: 'Compra de Estoque',
@@ -7402,7 +7584,7 @@ function custoVeterinariaPorAnimal(animalId, de, ate){
     if(ate && t.dataInicio>ate) return;
     if(!(t.animais||[]).some(a=>a.id===animalId)) return;
     const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
-    const valorUnit = parseValorLivre(prod ? prod.valor : null);
+    const valorUnit = custoUnitarioProduto(prod);
     if(!valorUnit) return;
     total += valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
   });
@@ -7412,7 +7594,7 @@ function custoDietaResumo(d){
   let diarioPorAnimal = 0, temItemSemPreco = false;
   (d.itens||[]).forEach(it=>{
     const prod = estoqueProdutos.find(p=>p.id===it.produtoId);
-    const valorUnit = parseValorLivre(prod ? prod.valor : null);
+    const valorUnit = custoUnitarioProduto(prod);
     if(valorUnit) diarioPorAnimal += valorUnit * (Number(it.quantidade)||0);
     else temItemSemPreco = true;
   });
