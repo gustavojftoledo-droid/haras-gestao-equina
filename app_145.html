@@ -7271,27 +7271,50 @@ function parseComandoLancamento(texto){
    trecho vira o valor do campo daquela palavra-chave, até a próxima palavra-chave reconhecida. Ex:
    "tipo vacina, data 10 de agosto, medicamento raiva, quantidade 1, animais Estrela e Cacto". ----
    wireBotaoVoz cuida do microfone/permissão/status; interpretarDitado só faz o texto → campos. */
+// "Contínuo": fica ouvindo (mesmo com pausas no meio da fala) até você clicar no botão de novo pra
+// avisar que terminou — resolve o problema de cortar a fala no primeiro silêncio de ~1 segundo, que é
+// o padrão do navegador. Mostra o que já foi entendido em tempo real, enquanto você ainda fala.
 function wireBotaoVoz(btnId, statusId, exemploTexto, aoReconhecer){
   const btn = document.getElementById(btnId);
   if(!btn) return;
+  const status = document.getElementById(statusId);
+  const textoParado = btn.textContent;
+  let rec = null, ouvindo = false, transcritoFinal = '';
+
+  function finalizar(){
+    ouvindo = false;
+    btn.textContent = textoParado;
+    const texto = transcritoFinal.trim();
+    if(!texto){ status.style.color = 'var(--burgundy)'; status.textContent = '🎤 Não ouvi nada. Clique de novo e tenta.'; return; }
+    let entendido = [];
+    try{ entendido = aoReconhecer(texto)||[]; }catch(err){ console.error('ditado:', err); }
+    status.style.color = 'var(--ok)';
+    status.textContent = '🎤 Ouvi: "'+texto+'"'+(entendido.length ? ' — entendi: '+entendido.join(' · ') : ' — não reconheci nenhum campo com clareza; confira e preencha na mão o que faltar') + '. Confira antes de salvar.';
+  }
+
   btn.addEventListener('click', ()=>{
-    const status = document.getElementById(statusId);
+    if(ouvindo){ rec.stop(); return; } // segundo clique = "terminei", processa o que foi dito
     if(!SpeechRecCtor){ showAlert('Comando de voz não é suportado nesse navegador — funciona no Chrome (computador ou Android).'); return; }
-    const rec = new SpeechRecCtor();
-    rec.lang = 'pt-BR'; rec.interimResults = false; rec.maxAlternatives = 1;
-    status.style.display = 'block'; status.style.color = 'var(--brass)'; status.textContent = '🎤 Ouvindo... '+exemploTexto;
+    rec = new SpeechRecCtor();
+    rec.lang = 'pt-BR'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    transcritoFinal = ''; ouvindo = true;
+    btn.textContent = '⏹ Parar (fale sem pressa)';
+    status.style.display = 'block'; status.style.color = 'var(--brass)';
+    status.textContent = '🎤 Ouvindo... pode pausar à vontade. '+exemploTexto+' Clique no botão de novo quando terminar.';
     rec.start();
     rec.onresult = (e)=>{
-      const texto = e.results[0][0].transcript;
-      let entendido = [];
-      try{ entendido = aoReconhecer(texto)||[]; }catch(err){ console.error('ditado:', err); }
-      status.style.color = 'var(--ok)';
-      status.textContent = '🎤 Ouvi: "'+texto+'"'+(entendido.length ? ' — entendi: '+entendido.join(' · ') : ' — não reconheci nenhum campo com clareza; confira e preencha na mão o que faltar') + '. Confira antes de salvar.';
+      let interim = '';
+      for(let i=e.resultIndex; i<e.results.length; i++){
+        if(e.results[i].isFinal) transcritoFinal += e.results[i][0].transcript+' ';
+        else interim += e.results[i][0].transcript;
+      }
+      status.textContent = '🎤 Ouvindo... "'+(transcritoFinal+interim).trim()+'" — clique no botão quando terminar.';
     };
     rec.onerror = (e)=>{
-      status.style.color = 'var(--burgundy)';
-      status.textContent = e.error==='not-allowed' ? '🎤 Permissão de microfone negada.' : '🎤 Não consegui entender — tenta de novo.';
+      if(e.error==='not-allowed'){ ouvindo=false; btn.textContent=textoParado; status.style.color='var(--burgundy)'; status.textContent='🎤 Permissão de microfone negada.'; }
+      // outros erros (ex: sem fala detectada ainda): deixa o onend decidir, não interrompe a escuta contínua.
     };
+    rec.onend = ()=>{ if(ouvindo) finalizar(); };
   });
 }
 // texto falado → {campo: valor}, cortando cada valor no início da próxima palavra-chave reconhecida
