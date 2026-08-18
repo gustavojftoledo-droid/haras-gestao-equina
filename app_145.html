@@ -905,6 +905,7 @@
 <div class="overlay" id="overlayHorse">
   <div class="modal">
     <div class="modal-head"><div class="modal-title" id="hModalTitle">Novo Animal</div><button class="modal-close" data-close="overlayHorse">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozHorse">🎤 Ditar por voz</button><span class="hint-text" id="horse_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <form id="horseForm">
       <div class="form-grid">
         <div class="field"><label>Código</label><input type="text" id="f_codigo" placeholder="Gerado automático se vazio"></div>
@@ -1037,6 +1038,7 @@
 <div class="overlay" id="overlayManejo">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="mModalTitle">Novo Lançamento de Manejo</div><button class="modal-close" data-close="overlayManejo">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozManejo">🎤 Ditar por voz</button><span class="hint-text" id="manejo_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <div class="form-grid cols3" style="margin-bottom:16px;">
       <div class="field"><label>Data</label><input type="date" id="m_data" required></div>
       <div class="field"><label>Tipo de Manejo</label><select id="m_tipo"><option>Casco</option><option>Vacina</option><option>Vermífugo</option><option>Dente</option></select></div>
@@ -1253,6 +1255,7 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
 <div class="overlay" id="overlayNasc">
   <div class="modal">
     <div class="modal-head"><div class="modal-title">Nova Cobertura</div><button class="modal-close" data-close="overlayNasc">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozNasc">🎤 Ditar por voz</button><span class="hint-text" id="nasc_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <div class="form-grid">
       <div class="field"><label>Matriz (mãe)</label><input type="text" id="n_matriz" list="dl_femeas" required></div>
       <div class="field"><label>Pai</label><input type="text" id="n_pai" list="dl_machos"></div>
@@ -1282,6 +1285,7 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
 <div class="overlay" id="overlayProduto">
   <div class="modal">
     <div class="modal-head"><div class="modal-title" id="pdModalTitle">Novo Produto</div><button class="modal-close" data-close="overlayProduto">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozProduto">🎤 Ditar por voz</button><span class="hint-text" id="produto_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <form id="produtoForm">
       <div class="form-grid">
         <div class="field"><label>Tipo</label><div class="field-plus"><select id="pd_tipo_aux"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="tipoProduto">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="tipoProduto" data-selid="pd_tipo_aux" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="tipoProduto" data-selid="pd_tipo_aux" title="Excluir valor selecionado">🗑</button></div></div>
@@ -7261,30 +7265,231 @@ function parseComandoLancamento(texto){
   (aux.finCategoria||[]).forEach(c=>{ if(t.includes(c.toLowerCase())) categoria = c; });
   return { tipo, valor, categoria, descricao: texto };
 }
-document.getElementById('btnVozLancamento').addEventListener('click', ()=>{
-  const status = document.getElementById('fin_vozStatus');
-  if(!SpeechRecCtor){
-    showAlert('Comando de voz não é suportado nesse navegador — funciona no Chrome (computador ou Android).');
-    return;
+
+/* ---- Motor genérico de ditado por palavra-chave (reaproveitado em Manejos, Estoque, Animais e
+   Nascimentos) — você fala "palavra-chave valor, palavra-chave valor..." em qualquer ordem, e cada
+   trecho vira o valor do campo daquela palavra-chave, até a próxima palavra-chave reconhecida. Ex:
+   "tipo vacina, data 10 de agosto, medicamento raiva, quantidade 1, animais Estrela e Cacto". ----
+   wireBotaoVoz cuida do microfone/permissão/status; interpretarDitado só faz o texto → campos. */
+function wireBotaoVoz(btnId, statusId, exemploTexto, aoReconhecer){
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const status = document.getElementById(statusId);
+    if(!SpeechRecCtor){ showAlert('Comando de voz não é suportado nesse navegador — funciona no Chrome (computador ou Android).'); return; }
+    const rec = new SpeechRecCtor();
+    rec.lang = 'pt-BR'; rec.interimResults = false; rec.maxAlternatives = 1;
+    status.style.display = 'block'; status.style.color = 'var(--brass)'; status.textContent = '🎤 Ouvindo... '+exemploTexto;
+    rec.start();
+    rec.onresult = (e)=>{
+      const texto = e.results[0][0].transcript;
+      let entendido = [];
+      try{ entendido = aoReconhecer(texto)||[]; }catch(err){ console.error('ditado:', err); }
+      status.style.color = 'var(--ok)';
+      status.textContent = '🎤 Ouvi: "'+texto+'"'+(entendido.length ? ' — entendi: '+entendido.join(' · ') : ' — não reconheci nenhum campo com clareza; confira e preencha na mão o que faltar') + '. Confira antes de salvar.';
+    };
+    rec.onerror = (e)=>{
+      status.style.color = 'var(--burgundy)';
+      status.textContent = e.error==='not-allowed' ? '🎤 Permissão de microfone negada.' : '🎤 Não consegui entender — tenta de novo.';
+    };
+  });
+}
+// texto falado → {campo: valor}, cortando cada valor no início da próxima palavra-chave reconhecida
+// (de qualquer campo), na ordem em que realmente foram ditas — não importa a ordem em que você fala.
+function interpretarDitado(texto, campos){
+  const t = ' '+texto.toLowerCase().replace(/[.,]/g,' ')+' ';
+  const achados = [];
+  campos.forEach(c=>{
+    c.chaves.forEach(chave=>{
+      const alvo = ' '+chave+' ';
+      const idx = t.indexOf(alvo);
+      if(idx>=0) achados.push({ campo:c.campo, tipo:c.tipo||'texto', chaveInicio: idx, valorInicio: idx+alvo.length });
+    });
+  });
+  achados.sort((a,b)=>a.valorInicio-b.valorInicio);
+  const resultado = {};
+  achados.forEach((a,i)=>{
+    const fim = i+1<achados.length ? achados[i+1].chaveInicio : t.length;
+    let valor = t.slice(a.valorInicio, fim).trim();
+    if(!valor) return;
+    if(a.tipo==='numero'){ const mv=valor.match(/(\d+(?:[.,]\d+)?)/); valor = mv?mv[1].replace(',','.'):''; }
+    else if(a.tipo==='data'){ valor = interpretarDataFalada(valor)||valor; }
+    if(valor) resultado[a.campo] = valor;
+  });
+  return resultado;
+}
+const MESES_FALA = {janeiro:1,fevereiro:2,'março':3,marco:3,abril:4,maio:5,junho:6,julho:7,agosto:8,setembro:9,outubro:10,novembro:11,dezembro:12};
+function interpretarDataFalada(texto){
+  const t = (texto||'').toLowerCase();
+  if(/\bhoje\b/.test(t)) return toISODate(new Date());
+  if(/\bontem\b/.test(t)){ const d=new Date(); d.setDate(d.getDate()-1); return toISODate(d); }
+  let m = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(m){ let ano=m[3]; if(ano.length===2) ano='20'+ano; return ano+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  m = t.match(/(\d{1,2})\D+(?:de\s+)?([a-zç]+)(?:\D+(\d{4}))?/);
+  if(m && MESES_FALA[m[2]]){
+    const dia = m[1].padStart(2,'0'), mes = String(MESES_FALA[m[2]]).padStart(2,'0'), ano = m[3] || String(new Date().getFullYear());
+    return ano+'-'+mes+'-'+dia;
   }
-  const rec = new SpeechRecCtor();
-  rec.lang = 'pt-BR'; rec.interimResults = false; rec.maxAlternatives = 1;
-  status.style.display = 'block'; status.style.color = 'var(--brass)'; status.textContent = '🎤 Ouvindo... fale o lançamento (ex: "saída de ferrageamento 300 reais").';
-  rec.start();
-  rec.onresult = (e)=>{
-    const texto = e.results[0][0].transcript;
-    const r = parseComandoLancamento(texto);
-    document.getElementById('fin_tipo').value = r.tipo;
-    if(r.valor) document.getElementById('fin_valor').value = r.valor;
-    if(r.categoria) document.getElementById('fin_categoria').value = r.categoria;
-    document.getElementById('fin_descricao').value = r.descricao;
-    status.style.color = 'var(--ok)';
-    status.textContent = '🎤 Ouvi: "'+texto+'" — confira os campos antes de salvar.';
-  };
-  rec.onerror = (e)=>{
-    status.style.color = 'var(--burgundy)';
-    status.textContent = e.error==='not-allowed' ? '🎤 Permissão de microfone negada.' : '🎤 Não consegui entender — tenta de novo.';
-  };
+  return null;
+}
+// Acha a opção mais parecida com o que foi falado numa lista (nomes de ferrador, produto, categoria...).
+// Tenta igual/substring primeiro; só cai pra "mais parecido" (distância de edição) se for bem próximo,
+// pra não escolher algo errado por engano.
+function encontrarPorFala(textoFalado, listaOpcoes){
+  if(!textoFalado) return null;
+  const alvo = textoFalado.trim().toLowerCase();
+  if(!alvo) return null;
+  let achado = listaOpcoes.find(op=>op && op.toLowerCase()===alvo);
+  if(!achado) achado = listaOpcoes.find(op=>op && (op.toLowerCase().includes(alvo) || alvo.includes(op.toLowerCase())));
+  if(achado) return achado;
+  let melhor=null, melhorDist=Infinity;
+  listaOpcoes.forEach(op=>{ if(!op) return; const d=levenshtein(op.toLowerCase(), alvo); if(d<melhorDist){ melhorDist=d; melhor=op; } });
+  return (melhor && melhorDist<=Math.max(2, Math.ceil(alvo.length*0.34))) ? melhor : null;
+}
+// Acha animais citados pelo nome dentro do texto falado (checagem simples de substring — evita
+// "adivinhar" errado um cavalo por causa de fuzzy match numa lista de centenas de nomes).
+function extrairAnimaisFala(texto, listaAnimais){
+  const t = (texto||'').toLowerCase();
+  return listaAnimais.filter(h=> h.nome && t.includes(h.nome.toLowerCase()));
+}
+
+wireBotaoVoz('btnVozLancamento', 'fin_vozStatus', 'fale o lançamento (ex: "saída de ferrageamento 300 reais").', (texto)=>{
+  const r = parseComandoLancamento(texto);
+  const entendido = [];
+  document.getElementById('fin_tipo').value = r.tipo; entendido.push('Tipo: '+(r.tipo==='entrada'?'Entrada':'Saída'));
+  if(r.valor){ document.getElementById('fin_valor').value = r.valor; entendido.push('Valor: R$ '+r.valor); }
+  if(r.categoria){ document.getElementById('fin_categoria').value = r.categoria; entendido.push('Categoria: '+r.categoria); }
+  document.getElementById('fin_descricao').value = r.descricao;
+  return entendido;
+});
+
+/* ---- Manejos ---- */
+const CAMPOS_DITADO_MANEJO = [
+  {chaves:['tipo'], campo:'tipoRaw'},
+  {chaves:['data','dia'], campo:'data', tipo:'data'},
+  {chaves:['ferrador'], campo:'ferrador'},
+  {chaves:['medicamento'], campo:'medicamento'},
+  {chaves:['quantidade'], campo:'quantidade', tipo:'numero'},
+  {chaves:['valor'], campo:'valor', tipo:'numero'},
+  {chaves:['deslocamento'], campo:'deslocamento', tipo:'numero'},
+  {chaves:['animal','animais','cavalo','cavalos'], campo:'animaisRaw'},
+  {chaves:['observação','observacao','obs'], campo:'obs'},
+];
+wireBotaoVoz('btnVozManejo', 'manejo_vozStatus', 'ex: "tipo vacina, data hoje, medicamento raiva, quantidade 1, animais Estrela e Cacto".', (texto)=>{
+  const r = interpretarDitado(texto, CAMPOS_DITADO_MANEJO);
+  const entendido = [];
+  if(r.tipoRaw){
+    const t = r.tipoRaw.toLowerCase();
+    let tipo = /vac/.test(t)?'Vacina' : /verm/.test(t)?'Vermífugo' : /dente/.test(t)?'Dente' : /casco|ferrage/.test(t)?'Casco' : null;
+    if(tipo){ document.getElementById('m_tipo').value = tipo; atualizarCamposCascoVisibilidade(); entendido.push('Tipo: '+tipo); }
+  }
+  if(r.data){ document.getElementById('m_data').value = r.data; entendido.push('Data: '+fmtDate(r.data)); }
+  if(r.ferrador){ const nome = encontrarPorFala(r.ferrador, aux.ferrador||[]); if(nome){ document.getElementById('m_ferrador_sel').value = nome; entendido.push('Ferrador: '+nome); } }
+  if(r.medicamento){ const nome = encontrarPorFala(r.medicamento, estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome)); if(nome){ document.getElementById('m_medicamento').value = nome; entendido.push('Medicamento: '+nome); } }
+  if(r.quantidade){ document.getElementById('m_medQuantidade').value = r.quantidade; entendido.push('Quantidade: '+r.quantidade); }
+  if(r.valor){
+    const tipoAtual = document.getElementById('m_tipo').value;
+    document.getElementById(tipoAtual==='Dente' ? 'm_valorDente' : 'm_valor').value = r.valor;
+    entendido.push('Valor: R$ '+r.valor);
+  }
+  if(r.deslocamento){ document.getElementById('m_deslocamento').value = r.deslocamento; entendido.push('Deslocamento: R$ '+r.deslocamento); }
+  if(r.obs){ document.getElementById('m_obs').value = r.obs; entendido.push('Obs: '+r.obs); }
+  if(r.animaisRaw){
+    const encontrados = extrairAnimaisFala(r.animaisRaw, horses);
+    if(encontrados.length){ manejoSelector.setSelected(encontrados.map(h=>({id:h.id, nome:h.nome}))); entendido.push('Animais: '+encontrados.map(h=>h.nome).join(', ')); }
+  }
+  atualizarValorTotalManejo();
+  return entendido;
+});
+
+/* ---- Estoque (Novo Produto) ---- */
+const CAMPOS_DITADO_PRODUTO = [
+  {chaves:['tipo'], campo:'tipo'},
+  {chaves:['nome','produto'], campo:'nome'},
+  {chaves:['unidade'], campo:'unidade'},
+  {chaves:['quantidade','estoque'], campo:'quantidade', tipo:'numero'},
+  {chaves:['valor','preço','preco'], campo:'valor'},
+  {chaves:['embalagem','saco'], campo:'pesoSaco', tipo:'numero'},
+];
+// Preenche um <select> alimentado por uma lista aberta (aux.xxx): se o valor falado já existe na lista,
+// seleciona; senão, cria (igual ao botão "+") e já deixa selecionado.
+async function selecionarOuCriarAux(chaveAux, selId, valorFalado){
+  const existente = encontrarPorFala(valorFalado, aux[chaveAux]||[]);
+  if(existente){ document.getElementById(selId).value = existente; return existente; }
+  const novo = titleCase(valorFalado.trim());
+  if(!novo) return null;
+  if(!aux[chaveAux]) aux[chaveAux]=[];
+  if(!aux[chaveAux].includes(novo)) aux[chaveAux].push(novo);
+  await storeSet('aux_lists', aux);
+  populateAuxSelects();
+  document.getElementById(selId).value = novo;
+  return novo;
+}
+wireBotaoVoz('btnVozProduto', 'produto_vozStatus', 'ex: "tipo alimento, nome ração premium, unidade quilo, quantidade 50, valor 5 reais".', (texto)=>{
+  const r = interpretarDitado(texto, CAMPOS_DITADO_PRODUTO);
+  const entendido = [];
+  (async ()=>{
+    if(r.tipo){ const v = await selecionarOuCriarAux('tipoProduto','pd_tipo_aux', r.tipo); if(v){ atualizarClasseMedicamentoVisibilidade(); } }
+    if(r.nome){ await selecionarOuCriarAux('nomeProduto','pd_nome_sel', r.nome); }
+    if(r.unidade){ await selecionarOuCriarAux('unidade','pd_unidade', r.unidade); atualizarValorTipoUI(); }
+  })();
+  if(r.tipo) entendido.push('Tipo: '+r.tipo);
+  if(r.nome) entendido.push('Nome: '+r.nome);
+  if(r.unidade) entendido.push('Unidade: '+r.unidade);
+  if(r.quantidade){ document.getElementById('pd_quantidade').value = r.quantidade; entendido.push('Quantidade: '+r.quantidade); }
+  if(r.valor){ document.getElementById('pd_valor').value = 'R$ '+r.valor; atualizarValorTipoUI(); entendido.push('Valor: R$ '+r.valor); }
+  if(r.pesoSaco){ document.getElementById('pd_pesoSaco').value = r.pesoSaco; atualizarValorTipoUI(); entendido.push('Conteúdo por embalagem: '+r.pesoSaco); }
+  return entendido;
+});
+
+/* ---- Animais (Novo Animal) ---- */
+const CAMPOS_DITADO_ANIMAL = [
+  {chaves:['nome'], campo:'nome'},
+  {chaves:['apelido'], campo:'apelido'},
+  {chaves:['sexo'], campo:'sexo'},
+  {chaves:['pelagem'], campo:'pelagem'},
+  {chaves:['categoria'], campo:'categoria'},
+  {chaves:['proprietário','proprietario','dono'], campo:'proprietario'},
+  {chaves:['pai'], campo:'pai'},
+  {chaves:['mãe','mae'], campo:'mae'},
+  {chaves:['observação','observacao','obs'], campo:'obs'},
+];
+wireBotaoVoz('btnVozHorse', 'horse_vozStatus', 'ex: "nome Estrela, sexo fêmea, pelagem castanho, categoria matriz".', (texto)=>{
+  const r = interpretarDitado(texto, CAMPOS_DITADO_ANIMAL);
+  const entendido = [];
+  if(r.nome){ document.getElementById('f_nome').value = titleCase(r.nome); entendido.push('Nome: '+titleCase(r.nome)); }
+  if(r.apelido){ document.getElementById('f_apelido').value = titleCase(r.apelido); entendido.push('Apelido: '+titleCase(r.apelido)); }
+  if(r.sexo){
+    const macho = /masc|macho|garanh|cavalo/.test(r.sexo);
+    const femea = /fem|fêmea|égua|egua|potranca/.test(r.sexo);
+    if(macho || femea){ document.getElementById('f_sexo').value = macho ? 'MASCULINO' : 'FEMININO'; entendido.push('Sexo: '+(macho?'Macho':'Fêmea')); }
+  }
+  if(r.pelagem){ const v = encontrarPorFala(r.pelagem, aux.pelagem||[]); if(v){ document.getElementById('f_pelagem').value = v; entendido.push('Pelagem: '+v); } }
+  if(r.categoria){ const v = encontrarPorFala(r.categoria, aux.categoria||[]); if(v){ document.getElementById('f_categoria').value = v; entendido.push('Categoria: '+v); } }
+  if(r.proprietario){ document.getElementById('f_proprietario').value = titleCase(r.proprietario); entendido.push('Proprietário: '+titleCase(r.proprietario)); }
+  if(r.pai){ document.getElementById('f_pai').value = titleCase(r.pai); entendido.push('Pai: '+titleCase(r.pai)); }
+  if(r.mae){ document.getElementById('f_mae').value = titleCase(r.mae); entendido.push('Mãe: '+titleCase(r.mae)); }
+  if(r.obs){ document.getElementById('f_obs').value = r.obs; entendido.push('Obs: '+r.obs); }
+  return entendido;
+});
+
+/* ---- Nascimentos (Nova Cobertura) ---- */
+const CAMPOS_DITADO_NASC = [
+  {chaves:['matriz','mãe','mae'], campo:'matriz'},
+  {chaves:['pai'], campo:'pai'},
+  {chaves:['receptora'], campo:'receptora'},
+  {chaves:['data','dia'], campo:'datacob', tipo:'data'},
+  {chaves:['observação','observacao','obs'], campo:'obs'},
+];
+wireBotaoVoz('btnVozNasc', 'nasc_vozStatus', 'ex: "matriz Estrela, pai Fulano, data hoje".', (texto)=>{
+  const r = interpretarDitado(texto, CAMPOS_DITADO_NASC);
+  const entendido = [];
+  if(r.matriz){ document.getElementById('n_matriz').value = titleCase(r.matriz); entendido.push('Matriz: '+titleCase(r.matriz)); }
+  if(r.pai){ document.getElementById('n_pai').value = titleCase(r.pai); entendido.push('Pai: '+titleCase(r.pai)); }
+  if(r.receptora){ document.getElementById('n_receptora').value = titleCase(r.receptora); entendido.push('Receptora: '+titleCase(r.receptora)); }
+  if(r.datacob){ document.getElementById('n_datacob').value = r.datacob; entendido.push('Data cobertura: '+fmtDate(r.datacob)); atualizarProvavelNascimentoView(); }
+  if(r.obs){ document.getElementById('n_obs').value = r.obs; entendido.push('Obs: '+r.obs); }
+  return entendido;
 });
 document.getElementById('btnSaveLancamento').addEventListener('click', async ()=>{
   const data = f('fin_data');
