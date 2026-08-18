@@ -5033,11 +5033,14 @@ function renderRegrasProtocolo(){
   const REGRA_LABEL_POTRO = { dias_apos_nascimento:'dia(s) após o nascimento' };
   const listaGest = document.getElementById('protocoloGestacaoLista');
   const regrasGest = config.protocoloVacinasGestacao||[];
-  listaGest.innerHTML = regrasGest.length===0 ? '<div class="hint-text">Nenhuma vacina cadastrada ainda.</div>' : regrasGest.map(r=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${(r.valores||[]).join('º, ')+(r.regra==='mes_gestacao'?'º':'')} ${REGRA_LABEL_GEST[r.regra]||r.regra}</span></div>
+  listaGest.innerHTML = regrasGest.length===0 ? '<div class="hint-text">Nenhuma vacina cadastrada ainda.</div>' : regrasGest.map(r=>{
+    const ordinal = r.regra==='mes_gestacao';
+    const valoresTxt = ordinal ? (r.valores||[]).map(v=>v+'º').join(', ') : (r.valores||[]).join(', ');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${valoresTxt} ${REGRA_LABEL_GEST[r.regra]||r.regra}</span></div>
       <button type="button" class="btn btn-sm btn-ghost" data-editregra="gestacao|${r.id}">Editar</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   listaGest.querySelectorAll('[data-editregra]').forEach(b=>b.addEventListener('click', ()=>{ const [g,id]=b.dataset.editregra.split('|'); abrirRegraProtocolo(g,id); }));
 
   const listaPotro = document.getElementById('protocoloPotroLista');
