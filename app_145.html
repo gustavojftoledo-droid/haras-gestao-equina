@@ -826,6 +826,8 @@
         <div><div class="title">Financeiro</div><div class="subtitle">Livro-caixa: entradas e saídas do haras</div></div>
         <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F">+ Novo Lançamento</button>
       </div>
+      <div id="finPainelMes" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
+      <div class="section-label" style="border-top:none;padding-top:0;">Todos os lançamentos</div>
       <div class="stats" id="finStats"></div>
       <div class="filters">
         <div class="f grow"><label>Buscar</label><input type="text" id="finSearch" placeholder="Descrição..."></div>
@@ -2887,6 +2889,9 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     proprietario:titleCase(f('f_proprietario')),valor:f('f_valor'),comprador:titleCase(f('f_comprador')),
     doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
+  // Guarda o estado anterior do animal (antes de sobrescrever) — é assim que a gente sabe se a
+  // venda é NOVA (virou "Vendido" agora) e não só uma edição de um animal que já estava vendido.
+  const situacaoAnterior = editingHorseId ? (horses.find(h=>h.id===editingHorseId)||{}).situacao : null;
   horses = editingHorseId ? horses.map(h=>h.id===editingHorseId?data:h) : [...horses, data];
   // Genealogia: pai/mãe que ainda não existem entram como externos, já linkados aos avós informados aqui.
   // Os avós também entram como externos (sem pais conhecidos, por enquanto).
@@ -2897,6 +2902,25 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   await storeSet('horses_list', horses);
   closeModal('overlayHorse'); refreshDatalists(); renderHorses();
   if(perfilAnimalId===data.id && document.getElementById('view-animalPerfil').classList.contains('active')) renderAnimalPerfil(data.id);
+  // Virou "Vendido" agora (não estava antes) e tem um valor legível? Oferece lançar a entrada no
+  // Financeiro na hora, sem precisar digitar tudo de novo lá — só pergunta, nunca lança sozinho.
+  if(data.situacao==='V' && situacaoAnterior!=='V'){
+    const valorVenda = parseValorLivre(data.valor);
+    if(valorVenda){
+      const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+      const pergunta = `${data.nome} foi marcado como Vendido, valor ${fmtR(valorVenda)}. Lançar essa venda como entrada no Financeiro agora?`;
+      if(await showConfirm(pergunta)){
+        lancamentos = [...lancamentos, {
+          id: 'fn_'+Date.now(), data: toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
+          descricao: `Venda de ${data.nome}`+(data.comprador?(' — comprador: '+data.comprador):''),
+          valor: valorVenda, origemAnimalId: data.id
+        }];
+        await storeSet('financeiro_lancamentos', lancamentos);
+        renderFinanceiro();
+        showAlert('Lançado no Financeiro: entrada de '+fmtR(valorVenda)+' — Venda de Animal.');
+      }
+    }
+  }
 });
 document.getElementById('btnDeleteHorse').addEventListener('click', async ()=>{
   if(!editingHorseId || !(await showConfirm('Excluir este animal do cadastro?'))) return;
@@ -6741,12 +6765,72 @@ function renderFinanceiroStats(lista){
     <div class="stat"><div class="stat-num" style="color:${saldo>=0?'var(--green)':'var(--burgundy)'};">${fmtR(saldo)}</div><div class="stat-label">Saldo do que está listado</div></div>`;
 }
 const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque' };
-function renderFinanceiro(){
-  const todos = [
+// Junta os lançamentos manuais com os dois derivados (Manejos e Estoque) — usado tanto na lista
+// filtrável quanto no painel fixo do mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
+function todosLancamentosFinanceiro(){
+  return [
     ...lancamentos.map(l=>({...l, origem:'manual'})),
     ...lancamentosDerivadosManejos(),
     ...lancamentosDerivadosEstoque()
   ];
+}
+
+// Painel fixo "Resumo do mês" — independente dos filtros da lista abaixo, sempre mostra o mês
+// escolhido (começa no mês atual), com saldo e o gasto por categoria (só saídas, é o que mais
+// importa pra enxergar "pra onde o dinheiro está indo").
+let finPainelMesRef = (()=>{ const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })();
+const MESES_LABEL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function renderPainelMesFinanceiro(){
+  const ano = finPainelMesRef.getFullYear(), mes = finPainelMesRef.getMonth();
+  const inicioMes = toISODate(new Date(ano, mes, 1));
+  const fimMes = toISODate(new Date(ano, mes+1, 0));
+  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes);
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const totalEntrada = doMes.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const totalSaida = doMes.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const saldo = totalEntrada - totalSaida;
+
+  const porCategoria = {};
+  doMes.filter(l=>l.tipo==='saida').forEach(l=>{
+    const cat = l.categoria || 'Sem categoria';
+    porCategoria[cat] = (porCategoria[cat]||0) + (Number(l.valor)||0);
+  });
+  const categorias = Object.entries(porCategoria).sort((a,b)=> b[1]-a[1]);
+  const maiorCategoria = categorias.length ? categorias[0][1] : 0;
+
+  const host = document.getElementById('finPainelMes');
+  host.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;">Resumo de ${MESES_LABEL[mes]} de ${ano}</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button type="button" class="btn btn-sm btn-ghost" id="btnFinMesAnterior">← Mês anterior</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnFinMesHoje">Este mês</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnFinMesProximo">Próximo mês →</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:${categorias.length?'16px':'0'};flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--ok);">${fmtR(totalEntrada)}</div><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Entradas do mês</div></div>
+      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--burgundy);">${fmtR(totalSaida)}</div><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Saídas do mês</div></div>
+      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:${saldo>=0?'var(--green)':'var(--burgundy)'};">${fmtR(saldo)}</div><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Saldo do mês</div></div>
+    </div>
+    ${categorias.length===0 ? '' : `
+    <div style="border-top:1px solid var(--line);padding-top:14px;">
+      <div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Saídas por categoria</div>
+      ${categorias.map(([cat,total])=>`
+        <div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;"><span>${cat}</span><span style="font-family:'IBM Plex Mono',monospace;">${fmtR(total)}</span></div>
+          <div style="background:#EFE9D8;border-radius:4px;height:7px;overflow:hidden;"><div style="background:var(--brass);height:100%;width:${maiorCategoria>0?Math.max(4,(total/maiorCategoria)*100):0}%;"></div></div>
+        </div>`).join('')}
+    </div>`}
+  `;
+  document.getElementById('btnFinMesAnterior').addEventListener('click', ()=>{ finPainelMesRef.setMonth(finPainelMesRef.getMonth()-1); renderPainelMesFinanceiro(); });
+  document.getElementById('btnFinMesProximo').addEventListener('click', ()=>{ finPainelMesRef.setMonth(finPainelMesRef.getMonth()+1); renderPainelMesFinanceiro(); });
+  document.getElementById('btnFinMesHoje').addEventListener('click', ()=>{ const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); finPainelMesRef=d; renderPainelMesFinanceiro(); });
+}
+
+function renderFinanceiro(){
+  renderPainelMesFinanceiro();
+  const todos = todosLancamentosFinanceiro();
   populateSelectFilter('finFiltroCategoria', todos.map(l=>l.categoria));
   const termo = (document.getElementById('finSearch').value||'').toLowerCase();
   const tipo = document.getElementById('finFiltroTipo').value;
