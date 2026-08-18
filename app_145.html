@@ -7475,7 +7475,7 @@ document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
 document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   const out = document.getElementById('diagOutput');
   out.textContent = 'Consultando...';
-  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','config'];
+  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','config'];
   let lines = [];
   lines.push('Modo de armazenamento: ' + (HAS_CLOUD_STORAGE ? 'nuvem do Claude (window.storage)' : 'armazenamento local deste navegador (localStorage) — normal quando o arquivo é aberto baixado'));
   for(const key of keys){
@@ -7510,7 +7510,7 @@ document.getElementById('btnReadOnly').addEventListener('click', async ()=>{
 
 
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, aux, config };
   const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -7558,6 +7558,10 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     grupos = [...grupos, ...((backup.grupos||[]).filter(g=>!existingGrupoIds.has(g.id)))];
     const existingLancIds = new Set(lancamentos.map(l=>l.id));
     lancamentos = [...lancamentos, ...((backup.lancamentos||[]).filter(l=>!existingLancIds.has(l.id)))];
+    const existingTratIds = new Set(tratamentos.map(t=>t.id));
+    tratamentos = [...tratamentos, ...((backup.tratamentos||[]).filter(t=>!existingTratIds.has(t.id)))];
+    const existingVisitIds = new Set(visitas.map(v=>v.id));
+    visitas = [...visitas, ...((backup.visitas||[]).filter(v=>!existingVisitIds.has(v.id)))];
     if(backup.aux){
       Object.keys(backup.aux).forEach(k=>{
         if(!aux[k]) aux[k]=[];
@@ -7569,7 +7573,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     await storeSet('treinos_list', treinos); await storeSet('nascimentos_list', nascimentos); await storeSet('aux_lists', aux);
     await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
     await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
-    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro();
+    await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas);
+    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
   }catch(err){ showAlert('Não foi possível ler esse arquivo de backup.'); }
   e.target.value='';
