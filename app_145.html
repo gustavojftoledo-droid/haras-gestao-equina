@@ -239,6 +239,12 @@
   .perfil-field .val{font-size:14.5px;color:var(--ink);}
   .perfil-subsection{font-size:10.5px;color:var(--brass);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line);}
   .perfil-subsection:first-child{margin-top:0;}
+  .stat-list-row{display:flex;justify-content:space-between;align-items:center;padding:9px 20px;font-size:13px;border-bottom:1px solid var(--line);}
+  .stat-list-row:last-child{border-bottom:none;}
+  .stat-list-row strong{font-family:'Fraunces',serif;font-size:15px;color:var(--green);}
+  .stat-list-row.clicavel{cursor:pointer;}
+  .stat-list-row.clicavel span:first-child{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px;}
+  .stat-list-row.clicavel:hover{background:var(--paper);}
   .tarefa-row{margin-bottom:14px;}
   .tarefa-row:last-child{margin-bottom:0;}
   .tarefa-label{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:4px;}
@@ -1076,6 +1082,7 @@
       <div class="section-label" style="border-top:none;padding-top:0;margin-top:12px;">Utensílios usados <span style="font-family:'Inter';font-size:11px;color:var(--muted);">(ex: seringa, agulha — opcional, também dá baixa no estoque)</span></div>
       <div id="manejoUtensiliosHost" style="margin:8px 0;"></div>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAddManejoUtensilio">+ Adicionar utensílio</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnEditarFreqVacinas">⚙ Editar frequência de vacinas</button>
       <div class="hint-text" style="margin-top:10px;">Dá baixa no estoque (medicamento + utensílios, por animal selecionado) e entra no Financeiro e no custo por animal — do mesmo jeito que Casco/Dente. Editar um lançamento já salvo não repete a baixa automaticamente.</div>
     </div>
     <div id="manejoSelectorHost"></div>
@@ -1095,6 +1102,19 @@
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayValoresCasco">Cancelar</button><button type="button" class="btn" id="btnSalvarValoresCasco">Salvar Valores</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- FREQUÊNCIA DE VACINAS -->
+<div class="overlay" id="overlayFreqVacinas">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Frequência de Vacinas</div><button class="modal-close" data-close="overlayFreqVacinas">✕</button></div>
+    <div class="hint-text" style="margin-bottom:14px;">De quanto em quanto tempo cada vacina precisa ser repetida. Cada vacina cadastrada como Medicamento no Estoque aparece aqui — depois que você aplicar ao menos uma vez num animal, a próxima data prevista já aparece na Ficha do Animal e no Calendário.</div>
+    <div class="form-grid cols2" id="fv_camposDinamicos"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayFreqVacinas">Cancelar</button><button type="button" class="btn" id="btnSalvarFreqVacinas">Salvar Frequências</button></div>
     </div>
   </div>
 </div>
@@ -1561,7 +1581,7 @@ let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 let relSelecoes = {}; // lembra a última seleção de animais de cada seletor de relatório (persistido)
 let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null;
-let config = { gestacaoDias: 340, valoresCasco: { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 100, 'Ferrado completo': 200 }, deslocamentoFerrador: 0 }; // tempo médio de gestação da égua (~11 meses); ajustável em Nascimentos → "Tempo de gestação". valoresCasco/deslocamentoFerrador: valores de referência do ferrageamento, ajustáveis em Manejos → "⚙ Editar valores de referência"
+let config = { gestacaoDias: 340, valoresCasco: { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 140, 'Ferrado completo': 200, 'Ferrado pés': 140 }, deslocamentoFerrador: 0, freqVacinas: {} }; // tempo médio de gestação da égua (~11 meses); ajustável em Nascimentos → "Tempo de gestação". valoresCasco/deslocamentoFerrador: valores de referência do ferrageamento, ajustáveis em Manejos → "⚙ Editar valores de referência"
 let aux = { status:[], pelagem:[], categoria:[], proprietarios:[], unidade:[], tipotreino:[], localtreino:[], treinador:[], tipoProduto:[], nomeProduto:[] };
 let dietaItensState = [];
 let dietaDiasSemanaState = [true,true,true,true,true,true,true]; // índice 0=Domingo...6=Sábado (igual Date.getDay())
@@ -1659,10 +1679,14 @@ async function loadAll(){
   // Essa nomenclatura foi substituída pelas 5 categorias novas (Casqueado mãos/completo/pés, Ferrado mãos/completo).
   // Se faltar alguma categoria nova, preenche com o valor padrão sem apagar o que já tinha sido customizado.
   {
-    const padraoValoresCasco = { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 100, 'Ferrado completo': 200 };
+    const padraoValoresCasco = { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 140, 'Ferrado completo': 200, 'Ferrado pés': 140 };
     if(!config.valoresCasco) config.valoresCasco = {};
     delete config.valoresCasco['Ferrado mão casq. pé'];
+    // "Ferrado mãos" tinha valor de referência antigo (100) — atualiza pro novo (140) só se ninguém
+    // customizou esse valor manualmente; se já foi mudado à mão, respeita a escolha feita.
+    if(config.valoresCasco['Ferrado mãos']===100) config.valoresCasco['Ferrado mãos'] = 140;
     Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
+    if(!config.freqVacinas) config.freqVacinas = {};
   }
   if(rRS.value && !Array.isArray(rRS.value)) relSelecoes = rRS.value;
   if(Array.isArray(rDismissed.value)) dismissedDuplicates = new Set(rDismissed.value);
@@ -1681,6 +1705,9 @@ async function loadAll(){
   // e produtos já cadastrados) pra ninguém perder o que já tinha digitado antes desta atualização.
   let auxChanged=false;
   if(!aux.tipotreino) { aux.tipotreino=[]; auxChanged=true; }
+  // Sugestão de tipos pra separar treino puro de competição de verdade (conta em "Competições" na
+  // Ficha do Animal — tudo que não for exatamente "Treino"). Só acrescenta o que ainda não existir.
+  ['Treino','Jogo','Amistoso','Torneio','Copa'].forEach(v=>{ if(!aux.tipotreino.includes(v)){ aux.tipotreino.push(v); auxChanged=true; } });
   if(!aux.localtreino) { aux.localtreino=[]; auxChanged=true; }
   if(!aux.treinador) { aux.treinador=[]; auxChanged=true; }
   if(!aux.tipoProduto) { aux.tipoProduto=[]; auxChanged=true; }
@@ -1689,6 +1716,9 @@ async function loadAll(){
   if(!aux.ferrador) { aux.ferrador=[]; auxChanged=true; }
   if(!aux.veterinario) { aux.veterinario=[]; auxChanged=true; }
   if(!aux.subtipoFerrageamento || aux.subtipoFerrageamento.length===0) { aux.subtipoFerrageamento=['Casqueado mãos','Casqueado completo','Casqueado pés','Ferrado mãos','Ferrado completo']; auxChanged=true; }
+  // Três tipos novos de ferrageamento, com valor de referência em branco (você preenche na hora, varia
+  // mais caso a caso): Ferrado pés (mesmo valor de Ferrado mãos), Reposição e Repregar ferradura.
+  ['Ferrado pés','Reposição de Ferradura','Repregar Ferradura'].forEach(v=>{ if(!aux.subtipoFerrageamento.includes(v)){ aux.subtipoFerrageamento.push(v); auxChanged=true; } });
   if(!aux.classeMedicamento) { aux.classeMedicamento=[]; auxChanged=true; } // lista livre — você inclui/apaga as classes que usar (Antiinflamatório, Antibiótico...)
   treinos.forEach(t=>{
     if(t.tipo && !aux.tipotreino.includes(t.tipo)){ aux.tipotreino.push(t.tipo); auxChanged=true; }
@@ -3309,27 +3339,39 @@ function addToDate(dateStr, amount, unit){
   return d;
 }
 
+// Calcula, pra cada animal, a próxima data prevista de Casco/Dente/Vermífugo (uma frequência geral por
+// tipo, cadastrada no animal) e de cada VACINA especificamente aplicada (cada vacina tem sua própria
+// frequência, cadastrada em Manejos → "⚙ Editar frequência de vacinas" — assim "Vacina contra Encefalomielite"
+// e "Lexington Gold" no mesmo animal têm datas previstas independentes, em vez de uma data genérica só).
 function computeProgramacao(dataReferencia){
-  const tipos = ['Casco','Dente','Vacina','Vermífugo'];
+  const tiposSimples = ['Casco','Dente','Vermífugo'];
   const rows = [];
   const today = dataReferencia ? new Date(dataReferencia+'T00:00:00') : new Date();
   today.setHours(0,0,0,0);
+  const LABEL_TIPO_TAREFA = { Casco:'Ferrageamento', Dente:'Cheque Dental', 'Vermífugo':'Desparasitação' };
+  function situacaoPara(prox){
+    const diffDias = Math.round((prox - today)/(1000*60*60*24));
+    return diffDias < 0 ? 'atrasado' : (diffDias <= 7 ? 'proximo' : 'emdia');
+  }
   // Só entram na programação os animais próprios e ativos (não-externos, não vendidos, não falecidos) —
   // mesma regra usada na aba Animais pra "Ativos". Vendidos/falecidos não têm mais manejo a fazer aqui.
   horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).forEach(h=>{
-    tipos.forEach(tipo=>{
+    tiposSimples.forEach(tipo=>{
       const freq = h[FREQ_FIELD[tipo]];
       if(!freq) return; // sem frequência definida para esse animal/tipo
       const registros = manejos.filter(m=> m.tipo===tipo && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
       const ultima = registros[0] ? registros[0].data : null;
       let proxima = null, situacao = 'nunca';
-      if(ultima){
-        const prox = addToDate(ultima, freq, FREQ_UNIT[tipo]);
-        proxima = prox;
-        const diffDias = Math.round((prox - today)/(1000*60*60*24));
-        situacao = diffDias < 0 ? 'atrasado' : (diffDias <= 7 ? 'proximo' : 'emdia');
-      }
-      rows.push({ animal:h.nome, animalId:h.id, tipo, freq: freq+' '+FREQ_UNIT[tipo], ultima, proxima, situacao });
+      if(ultima){ proxima = addToDate(ultima, freq, FREQ_UNIT[tipo]); situacao = situacaoPara(proxima); }
+      rows.push({ animal:h.nome, animalId:h.id, tipo, label:LABEL_TIPO_TAREFA[tipo]||tipo, freq: freq+' '+FREQ_UNIT[tipo], ultima, proxima, situacao });
+    });
+    const vacinasDoAnimal = [...new Set(manejos.filter(m=>m.tipo==='Vacina' && m.medicamentoNome && (m.animais||[]).some(a=>a.id===h.id)).map(m=>m.medicamentoNome))];
+    vacinasDoAnimal.forEach(nomeVacina=>{
+      const registros = manejos.filter(m=> m.tipo==='Vacina' && m.medicamentoNome===nomeVacina && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
+      const ultima = registros[0].data;
+      const freqDias = Number(config.freqVacinas && config.freqVacinas[nomeVacina]) || 365;
+      const proxima = addToDate(ultima, freqDias, 'dias');
+      rows.push({ animal:h.nome, animalId:h.id, tipo:'Vacina', label:'Vacinação: '+nomeVacina, freq: freqDias+' dias', ultima, proxima, situacao: situacaoPara(proxima) });
     });
   });
   return rows;
@@ -3347,7 +3389,7 @@ function toISODate(d){ return d.toISOString().slice(0,10); }
 function computeCalendarTasks(){
   const rows = computeProgramacao().filter(r=>r.proxima);
   const manejoTasks = rows.map(r=>({
-    data: toISODate(r.proxima), tipo:r.tipo, categoria:'manejo',
+    data: toISODate(r.proxima), tipo:r.tipo, label:r.label, categoria:'manejo',
     animalId:r.animalId, animalNome:r.animal, situacao:r.situacao
   }));
   const hoje = toISODate(new Date());
@@ -3413,7 +3455,7 @@ function abrirListaInicio(tipo){
     } else {
       body.innerHTML = rows.map(r=>`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-          <div><button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> <strong>${r.animal}</strong> — ${r.tipo} <span style="color:var(--muted);font-size:12px;">(prevista ${r.proxima?fmtDate(toISODate(r.proxima)):'—'})</span></div>
+          <div><button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> <strong>${r.animal}</strong> — ${r.label||r.tipo} <span style="color:var(--muted);font-size:12px;">(prevista ${r.proxima?fmtDate(toISODate(r.proxima)):'—'})</span></div>
         </div>`).join('') + (tipo==='atrasadas' ? `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnVerAtrasadosFront">🐴 Selecionar esses animais na tela de Animais</button></div>` : '');
       body.querySelectorAll('[data-irperfilinicio]').forEach(btn=>{
         btn.addEventListener('click', ()=>{ closeModal('overlayInicioLista'); abrirPerfilAnimal(btn.dataset.irperfilinicio); });
@@ -3510,7 +3552,7 @@ function renderCalWeekHtml(byDate, nDias){
     html += `<div class="cal-week-col ${isHoje?'cal-today':''}">
       <div class="cal-week-col-head">${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</div>
       ${tarefasDia.length===0 ? '<div class="hint-text">Nenhuma tarefa prevista.</div>' :
-        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo]||''} <strong>${t.tipo}</strong> — ${t.animalNome}</div>`).join('')}
+        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo]||''} <strong>${t.label||t.tipo}</strong> — ${t.animalNome}</div>`).join('')}
     </div>`;
   }
   html += '</div>';
@@ -3681,7 +3723,7 @@ function renderProgramacao(){
   tbody.innerHTML = filtered.map(r=>{
     const [cls,label] = badge[r.situacao];
     const proxStr = r.proxima ? r.proxima.toLocaleDateString('pt-BR') : '—';
-    return `<tr><td><button type="button" class="eye-inline" data-eyeid="${r.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${r.animal}</strong></td><td>${r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${proxStr}</td><td><span class="pill ${cls}">${label}</span></td></tr>`;
+    return `<tr><td><button type="button" class="eye-inline" data-eyeid="${r.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${r.animal}</strong></td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${proxStr}</td><td><span class="pill ${cls}">${label}</span></td></tr>`;
   }).join('');
 }
 let programacaoFiltradaAtual = [];
@@ -3695,7 +3737,7 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   const htmlConteudo = `<h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
     <table><thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>
-    <tbody>${programacaoFiltradaAtual.map(r=>`<tr><td>${r.animal}</td><td>${r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`).join('')}</tbody>
+    <tbody>${programacaoFiltradaAtual.map(r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`).join('')}</tbody>
     </table>`;
   abrirPreviaRelatorio(htmlConteudo, 'Programacao_Manejos.pdf', 'Programação de Manejos');
 });
@@ -4094,6 +4136,31 @@ document.getElementById('btnSalvarValoresCasco').addEventListener('click', async
   closeModal('overlayValoresCasco');
   preencherValorRefCasco();
   showAlert('Valores de referência atualizados.');
+});
+
+document.getElementById('btnEditarFreqVacinas').addEventListener('click', ()=>{
+  if(!config.freqVacinas) config.freqVacinas = {};
+  const nomesVacinas = estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome).sort((a,b)=>a.localeCompare(b,'pt'));
+  const container = document.getElementById('fv_camposDinamicos');
+  if(nomesVacinas.length===0){
+    container.innerHTML = '<div class="hint-text" style="grid-column:1/-1;">Nenhum medicamento cadastrado no Estoque ainda. Cadastre a vacina lá (tipo Medicamento) primeiro.</div>';
+  } else {
+    container.innerHTML = nomesVacinas.map(nome=>{
+      const val = config.freqVacinas[nome]!==undefined ? config.freqVacinas[nome] : '';
+      return `<div class="field"><label>${nome} (dias)</label><input type="number" min="1" step="1" data-fvnome="${nome}" value="${val}" placeholder="365"></div>`;
+    }).join('');
+  }
+  openModal('overlayFreqVacinas');
+});
+document.getElementById('btnSalvarFreqVacinas').addEventListener('click', async ()=>{
+  if(!config.freqVacinas) config.freqVacinas = {};
+  document.querySelectorAll('#fv_camposDinamicos [data-fvnome]').forEach(inp=>{
+    if(inp.value!=='') config.freqVacinas[inp.dataset.fvnome] = Number(inp.value)||365;
+  });
+  await storeSet('config', config);
+  closeModal('overlayFreqVacinas');
+  renderInicio();
+  showAlert('Frequências de vacina atualizadas.');
 });
 
 /* ========= Importar histórico de ferrageamento (relatórios tipo CRIOONLINE) ========= */
@@ -7766,19 +7833,25 @@ function renderAnimalPerfil(id){
 
   const idade = calcAgeYears(h.nascimento);
   const gruposDoAnimal = grupos.filter(g=>(g.animais||[]).some(a=>a.id===h.id));
-  const tarefas = ['Casco','Dente','Vacina','Vermífugo'].map(tipo=>{
-    const freq = h[FREQ_FIELD[tipo]];
-    if(!freq) return null;
-    const registros = manejos.filter(m=> m.tipo===tipo && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
-    const ultima = registros[0] ? registros[0].data : null;
-    let situacao='nunca', proxima=null;
-    if(ultima){
-      proxima = addToDate(ultima, freq, FREQ_UNIT[tipo]);
-      const diffDias = Math.round((proxima - new Date().setHours(0,0,0,0))/(1000*60*60*24));
-      situacao = diffDias < 0 ? 'atrasado' : (diffDias <= 7 ? 'proximo' : 'emdia');
-    }
-    return { tipo, ultima, proxima, situacao };
-  }).filter(Boolean);
+  // Reaproveita a mesma conta usada no Início/Programação — assim cada vacina específica (não só uma
+  // "Vacina" genérica) aparece com sua própria data prevista, igual ao resto do sistema.
+  const tarefas = computeProgramacao().filter(r=>r.animalId===h.id);
+
+  // Irmãos/Descendência: puxados da genealogia já cadastrada (Pai/Mãe), sem precisar de nada novo.
+  // Comparação por nome (case-insensitive) — mesma lógica usada no resto do cadastro de filiação.
+  const irmaosProprios=[], irmaosPaternos=[], irmaosMaternos=[];
+  horses.forEach(x=>{
+    if(x.id===h.id) return;
+    const mesmoPai = h.pai && x.pai && h.pai.toLowerCase()===x.pai.toLowerCase();
+    const mesmaMae = h.mae && x.mae && h.mae.toLowerCase()===x.mae.toLowerCase();
+    if(mesmoPai && mesmaMae) irmaosProprios.push(x);
+    else if(mesmoPai) irmaosPaternos.push(x);
+    else if(mesmaMae) irmaosMaternos.push(x);
+  });
+  const filhos = h.nome ? horses.filter(x=> x.id!==h.id && ((x.pai&&x.pai.toLowerCase()===h.nome.toLowerCase()) || (x.mae&&x.mae.toLowerCase()===h.nome.toLowerCase()))) : [];
+  // "Competições" reaproveita os Treinos já lançados — conta os que não são "Treino" simples (jogo,
+  // amistoso, torneio...), pra separar prática de competição de verdade.
+  const competicoesDoAnimal = treinos.filter(t=> t.tipo && t.tipo!=='Treino' && (t.animais||[]).some(a=>a.id===h.id));
 
   const main = `
     <div class="perfil-card">
@@ -7837,12 +7910,38 @@ function renderAnimalPerfil(id){
     </div>
 
     <div class="perfil-card">
+      <div class="perfil-card-body" style="padding:4px 0;">
+        <div class="stat-list-row" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
+        <div class="stat-list-row" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
+        <div class="stat-list-row ${irmaosMaternos.length?'clicavel':''}" data-statclick="irmaosMaternos"><span>Irmãos maternos</span><strong>${irmaosMaternos.length}</strong></div>
+        <div class="stat-list-row ${irmaosPaternos.length?'clicavel':''}" data-statclick="irmaosPaternos"><span>Irmãos paternos</span><strong>${irmaosPaternos.length}</strong></div>
+        <div class="stat-list-row ${irmaosProprios.length?'clicavel':''}" data-statclick="irmaosProprios"><span>Irmãos próprios <span style="color:var(--muted);font-weight:400;">(pai e mãe)</span></span><strong>${irmaosProprios.length}</strong></div>
+        <div class="stat-list-row ${filhos.length?'clicavel':''}" data-statclick="filhos"><span>Descendência <span style="color:var(--muted);font-weight:400;">(filhos)</span></span><strong>${filhos.length}</strong></div>
+      </div>
+    </div>
+
+    <div class="perfil-card">
+      <div class="perfil-card-head">🎬 Vídeos</div>
+      <div class="perfil-card-body">
+        <div id="perfilVideosLista">${(h.videos||[]).length===0 ? '<div class="hint-text">Nenhum vídeo ainda.</div>' : (h.videos||[]).map((v,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
+            <a href="${v}" target="_blank" rel="noopener" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v}</a>
+            <button type="button" class="btn btn-sm btn-ghost" data-delvideo="${i}" title="Remover">✕</button>
+          </div>`).join('')}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <input type="text" id="perfilNovoVideo" placeholder="Link do vídeo (YouTube, Drive...)" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <button type="button" class="btn btn-sm" id="btnAddVideoPerfil">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="perfil-card">
       <div class="perfil-card-head">🔔 Próximas Tarefas</div>
       <div class="perfil-card-body">
         ${tarefas.length===0 ? '<div class="hint-text">Nenhuma frequência de manejo cadastrada pra esse animal.</div>' :
           tarefas.map(t=>`
             <div class="tarefa-row">
-              <div class="tarefa-label"><span class="nome">${t.tipo}</span>${tarefaBadge(t.situacao)}</div>
+              <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
               <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(t.proxima.toISOString().slice(0,10))):''}</div>
             </div>`).join('')}
       </div>
@@ -7859,6 +7958,32 @@ function renderAnimalPerfil(id){
 
   document.getElementById('perfilWrap').innerHTML = `<div>${main}</div><div>${sidebar}</div>`;
   renderAnimalTimeline(h);
+
+  document.querySelectorAll('[data-statclick]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const chave = el.dataset.statclick;
+      if(chave==='irmaosMaternos' && irmaosMaternos.length) abrirAnimaisNoFront('Irmãos maternos de '+h.nome, irmaosMaternos.map(x=>({id:x.id,nome:x.nome})));
+      else if(chave==='irmaosPaternos' && irmaosPaternos.length) abrirAnimaisNoFront('Irmãos paternos de '+h.nome, irmaosPaternos.map(x=>({id:x.id,nome:x.nome})));
+      else if(chave==='irmaosProprios' && irmaosProprios.length) abrirAnimaisNoFront('Irmãos próprios de '+h.nome, irmaosProprios.map(x=>({id:x.id,nome:x.nome})));
+      else if(chave==='filhos' && filhos.length) abrirAnimaisNoFront('Filhos de '+h.nome, filhos.map(x=>({id:x.id,nome:x.nome})));
+      else if(chave==='competicoes' && competicoesDoAnimal.length) irParaView('treinos');
+    });
+  });
+  document.getElementById('btnAddVideoPerfil').addEventListener('click', async ()=>{
+    const url = document.getElementById('perfilNovoVideo').value.trim();
+    if(!url) return;
+    if(!h.videos) h.videos = [];
+    h.videos.push(url);
+    await storeSet('horses_list', horses);
+    renderAnimalPerfil(h.id);
+  });
+  document.querySelectorAll('[data-delvideo]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      h.videos.splice(Number(btn.dataset.delvideo),1);
+      await storeSet('horses_list', horses);
+      renderAnimalPerfil(h.id);
+    });
+  });
 }
 
 /* Timeline: junta automaticamente Manejos, Treinos e Nascimentos (nasceu / teve filho) desse animal,
