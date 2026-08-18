@@ -688,6 +688,7 @@
       </div>
       <div class="subtabs">
         <span class="chip active" data-nvtab="lista" id="nvtab_lista">Lista</span>
+        <span class="chip" data-nvtab="protocolo" id="nvtab_protocolo">💉 Protocolo de Vacinas</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
       </div>
 
@@ -703,6 +704,34 @@
           <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Provável Nascimento</th><th>Dt Nascimento</th><th>Confirm.</th><th>Prenhez</th><th>Confirmado</th><th>Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
+      </div>
+
+      <div id="nview_protocolo" style="display:none;">
+        <div class="perfil-card">
+          <div class="perfil-card-head">Protocolo — Gestação <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Cobertura)</span></div>
+          <div class="perfil-card-body">
+            <div class="hint-text" style="margin-bottom:12px;">Quando você confirma a prenhez de uma égua ou receptora, essas vacinas já entram sozinhas no Calendário, com a data prevista de cada uma. Sugestão inicial — revise com seu veterinário antes de confiar de olhos fechados.</div>
+            <div id="protocoloGestacaoLista"></div>
+            <button type="button" class="btn btn-sm" id="btnAddRegraGestacao" style="margin-top:10px;">+ Adicionar vacina ao protocolo de gestação</button>
+          </div>
+        </div>
+        <div class="perfil-card">
+          <div class="perfil-card-head">Protocolo — Potro <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Nascimento)</span></div>
+          <div class="perfil-card-body">
+            <div class="hint-text" style="margin-bottom:12px;">Aplicado sozinho quando o nascimento é confirmado, até o potro entrar no protocolo anual normal (Manejos → Vacina, com frequência própria por vacina).</div>
+            <div id="protocoloPotroLista"></div>
+            <button type="button" class="btn btn-sm" id="btnAddRegraPotro" style="margin-top:10px;">+ Adicionar vacina ao protocolo de potro</button>
+          </div>
+        </div>
+        <div class="perfil-card">
+          <div class="perfil-card-head">Vacinas previstas <span style="font-weight:400;font-size:11.5px;" id="protocoloContagemPendentes"></span></div>
+          <div class="perfil-card-body">
+            <div class="grid-wrap"><table class="grid">
+              <thead><tr><th>Animal / Matriz</th><th>Vacina</th><th>Data prevista</th><th>Situação</th><th></th></tr></thead>
+              <tbody id="protocoloAgendaTbody"></tbody>
+            </table></div>
+          </div>
+        </div>
       </div>
 
       <div id="nview_relatorio" style="display:none;">
@@ -1115,6 +1144,22 @@
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayFreqVacinas">Cancelar</button><button type="button" class="btn" id="btnSalvarFreqVacinas">Salvar Frequências</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- REGRA DE PROTOCOLO (GESTAÇÃO OU POTRO) -->
+<div class="overlay" id="overlayRegraProtocolo">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="rpModalTitle">Nova Vacina no Protocolo</div><button class="modal-close" data-close="overlayRegraProtocolo">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Nome da vacina</label><input type="text" id="rp_nome" list="dl_medicamentos" placeholder="Ex: Lexington Gold"></div>
+      <div class="field full"><label>Quando aplicar</label><select id="rp_regra"></select></div>
+      <div class="field full"><label>Em quais momentos <span style="font-weight:400;text-transform:none;letter-spacing:0;">(números separados por vírgula)</span></label><input type="text" id="rp_valores" placeholder="Ex: 5, 7, 9"></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteRegraProtocolo" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayRegraProtocolo">Cancelar</button><button type="button" class="btn" id="btnSalvarRegraProtocolo">Salvar</button></div>
     </div>
   </div>
 </div>
@@ -1687,6 +1732,32 @@ async function loadAll(){
     if(config.valoresCasco['Ferrado mãos']===100) config.valoresCasco['Ferrado mãos'] = 140;
     Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
     if(!config.freqVacinas) config.freqVacinas = {};
+  }
+  // Protocolo de vacinas de gestação/potro — sugestão inicial (revisar com veterinário). Só cria na
+  // primeira vez; depois disso é 100% editável em Nascimentos → Protocolo de Vacinas, sem se autoreescrever.
+  {
+    let protocoloMudou = false;
+    if(!config.protocoloVacinasGestacao){
+      config.protocoloVacinasGestacao = [
+        { id:'pvg_1', nome:'Lexington Gold', regra:'mes_gestacao', valores:[5,7,9] },
+        { id:'pvg_2', nome:'Rodovac', regra:'dias_antes_parto', valores:[45,30,15] },
+        { id:'pvg_3', nome:'Estreptomicina', regra:'meses_apos_cobertura', valores:[6] },
+        // Sugestão: Rinopneumonite (Herpesvírus Equino 1/4) é a vacina mais recomendada em protocolos de
+        // gestação além dessas — previne aborto viral, aplicada no mesmo esquema do 5º/7º/9º mês.
+        { id:'pvg_4', nome:'Rinopneumonite (Herpesvírus Equino)', regra:'mes_gestacao', valores:[5,7,9] },
+      ];
+      protocoloMudou = true;
+    }
+    if(!config.protocoloVacinasPotro){
+      // Sugestão de protocolo de potro até entrar no anual do sistema: primeira dose por volta dos 6 meses
+      // (quando a imunidade da mãe começa a cair) e um reforço 30 dias depois — revisar com veterinário.
+      config.protocoloVacinasPotro = [
+        { id:'pvp_1', nome:'Vacinação inicial do potro', regra:'dias_apos_nascimento', valores:[180] },
+        { id:'pvp_2', nome:'Reforço do potro', regra:'dias_apos_nascimento', valores:[210] },
+      ];
+      protocoloMudou = true;
+    }
+    if(protocoloMudou) await storeSet('config', config);
   }
   if(rRS.value && !Array.isArray(rRS.value)) relSelecoes = rRS.value;
   if(Array.isArray(rDismissed.value)) dismissedDuplicates = new Set(rDismissed.value);
@@ -3384,7 +3455,8 @@ function computeProgramacao(dataReferencia){
    o calendário já passa a mostrar também as aplicações de medicamento, sem mudar nada aqui. */
 let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
-const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺' };
+const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣' };
+const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro' };
 function toISODate(d){ return d.toISOString().slice(0,10); }
 function computeCalendarTasks(){
   const rows = computeProgramacao().filter(r=>r.proxima);
@@ -3406,7 +3478,32 @@ function computeCalendarTasks(){
       });
     });
   });
-  return [...manejoTasks, ...tratamentoTasks];
+  // Vacinas da gestação: só enquanto o nascimento ainda não foi confirmado (depois disso, quem cuida
+  // da vacina é o potro já nascido, com o protocolo dele).
+  const gestacaoTasks = [];
+  nascimentos.forEach(n=>{
+    if(n.confirm==='S') return;
+    (n.protocoloVacinas||[]).forEach(item=>{
+      if(item.feito) return;
+      gestacaoTasks.push({
+        data: item.dataAlvo, tipo:'VacinaGestacao', label:'Vacinação (gestação): '+item.nome, categoria:'gestacao',
+        animalId:null, animalNome:n.matriz, nascimentoId:n.id, itemId:item.id,
+        situacao: item.dataAlvo<hoje ? 'atrasado' : 'proximo'
+      });
+    });
+  });
+  const potroTasks = [];
+  horses.forEach(h=>{
+    (h.protocoloPotro||[]).forEach(item=>{
+      if(item.feito) return;
+      potroTasks.push({
+        data: item.dataAlvo, tipo:'VacinaPotro', label:'Vacinação (potro): '+item.nome, categoria:'potro',
+        animalId:h.id, animalNome:h.nome, itemId:item.id,
+        situacao: item.dataAlvo<hoje ? 'atrasado' : 'proximo'
+      });
+    });
+  });
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks];
 }
 function tasksByDate(tasks){
   const map = {};
@@ -3529,7 +3626,7 @@ function renderCalMonthHtml(byDate){
       <div class="cal-daynum">${d.getDate()}</div>
       ${Object.entries(porTipo).map(([tipo,arr])=>{
         const temAtrasado = arr.some(t=>t.situacao==='atrasado');
-        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${tipo}">${CAL_ICON[tipo]||''} ${tipo} (${arr.length})</div>`;
+        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${tipo}">${CAL_ICON[tipo]||''} ${CAL_GRUPO_LABEL[tipo]||tipo} (${arr.length})</div>`;
       }).join('')}
     </div>`;
     if(i%7===6 && i<41) {} // apenas fecha visualmente via grid, sem necessidade de nova div (grid cuida das linhas)
@@ -3595,30 +3692,35 @@ async function concluirDosesTratamentoEmLote(itens){
 function abrirDetalheCalendario(iso, tipoFiltro){
   const tasks = computeCalendarTasks().filter(t=>t.data===iso && (!tipoFiltro||t.tipo===tipoFiltro));
   if(tasks.length===0) return;
-  document.getElementById('calDetTitulo').textContent = (tipoFiltro?tipoFiltro+' — ':'Tarefas — ')+fmtDate(iso);
+  document.getElementById('calDetTitulo').textContent = (tipoFiltro?(CAL_GRUPO_LABEL[tipoFiltro]||tipoFiltro)+' — ':'Tarefas — ')+fmtDate(iso);
   // Agrupa por tipo — permite concluir todo mundo de uma vez (ex: todos os cavalos da Vacina de hoje), não só um por um.
   const porTipo = {};
   tasks.forEach(t=>{ if(!porTipo[t.tipo]) porTipo[t.tipo]=[]; porTipo[t.tipo].push(t); });
   document.getElementById('calDetBody').innerHTML = Object.entries(porTipo).map(([tipo,arr])=>{
     const ehManejo = arr[0].categoria==='manejo';
     const ehTratamento = arr[0].categoria==='tratamento';
+    const ehGestacao = arr[0].categoria==='gestacao';
+    const ehPotro = arr[0].categoria==='potro';
     const podeLote = (ehManejo||ehTratamento) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
+    const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
-          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tipo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
+          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
           <div style="display:flex;gap:6px;">${btnFront}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button></div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
-          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tipo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
+          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
           ${btnFront}
         </div>`;
     const rows = arr.map(t=>`
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-        <div>${t.animalNome} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
-        ${t.categoria==='tratamento'
+        <div>${t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
+        ${ehTratamento
           ? `<button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button>`
-          : `<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
+          : (ehGestacao||ehPotro)
+            ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
+            : `<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
       </div>`).join('');
     return header+rows;
   }).join('');
@@ -3629,6 +3731,14 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       const [animalId, tipo] = btn.dataset.concluirmanejo.split('|');
       await concluirTarefaManejo(animalId, tipo);
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-concluirprotocolo]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const [categoria, refId, itemId] = btn.dataset.concluirprotocolo.split('|');
+      if(categoria==='gestacao') await marcarItemProtocoloGestacao(refId, itemId, true);
+      else await marcarItemProtocoloPotro(refId, itemId, true);
       closeModal('overlayCalDetalhe');
     });
   });
@@ -4682,6 +4792,9 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
         animalExistente.nome = nomeAnimal;
         animalExistente.sexo = document.getElementById('n_sexoAnimal').value;
         animalExistente.nascimento = record.datanasc;
+        if(!animalExistente.protocoloPotro || animalExistente.protocoloPotro.length===0){
+          animalExistente.protocoloPotro = gerarProtocoloPotro(record.datanasc);
+        }
         await storeSet('horses_list', horses);
       }
     } else {
@@ -4693,7 +4806,8 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
         pai: pai ? pai.nome : paiNome, mae: mae ? mae.nome : matrizNome,
         avopat: pai ? pai.pai : '', avopatmat: pai ? pai.mae : '',
         avomatpat: mae ? mae.pai : '', avomat: mae ? mae.mae : '',
-        freqcasco:'',freqdente:'',freqvacina:'',freqvermifugo:'', proprietario: mae ? mae.proprietario : '', valor:'', obs:'Gerado automaticamente via Nascimentos'
+        freqcasco:'',freqdente:'',freqvacina:'',freqvermifugo:'', proprietario: mae ? mae.proprietario : '', valor:'', obs:'Gerado automaticamente via Nascimentos',
+        protocoloPotro: gerarProtocoloPotro(record.datanasc)
       };
       horses.push(novoAnimal);
       record.animalId = novoAnimal.id;
@@ -4717,6 +4831,59 @@ document.getElementById('btnDeleteNasc').addEventListener('click', async ()=>{
 // Confirmação de prenhez: pode clicar quantas vezes forem necessárias (ex: reconfirmar em cada visita
 // do veterinário) — cada clique marca a prenhez como confirmada e atualiza a data da última confirmação,
 // mantendo um histórico de todas as confirmações desse registro.
+/* ================= PROTOCOLO DE VACINAS — GESTAÇÃO E POTRO =================
+   Duas listas de regras editáveis (config.protocoloVacinasGestacao / protocoloVacinasPotro). Cada regra
+   vira uma ou mais datas previstas (uma por "momento" cadastrado, ex: 5º/7º/9º mês), calculadas a partir
+   da Data de Cobertura (gestação) ou da Data de Nascimento (potro). O resultado fica gravado como um
+   checklist (protocoloVacinas no nascimento / protocoloPotro no animal) — assim marcar "aplicada" não
+   se perde, e reabrir a tela não recalcula em cima do que já foi feito. */
+function gerarAgendaVacinasGestacao(n){
+  if(!n.datacob) return [];
+  const provavel = n.datanasc || calcProvavelNascimento(n.datacob);
+  const itens = [];
+  (config.protocoloVacinasGestacao||[]).forEach(regra=>{
+    (regra.valores||[]).forEach(v=>{
+      let dataAlvo = null;
+      if(regra.regra==='dias_antes_parto'){
+        if(!provavel) return;
+        dataAlvo = toISODate(addToDate(provavel, -Number(v), 'dias'));
+      } else {
+        // 'mes_gestacao' e 'meses_apos_cobertura' calculam igual: N meses contados da cobertura.
+        dataAlvo = toISODate(addToDate(n.datacob, Number(v), 'meses'));
+      }
+      itens.push({ id: regra.id+'_'+v, regraId: regra.id, nome: regra.nome, ordinal:Number(v), dataAlvo, feito:false, dataFeito:null });
+    });
+  });
+  return itens.sort((a,b)=>a.dataAlvo.localeCompare(b.dataAlvo));
+}
+function gerarProtocoloPotro(dataNascimento){
+  if(!dataNascimento) return [];
+  const itens = [];
+  (config.protocoloVacinasPotro||[]).forEach(regra=>{
+    (regra.valores||[]).forEach(v=>{
+      const dataAlvo = toISODate(addToDate(dataNascimento, Number(v), 'dias'));
+      itens.push({ id: regra.id+'_'+v, regraId: regra.id, nome: regra.nome, ordinal:Number(v), dataAlvo, feito:false, dataFeito:null });
+    });
+  });
+  return itens.sort((a,b)=>a.dataAlvo.localeCompare(b.dataAlvo));
+}
+async function marcarItemProtocoloGestacao(nascimentoId, itemId, feito){
+  const n = nascimentos.find(x=>x.id===nascimentoId); if(!n || !n.protocoloVacinas) return;
+  const item = n.protocoloVacinas.find(i=>i.id===itemId); if(!item) return;
+  item.feito = feito; item.dataFeito = feito ? toISODate(new Date()) : null;
+  await storeSet('nascimentos_list', nascimentos);
+  renderCalendar(); renderInicio();
+  if(typeof renderProtocoloAgenda==='function') renderProtocoloAgenda();
+}
+async function marcarItemProtocoloPotro(animalId, itemId, feito){
+  const h = horses.find(x=>x.id===animalId); if(!h || !h.protocoloPotro) return;
+  const item = h.protocoloPotro.find(i=>i.id===itemId); if(!item) return;
+  item.feito = feito; item.dataFeito = feito ? toISODate(new Date()) : null;
+  await storeSet('horses_list', horses);
+  renderCalendar(); renderInicio();
+  if(typeof renderProtocoloAgenda==='function') renderProtocoloAgenda();
+}
+
 async function confirmarPrenhez(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
   const hoje = new Date().toISOString().slice(0,10);
@@ -4724,9 +4891,16 @@ async function confirmarPrenhez(id){
   n.prenhezUltima = hoje;
   if(!n.prenhezHistorico) n.prenhezHistorico = [];
   n.prenhezHistorico.push(hoje);
+  // Gera a agenda de vacinas da gestação — só na primeira vez que essa prenhez é confirmada, pra não
+  // apagar marcações de "aplicada" já feitas se você reconfirmar depois.
+  let avisoVacinas = '';
+  if(!n.protocoloVacinas || n.protocoloVacinas.length===0){
+    n.protocoloVacinas = gerarAgendaVacinasGestacao(n);
+    if(n.protocoloVacinas.length>0) avisoVacinas = ' '+n.protocoloVacinas.length+' vacina(s) da gestação já entraram no calendário (confira em Nascimentos → Protocolo de Vacinas).';
+  }
   await storeSet('nascimentos_list', nascimentos);
   renderNascimentos();
-  showAlert('Prenhez confirmada em '+fmtDate(hoje)+'.');
+  showAlert('Prenhez confirmada em '+fmtDate(hoje)+'.'+avisoVacinas);
 }
 
 // Quadro "Prenhezes confirmadas" — lista quem tá confirmada e ainda não teve o nascimento confirmado.
@@ -4843,13 +5017,116 @@ function renderNascimentos(){
 ['nFiltroConf','nFiltroAno','nFiltroAnoNasc','nSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
 
 function showNascTab(tab){
-  ['lista','relatorio'].forEach(t=>{
+  ['lista','protocolo','relatorio'].forEach(t=>{
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  if(tab==='protocolo') renderProtocoloVacinas();
 }
 document.getElementById('nvtab_lista').addEventListener('click', ()=>showNascTab('lista'));
+document.getElementById('nvtab_protocolo').addEventListener('click', ()=>showNascTab('protocolo'));
 document.getElementById('nvtab_relatorio').addEventListener('click', ()=>showNascTab('relatorio'));
+
+/* ---- Tela "Protocolo de Vacinas" — lista as regras (editáveis) e a agenda calculada ---- */
+function renderRegrasProtocolo(){
+  const REGRA_LABEL_GEST = { mes_gestacao:'mês(es) de gestação', dias_antes_parto:'dia(s) antes do parto previsto', meses_apos_cobertura:'mês(es) após a cobertura' };
+  const REGRA_LABEL_POTRO = { dias_apos_nascimento:'dia(s) após o nascimento' };
+  const listaGest = document.getElementById('protocoloGestacaoLista');
+  const regrasGest = config.protocoloVacinasGestacao||[];
+  listaGest.innerHTML = regrasGest.length===0 ? '<div class="hint-text">Nenhuma vacina cadastrada ainda.</div>' : regrasGest.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${(r.valores||[]).join('º, ')+(r.regra==='mes_gestacao'?'º':'')} ${REGRA_LABEL_GEST[r.regra]||r.regra}</span></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-editregra="gestacao|${r.id}">Editar</button>
+    </div>`).join('');
+  listaGest.querySelectorAll('[data-editregra]').forEach(b=>b.addEventListener('click', ()=>{ const [g,id]=b.dataset.editregra.split('|'); abrirRegraProtocolo(g,id); }));
+
+  const listaPotro = document.getElementById('protocoloPotroLista');
+  const regrasPotro = config.protocoloVacinasPotro||[];
+  listaPotro.innerHTML = regrasPotro.length===0 ? '<div class="hint-text">Nenhuma vacina cadastrada ainda.</div>' : regrasPotro.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${(r.valores||[]).join(', ')} ${REGRA_LABEL_POTRO[r.regra]||r.regra}</span></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-editregra="potro|${r.id}">Editar</button>
+    </div>`).join('');
+  listaPotro.querySelectorAll('[data-editregra]').forEach(b=>b.addEventListener('click', ()=>{ const [g,id]=b.dataset.editregra.split('|'); abrirRegraProtocolo(g,id); }));
+}
+function renderProtocoloAgenda(){
+  const linhas = [];
+  nascimentos.filter(n=>n.confirm!=='S').forEach(n=>{
+    (n.protocoloVacinas||[]).forEach(item=>linhas.push({ origem:'gestacao', refId:n.id, animalNome:n.matriz, ...item }));
+  });
+  horses.forEach(h=>{
+    (h.protocoloPotro||[]).forEach(item=>linhas.push({ origem:'potro', refId:h.id, animalNome:h.nome, ...item }));
+  });
+  const hoje = toISODate(new Date());
+  linhas.sort((a,b)=> a.dataAlvo.localeCompare(b.dataAlvo));
+  const pendentes = linhas.filter(l=>!l.feito).length;
+  document.getElementById('protocoloContagemPendentes').textContent = pendentes>0 ? '— '+pendentes+' pendente(s)' : '— tudo em dia';
+  const tbody = document.getElementById('protocoloAgendaTbody');
+  if(linhas.length===0){ tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma vacina de gestação/potro agendada ainda — confirme a prenhez de uma égua ou o nascimento de um potro pra ver a agenda aqui.</td></tr>'; return; }
+  tbody.innerHTML = linhas.map(l=>{
+    const atrasado = !l.feito && l.dataAlvo<hoje;
+    const situ = l.feito ? `<span class="pill st-ativo">Aplicada em ${fmtDate(l.dataFeito)}</span>` : (atrasado ? '<span class="pill st-descarte">Atrasada</span>' : '<span class="pill st-outro">Prevista</span>');
+    return `<tr>
+      <td>${l.animalNome}</td>
+      <td>${l.nome}</td>
+      <td>${fmtDate(l.dataAlvo)}</td>
+      <td>${situ}</td>
+      <td>${l.feito ? `<button type="button" class="btn btn-sm btn-ghost" data-desmarcarprotocolo="${l.origem}|${l.refId}|${l.id}">Desfazer</button>` : `<button type="button" class="btn btn-sm" data-marcarprotocolo="${l.origem}|${l.refId}|${l.id}">✔ Marcar aplicada</button>`}</td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-marcarprotocolo]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [origem, refId, itemId] = b.dataset.marcarprotocolo.split('|');
+    if(origem==='gestacao') await marcarItemProtocoloGestacao(refId, itemId, true); else await marcarItemProtocoloPotro(refId, itemId, true);
+  }));
+  tbody.querySelectorAll('[data-desmarcarprotocolo]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [origem, refId, itemId] = b.dataset.desmarcarprotocolo.split('|');
+    if(origem==='gestacao') await marcarItemProtocoloGestacao(refId, itemId, false); else await marcarItemProtocoloPotro(refId, itemId, false);
+  }));
+}
+function renderProtocoloVacinas(){ renderRegrasProtocolo(); renderProtocoloAgenda(); }
+
+/* ---- Modal de adicionar/editar uma regra do protocolo (gestação ou potro) ---- */
+let editingRegraGrupo = null, editingRegraId = null;
+const REGRAS_POR_GRUPO = {
+  gestacao: [ ['mes_gestacao','Mês de gestação (contado da cobertura)'], ['dias_antes_parto','Dias antes do parto previsto'], ['meses_apos_cobertura','Meses após a cobertura'] ],
+  potro: [ ['dias_apos_nascimento','Dias após o nascimento'] ]
+};
+function abrirRegraProtocolo(grupo, id){
+  editingRegraGrupo = grupo; editingRegraId = id||null;
+  const lista = grupo==='gestacao' ? (config.protocoloVacinasGestacao||[]) : (config.protocoloVacinasPotro||[]);
+  const regra = id ? lista.find(r=>r.id===id) : null;
+  document.getElementById('rpModalTitle').textContent = regra ? 'Editar Vacina — '+regra.nome : 'Nova Vacina no Protocolo de '+(grupo==='gestacao'?'Gestação':'Potro');
+  document.getElementById('rp_nome').value = regra ? regra.nome : '';
+  document.getElementById('rp_regra').innerHTML = REGRAS_POR_GRUPO[grupo].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  document.getElementById('rp_regra').value = regra ? regra.regra : REGRAS_POR_GRUPO[grupo][0][0];
+  document.getElementById('rp_valores').value = regra ? (regra.valores||[]).join(', ') : '';
+  document.getElementById('btnDeleteRegraProtocolo').style.display = regra ? 'inline-block' : 'none';
+  openModal('overlayRegraProtocolo');
+}
+document.getElementById('btnAddRegraGestacao').addEventListener('click', ()=>abrirRegraProtocolo('gestacao', null));
+document.getElementById('btnAddRegraPotro').addEventListener('click', ()=>abrirRegraProtocolo('potro', null));
+document.getElementById('btnSalvarRegraProtocolo').addEventListener('click', async ()=>{
+  const nome = f('rp_nome').trim();
+  if(!nome){ showAlert('Informe o nome da vacina.'); return; }
+  const valores = f('rp_valores').split(',').map(s=>Number(s.trim())).filter(n=>n>0);
+  if(valores.length===0){ showAlert('Informe ao menos um número em "Em quais momentos" (ex: 5, 7, 9).'); return; }
+  const chaveConfig = editingRegraGrupo==='gestacao' ? 'protocoloVacinasGestacao' : 'protocoloVacinasPotro';
+  if(!config[chaveConfig]) config[chaveConfig] = [];
+  const dados = { id: editingRegraId || ('pv_'+Date.now()), nome, regra: f('rp_regra'), valores };
+  config[chaveConfig] = editingRegraId ? config[chaveConfig].map(r=>r.id===editingRegraId?dados:r) : [...config[chaveConfig], dados];
+  await storeSet('config', config);
+  closeModal('overlayRegraProtocolo');
+  renderRegrasProtocolo();
+  showAlert('Protocolo atualizado. Isso vale pras próximas confirmações de prenhez/nascimento — os já confirmados mantêm a agenda que já foi gerada (edite pelo botão "Recalcular" se precisar, ou ajuste direto na tela de Protocolo de Vacinas).');
+});
+document.getElementById('btnDeleteRegraProtocolo').addEventListener('click', async ()=>{
+  if(!editingRegraId || !(await showConfirm('Excluir essa vacina do protocolo? Datas já agendadas pra prenhezes/potros em andamento não são apagadas — só deixa de valer pra novas confirmações.'))) return;
+  const chaveConfig = editingRegraGrupo==='gestacao' ? 'protocoloVacinasGestacao' : 'protocoloVacinasPotro';
+  config[chaveConfig] = (config[chaveConfig]||[]).filter(r=>r.id!==editingRegraId);
+  await storeSet('config', config);
+  closeModal('overlayRegraProtocolo');
+  renderRegrasProtocolo();
+});
 
 function gerarRelatorioNascimentos(){
   const conf = document.getElementById('nrFiltroConf').value;
