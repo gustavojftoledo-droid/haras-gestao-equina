@@ -1,0 +1,6 @@
+# Dados reais do haras — nunca vão pro repositório público. O app guarda tudo no navegador
+# (localStorage); esses arquivos são só backups locais que você exporta de vez em quando.
+haras_backup_*.json
+
+# Pastas de sessão/config do Claude Code, não fazem parte do app.
+.claude/
