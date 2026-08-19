@@ -351,6 +351,7 @@
       <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
       <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
       <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
+      <div class="nav-item" data-view="funcionarios" title="Atalho: Alt+Shift+P"><span class="dot"></span>Funcionários</div>
       <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
       <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
     </div>
@@ -892,6 +893,7 @@
         <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F">+ Novo Lançamento</button>
       </div>
       <div id="finPainelMes" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
+      <div id="finQuadroNaoRateado" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
       <div class="section-label" style="border-top:none;padding-top:0;">Todos os lançamentos</div>
       <div class="stats" id="finStats"></div>
       <div class="filters">
@@ -899,11 +901,26 @@
         <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
         <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
         <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
+        <div class="f" style="align-self:flex-end;"><label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap;"><input type="checkbox" id="finFiltroNaoRateado" style="width:auto;"> Só custos não rateados</label></div>
       </div>
       <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
       <div class="grid-wrap"><table class="grid">
         <thead><tr><th>Data</th><th>Origem</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
         <tbody id="finTbody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- FUNCIONARIOS -->
+    <div class="view" id="view-funcionarios">
+      <div class="topbar">
+        <div><div class="title">Funcionários</div><div class="subtitle">Custos de pessoal — entram direto no Financeiro, sem ratear entre os animais</div></div>
+        <button class="btn" id="btnNewFuncionario" title="Atalho: Alt+P">+ Novo Funcionário</button>
+      </div>
+      <div class="stats" id="funcStats"></div>
+      <div class="hint-text" style="margin:0 0 10px;">Cadastre aqui e use "Lançar custo" pra mandar um pagamento pro Financeiro (categoria "Funcionários", já marcado como custo não rateado). O valor mensal do cadastro é só uma referência que pré-preenche o lançamento.</div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Nome</th><th>Função</th><th>Custo mensal (ref.)</th><th>Admissão</th><th>Status</th><th></th></tr></thead>
+        <tbody id="funcTbody"></tbody>
       </table></div>
     </div>
 
@@ -1061,10 +1078,33 @@
       <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
+    <label style="display:flex;align-items:center;gap:7px;margin:-4px 0 12px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="fin_naoRateado" style="width:auto;"> Custo geral (não rateado entre os animais)</label>
+    <div class="hint-text" style="margin:-8px 0 12px;">Marque pra custos como funcionários e despesas gerais que não são de nenhum animal específico — aparecem juntos no quadro "Custos Não Rateados" do Financeiro.</div>
     <div class="hint-text" id="fin_vozStatus" style="display:none;margin:-6px 0 12px;"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteLancamento" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayLancamento">Cancelar</button><button type="button" class="btn" id="btnSaveLancamento">Salvar Lançamento <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- FUNCIONARIO MODAL -->
+<div class="overlay" id="overlayFuncionario">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="funcModalTitle">Novo Funcionário</div><button class="modal-close" data-close="overlayFuncionario">✕</button></div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="field full"><label>Nome</label><input type="text" id="fu_nome" spellcheck="true" lang="pt-BR"></div>
+      <div class="field full"><label>Função</label><input type="text" id="fu_funcao" list="dl_funcoes" placeholder="Ex: Tratador, Peão, Administrativo..."></div>
+      <div class="field"><label>Custo mensal (referência)</label><div style="display:flex;gap:6px;"><select id="fu_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fu_valorMensal" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
+      <div class="field"><label>Admissão</label><input type="date" id="fu_admissao"></div>
+      <div class="field"><label>Status</label><select id="fu_ativo"><option value="1">Ativo</option><option value="0">Inativo / Desligado</option></select></div>
+      <div class="field" id="fu_desligamentoWrap" style="display:none;"><label>Data de desligamento</label><input type="date" id="fu_desligamento"></div>
+      <div class="field full"><label>Observações</label><input type="text" id="fu_obs" spellcheck="true" lang="pt-BR"></div>
+    </div>
+    <div class="hint-text" style="margin-bottom:12px;">O custo mensal aqui é só referência — não lança nada sozinho no Financeiro. Depois de salvar, use "Lançar custo" na listagem pra registrar cada pagamento de verdade.</div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteFuncionario" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayFuncionario">Cancelar</button><button type="button" class="btn" id="btnSaveFuncionario">Salvar Funcionário <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -1579,6 +1619,7 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
   </div>
 </div>
 <datalist id="dl_allhorses"></datalist>
+<datalist id="dl_funcoes"></datalist>
 
 <script>
 /* ---------- CUSTOM DIALOGS (prompt/alert/confirm can be blocked in sandboxed frames) ---------- */
@@ -1621,11 +1662,15 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 
 /* ---------- STATE ---------- */
 let horses=[], manejos=[], treinos=[], nascimentos=[];
-let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[];
+let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 let relSelecoes = {}; // lembra a última seleção de animais de cada seletor de relatório (persistido)
-let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null;
+let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null, editingFuncionarioId=null;
+// Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
+// funcionário — o Salvar do modal de Lançamento usa isso pra ligar o registro ao funcionário
+// (l.origemFuncionarioId), sem precisar de um campo visível no formulário.
+let novoLancamentoFuncionarioId = null;
 let config = { gestacaoDias: 340, valoresCasco: { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 140, 'Ferrado completo': 200, 'Ferrado pés': 140 }, deslocamentoFerrador: 0, freqVacinas: {} }; // tempo médio de gestação da égua (~11 meses); ajustável em Nascimentos → "Tempo de gestação". valoresCasco/deslocamentoFerrador: valores de referência do ferrageamento, ajustáveis em Manejos → "⚙ Editar valores de referência"
 let aux = { status:[], pelagem:[], categoria:[], proprietarios:[], unidade:[], tipotreino:[], localtreino:[], treinador:[], tipoProduto:[], nomeProduto:[] };
 let dietaItensState = [];
@@ -1714,11 +1759,12 @@ async function loadAll(){
   const rRS = await storeGet('rel_selecoes');
   const rNFA = await storeGet('nf_aprendizado');
   const rFin = await storeGet('financeiro_lancamentos');
+  const rFU = await storeGet('funcionarios_list');
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
   usuarios = rU.value;
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
   estoqueProdutos = rEP.value; estoqueMovimentos = rEM.value; dietas = rDT.value; grupos = rG.value;
-  tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[];
+  tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[];
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
   // Migração: versão antiga de valoresCasco tinha só 4 categorias (com "Ferrado mão casq. pé").
   // Essa nomenclatura foi substituída pelas 5 categorias novas (Casqueado mãos/completo/pés, Ferrado mãos/completo).
@@ -1853,7 +1899,7 @@ async function loadAll(){
   if(dietasChanged) await storeSet('dietas_list', dietas);
   refreshDatalists();
   populateAuxSelects();
-  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderFinanceiro();
+  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderFinanceiro(); renderFuncionarios();
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
@@ -2099,6 +2145,7 @@ function refreshDatalists(){
   setDL('dl_femeas', horses.filter(h=>h.sexo==='FEMININO').map(h=>h.nome));
   setDL('dl_allhorses', horses.map(h=>h.nome));
   setDL('dl_medicamentos', estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome));
+  setDL('dl_funcoes', funcionarios.map(f=>f.funcao));
 }
 
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -2113,13 +2160,14 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     item.classList.add('active');
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    if(['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','financeiro','usuarios'].includes(view)){
+    if(['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); }
       if(view==='estoque') renderEstoque();
       if(view==='veterinaria') renderTratamentos();
       if(view==='grupos') renderGrupos();
+      if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios') renderUsuarios();
     }else{
@@ -2153,6 +2201,7 @@ const ATALHOS_NOVO = {
   'd': { view:'estoque', action:()=>{ document.querySelector('#view-estoque [data-etab="dietas"]').click(); document.getElementById('btnNewDieta').click(); } },
   'g': { view:'grupos', action:()=>document.getElementById('btnNewGrupo').click() },
   'v': { view:'veterinaria', action:()=>document.getElementById('btnNewTratamento').click() },
+  'p': { view:'funcionarios', action:()=>document.getElementById('btnNewFuncionario').click() },
   'f': { view:'financeiro', action:()=>document.getElementById('btnNewLancamento').click() },
   'u': { view:'usuarios', action:()=>openUsuarioNew() },
 };
@@ -2182,6 +2231,7 @@ const ATALHOS_NAVEGACAO = {
   'n': 'nascimentos',
   'e': 'estoque',
   'v': 'veterinaria',
+  'p': 'funcionarios',
   'f': 'financeiro',
   'u': 'usuarios',
 };
@@ -3053,6 +3103,7 @@ document.getElementById('overlayProduto').addEventListener('keydown', e=>{
 bindSaveShortcut('overlayDieta','btnSaveDieta');
 bindSaveShortcut('overlayGrupo','btnSaveGrupo');
 bindSaveShortcut('overlayLancamento','btnSaveLancamento');
+bindSaveShortcut('overlayFuncionario','btnSaveFuncionario');
 bindSaveShortcut('overlayDietaAnimais','btnSaveDietaAnimais');
 document.getElementById('horseForm').addEventListener('submit', async e=>{
   e.preventDefault();
@@ -7543,18 +7594,56 @@ function renderPainelMesFinanceiro(){
   document.getElementById('btnFinMesHoje').addEventListener('click', ()=>{ const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); finPainelMesRef=d; renderPainelMesFinanceiro(); });
 }
 
+// Quadro de Custos Não Rateados — junta tudo que foi marcado como "não rateado entre os animais"
+// (o checkbox do lançamento manual, sempre ligado nos lançamentos de Funcionários). Fica de fora
+// os custos de Manejos/Estoque e a Venda de Animal, que são sempre ligados a um ou mais animais —
+// veja a nota no rodapé do card. É sobre TODO o histórico, não só o mês em exibição no painel de cima.
+function renderQuadroNaoRateado(){
+  const naoRateados = lancamentos.map(l=>({...l, origem:'manual'})).filter(l=>l.naoRateado);
+  const host = document.getElementById('finQuadroNaoRateado');
+  if(naoRateados.length===0){
+    host.innerHTML = `<div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin-bottom:6px;">Custos Não Rateados</div>
+    <div class="hint-text" style="margin:0;">Nenhum lançamento marcado como custo não rateado ainda. Cadastre em <strong>Funcionários</strong> e use "Lançar custo", ou marque o checkbox "Custo geral (não rateado entre os animais)" ao criar um lançamento manual.</div>`;
+    return;
+  }
+  const emBRL = naoRateados.filter(l=>l.moeda!=='USD'), emUSD = naoRateados.filter(l=>l.moeda==='USD');
+  const totalBRL = emBRL.reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const totalUSD = emUSD.reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const porCategoria = {};
+  emBRL.forEach(l=>{ const cat = l.categoria||'Sem categoria'; porCategoria[cat] = (porCategoria[cat]||0)+(Number(l.valor)||0); });
+  const categorias = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]);
+  const maior = categorias.length ? categorias[0][1] : 0;
+  host.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;">Custos Não Rateados <span style="font-size:11px;color:var(--muted);font-weight:400;">(todo o histórico)</span></div>
+      <div style="text-align:right;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--burgundy);">${fmtMoeda(totalBRL,'BRL')}</div>
+        ${emUSD.length ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--muted);">${fmtMoeda(totalUSD,'USD')}</div>` : ''}
+      </div>
+    </div>
+    ${categorias.map(([cat,total])=>`
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;"><span>${cat}</span><span style="font-family:'IBM Plex Mono',monospace;">${fmtMoeda(total,'BRL')}</span></div>
+        <div style="background:#EFE9D8;border-radius:4px;height:7px;overflow:hidden;"><div style="background:var(--burgundy);height:100%;width:${maior>0?Math.max(4,(total/maior)*100):0}%;"></div></div>
+      </div>`).join('')}
+    <div class="hint-text" style="margin:8px 0 0;">Funcionários e custos gerais que não são de nenhum animal específico — não entram no relatório de Custo por Animal. Marque "Só custos não rateados" abaixo pra ver a lista completa.</div>
+  `;
+}
 function renderFinanceiro(){
   renderPainelMesFinanceiro();
+  renderQuadroNaoRateado();
   const todos = todosLancamentosFinanceiro();
   populateSelectFilter('finFiltroCategoria', todos.map(l=>l.categoria));
   const termo = (document.getElementById('finSearch').value||'').toLowerCase();
   const tipo = document.getElementById('finFiltroTipo').value;
   const categoria = document.getElementById('finFiltroCategoria').value;
+  const soNaoRateado = document.getElementById('finFiltroNaoRateado').checked;
   const { de, ate } = finFiltroPeriodo.getRange();
   const filtered = todos.filter(l=>
     (!termo || (l.descricao||'').toLowerCase().includes(termo)) &&
     (!tipo || l.tipo===tipo) &&
     (!categoria || l.categoria===categoria) &&
+    (!soNaoRateado || l.naoRateado) &&
     (!de || l.data>=de) && (!ate || l.data<=ate)
   ).sort((a,b)=> b.data.localeCompare(a.data));
   renderFinanceiroStats(filtered);
@@ -7579,7 +7668,7 @@ function renderFinanceiro(){
     if(!(await showConfirm('Excluir este lançamento?'))) return;
     lancamentos = lancamentos.filter(l=>l.id!==b.dataset.delfin);
     await storeSet('financeiro_lancamentos', lancamentos, true);
-    renderFinanceiro();
+    renderFinanceiro(); renderFuncionarios();
   }));
   tbody.querySelectorAll('[data-verorigemfin]').forEach(b=>b.addEventListener('click', ()=>{
     const tipoOrigem = b.dataset.tipoorigemfin, id = b.dataset.idorigemfin;
@@ -7593,11 +7682,12 @@ function renderFinanceiro(){
   }));
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
-['finSearch','finFiltroTipo','finFiltroCategoria'].forEach(id=>{
+['finSearch','finFiltroTipo','finFiltroCategoria','finFiltroNaoRateado'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderFinanceiro);
 });
 function openLancamentoNew(){
   editingLancamentoId = null;
+  novoLancamentoFuncionarioId = null;
   document.getElementById('finModalTitle').textContent = 'Novo Lançamento';
   document.getElementById('btnDeleteLancamento').style.display = 'none';
   document.getElementById('fin_data').value = toISODate(new Date());
@@ -7605,6 +7695,7 @@ function openLancamentoNew(){
   document.getElementById('fin_descricao').value = '';
   document.getElementById('fin_valor').value = '';
   document.getElementById('fin_moeda').value = 'BRL';
+  document.getElementById('fin_naoRateado').checked = false;
   populateAuxSelects();
   document.getElementById('fin_categoria').value = '';
   openModal('overlayLancamento');
@@ -7612,6 +7703,7 @@ function openLancamentoNew(){
 function openLancamentoEdit(id){
   const l = lancamentos.find(x=>x.id===id); if(!l) return;
   editingLancamentoId = id;
+  novoLancamentoFuncionarioId = null;
   document.getElementById('finModalTitle').textContent = 'Editar Lançamento';
   document.getElementById('btnDeleteLancamento').style.display = 'inline-block';
   document.getElementById('fin_data').value = l.data||'';
@@ -7619,8 +7711,27 @@ function openLancamentoEdit(id){
   document.getElementById('fin_descricao').value = l.descricao||'';
   document.getElementById('fin_valor').value = (l.valor!==undefined && l.valor!==null) ? l.valor : '';
   document.getElementById('fin_moeda').value = l.moeda==='USD' ? 'USD' : 'BRL';
+  document.getElementById('fin_naoRateado').checked = !!l.naoRateado;
   populateAuxSelects();
   document.getElementById('fin_categoria').value = l.categoria||'';
+  openModal('overlayLancamento');
+}
+// Aberto a partir de "Lançar custo" na aba Funcionários — pré-preenche categoria, descrição, valor e
+// moeda com os dados do funcionário, já marcado como custo não rateado, e liga o registro a ele.
+function openLancamentoDeFuncionario(func){
+  editingLancamentoId = null;
+  novoLancamentoFuncionarioId = func.id;
+  document.getElementById('finModalTitle').textContent = 'Lançar custo — '+func.nome;
+  document.getElementById('btnDeleteLancamento').style.display = 'none';
+  document.getElementById('fin_data').value = toISODate(new Date());
+  document.getElementById('fin_tipo').value = 'saida';
+  document.getElementById('fin_descricao').value = 'Salário — '+func.nome+(func.funcao?(' ('+func.funcao+')'):'');
+  document.getElementById('fin_valor').value = (func.valorMensal!==undefined && func.valorMensal!==null) ? func.valorMensal : '';
+  document.getElementById('fin_moeda').value = func.moeda==='USD' ? 'USD' : 'BRL';
+  document.getElementById('fin_naoRateado').checked = true;
+  populateAuxSelects();
+  if(!aux.finCategoria.includes('Funcionários')){ aux.finCategoria.push('Funcionários'); storeSet('aux_lists', aux); populateAuxSelects(); }
+  document.getElementById('fin_categoria').value = 'Funcionários';
   openModal('overlayLancamento');
 }
 document.getElementById('btnNewLancamento').addEventListener('click', openLancamentoNew);
@@ -7896,20 +8007,134 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
   if(!data){ showAlert('Informe a data do lançamento.'); return; }
   const valor = Number(f('fin_valor'));
   if(!valor || valor<=0){ showAlert('Informe um valor maior que zero.'); return; }
+  // Editando um lançamento que já estava ligado a um funcionário: preserva o vínculo (não tem campo
+  // visível no formulário pra recriar isso à mão).
+  const origemFuncionarioId = editingLancamentoId
+    ? (lancamentos.find(l=>l.id===editingLancamentoId)||{}).origemFuncionarioId
+    : (novoLancamentoFuncionarioId || undefined);
   const registro = {
     id: editingLancamentoId || ('fn_'+Date.now()),
     data, tipo: f('fin_tipo'), categoria: f('fin_categoria'), descricao: f('fin_descricao').trim(), valor,
-    moeda: f('fin_moeda')==='USD' ? 'USD' : 'BRL'
+    moeda: f('fin_moeda')==='USD' ? 'USD' : 'BRL',
+    naoRateado: document.getElementById('fin_naoRateado').checked,
+    origemFuncionarioId
   };
   lancamentos = editingLancamentoId ? lancamentos.map(l=>l.id===editingLancamentoId?registro:l) : [...lancamentos, registro];
   await storeSet('financeiro_lancamentos', lancamentos);
-  closeModal('overlayLancamento'); renderFinanceiro();
+  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios();
 });
 document.getElementById('btnDeleteLancamento').addEventListener('click', async ()=>{
   if(!editingLancamentoId || !(await showConfirm('Excluir este lançamento?'))) return;
   lancamentos = lancamentos.filter(l=>l.id!==editingLancamentoId);
   await storeSet('financeiro_lancamentos', lancamentos, true);
-  closeModal('overlayLancamento'); renderFinanceiro();
+  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios();
+});
+
+/* ================= FUNCIONÁRIOS ================= */
+// Cadastro de funcionários e seus custos de referência. O cadastro em si não lança nada no Financeiro
+// sozinho — cada pagamento de verdade é um lançamento próprio (criado via "Lançar custo", que abre o
+// mesmo modal de Lançamento do Financeiro, pré-preenchido e já marcado como custo não rateado). Isso
+// evita inventar histórico de pagamento que nunca existiu de verdade, e reaproveita 100% da tela de
+// Financeiro (editar, excluir, aparecer nos relatórios) sem duplicar lógica.
+function custoMensalFuncionarios(){
+  const ativos = funcionarios.filter(f=>f.ativo!==false);
+  const porMoeda = { BRL:0, USD:0 };
+  ativos.forEach(f=>{ const v = Number(f.valorMensal)||0; if(v>0) porMoeda[f.moeda==='USD'?'USD':'BRL'] += v; });
+  return { ativos: ativos.length, porMoeda };
+}
+function renderFuncionarios(){
+  const { ativos, porMoeda } = custoMensalFuncionarios();
+  document.getElementById('funcStats').innerHTML = `
+    <div class="stat"><div class="stat-num">${funcionarios.length}</div><div class="stat-label">Cadastrados</div></div>
+    <div class="stat"><div class="stat-num">${ativos}</div><div class="stat-label">Ativos</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(porMoeda.BRL,'BRL')}</div>${porMoeda.USD>0?`<div style="font-size:13px;color:var(--muted);margin-top:2px;">${fmtMoeda(porMoeda.USD,'USD')}</div>`:''}<div class="stat-label">Custo mensal de referência (ativos)</div></div>`;
+  const tbody = document.getElementById('funcTbody');
+  if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; return; }
+  const lista = [...funcionarios].sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+  tbody.innerHTML = lista.map(fu=>{
+    const qtdLancamentos = lancamentos.filter(l=>l.origemFuncionarioId===fu.id).length;
+    return `<tr>
+    <td><strong>${fu.nome||''}</strong></td>
+    <td>${fu.funcao||''}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;">${fu.valorMensal ? fmtMoeda(fu.valorMensal, fu.moeda) : '—'}</td>
+    <td>${fu.dataAdmissao ? fmtDate(fu.dataAdmissao) : '—'}</td>
+    <td><span class="pill ${fu.ativo!==false?'st-ativo':'st-descarte'}">${fu.ativo!==false?'Ativo':'Inativo'}</span></td>
+    <td style="white-space:nowrap;">
+      <button type="button" class="btn btn-sm" data-lancarcusto="${fu.id}">Lançar custo</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-editfunc="${fu.id}">Editar</button>
+      ${qtdLancamentos>0 ? `<button type="button" class="btn btn-sm btn-ghost" data-verlancfunc="${fu.nome}">Ver ${qtdLancamentos} lançamento(s)</button>` : ''}
+    </td>
+  </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-lancarcusto]').forEach(b=>b.addEventListener('click', ()=>{
+    const fu = funcionarios.find(x=>x.id===b.dataset.lancarcusto); if(fu) openLancamentoDeFuncionario(fu);
+  }));
+  tbody.querySelectorAll('[data-editfunc]').forEach(b=>b.addEventListener('click', ()=>openFuncionarioEdit(b.dataset.editfunc)));
+  tbody.querySelectorAll('[data-verlancfunc]').forEach(b=>b.addEventListener('click', ()=>{
+    irParaView('financeiro');
+    setTimeout(()=>{ document.getElementById('finSearch').value = b.dataset.verlancfunc; renderFinanceiro(); }, 30);
+  }));
+}
+function openFuncionarioNew(){
+  editingFuncionarioId = null;
+  document.getElementById('funcModalTitle').textContent = 'Novo Funcionário';
+  document.getElementById('btnDeleteFuncionario').style.display = 'none';
+  document.getElementById('fu_nome').value = '';
+  document.getElementById('fu_funcao').value = '';
+  document.getElementById('fu_valorMensal').value = '';
+  document.getElementById('fu_moeda').value = 'BRL';
+  document.getElementById('fu_admissao').value = toISODate(new Date());
+  document.getElementById('fu_ativo').value = '1';
+  document.getElementById('fu_desligamento').value = '';
+  document.getElementById('fu_desligamentoWrap').style.display = 'none';
+  document.getElementById('fu_obs').value = '';
+  refreshDatalists();
+  openModal('overlayFuncionario');
+}
+function openFuncionarioEdit(id){
+  const fu = funcionarios.find(x=>x.id===id); if(!fu) return;
+  editingFuncionarioId = id;
+  document.getElementById('funcModalTitle').textContent = 'Editar Funcionário';
+  document.getElementById('btnDeleteFuncionario').style.display = 'inline-block';
+  document.getElementById('fu_nome').value = fu.nome||'';
+  document.getElementById('fu_funcao').value = fu.funcao||'';
+  document.getElementById('fu_valorMensal').value = (fu.valorMensal!==undefined && fu.valorMensal!==null) ? fu.valorMensal : '';
+  document.getElementById('fu_moeda').value = fu.moeda==='USD' ? 'USD' : 'BRL';
+  document.getElementById('fu_admissao').value = fu.dataAdmissao||'';
+  document.getElementById('fu_ativo').value = fu.ativo!==false ? '1' : '0';
+  document.getElementById('fu_desligamento').value = fu.dataDesligamento||'';
+  document.getElementById('fu_desligamentoWrap').style.display = fu.ativo===false ? 'block' : 'none';
+  document.getElementById('fu_obs').value = fu.obs||'';
+  refreshDatalists();
+  openModal('overlayFuncionario');
+}
+document.getElementById('btnNewFuncionario').addEventListener('click', openFuncionarioNew);
+document.getElementById('fu_ativo').addEventListener('change', ()=>{
+  document.getElementById('fu_desligamentoWrap').style.display = f('fu_ativo')==='0' ? 'block' : 'none';
+});
+document.getElementById('btnSaveFuncionario').addEventListener('click', async ()=>{
+  const nome = f('fu_nome').trim();
+  if(!nome){ showAlert('Informe o nome do funcionário.'); return; }
+  const registro = {
+    id: editingFuncionarioId || ('fu_'+Date.now()),
+    nome: titleCase(nome), funcao: titleCase(f('fu_funcao').trim()),
+    valorMensal: f('fu_valorMensal') ? Number(f('fu_valorMensal')) : null,
+    moeda: f('fu_moeda')==='USD' ? 'USD' : 'BRL',
+    dataAdmissao: f('fu_admissao') || '',
+    ativo: f('fu_ativo')!=='0',
+    dataDesligamento: f('fu_ativo')==='0' ? (f('fu_desligamento')||'') : '',
+    obs: f('fu_obs').trim()
+  };
+  funcionarios = editingFuncionarioId ? funcionarios.map(x=>x.id===editingFuncionarioId?registro:x) : [...funcionarios, registro];
+  await storeSet('funcionarios_list', funcionarios);
+  refreshDatalists();
+  closeModal('overlayFuncionario'); renderFuncionarios();
+});
+document.getElementById('btnDeleteFuncionario').addEventListener('click', async ()=>{
+  if(!editingFuncionarioId || !(await showConfirm('Excluir este funcionário? Os lançamentos já feitos no Financeiro NÃO são apagados.'))) return;
+  funcionarios = funcionarios.filter(x=>x.id!==editingFuncionarioId);
+  await storeSet('funcionarios_list', funcionarios, true);
+  closeModal('overlayFuncionario'); renderFuncionarios();
 });
 
 /* ================= LOGIN E PERMISSÕES ================= */
@@ -7917,14 +8142,15 @@ document.getElementById('btnDeleteLancamento').addEventListener('click', async (
 // quem vê o quê, evitando que um ferrador mexa em Estoque por engano, por exemplo.
 const PERFIL_LABEL = { admin:'Administrador', veterinario:'Veterinário', ferrador:'Ferrador' };
 const PERFIL_VIEWS = {
-  admin: ['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','financeiro','usuarios'],
+  admin: ['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
   veterinario: ['inicio','animais','manejos','estoque','veterinaria'],
   ferrador: ['inicio','animais','manejos'],
 };
-// Financeiro só entra no perfil Administrador de propósito — é dado sensível do negócio, não precisa
-// (nem deve) aparecer pra quem cuida do dia a dia de campo (ferrador, veterinário).
+// Financeiro (e Funcionários, que é dado de salário) só entram no perfil Administrador de propósito —
+// é dado sensível do negócio, não precisa (nem deve) aparecer pra quem cuida do dia a dia de campo
+// (ferrador, veterinário).
 function descreverAcesso(perfil){
-  const nomes = { inicio:'Início', animais:'Animais', grupos:'Grupos', manejos:'Manejos', treinos:'Treinos', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', financeiro:'Financeiro', usuarios:'Usuários' };
+  const nomes = { inicio:'Início', animais:'Animais', grupos:'Grupos', manejos:'Manejos', treinos:'Treinos', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
   return (PERFIL_VIEWS[perfil]||[]).map(v=>nomes[v]).join(', ');
 }
 function aplicarPermissoes(){
@@ -8600,7 +8826,7 @@ document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
 document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   const out = document.getElementById('diagOutput');
   out.textContent = 'Consultando...';
-  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','config'];
+  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','funcionarios_list','config'];
   let lines = [];
   lines.push('Modo de armazenamento: ' + (HAS_CLOUD_STORAGE ? 'nuvem do Claude (window.storage)' : 'armazenamento local deste navegador (localStorage) — normal quando o arquivo é aberto baixado'));
   for(const key of keys){
@@ -8635,7 +8861,7 @@ document.getElementById('btnReadOnly').addEventListener('click', async ()=>{
 
 
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, aux, config };
   const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -8647,7 +8873,7 @@ document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   config.ultimoBackupEm = new Date().toISOString();
   await storeSet('config', config);
   renderInicioStats();
-  showAlert('Backup exportado: '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros.');
+  showAlert('Backup exportado: '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros, '+funcionarios.length+' funcionários.');
 });
 
 document.getElementById('btnImportBackup').addEventListener('click', ()=> document.getElementById('importBackupFile').click());
@@ -8687,6 +8913,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     tratamentos = [...tratamentos, ...((backup.tratamentos||[]).filter(t=>!existingTratIds.has(t.id)))];
     const existingVisitIds = new Set(visitas.map(v=>v.id));
     visitas = [...visitas, ...((backup.visitas||[]).filter(v=>!existingVisitIds.has(v.id)))];
+    const existingFuncIds = new Set(funcionarios.map(fu=>fu.id));
+    funcionarios = [...funcionarios, ...((backup.funcionarios||[]).filter(fu=>!existingFuncIds.has(fu.id)))];
     if(backup.aux){
       Object.keys(backup.aux).forEach(k=>{
         if(!aux[k]) aux[k]=[];
@@ -8698,8 +8926,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     await storeSet('treinos_list', treinos); await storeSet('nascimentos_list', nascimentos); await storeSet('aux_lists', aux);
     await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
     await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
-    await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas);
-    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas();
+    await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
+    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
   }catch(err){ showAlert('Não foi possível ler esse arquivo de backup.'); }
   e.target.value='';
