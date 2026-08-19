@@ -1,0 +1,23 @@
+{
+  "name": "haras-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servidor MCP (Model Context Protocol) de exemplo, somente leitura, para o app Haras — Gestão Equina. Expõe listar_animais e listar_vacinas_pendentes a partir de um backup JSON exportado do app.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
