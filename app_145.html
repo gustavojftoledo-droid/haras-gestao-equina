@@ -159,13 +159,13 @@
   .dash-hero-titulo{font-family:'Fraunces',serif;font-size:31px;font-weight:600;color:var(--green);line-height:1.15;}
   .dash-hero-frase{font-size:15px;line-height:1.6;color:var(--text-body);}
   .dash-hero-frase strong{color:var(--green);}
-  .dash-hero-foto-wrap{position:relative;flex-shrink:0;width:476px;margin:-26px -30px -24px 0;}
+  .dash-hero-foto-wrap{position:relative;flex-shrink:0;width:476px;aspect-ratio:880/612;margin:-26px -30px -24px 0;}
   .dash-hero-foto-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
   @media (max-width:860px){
     .dash-hero{flex-direction:column;padding:18px 18px 0;gap:0;}
     .dash-hero-texto{max-width:100%;}
     .dash-hero-titulo{font-size:24px;}
-    .dash-hero-foto-wrap{width:auto;height:124px;margin:4px -18px -1px;}
+    .dash-hero-foto-wrap{width:auto;height:auto;aspect-ratio:880/612;margin:4px -18px -1px;}
   }
 
   .dash-pilares{display:grid;grid-template-columns:repeat(var(--n-pilares,4), minmax(0,1fr));}
