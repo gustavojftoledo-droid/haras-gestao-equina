@@ -477,7 +477,9 @@
     </div>
     <div style="padding:12px 14px 18px;border-top:1px solid rgba(237,231,214,0.12);">
       <div style="font-size:9.5px;color:var(--brass-light);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Segurança dos dados</div>
-      <button type="button" id="btnExportBackup" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:6px;">⬇ Exportar backup</button>
+      <button type="button" id="btnExportBackup" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:4px;">⬇ Exportar backup</button>
+      <div id="backupPastaStatus" style="font-size:10px;color:var(--brass-light);margin:0 0 6px 2px;"></div>
+      <button type="button" id="btnEscolherPastaBackup" style="width:100%;text-align:left;background:none;border:none;color:var(--brass-light);padding:0 2px;font-size:10.5px;cursor:pointer;margin-bottom:6px;text-decoration:underline;">📁 Escolher/trocar pasta do backup</button>
       <button type="button" id="btnImportBackup" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;">⬆ Importar (adiciona, não apaga)</button>
       <button type="button" id="btnDiagnostico" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-top:6px;">🔍 Diagnóstico</button>
       <input type="file" id="importBackupFile" accept="application/json" style="display:none;">
@@ -2458,8 +2460,19 @@ const ATALHOS_NOVO = {
   'f': { view:'financeiro', action:()=>document.getElementById('btnNewLancamento').click() },
   'u': { view:'usuarios', action:()=>openUsuarioNew() },
 };
+// Alguns teclados ABNT2 (acentos com AltGr — ç, ã, õ, á, é...) fazem o navegador reportar a tecla
+// com altKey ligado mas sem ctrlKey, dependendo do driver — batendo sem querer nos atalhos Alt+letra
+// abaixo enquanto a pessoa só está digitando um acento num campo de texto normal (ex: Observações).
+// Esse guard extra garante que nenhum atalho global dispare enquanto o foco está num campo editável,
+// não importa a combinação exata de teclas modificadoras que o navegador relatar.
+function estaDigitandoEmCampo(){
+  const el = document.activeElement;
+  if(!el) return false;
+  return el.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(el.tagName);
+}
 document.addEventListener('keydown', (e)=>{
   if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if(estaDigitandoEmCampo()) return;
   if(!currentUser) return; // ainda na tela de login, nenhum atalho funciona
   const key = e.key.toLowerCase();
   const atalho = ATALHOS_NOVO[key];
@@ -2491,6 +2504,7 @@ const ATALHOS_NAVEGACAO = {
 };
 document.addEventListener('keydown', (e)=>{
   if(!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
+  if(estaDigitandoEmCampo()) return;
   if(!currentUser) return;
   const key = e.key.toLowerCase();
   const view = ATALHOS_NAVEGACAO[key];
@@ -2536,6 +2550,7 @@ const RELATORIO_CONTEXTUAL = {
 };
 document.addEventListener('keydown', (e)=>{
   if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if(estaDigitandoEmCampo()) return;
   if(!currentUser) return;
   const key = e.key.toLowerCase();
   if(key!=='i' && key!=='r') return;
@@ -2562,6 +2577,7 @@ const RELATORIO_NUMERO_CONTEXTUAL = {
 };
 document.addEventListener('keydown', (e)=>{
   if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if(estaDigitandoEmCampo()) return;
   if(!currentUser) return;
   if(!['1','2','3'].includes(e.key)) return;
   // Dentro do modal de um lançamento de Manejo aberto pra edição (Histórico) — só existe 1 relatório ali.
@@ -3941,7 +3957,20 @@ function computeCalendarTasks(){
       situacao: diaCinco<hoje ? 'atrasado' : (diaCinco<=toISODate(new Date(Date.now()+7*86400000)) ? 'proximo' : 'emdia')
     });
   });
-  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...salarioTasks];
+  // Atividades (Treinos) com data futura (hoje em diante) — só pra avisar/lembrar do que já está
+  // agendado; passado não entra aqui, o Histórico de Atividades continua sendo o lugar certo pra isso
+  // (nada muda ali). Excluir aqui apaga o registro de verdade (não é uma tarefa recalculada como as
+  // de manejo — é um compromisso já cadastrado, então "excluir" tem que ser excluir mesmo).
+  const atividadeTasks = [];
+  treinos.forEach(t=>{
+    if(t.data < hoje) return;
+    atividadeTasks.push({
+      data: t.data, tipo: t.tipo||'Treino', categoria:'atividade', treinoId: t.id,
+      animalId:null, animalNome: (t.animais||[]).map(a=>a.nome).join(', '),
+      situacao: 'proximo'
+    });
+  });
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...salarioTasks, ...atividadeTasks];
 }
 function tasksByDate(tasks){
   const map = {};
@@ -4596,7 +4625,8 @@ function renderCalMonthHtml(byDate){
       <div class="cal-daynum">${d.getDate()}</div>
       ${Object.entries(porTipo).map(([tipo,arr])=>{
         const temAtrasado = arr.some(t=>t.situacao==='atrasado');
-        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${tipo}">${CAL_ICON[tipo]||''} ${CAL_GRUPO_LABEL[tipo]||tipo} (${arr.length})</div>`;
+        const icone = CAL_ICON[tipo] || (arr[0].categoria==='atividade' ? '🏇' : '');
+        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${tipo}">${icone} ${CAL_GRUPO_LABEL[tipo]||tipo} (${arr.length})</div>`;
       }).join('')}
     </div>`;
     if(i%7===6 && i<41) {} // apenas fecha visualmente via grid, sem necessidade de nova div (grid cuida das linhas)
@@ -4619,7 +4649,7 @@ function renderCalWeekHtml(byDate, nDias){
     html += `<div class="cal-week-col ${isHoje?'cal-today':''}">
       <div class="cal-week-col-head">${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</div>
       ${tarefasDia.length===0 ? '<div class="hint-text">Nenhuma tarefa prevista.</div>' :
-        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo]||''} <strong>${t.label||t.tipo}</strong> — ${t.animalNome}</div>`).join('')}
+        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${t.label||t.tipo}</strong> — ${t.animalNome||'(sem animais definidos ainda)'}</div>`).join('')}
     </div>`;
   }
   html += '</div>';
@@ -4710,21 +4740,25 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehGestacao = arr[0].categoria==='gestacao';
     const ehPotro = arr[0].categoria==='potro';
     const ehFuncionario = arr[0].categoria==='funcionario';
+    const ehAtividade = arr[0].categoria==='atividade';
     const ehCasco = tipo==='Casco';
-    const podeLote = (ehManejo||ehTratamento) && arr.length>1;
+    const podeLote = (ehManejo||ehTratamento||ehAtividade) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
+    const iconeGrupo = CAL_ICON[tipo] || (ehAtividade ? '🏇' : '');
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
     const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
     const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
-      : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
+      : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
+      : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
+    const btnConcluirTodos = ehAtividade ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
-          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>${btnExcluirTodos}</div>
+          <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
+          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}${btnConcluirTodos}${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
-          <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
+          <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
           ${btnFront}
         </div>`;
     const rows = arr.map(t=>{
@@ -4733,9 +4767,11 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div>${t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
+        <div>${ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
         ${ehTratamento
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button><button type="button" class="btn btn-sm btn-danger" data-excluirtratid="${t.tratamentoId}" data-excluirdosekey="${t.doseKey}" title="Remove essa dose da agenda sem baixar estoque nem lançar financeiro">🗑 Excluir</button></div>`
+          : ehAtividade
+            ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-consultaratividade="${t.treinoId}">👁 Consultar / Editar</button><button type="button" class="btn btn-sm btn-danger" data-excluiratividade="${t.treinoId}" title="Exclui esse treino/atividade cadastrado">🗑 Excluir</button></div>`
           : (ehGestacao||ehPotro)
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
             : ehFuncionario
@@ -4802,6 +4838,33 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const grupo = porTipo[tipo];
       if(!(await showConfirm(`Excluir a tarefa de ${tipo} pra ${grupo.length} item(ns) de uma vez? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente pra todos eles.`))) return;
       await excluirDosesTratamentoEmLote(grupo.map(t=>({tratamentoId:t.tratamentoId, doseKey:t.doseKey})));
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-consultaratividade]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      closeModal('overlayCalDetalhe');
+      openTreinoEdit(btn.dataset.consultaratividade);
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluiratividade]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir este treino/atividade cadastrado? Essa ação apaga o registro de verdade (diferente do "Excluir" de manejo/tratamento, que só tira da agenda) — não dá pra desfazer.'))) return;
+      treinos = treinos.filter(t=>t.id!==btn.dataset.excluiratividade);
+      await storeSet('treinos_list', treinos, true);
+      renderTreinos(); renderFinanceiro(); renderCalendar(); renderInicio();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirtodosatividade]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tipo = btn.dataset.excluirtodosatividade;
+      const grupo = porTipo[tipo];
+      if(!(await showConfirm(`Excluir ${grupo.length} treino(s)/atividade(s) de "${tipo}" cadastrado(s) nesse dia? Apaga os registros de verdade — não dá pra desfazer.`))) return;
+      const ids = new Set(grupo.map(t=>t.treinoId));
+      treinos = treinos.filter(t=>!ids.has(t.id));
+      await storeSet('treinos_list', treinos, true);
+      renderTreinos(); renderFinanceiro(); renderCalendar(); renderInicio();
       closeModal('overlayCalDetalhe');
     });
   });
@@ -10716,21 +10779,111 @@ document.getElementById('btnReadOnly').addEventListener('click', async ()=>{
 });
 
 
+/* ---------- Backup direto numa pasta escolhida (File System Access API) ----------
+   Igual o sistema antigo do Gustavo fazia — salva o arquivo direto numa pasta do computador, sem
+   passar pela caixa de download do navegador toda vez. A primeira vez precisa que ele escolha a
+   pasta (o navegador exige isso — nenhum site consegue gravar em pasta nenhuma sem essa autorização
+   explícita), mas depois disso a permissão fica salva e os próximos backups vão direto, sem perguntar
+   de novo. Só funciona no Chrome/Edge (a API não existe no Firefox/Safari); nesses casos cai sozinho
+   pro download comum de sempre — nada quebra, só não salva direto na pasta. */
+const BACKUP_DIR_DB = 'haras_backup_dir_db';
+function abrirBackupDirDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(BACKUP_DIR_DB, 1);
+    req.onupgradeneeded = ()=> req.result.createObjectStore('handles');
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function getBackupDirHandleSalvo(){
+  try{
+    const db = await abrirBackupDirDB();
+    return await new Promise(resolve=>{
+      const req = db.transaction('handles','readonly').objectStore('handles').get('pasta');
+      req.onsuccess = ()=> resolve(req.result||null);
+      req.onerror = ()=> resolve(null);
+    });
+  }catch{ return null; }
+}
+async function salvarBackupDirHandle(handle){
+  try{
+    const db = await abrirBackupDirDB();
+    db.transaction('handles','readwrite').objectStore('handles').put(handle, 'pasta');
+  }catch{}
+}
+// Pede (ou reaproveita, se já tiver permissão) a pasta onde salvar o backup direto. Devolve o handle,
+// null (API não suportada ou algo deu errado — cai pro download comum) ou 'cancelado' (usuário fechou
+// o seletor de pasta sem escolher nada — nesse caso não faz nada, nem o download).
+async function obterPastaBackup(forcarEscolha){
+  if(!window.showDirectoryPicker) return null;
+  let handle = forcarEscolha ? null : await getBackupDirHandleSalvo();
+  if(handle){
+    try{
+      let perm = await handle.queryPermission({mode:'readwrite'});
+      if(perm!=='granted') perm = await handle.requestPermission({mode:'readwrite'});
+      if(perm!=='granted') handle = null;
+    }catch{ handle = null; }
+  }
+  if(!handle){
+    try{
+      handle = await window.showDirectoryPicker({id:'harasBackup', mode:'readwrite', startIn:'desktop'});
+      await salvarBackupDirHandle(handle);
+    }catch(err){
+      return err && err.name==='AbortError' ? 'cancelado' : null;
+    }
+  }
+  return handle;
+}
+async function atualizarBackupPastaStatus(){
+  const el = document.getElementById('backupPastaStatus');
+  if(!el) return;
+  if(!window.showDirectoryPicker){ el.textContent = ''; return; }
+  const handle = await getBackupDirHandleSalvo();
+  if(!handle){ el.textContent = 'Nenhuma pasta escolhida ainda — vai perguntar no próximo backup.'; return; }
+  try{
+    const perm = await handle.queryPermission({mode:'readwrite'});
+    el.textContent = perm==='granted' ? ('Salvando direto em: 📁 '+handle.name) : ('Pasta escolhida: 📁 '+handle.name+' (pede permissão de novo no próximo backup)');
+  }catch{ el.textContent = ''; }
+}
+document.getElementById('btnEscolherPastaBackup').addEventListener('click', async ()=>{
+  const handle = await obterPastaBackup(true);
+  if(handle && handle!=='cancelado') showAlert('Pasta escolhida: "'+handle.name+'". Os próximos backups já vão direto pra lá, sem perguntar de novo.');
+  else if(!handle) showAlert('Esse navegador não suporta escolher pasta direto (funciona no Chrome/Edge) — os backups continuam pelo download comum.');
+  atualizarBackupPastaStatus();
+});
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, aux, config };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-  a.href = url; a.download = 'haras_backup_'+stamp+'.json';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const nomeArquivo = 'haras_backup_'+stamp+'.json';
+  let salvouNaPasta = false, nomePasta = '';
+  const handle = await obterPastaBackup(false);
+  if(handle==='cancelado') return; // escolheu não escolher pasta agora — não força nada, não baixa
+  if(handle){
+    try{
+      const fileHandle = await handle.getFileHandle(nomeArquivo, {create:true});
+      const writable = await fileHandle.createWritable();
+      await writable.write(conteudo);
+      await writable.close();
+      salvouNaPasta = true; nomePasta = handle.name;
+    }catch(err){ console.error('backup direto na pasta falhou, caindo pro download:', err); }
+  }
+  if(!salvouNaPasta){
+    const blob = new Blob([conteudo], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeArquivo;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
   // Guarda quando foi o último export, pra avisar no Início se fizer tempo que ninguém tira um backup.
   config.ultimoBackupEm = new Date().toISOString();
   await storeSet('config', config);
   if(typeof renderInicio==='function') renderInicio();
-  showAlert('Backup exportado: '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros, '+funcionarios.length+' funcionários.');
+  atualizarBackupPastaStatus();
+  showAlert((salvouNaPasta ? ('Backup salvo direto na pasta "'+nomePasta+'": '+nomeArquivo) : ('Backup baixado: '+nomeArquivo))+' — '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros, '+funcionarios.length+' funcionários.');
 });
+atualizarBackupPastaStatus();
 
 document.getElementById('btnImportBackup').addEventListener('click', ()=> document.getElementById('importBackupFile').click());
 document.getElementById('importBackupFile').addEventListener('change', async (e)=>{
