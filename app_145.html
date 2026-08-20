@@ -1341,6 +1341,20 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
     <div class="form-grid" style="margin-bottom:14px;">
       <div class="field full"><label>Observações</label><input type="text" id="t_obs" spellcheck="true" lang="pt-BR"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:7px;margin:0 0 12px;font-size:13px;cursor:pointer;"><input type="checkbox" id="t_cobrado" style="width:auto;"> 💰 Treino Cobrado</label>
+    <div id="treinoCobrancaFields" style="display:none;margin-bottom:16px;">
+      <div class="form-grid cols3">
+        <div class="field"><label>Valor sugerido (total do treino)</label><div style="display:flex;gap:6px;"><select id="t_cob_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="t_cob_valorSugerido" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
+        <div class="field" style="align-self:flex-end;"><button type="button" class="btn btn-sm" id="btnRatearTreino">🔄 Ratear entre os selecionados</button></div>
+      </div>
+      <div class="section-label" style="border-top:none;padding-top:0;margin-top:10px;">Outros custos <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— frete, etc. (opcional, também entra no rateio)</span></div>
+      <div id="treinoOutrosCustosHost" style="margin:8px 0;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAddTreinoCusto">+ Adicionar custo</button>
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+        <span class="hint-text" id="treinoValorTotalDisplay" style="font-weight:600;"></span>
+      </div>
+      <div class="hint-text" style="margin-top:6px;">Selecione os animais abaixo e clique em "Ratear" pra dividir o valor sugerido + outros custos igualmente entre eles — o campo "R$" de cada um pode ser ajustado individualmente depois. Entra no custo do animal e no Financeiro.</div>
+    </div>
     <div id="treinoSelectorHost"></div>
     <div class="modal-actions">
       <div></div>
@@ -2346,8 +2360,10 @@ function createAnimalSelector(hostEl, opts){
   // reportFilter: quando true, começa mostrando só Ativos, com chips separados pra incluir Vendidos, Falecidos e/ou Externos
   // hideExternos/hideVendidos/hideFalecidos: quando true (junto com reportFilter), nem mostra aquela opção — usado em Treinos (hideExternos) e Dietas (hideVendidos+hideFalecidos)
   // persistKey: quando definido, lembra a última seleção marcada (mesmo depois de fechar e abrir o programa) — usado nos seletores de relatório
+  // extraValor: mostra um campo "R$" por animal. extraValorCondition (opcional): função que decide se mostra
+  // agora (ex: só quando "Treino Cobrado" está marcado) — sem ela, mostra sempre que extraValor for true (Manejos).
+  // valorExtraPlaceholder/valorExtraTitle: textos do campo — default é o de "valor extra" (Manejos); Treino usa outros.
   const state = { search:'', categorias: new Set(), localizacoes: new Set(), selected:{}, includeVendidos:false, includeFalecidos:false, includeExternos:false, onlySelected:false }; // selected[codigo] = {checked, extra, valorExtra}
-  if(opts.extraValor) hostEl.classList.add('has-extra-valor');
   function persistSelection(){
     if(!opts.persistKey) return;
     relSelecoes[opts.persistKey] = Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id])=>id);
@@ -2458,6 +2474,8 @@ function createAnimalSelector(hostEl, opts){
     // Vacina/Vermífugo/Dente ele some (mesmo que esse seletor tenha sido criado com a opção ligada).
     const mostrarTipo = !!opts.tipoFerragem && (!opts.tipoFerragemCondition || opts.tipoFerragemCondition());
     hostEl.classList.toggle('has-tipo-ferragem', mostrarTipo);
+    const mostrarValor = !!opts.extraValor && (!opts.extraValorCondition || opts.extraValorCondition());
+    hostEl.classList.toggle('has-extra-valor', mostrarValor);
     if(list.length===0){ body.innerHTML = `<div class="empty">${state.onlySelected?'Nada selecionado ainda.':'Nenhum animal encontrado.'}</div>`; updateCount(); return; }
     const tipoAtualDefault = mostrarTipo ? (document.getElementById('m_subtipoCasco') ? document.getElementById('m_subtipoCasco').value : '') : '';
     body.innerHTML = list.map((h,idx)=>{
@@ -2468,7 +2486,7 @@ function createAnimalSelector(hostEl, opts){
         <span style="color:var(--muted)">${h.apelido||''}</span>
         ${mostrarTipo ? `<select class="srow-tipo" data-idtipo="${h.id}" title="Tipo de ferrageamento deste animal">${(aux.subtipoFerrageamento||[]).map(t=>`<option value="${t}" ${((sel.tipo||tipoAtualDefault)===t)?'selected':''}>${t}</option>`).join('')}</select>` : ''}
         <input type="text" data-id="${h.id}" placeholder="${opts.extraPlaceholder||''}" value="${sel.extra||''}">
-        ${opts.extraValor ? `<input type="text" inputmode="decimal" class="srow-valorextra" data-idval="${h.id}" placeholder="+R$" title="Valor extra a somar por causa dessa observação" value="${sel.valorExtra||''}">` : ''}
+        ${mostrarValor ? `<input type="text" inputmode="decimal" class="srow-valorextra" data-idval="${h.id}" placeholder="${opts.valorExtraPlaceholder||'+R$'}" title="${opts.valorExtraTitle||'Valor extra a somar por causa dessa observação'}" value="${sel.valorExtra||''}">` : ''}
       </div>`;
     }).join('');
     body.querySelectorAll('input[type=checkbox]').forEach(cb=>{
@@ -2566,6 +2584,14 @@ function createAnimalSelector(hostEl, opts){
       Object.keys(state.selected).forEach(id=>{ if(state.selected[id].checked) state.selected[id].tipo = tipo; });
       drawBody();
     },
+    // Aplica um valor igual pra todos os animais já marcados de uma vez (ex: "Ratear" no Treino Cobrado
+    // — divide o total entre os selecionados). Cada um continua podendo ser ajustado individualmente
+    // depois, direto no campo dele.
+    setValorParaTodosSelecionados(valor){
+      const v = String(valor).replace('.',',');
+      Object.keys(state.selected).forEach(id=>{ if(state.selected[id].checked) state.selected[id].valorExtra = v; });
+      drawBody();
+    },
     // Aplica a última seleção salva (relSelecoes[persistKey]) — chamado depois que os dados carregam do armazenamento.
     restoreFromSaved(){
       if(!opts.persistKey) return;
@@ -2583,7 +2609,9 @@ const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Obser
 
 const treinoHost = document.getElementById('treinoSelectorHost');
 treinoHost.id='treinoSelectorHost';
-const treinoSelector = createAnimalSelector(treinoHost, {extraPlaceholder:'Tempo / observações', reportFilter:true, hideExternos:true});
+const treinoSelector = createAnimalSelector(treinoHost, {extraPlaceholder:'Tempo / observações', reportFilter:true, hideExternos:true,
+  extraValor:true, extraValorCondition:()=>document.getElementById('t_cobrado').checked, valorExtraPlaceholder:'R$', valorExtraTitle:'Valor deste treino para este animal',
+  onChange:()=>atualizarValorTotalTreino()});
 
 const dietaAnimaisHost = document.getElementById('dietaAnimaisSelectorHost');
 dietaAnimaisHost.id='dietaAnimaisSelectorHost';
@@ -4555,6 +4583,69 @@ function showTreinoTab(tab){
 document.getElementById('ttab_historico').addEventListener('click', ()=>showTreinoTab('historico'));
 document.getElementById('ttab_relatorios').addEventListener('click', ()=>showTreinoTab('relatorios'));
 
+/* ---- Treino Cobrado ---- */
+// "Outros custos" (frete etc) do treino cobrado — mesma lógica dos utensílios de Manejo, só que sem
+// vínculo com Estoque (é dinheiro puro, não baixa produto nenhum).
+let treinoOutrosCustosState = [];
+function renderTreinoOutrosCustos(){
+  const host = document.getElementById('treinoOutrosCustosHost');
+  if(treinoOutrosCustosState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum custo extra adicionado.</div>'; atualizarValorTotalTreino(); return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Descrição</div><div>Valor</div><div></div>
+    </div>` +
+    treinoOutrosCustosState.map((it,idx)=>`<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;margin-bottom:8px;">
+        <input type="text" data-tcfield="descricao" data-idx="${idx}" value="${it.descricao||''}" placeholder="Ex: Frete">
+        <input type="number" step="0.01" data-tcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00">
+        <button type="button" class="btn btn-sm btn-danger" data-tcremove="${idx}" title="Remover">✕</button>
+      </div>`).join('');
+  host.querySelectorAll('[data-tcfield]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const idx=Number(el.dataset.idx), field=el.dataset.tcfield;
+      treinoOutrosCustosState[idx][field] = el.value;
+      atualizarValorTotalTreino();
+    });
+  });
+  host.querySelectorAll('[data-tcremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ treinoOutrosCustosState.splice(Number(btn.dataset.tcremove),1); renderTreinoOutrosCustos(); });
+  });
+  atualizarValorTotalTreino();
+}
+document.getElementById('btnAddTreinoCusto').addEventListener('click', ()=>{
+  treinoOutrosCustosState.push({descricao:'', valor:''});
+  renderTreinoOutrosCustos();
+});
+// Total estimado do treino cobrado = soma dos valores individuais já marcados (o que realmente vai pro
+// Financeiro), mostrado ao lado do valor sugerido + outros custos, pra comparar rápido se bateu o rateio.
+function atualizarValorTotalTreino(){
+  const disp = document.getElementById('treinoValorTotalDisplay');
+  if(!disp) return;
+  if(!document.getElementById('t_cobrado').checked){ disp.textContent=''; return; }
+  const selecionados = treinoSelector.getSelected();
+  const totalIndividual = selecionados.reduce((s,a)=> s + (Number(String(a.valorExtra||0).replace(',','.'))||0), 0);
+  const somaOutros = treinoOutrosCustosState.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  const moeda = document.getElementById('t_cob_moeda').value==='USD' ? 'US$' : 'R$';
+  disp.textContent = `Total dos animais: ${moeda} ${totalIndividual.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})}` + (somaOutros>0 ? ` (outros custos: ${moeda} ${somaOutros.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})})` : '');
+}
+// Valor efetivamente cobrado de um animal num treino (o que a linha dele guarda) — usado no Financeiro,
+// no custo por animal e na timeline. Só existe valor se o treino tiver t.cobranca.
+function valorTreinoAnimal(a){ return Number(String((a&&a.valorExtra)||0).replace(',','.'))||0; }
+function valorTotalTreino(t){ if(!t.cobranca) return 0; return (t.animais||[]).reduce((s,a)=> s+valorTreinoAnimal(a), 0); }
+document.getElementById('t_cob_valorSugerido').addEventListener('input', atualizarValorTotalTreino);
+document.getElementById('t_cobrado').addEventListener('change', ()=>{
+  document.getElementById('treinoCobrancaFields').style.display = document.getElementById('t_cobrado').checked ? 'block' : 'none';
+  treinoSelector.draw();
+  atualizarValorTotalTreino();
+});
+document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
+  const selected = treinoSelector.getSelected();
+  if(selected.length===0){ showAlert('Selecione ao menos um animal antes de ratear.'); return; }
+  const valorSugerido = Number(document.getElementById('t_cob_valorSugerido').value)||0;
+  const somaOutros = treinoOutrosCustosState.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  const porAnimal = Math.round(((valorSugerido+somaOutros)/selected.length)*100)/100;
+  treinoSelector.setValorParaTodosSelecionados(porAnimal);
+  atualizarValorTotalTreino();
+});
+
 function renderTreinos(){
   populateSelectFilter('tFiltroTipo', treinos.map(t=>t.tipo));
   const tipo=document.getElementById('tFiltroTipo').value;
@@ -4564,7 +4655,7 @@ function renderTreinos(){
   const tbody=document.getElementById('tTbody');
   if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhum treino encontrado.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
-    <td>${fmtDate(t.data)}</td><td>${t.local||''}</td><td>${t.tipo||''}</td><td>${t.treinadores||''}</td><td>${t.animais.length}</td><td>${t.obs||''}</td>
+    <td>${fmtDate(t.data)}</td><td>${t.local||''}</td><td>${t.tipo||''}</td><td>${t.treinadores||''}</td><td>${t.animais.length}</td><td>${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">Excluir</button></td>
   </tr>`).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', ()=>{
@@ -4578,7 +4669,7 @@ function renderTreinos(){
     e.stopPropagation();
     if(!(await showConfirm('Excluir este treino?'))) return;
     treinos = treinos.filter(t=>t.id!==b.dataset.del);
-    await storeSet('treinos_list', treinos, true); renderTreinos();
+    await storeSet('treinos_list', treinos, true); renderTreinos(); renderFinanceiro();
   }));
 }
 ['tFiltroTipo','tFiltroDe','tFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderTreinos));
@@ -4589,6 +4680,12 @@ function openTreinoNew(){
   populateAuxSelects();
   document.getElementById('t_tipo_sel').value=''; document.getElementById('t_local_sel').value='';
   document.getElementById('t_treinador1_sel').value=''; document.getElementById('t_treinador2_sel').value=''; document.getElementById('t_treinador3_sel').value='';
+  document.getElementById('t_cobrado').checked = false;
+  document.getElementById('treinoCobrancaFields').style.display = 'none';
+  document.getElementById('t_cob_valorSugerido').value = '';
+  document.getElementById('t_cob_moeda').value = 'BRL';
+  treinoOutrosCustosState = [];
+  renderTreinoOutrosCustos();
   treinoSelector.reset();
   openModal('overlayTreino');
 }
@@ -4605,7 +4702,14 @@ function openTreinoEdit(id){
   document.getElementById('t_treinador1_sel').value = nomesTreinadores[0]||'';
   document.getElementById('t_treinador2_sel').value = nomesTreinadores[1]||'';
   document.getElementById('t_treinador3_sel').value = nomesTreinadores[2]||'';
-  treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||''})));
+  const cobrado = !!t.cobranca;
+  document.getElementById('t_cobrado').checked = cobrado;
+  document.getElementById('treinoCobrancaFields').style.display = cobrado ? 'block' : 'none';
+  document.getElementById('t_cob_valorSugerido').value = cobrado && t.cobranca.valorSugerido ? t.cobranca.valorSugerido : '';
+  document.getElementById('t_cob_moeda').value = cobrado && t.cobranca.moeda==='USD' ? 'USD' : 'BRL';
+  treinoOutrosCustosState = cobrado ? (t.cobranca.outrosCustos||[]).map(c=>({...c})) : [];
+  renderTreinoOutrosCustos();
+  treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||''})));
   openModal('overlayTreino');
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
@@ -4615,11 +4719,20 @@ document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
   const selected = treinoSelector.getSelected();
   if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
   const treinadores = [f('t_treinador1_sel'), f('t_treinador2_sel'), f('t_treinador3_sel')].filter(Boolean).join(', ');
+  const cobrado = document.getElementById('t_cobrado').checked;
   const registro = { id: editingTreinoId || ('tr_'+Date.now()), data, tipo:document.getElementById('t_tipo_sel').value, local:document.getElementById('t_local_sel').value,
     treinadores, obs:document.getElementById('t_obs').value, animais:selected };
+  if(cobrado){
+    const outrosCustos = treinoOutrosCustosState.filter(c=>c.descricao && Number(c.valor)>0).map(c=>({descricao:c.descricao, valor:Number(c.valor)}));
+    registro.cobranca = {
+      valorSugerido: Number(document.getElementById('t_cob_valorSugerido').value)||0,
+      moeda: document.getElementById('t_cob_moeda').value==='USD' ? 'USD' : 'BRL',
+      outrosCustos
+    };
+  }
   treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
   await storeSet('treinos_list', treinos);
-  closeModal('overlayTreino'); renderTreinos();
+  closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
 });
 
 /* ---- Relatórios de Treino ---- */
@@ -7513,6 +7626,22 @@ function lancamentosDerivadosEstoque(){
   });
   return out;
 }
+// Treinos Cobrados — mesma lógica de Manejos/Estoque: nunca vira registro de verdade em `lancamentos`,
+// é calculado na hora a partir do treino (que já guarda o valor individual de cada animal), então nunca
+// desatualiza nem duplica se o treino for editado ou excluído depois.
+function lancamentosDerivadosTreinos(){
+  return treinos.filter(t=>t.cobranca).map(t=>{
+    const total = valorTotalTreino(t);
+    if(!total || total<=0) return null;
+    const qtd = (t.animais||[]).length;
+    return {
+      id: 'auto_tr_'+t.id, origemId: t.id, origem: 'treinos',
+      data: t.data, tipo: 'saida', categoria: 'Treino',
+      descricao: `Treino${t.tipo?(' — '+t.tipo):''} — ${qtd} ${pluralAnimal(qtd)}${t.local?(' · '+t.local):''}`,
+      valor: total, moeda: t.cobranca.moeda==='USD' ? 'USD' : 'BRL'
+    };
+  }).filter(Boolean);
+}
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
 function fmtMoedaFin(l){
@@ -7539,14 +7668,15 @@ function renderFinanceiroStats(lista){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque' };
-// Junta os lançamentos manuais com os dois derivados (Manejos e Estoque) — usado tanto na lista
-// filtrável quanto no painel fixo do mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos' };
+// Junta os lançamentos manuais com os derivados (Manejos, Estoque e Treinos Cobrados) — usado tanto na
+// lista filtrável quanto no painel fixo do mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
 function todosLancamentosFinanceiro(){
   return [
     ...lancamentos.map(l=>({...l, origem:'manual'})),
     ...lancamentosDerivadosManejos(),
-    ...lancamentosDerivadosEstoque()
+    ...lancamentosDerivadosEstoque(),
+    ...lancamentosDerivadosTreinos()
   ];
 }
 
@@ -7628,7 +7758,7 @@ function renderFinanceiro(){
   tbody.innerHTML = filtered.map(l=>{
     const acoes = l.origem==='manual'
       ? `<button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button>`
-      : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${l.origem==='manejos'?'Manejos':'Estoque'}</button>`;
+      : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
     return `<tr>
     <td>${fmtDate(l.data)}</td>
     <td><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
@@ -7654,6 +7784,9 @@ function renderFinanceiro(){
     } else if(tipoOrigem==='estoque'){
       irParaView('estoque');
       setTimeout(()=>document.querySelector('#view-estoque [data-etab="movimentos"]').click(), 30);
+    } else if(tipoOrigem==='treinos'){
+      irParaView('treinos');
+      setTimeout(()=>openTreinoEdit(id), 30);
     }
   }));
 }
@@ -8516,7 +8649,8 @@ function computeTimelineAnimal(h){
   treinos.forEach(t=>{
     const a = (t.animais||[]).find(x=>x.id===h.id);
     if(!a) return;
-    eventos.push({ data:t.data, tipo:'treino', titulo:'Treino'+(t.tipo?(': '+t.tipo):''), detalhe:[t.local, t.treinadores, a.extra].filter(Boolean).join(' · ') });
+    const valorCobrado = t.cobranca ? fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda) : null;
+    eventos.push({ data:t.data, tipo:'treino', titulo:'Treino'+(t.tipo?(': '+t.tipo):''), detalhe:[t.local, t.treinadores, a.extra, valorCobrado?('💰 '+valorCobrado):null].filter(Boolean).join(' · ') });
   });
   nascimentos.forEach(n=>{
     if(n.animalId===h.id){
@@ -8642,6 +8776,21 @@ function custoVeterinariaPorAnimal(animalId, de, ate){
   });
   return total;
 }
+// Só soma Treinos Cobrados em Reais — mesma regra do resto deste relatório (é implicitamente BRL, sem
+// distinção de moeda). Um treino cobrado em US$ não some do sistema, só fica de fora desta soma
+// específica (aparece normalmente no Financeiro, na moeda certa).
+function custoTreinosPorAnimal(animalId, de, ate){
+  let total = 0;
+  treinos.forEach(t=>{
+    if(!t.cobranca || t.cobranca.moeda==='USD') return;
+    if(de && t.data<de) return;
+    if(ate && t.data>ate) return;
+    const a = (t.animais||[]).find(x=>x.id===animalId);
+    if(!a) return;
+    total += valorTreinoAnimal(a);
+  });
+  return total;
+}
 function custoDietaResumo(d){
   let diarioPorAnimal = 0, temItemSemPreco = false;
   (d.itens||[]).forEach(it=>{
@@ -8670,25 +8819,27 @@ function gerarRelatorioFicha3(){
   const linhas = lista.map(h=>{
     const custoManejos = custoManejosPorAnimal(h.id, de, ate);
     const custoVet = custoVeterinariaPorAnimal(h.id, de, ate);
+    const custoTreinos = custoTreinosPorAnimal(h.id, de, ate);
     const custoDietaMes = custoDietaMensalPorAnimal(h.id);
-    const totalPeriodo = custoManejos + custoVet;
+    const totalPeriodo = custoManejos + custoVet + custoTreinos;
     totalGeral += totalPeriodo;
-    return { h, custoManejos, custoVet, custoDietaMes, totalPeriodo };
+    return { h, custoManejos, custoVet, custoTreinos, custoDietaMes, totalPeriodo };
   });
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
-    <div class="subtitle" style="margin-bottom:14px;">Manejos e Veterinária ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'}. A coluna Dieta é uma estimativa mensal da dieta atual do animal — não soma no total do período, porque a dieta não tem data de início/fim registrada.</div>
+    <div class="subtitle" style="margin-bottom:14px;">Manejos, Veterinária e Treinos Cobrados ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} (Treinos cobrados em US$ não entram nesta soma). A coluna Dieta é uma estimativa mensal da dieta atual do animal — não soma no total do período, porque a dieta não tem data de início/fim registrada.</div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Animal</th><th>Manejos</th><th>Veterinária</th><th>Total do período</th><th>Dieta (estimativa/mês)</th></tr></thead>
+      <thead><tr><th>Animal</th><th>Manejos</th><th>Veterinária</th><th>Treinos</th><th>Total do período</th><th>Dieta (estimativa/mês)</th></tr></thead>
       <tbody>${linhas.map(r=>`<tr>
         <td><button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.h.nome||''}</strong></td>
         <td>${fmtR(r.custoManejos)}</td>
         <td>${fmtR(r.custoVet)}</td>
+        <td>${fmtR(r.custoTreinos)}</td>
         <td style="font-weight:600;">${fmtR(r.totalPeriodo)}</td>
         <td style="color:var(--muted);">${r.custoDietaMes>0?fmtR(r.custoDietaMes):'—'}</td>
       </tr>`).join('')}</tbody>
     </table></div>
-    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL DO PERÍODO (Manejos + Veterinária): ${fmtR(totalGeral)}</h2>
+    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL DO PERÍODO (Manejos + Veterinária + Treinos): ${fmtR(totalGeral)}</h2>
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
