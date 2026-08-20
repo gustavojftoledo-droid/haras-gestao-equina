@@ -114,38 +114,107 @@
   .stat-num{font-family:'Fraunces',serif;font-size:23px;font-weight:600;color:var(--green);}
   .stat-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-top:2px;}
 
-  /* ---------- Início: cartão de saudação com foto do haras ---------- */
-  .inicio-hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:18px;min-height:132px;
-    display:flex;align-items:center;background:var(--green);color:#EDE7D6;}
-  .inicio-hero-photo{position:absolute;inset:0;background-size:cover;background-position:center;}
-  .inicio-hero-fade{position:absolute;inset:0;background:linear-gradient(90deg, var(--green) 26%, rgba(28,51,39,.35) 62%, rgba(28,51,39,.1) 100%);}
-  .inicio-hero-caption{position:absolute;right:14px;bottom:10px;font-size:10.5px;color:rgba(237,231,214,.75);letter-spacing:.03em;}
-  .inicio-hero-content{position:relative;padding:22px 26px;z-index:1;max-width:62%;}
-  .inicio-hero-content .hero-title{font-family:'Fraunces',serif;font-size:23px;font-weight:600;color:#fff;}
-  .inicio-hero-content .hero-sub{color:#D9D2BC;font-size:12.5px;margin-top:4px;}
-  .inicio-hero-content .hero-money{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--brass-light);}
-  @media (max-width:860px){ .inicio-hero-content{max-width:100%;} }
+  /* ==================== ÍNICIO — reforma visual (mockup "Dashboard Haras — Geral") ====================
+     Reconstrução fiel ao mockup aprovado: nada de faixa .stats de caixinhas, nada de cabeçalho verde
+     sólido em cada cartão — título vira ícone dourado + Fraunces inline, com um rótulo dourado "Tela →"
+     do lado. Ícones são SVG traçado (stroke #A97B32), não emoji. */
+  :root{
+    --card-well:#F3EFE1; --line-soft:#E6DFCB; --line-well:#E0D6BE; --chip-bg:#EEE9DA;
+    --text-body:#3B372D; --text-faint:#9A937E; --hero-edge:#DED4BB; --hero-end:#F4EEDE; --hero-fade:#F7F2E4;
+    --alert-bg:#F6DADA; --alert-ink:#8E2F32; --alert-border:#F0C9C9; --alert-soft-bg:#FCF3F1; --alert-soft-border:#EDCACA;
+    --warn-bg:#FBF0C7; --warn-ink:#8A6D1B; --ok-bg:#DCEDDF; --ok-ink:#3E6B4E; --ok-border:#C7E0CC;
+  }
+  .dash-card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 3px rgba(33,30,25,.05);padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px;}
+  .dash-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .dash-card-titulo{display:flex;align-items:center;gap:9px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--green);}
+  .dash-card-titulo svg{flex-shrink:0;}
+  .dash-card-destino{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--brass);font-weight:600;white-space:nowrap;}
+  .go{transition:transform .16s ease;}
+  .card-btn{cursor:pointer;transition:box-shadow .16s,border-color .16s,transform .16s;}
+  .card-btn:hover{border-color:var(--brass-light) !important;box-shadow:0 10px 24px rgba(33,30,25,.13) !important;transform:translateY(-2px);}
+  .card-btn:hover .go{transform:translateX(3px);}
+  .card-btn:active{transform:translateY(0);}
+  .pillar-btn{cursor:pointer;transition:background .16s;}
+  .pillar-btn:hover{background:#F5F0E2;}
 
-  /* ---------- "Espiar" valores sensíveis: embaçado até passar o mouse (ou tocar, no celular) em
-     cima do cartão inteiro — o cartão vira uma "lupa" sobre o próprio valor. Uso: pontos de dinheiro
-     do Início que ficam visíveis pra qualquer perfil (mesmo os sem acesso ao Financeiro completo),
-     então começam ocultos por padrão. ---------- */
+  /* embaçado que revela ao passar o mouse — no elemento, ou em qualquer ponto de um .peek-card ao redor */
+  .peek{position:relative;display:inline-block;}
+  .blurred{filter:blur(6px);transition:filter .22s ease;cursor:zoom-in;display:inline-block;}
+  .blurred:hover{filter:blur(0);}
+  .peek:hover .blurred{filter:blur(0);}
+  .peek .lupa{position:absolute;top:50%;right:-17px;transform:translateY(-50%);opacity:.75;transition:opacity .22s ease;pointer-events:none;}
+  .peek:hover .lupa{opacity:0;}
   .peek-card{cursor:zoom-in;}
-  .peek-value{filter:blur(6px);transition:filter .15s ease;user-select:none;}
-  .peek-card:hover .peek-value, .peek-card.peek-open .peek-value{filter:blur(0);}
-  .peek-hint{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+  .peek-card:hover .blurred{filter:blur(0);}
+  .peek-card:hover .lupa{opacity:0;}
 
-  .modulos-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
-  .modulo-tile{flex:1 1 150px;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s, transform .15s;}
-  .modulo-tile:hover{border-color:var(--brass-light);transform:translateY(-1px);}
-  .modulo-tile .modulo-icone{font-size:18px;}
-  .modulo-tile .modulo-nome{font-family:'Fraunces',serif;font-size:14px;font-weight:600;margin-top:4px;}
-  .modulo-tile .modulo-desc{font-size:11px;color:var(--muted);margin-top:2px;}
-  .modulo-tile.modulo-foto{position:relative;overflow:hidden;color:#EDE7D6;min-height:78px;display:flex;flex-direction:column;justify-content:flex-end;}
-  .modulo-tile.modulo-foto .modulo-tile-photo{position:absolute;inset:0;background-size:cover;background-position:center 30%;}
-  .modulo-tile.modulo-foto .modulo-tile-fade{position:absolute;inset:0;background:linear-gradient(180deg, rgba(28,51,39,.05) 40%, rgba(20,17,12,.78) 100%);}
-  .modulo-tile.modulo-foto .modulo-nome, .modulo-tile.modulo-foto .modulo-desc{position:relative;color:#EDE7D6;}
-  .modulo-tile.modulo-foto .modulo-desc{color:#D9D2BC;}
+  .dash-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px 6px 10px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
+  .dash-hero{position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--hero-edge);
+    background:radial-gradient(760px 300px at 88% 20%, rgba(199,155,78,.20) 0%, rgba(199,155,78,0) 62%),
+               radial-gradient(600px 320px at 8% 100%, rgba(28,51,39,.13) 0%, rgba(28,51,39,0) 60%),
+               linear-gradient(180deg, var(--card) 0%, var(--hero-end) 100%);
+    padding:26px 30px 24px;display:flex;align-items:stretch;justify-content:space-between;gap:24px;margin-bottom:18px;}
+  .dash-hero-texto{max-width:600px;display:flex;flex-direction:column;justify-content:center;gap:12px;}
+  .dash-hero-data{font-size:10.5px;color:var(--brass);text-transform:uppercase;letter-spacing:.14em;font-weight:600;}
+  .dash-hero-titulo{font-family:'Fraunces',serif;font-size:31px;font-weight:600;color:var(--green);line-height:1.15;}
+  .dash-hero-frase{font-size:15px;line-height:1.6;color:var(--text-body);}
+  .dash-hero-frase strong{color:var(--green);}
+  .dash-hero-foto-wrap{position:relative;flex-shrink:0;width:476px;margin:-26px -30px -24px 0;}
+  .dash-hero-foto-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  @media (max-width:860px){
+    .dash-hero{flex-direction:column;padding:18px 18px 0;gap:0;}
+    .dash-hero-texto{max-width:100%;}
+    .dash-hero-titulo{font-size:24px;}
+    .dash-hero-foto-wrap{width:auto;height:124px;margin:4px -18px -1px;}
+  }
+
+  .dash-pilares{display:grid;grid-template-columns:repeat(var(--n-pilares,4), minmax(0,1fr));}
+  .dash-pilar{padding:18px 22px 16px;display:flex;flex-direction:column;gap:9px;border-left:1px solid var(--line-soft);}
+  .dash-pilar:first-child{border-left:none;}
+  .dash-pilar-rotulo{display:flex;align-items:center;justify-content:space-between;font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+  .dash-pilar-rotulo span{display:flex;align-items:center;gap:6px;}
+  .dash-pilar-num{display:flex;align-items:baseline;gap:6px;}
+  .dash-pilar-num strong{font-family:'Fraunces',serif;font-size:30px;font-weight:600;color:var(--green);}
+  .dash-pilar-num span{font-size:12.5px;color:var(--text-faint);}
+  .dash-pilar-ctx{font-size:11.5px;color:var(--text-faint);}
+  .dash-barra{height:6px;border-radius:3px;background:var(--chip-bg);overflow:hidden;display:flex;}
+  @media (max-width:860px){
+    .dash-pilares{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .dash-pilar{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px;}
+  }
+
+  .dash-3col{display:grid;grid-template-columns:var(--cols-3col, 1.38fr 1fr 1fr);gap:18px;align-items:start;margin-top:18px;}
+  @media (max-width:860px){ .dash-3col{grid-template-columns:1fr;} }
+
+  .dash-agenda-seg{display:flex;gap:6px;}
+  .dash-agenda-seg span{padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:600;cursor:pointer;background:var(--chip-bg);color:var(--muted);}
+  .dash-agenda-seg span.active{background:var(--green);color:var(--card);}
+  .dash-atrasadas-box{border:1px solid var(--alert-soft-border);background:var(--alert-soft-bg);border-radius:10px;padding:12px 14px;}
+  .dash-atrasadas-rotulo{font-size:10.5px;color:var(--alert-ink);text-transform:uppercase;font-weight:700;letter-spacing:.04em;}
+  .dash-atrasada-linha{display:flex;gap:10px;align-items:baseline;font-size:13px;padding-top:8px;}
+  .dash-timeline-dia{display:flex;gap:14px;padding-bottom:14px;}
+  .dash-timeline-data{width:62px;flex-shrink:0;text-align:right;}
+  .dash-timeline-data .nome{font-family:'Fraunces',serif;font-size:15px;color:var(--text-body);}
+  .dash-timeline-data .data{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;}
+  .dash-timeline-trilho{width:1px;background:var(--line-well);flex-shrink:0;}
+  .dash-tarefa-box{background:var(--card-well);border-radius:8px;padding:9px 12px;margin-bottom:6px;}
+  .dash-tarefa-titulo{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .dash-tarefa-sub{font-size:11.5px;color:var(--text-faint);}
+
+  .dash-legenda-linha{display:flex;gap:9px;font-size:12.5px;align-items:center;}
+  .dash-legenda-quad{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+  .dash-legenda-linha .nome{flex:1;color:var(--text-body);}
+  .dash-legenda-linha .num{font-family:'Fraunces',serif;font-size:14px;color:var(--green);}
+
+  .dash-moeda-poco{background:var(--card-well);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;}
+  .dash-moeda-rotulo{font-size:10.5px;text-transform:uppercase;color:var(--text-faint);font-weight:700;}
+  .dash-moeda-linha{display:flex;justify-content:space-between;font-size:12px;}
+  .dash-moeda-saldo{border-top:1px solid var(--line-well);padding-top:7px;display:flex;justify-content:space-between;align-items:baseline;}
+  .dash-moeda-saldo strong{font-family:'Fraunces',serif;font-size:17px;color:var(--green);}
+
+  .dash-medidor-linha{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;}
+  .dash-medidor-barra{height:5px;border-radius:3px;background:var(--chip-bg);overflow:hidden;margin-bottom:8px;}
+  .dash-medidor-barra > div{height:100%;}
 
   table.grid{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.8px;}
   table.grid th{background:#E4DDC8;text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line);position:sticky;top:0;}
@@ -406,37 +475,28 @@
   <div class="main">
 
     <div class="view active" id="view-inicio">
-      <div class="inicio-hero" id="inicioHero">
-        <div class="inicio-hero-photo" style="background-image:url('./img/foto-cavalos-tarde.jpg');"></div>
-        <div class="inicio-hero-fade"></div>
-        <div class="inicio-hero-content">
-          <div class="hero-title" id="inicioSaudacao">Olá</div>
-          <div class="hero-sub">Panorama do haras e tarefas agendadas</div>
-          <div class="hero-money peek-card" id="inicioHeroCaixaCard" title="Passe o mouse pra ver o valor"><span class="peek-value" id="inicioHeroCaixaValor">—</span><div class="peek-hint">saldo em caixa · passe o mouse</div></div>
+      <div class="dash-hero" id="inicioHero">
+        <div class="dash-hero-texto">
+          <div class="dash-hero-data" id="inicioHeroData"></div>
+          <div class="dash-hero-titulo" id="inicioSaudacao">Olá</div>
+          <div class="dash-hero-frase" id="inicioHeroFrase"></div>
+          <div id="inicioHeroChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;"></div>
+        </div>
+        <div class="dash-hero-foto-wrap">
+          <img src="./img/foto-cavalos-tarde.jpg" alt="Cavalos pastando ao entardecer">
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,var(--hero-fade) 0%,rgba(247,242,228,.92) 14%,rgba(247,242,228,.45) 34%,rgba(247,242,228,0) 62%);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,51,39,0) 55%,rgba(28,51,39,.30) 100%);"></div>
         </div>
       </div>
 
-      <div class="stats" id="inicioStats" style="margin-bottom:22px;"></div>
-
-      <div id="inicioFinResumo"></div>
-
-      <div class="perfil-card" id="inicioAgendaCard" style="cursor:pointer;" title="Abrir o Calendário completo">
-        <div class="perfil-card-head">
-          <span>📅 Calendário de Tarefas</span>
-          <span class="btn btn-sm btn-ghost" id="btnAbrirCalendario">Abrir calendário completo →</span>
-        </div>
-        <div class="perfil-card-body">
-          <div class="hint-text" style="margin-bottom:10px;">Mostra Casco/Dente/Vacina/Vermífugo previstos (calculado a partir da frequência cadastrada de cada animal). Clique aqui pra abrir o calendário completo, com as visões Mês/Semana/Dia.</div>
-          <div id="inicioAgendaResumo"></div>
-        </div>
+      <div class="dash-card" style="padding:0;">
+        <div class="dash-pilares" id="inicioPilares"></div>
       </div>
 
-      <div class="perfil-card">
-        <div class="perfil-card-head"><span>🐴 Módulos</span></div>
-        <div class="perfil-card-body">
-          <div class="hint-text" style="margin-bottom:12px;">Atalho pra qualquer tela — clique num cartão.</div>
-          <div class="modulos-grid" id="inicioModulosGrid"></div>
-        </div>
+      <div class="dash-3col" id="inicioTresColunas">
+        <div class="dash-card" id="inicioAgendaCard"></div>
+        <div class="dash-card card-btn" id="inicioPlantelCard" title="Abrir Animais"></div>
+        <div class="dash-card card-btn" id="inicioDinheiroCard" title="Abrir Financeiro"></div>
       </div>
     </div>
 
@@ -3839,29 +3899,6 @@ function tasksByDate(tasks){
   tasks.forEach(t=>{ if(!map[t.data]) map[t.data]=[]; map[t.data].push(t); });
   return map;
 }
-function renderInicioStats(){
-  const prog = computeProgramacao();
-  const atrasadas = prog.filter(r=>r.situacao==='atrasado').length;
-  const proximas = prog.filter(r=>r.situacao==='proximo').length;
-  const ativos = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
-  const zerados = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
-  const pertoMin = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
-  // Dias desde o último "Exportar backup" — como tudo mora só no navegador (sem nuvem), esse número
-  // é o principal aviso de "hora de tirar uma cópia de segurança". Fica amarelo a partir de 7 dias,
-  // vermelho a partir de 15, e clicar já dispara o export, sem precisar ir até o menu.
-  const diasBackup = config.ultimoBackupEm ? Math.floor((Date.now()-new Date(config.ultimoBackupEm).getTime())/86400000) : null;
-  const corBackup = diasBackup===null ? 'var(--burgundy)' : (diasBackup>=15 ? 'var(--burgundy)' : (diasBackup>=7 ? '#8A6D1B' : 'inherit'));
-  document.getElementById('inicioStats').innerHTML = `
-    <div class="stat"><div class="stat-num">${ativos}</div><div class="stat-label">Animais ativos</div></div>
-    <div class="stat" id="statCardAtrasadas" style="cursor:pointer;"><div class="stat-num" style="color:${atrasadas>0?'var(--burgundy)':'inherit'};">${atrasadas}</div><div class="stat-label">Tarefas atrasadas</div></div>
-    <div class="stat" id="statCardProximas" style="cursor:pointer;"><div class="stat-num" style="color:${proximas>0?'#8A6D1B':'inherit'};">${proximas}</div><div class="stat-label">Tarefas próximas (7 dias)</div></div>
-    <div class="stat" id="statCardEstoque" style="cursor:pointer;"><div class="stat-num" style="color:${(zerados+pertoMin)>0?'var(--burgundy)':'inherit'};">${zerados+pertoMin}</div><div class="stat-label">Alertas de estoque</div></div>
-    <div class="stat" id="statCardBackup" style="cursor:pointer;" title="Clique para exportar um backup agora"><div class="stat-num" style="color:${corBackup};">${diasBackup===null?'—':diasBackup}</div><div class="stat-label">${diasBackup===null?'Nunca exportou backup':'Dia(s) desde o último backup'}</div></div>`;
-  document.getElementById('statCardAtrasadas').addEventListener('click', ()=>abrirListaInicio('atrasadas'));
-  document.getElementById('statCardProximas').addEventListener('click', ()=>abrirListaInicio('proximas'));
-  document.getElementById('statCardEstoque').addEventListener('click', ()=>abrirListaInicio('estoque'));
-  document.getElementById('statCardBackup').addEventListener('click', ()=>document.getElementById('btnExportBackup').click());
-}
 // Lista os itens por trás dos números clicáveis do topo do Início — mesmos cartões de sempre, só
 // que agora clicáveis, abrindo um modal com o detalhe (quais animais estão atrasados/próximos, ou
 // quais produtos estão em alerta de estoque).
@@ -3929,125 +3966,359 @@ function abrirListaInicio(tipo){
 }
 // Imprimir/Baixar PDF do painel do Início — usa exatamente o que está renderizado em #inicioListaBody
 // na hora (mesmos dados/filtros/agrupamento já aplicados), sem recalcular nada separado.
-document.getElementById('inicioAgendaCard').addEventListener('click', ()=>irParaView('calendario'));
 document.getElementById('btnPrintInicioLista').addEventListener('click', ()=>window.print());
 document.getElementById('btnPdfInicioLista').addEventListener('click', ()=>{
   const titulo = (document.getElementById('inicioListaTitulo').textContent||'Relatorio').trim();
   const conteudo = `<h1 style="border:none;">${titulo}</h1>` + document.getElementById('inicioListaBody').innerHTML;
   baixarRelatorioManejoPDF(conteudo, 'Relatorio_'+titulo.replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf');
 });
+/* ==================== ÍNICIO — reconstrução fiel ao mockup "Dashboard Haras — Geral" ====================
+   Reconstrução (não remendo): sem faixa .stats de caixinhas, sem cabeçalho verde sólido em cada
+   cartão, ícones SVG traçados (sem emoji). Tudo com dado real do próprio app — nada de número
+   fictício. Onde o mockup tinha exemplos fictícios que não têm uma fonte real equivalente no app
+   (ex: "chegaram este mês" com nomes específicos, resultado de torneio) eu não inventei dado —
+   fica pra uma próxima etapa, se fizer sentido construir esses números de verdade. */
+const DASH_ICONS = {
+  ferradura:'<path d="M6 16.5v-6a4 4 0 0 1 8 0v6" stroke-width="2" stroke-linecap="round"/><circle cx="6" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="17" r="1.5" fill="currentColor" stroke="none"/>',
+  calendario:'<rect x="3.2" y="4.8" width="13.6" height="12" rx="2.2" stroke-width="1.6"/><path d="M3.2 8.6h13.6M7 3.4v2.8M13 3.4v2.8" stroke-width="1.6" stroke-linecap="round"/>',
+  coracao:'<path d="M10 16.6S3.6 12.8 3.6 8.6a3.4 3.4 0 0 1 6.4-1.7 3.4 3.4 0 0 1 6.4 1.7c0 4.2-6.4 8-6.4 8Z" stroke-width="1.6" stroke-linejoin="round"/>',
+  cedula:'<rect x="2.6" y="5.4" width="14.8" height="9.2" rx="1.8" stroke-width="1.6"/><circle cx="10" cy="10" r="2.3" stroke-width="1.6"/>',
+  caixa:'<path d="M3.6 6.6 10 3.4l6.4 3.2v6.8L10 16.6 3.6 13.4V6.6Z" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 6.6 10 9.8l6.4-3.2M10 9.8v6.8" stroke-width="1.6" stroke-linejoin="round"/>',
+  bandeira:'<path d="M5.6 3.4V17" stroke-width="1.6" stroke-linecap="round"/><path d="M5.6 4.6h9.6l-2.2 3 2.2 3H5.6" stroke-width="1.6" stroke-linejoin="round"/>',
+  go:'<path d="M4 10h11M11 5.5 15.5 10 11 14.5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  lupa:'<circle cx="9" cy="9" r="5.4" stroke-width="1.8"/><path d="M13.1 13.1 17 17" stroke-width="1.8" stroke-linecap="round"/>',
+};
+function ico(nome, tam, cor){ return `<svg width="${tam}" height="${tam}" viewBox="0 0 20 20" fill="none" stroke="${cor||'#A97B32'}" style="flex-shrink:0;" xmlns="http://www.w3.org/2000/svg">${DASH_ICONS[nome]||''}</svg>`; }
+function icoGo(cor){ return `<svg class="go" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="${cor||'#A97B32'}" xmlns="http://www.w3.org/2000/svg">${DASH_ICONS.go}</svg>`; }
+function icoLupa(cor,tam){ return `<svg class="lupa" width="${tam||13}" height="${tam||13}" viewBox="0 0 20 20" fill="none" stroke="${cor||'#A97B32'}" xmlns="http://www.w3.org/2000/svg">${DASH_ICONS.lupa}</svg>`; }
+function iconeParaTipo(tipo){
+  const map = { Casco:'ferradura', Salario:'cedula' };
+  return map[tipo] || 'coracao'; // Dente/Vacina/Vermífugo/Tratamento/gestação/potro: ícone genérico de saúde por ora
+}
+function dashCardHead(icone, titulo, destino){
+  return `<div class="dash-card-head">
+    <div class="dash-card-titulo">${ico(icone,18)}<span>${titulo}</span></div>
+    <span class="dash-card-destino">${destino} ${icoGo()}</span>
+  </div>`;
+}
+
+let inicioAgendaView = 'semana'; // 'dia' | 'semana' — o chip "Mês" não é um estado aqui, ele navega pra aba Calendário
+
 function renderInicio(){
   renderInicioHero();
-  renderInicioStats();
-  renderInicioAgendaResumo();
-  renderInicioFinResumo();
-  renderInicioModulos();
+  renderInicioPilares();
+  renderInicioAgenda();
+  renderInicioPlantel();
+  renderInicioDinheiro();
 }
-// Saudação + foto do haras no topo do Início. O saldo em caixa fica "embaçado" por padrão — dado
-// sensível, só visível pro perfil Administrador, e mesmo assim só revela ao passar o mouse (mesmo
-// padrão .peek-card usado nos cartões financeiros logo abaixo).
+
+// Faixa de abertura: saudação + foto + frase-resumo (com o saldo do mês embaçado, só admin) + até
+// 3 chips de atalho (atrasadas / estoque / folha do mês — cada um só aparece pra quem tem acesso
+// àquele módulo, mesma regra de PERFIL_VIEWS que já vale pro menu).
 function renderInicioHero(){
-  const hora = new Date().getHours();
+  const hoje = new Date();
+  const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  document.getElementById('inicioHeroData').textContent = DIAS_SEMANA[hoje.getDay()]+', '+fmtDate(toISODate(hoje));
+  const hora = hoje.getHours();
   const saudacao = hora<12 ? 'Bom dia' : (hora<18 ? 'Boa tarde' : 'Boa noite');
   const nome = (currentUser && currentUser.nome) ? currentUser.nome.split(' ')[0] : '';
-  const elSaud = document.getElementById('inicioSaudacao');
-  if(elSaud) elSaud.textContent = saudacao + (nome ? ', '+nome : '') + '!';
-  const cardEl = document.getElementById('inicioHeroCaixaCard');
-  if(!cardEl) return;
-  if(currentUser && currentUser.perfil==='admin'){
-    const todos = todosLancamentosFinanceiro();
-    const brl = todos.filter(l=>l.moeda!=='USD'), usd = todos.filter(l=>l.moeda==='USD');
-    const saldoBRL = brl.reduce((s,l)=> s + (l.tipo==='entrada'?1:-1)*(Number(l.valor)||0), 0);
-    const saldoUSD = usd.reduce((s,l)=> s + (l.tipo==='entrada'?1:-1)*(Number(l.valor)||0), 0);
-    document.getElementById('inicioHeroCaixaValor').innerHTML = fmtMoeda(saldoBRL,'BRL') + (usd.length ? ' <span style="opacity:.85;">+ '+fmtMoeda(saldoUSD,'USD')+'</span>' : '');
-    cardEl.style.display = '';
-  } else {
-    cardEl.style.display = 'none';
-  }
-}
-// Cartões financeiros "espiáveis" do Início — só pro perfil Administrador (mesma regra de acesso do
-// Financeiro/Funcionários). Reaproveita a mesma lógica de todosLancamentosFinanceiro() do Financeiro,
-// só que sempre olhando pro mês corrente (não navega junto com o "Resumo do mês" da aba Financeiro).
-function renderInicioFinResumo(){
-  const host = document.getElementById('inicioFinResumo');
-  if(!host) return;
-  if(!currentUser || currentUser.perfil!=='admin'){ host.innerHTML=''; return; }
-  const now = new Date();
-  const ano = now.getFullYear(), mes = now.getMonth();
-  const inicioMes = toISODate(new Date(ano, mes, 1));
-  const fimMes = toISODate(new Date(ano, mes+1, 0));
-  const doMesBRL = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.moeda!=='USD');
-  const totalEntrada = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
-  const totalSaida = doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
-  const saldoMes = totalEntrada - totalSaida;
+  document.getElementById('inicioSaudacao').textContent = saudacao + (nome?(', '+nome):'') + '.';
+
+  const acessos = PERFIL_VIEWS[currentUser && currentUser.perfil]||[];
+  const isAdmin = currentUser && currentUser.perfil==='admin';
   const ativos = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
-  const custoPorAnimal = ativos>0 ? totalSaida/ativos : 0;
-  const folhaMes = doMesBRL.filter(l=>l.categoria==='Salário' && l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
-  const mesLabel = MESES_LABEL[mes].toLowerCase();
-  host.innerHTML = `
-    <div class="stats" style="margin-bottom:18px;">
-      <div class="stat peek-card"><div class="stat-num peek-value" style="color:${saldoMes>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoMes,'BRL')}</div><div class="stat-label">O dinheiro de ${mesLabel}</div><div class="peek-hint">passe o mouse</div></div>
-      <div class="stat peek-card"><div class="stat-num peek-value">${fmtMoeda(custoPorAnimal,'BRL')}</div><div class="stat-label">Custo por animal</div><div class="peek-hint">passe o mouse</div></div>
-      <div class="stat peek-card"><div class="stat-num peek-value">${fmtMoeda(folhaMes,'BRL')}</div><div class="stat-label">Folha de ${mesLabel}</div><div class="peek-hint">passe o mouse</div></div>
-    </div>`;
-}
-// Cartões de atalho pra cada módulo do sistema — só mostra os que o perfil logado tem acesso
-// (mesma lista de PERFIL_VIEWS que já controla o menu lateral).
-const MODULOS_INFO = {
-  animais:{icone:'🐴', nome:'Animais', desc:'Fichas e cadastro'},
-  grupos:{icone:'📁', nome:'Grupos', desc:'Times e lotes'},
-  manejos:{icone:'🛠️', nome:'Manejos', desc:'Casco, dente, vacina, vermífugo'},
-  treinos:{icone:'🏇', nome:'Atividades', desc:'Treino, jogo, bate-bola, montada'},
-  nascimentos:{icone:'🐣', nome:'Nascimentos', desc:'Partos e potros'},
-  estoque:{icone:'📦', nome:'Estoque', desc:'Produtos e dietas'},
-  veterinaria:{icone:'🩺', nome:'Veterinária', desc:'Tratamentos e visitas'},
-  funcionarios:{icone:'👤', nome:'Funcionários', desc:'Equipe do haras'},
-  financeiro:{icone:'💰', nome:'Financeiro', desc:'Lançamentos e caixa'},
-  usuarios:{icone:'🔑', nome:'Usuários', desc:'Perfis de acesso'},
-};
-function renderInicioModulos(){
-  const host = document.getElementById('inicioModulosGrid');
-  if(!host) return;
-  const permitidas = (PERFIL_VIEWS[currentUser && currentUser.perfil]||[]).filter(v=> v!=='inicio' && v!=='calendario');
-  host.innerHTML = permitidas.map(v=>{
-    const info = MODULOS_INFO[v] || {icone:'▪️', nome:v, desc:''};
-    if(v==='animais'){
-      return `<div class="modulo-tile modulo-foto" data-modulo="${v}" title="Abrir ${info.nome}">
-        <div class="modulo-tile-photo" style="background-image:url('./img/foto-tropa-pasto.jpg');"></div>
-        <div class="modulo-tile-fade"></div>
-        <div class="modulo-nome">${info.icone} ${info.nome}</div>
-        <div class="modulo-desc">${info.desc}</div>
-      </div>`;
-    }
-    return `<div class="modulo-tile" data-modulo="${v}" title="Abrir ${info.nome}">
-      <div class="modulo-icone">${info.icone}</div>
-      <div class="modulo-nome">${info.nome}</div>
-      <div class="modulo-desc">${info.desc}</div>
-    </div>`;
-  }).join('');
-  host.querySelectorAll('[data-modulo]').forEach(el=> el.addEventListener('click', ()=> irParaView(el.dataset.modulo)));
-}
-// Resumo curto no cartão do Início (o calendário completo, com Mês/Semana/Dia, agora mora na
-// aba Calendário — este resumo só mostra as tarefas de hoje e convida a clicar pra abrir o resto).
-function renderInicioAgendaResumo(){
-  const host = document.getElementById('inicioAgendaResumo');
-  if(!host) return;
   const tasks = computeCalendarTasks();
   const byDate = tasksByDate(tasks);
-  const hojeStr = toISODate(new Date());
-  const tarefasHoje = (byDate[hojeStr]||[]).slice().sort((a,b)=> a.tipo.localeCompare(b.tipo,'pt'));
-  const atrasadas = tasks.filter(t=>t.situacao==='atrasado');
-  let html = `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;">
-    <div><strong style="font-size:20px;">${tarefasHoje.length}</strong> <span class="hint-text" style="margin:0;">tarefa(s) hoje</span></div>
-    <div><strong style="font-size:20px;color:${atrasadas.length>0?'var(--burgundy)':'inherit'};">${atrasadas.length}</strong> <span class="hint-text" style="margin:0;">atrasada(s)</span></div>
-  </div>`;
-  if(tarefasHoje.length===0){
-    html += `<div class="hint-text">Nenhuma tarefa prevista pra hoje.</div>`;
-  }else{
-    html += tarefasHoje.slice(0,5).map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}">${CAL_ICON[t.tipo]||''} <strong>${t.label||t.tipo}</strong> — ${t.animalNome}</div>`).join('');
-    if(tarefasHoje.length>5) html += `<div class="hint-text" style="margin-top:4px;">+ ${tarefasHoje.length-5} outra(s) hoje.</div>`;
+  const hojeStr = toISODate(hoje);
+  const tarefasHoje = (byDate[hojeStr]||[]).length;
+
+  let frase = `O plantel tem <strong>${ativos} animal(is) ativo(s)</strong>. Hoje há <strong>${tarefasHoje} tarefa(s)</strong> de manejo prevista(s)`;
+  if(isAdmin){
+    const now = new Date();
+    const inicioMes = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const fimMes = toISODate(new Date(now.getFullYear(), now.getMonth()+1, 0));
+    const doMesBRL = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.moeda!=='USD');
+    const saldoMes = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0) - doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+    const mesLabel = MESES_LABEL[now.getMonth()].toLowerCase();
+    frase += `, e ${mesLabel} está fechando com o caixa ${saldoMes>=0?'positivo':'negativo'} em <span class="peek"><strong class="blurred">${fmtMoeda(Math.abs(saldoMes),'BRL')}</strong>${icoLupa()}</span>`;
   }
-  host.innerHTML = html;
+  frase += '.';
+  document.getElementById('inicioHeroFrase').innerHTML = frase;
+
+  const prog = computeProgramacao();
+  const atrasadas = prog.filter(r=>r.situacao==='atrasado').length;
+  const chips = [];
+  chips.push({texto:`${atrasadas} tarefa(s) atrasada(s)`, bg:'var(--alert-bg)', cor:'var(--alert-ink)', icone:'calendario', onClick:()=>abrirListaInicio('atrasadas')});
+  if(acessos.includes('estoque')){
+    const zerados = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
+    const pertoMin = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
+    chips.push({texto:`${zerados+pertoMin} alerta(s) de estoque`, bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'caixa', onClick:()=>abrirListaInicio('estoque')});
+  }
+  if(isAdmin && funcionarios.length>0){
+    const now = new Date();
+    const pendentes = funcionarios.filter(fu=>!salarioConfirmadoNoMes(fu.id, now.getFullYear(), now.getMonth())).length;
+    const mesLabel = MESES_LABEL[now.getMonth()];
+    if(pendentes===0) chips.push({texto:`Folha de ${mesLabel} confirmada`, bg:'var(--ok-bg)', cor:'var(--ok-ink)', icone:'cedula', onClick:()=>irParaView('funcionarios')});
+    else chips.push({texto:`${pendentes} salário(s) de ${mesLabel} pendente(s)`, bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'cedula', onClick:()=>irParaView('funcionarios')});
+  }
+  // Dias desde o último "Exportar backup" — como tudo mora só no navegador (sem nuvem), esse é o
+  // principal aviso de "hora de tirar uma cópia de segurança". Amarelo a partir de 7 dias, vermelho
+  // a partir de 15 (ou se nunca exportou); clicar já dispara o export, sem precisar ir até o menu.
+  const diasBackup = config.ultimoBackupEm ? Math.floor((Date.now()-new Date(config.ultimoBackupEm).getTime())/86400000) : null;
+  if(diasBackup===null || diasBackup>=15){
+    chips.push({texto: diasBackup===null?'Nunca exportou backup':diasBackup+' dias sem backup', bg:'var(--alert-bg)', cor:'var(--alert-ink)', icone:'caixa', onClick:()=>document.getElementById('btnExportBackup').click()});
+  } else if(diasBackup>=7){
+    chips.push({texto:diasBackup+' dias sem backup', bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'caixa', onClick:()=>document.getElementById('btnExportBackup').click()});
+  }
+  const chipsHost = document.getElementById('inicioHeroChips');
+  chipsHost.innerHTML = chips.map((c,i)=> `<span class="dash-chip" style="background:${c.bg};color:${c.cor};" data-chipidx="${i}">${ico(c.icone,14,c.cor)} ${c.texto} ${icoGo(c.cor)}</span>`).join('');
+  chipsHost.querySelectorAll('[data-chipidx]').forEach(el=> el.addEventListener('click', ()=> chips[Number(el.dataset.chipidx)].onClick()));
+}
+
+// O "pulso" — um cartão só, com 2 a 4 colunas (Plantel/Manejo sempre; Saúde só quem acessa
+// Veterinária; Caixa só Administrador), separadas por um fio vertical em vez de 5 caixinhas soltas.
+function renderInicioPilares(){
+  const host = document.getElementById('inicioPilares');
+  const perfil = currentUser && currentUser.perfil;
+  const acessos = PERFIL_VIEWS[perfil]||[];
+  const pilares = [];
+
+  const ativosArr = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
+  const machos = ativosArr.filter(h=>h.sexo==='MASCULINO').length;
+  const femeas = ativosArr.filter(h=>h.sexo==='FEMININO').length;
+  const catCounts = {};
+  ativosArr.forEach(h=>{ const c=h.categoria||'Sem categoria'; catCounts[c]=(catCounts[c]||0)+1; });
+  const catOrdenadas = Object.entries(catCounts).sort((a,b)=>b[1]-a[1]);
+  const rampaPlantel = ['#1C3327','#4C7A5D','#A97B32','#C79B4E','#B9A277','#D8CFB8'];
+  const totalCat = ativosArr.length || 1;
+  const barraPlantel = catOrdenadas.slice(0,6).map(([,n],i)=>`<div style="width:${(n/totalCat)*100}%;background:${rampaPlantel[i]||'#D8CFB8'};"></div>`).join('');
+  pilares.push({ view:'animais', icone:'ferradura', rotulo:'Plantel', numero:ativosArr.length, legenda:'animais ativos',
+    grafico:`<div class="dash-barra">${barraPlantel}</div>`,
+    contexto:`${machos} macho(s) · ${femeas} fêmea(s) · ${horses.length} no histórico` });
+
+  const tasks = computeCalendarTasks();
+  const byDate = tasksByDate(tasks);
+  const hoje = new Date(); const hojeStr = toISODate(hoje);
+  const janela = []; for(let i=-3;i<=3;i++){ const d=new Date(hoje); d.setDate(d.getDate()+i); janela.push({iso:toISODate(d), hoje:i===0}); }
+  const contagens = janela.map(j=>(byDate[j.iso]||[]).length);
+  const maxJanela = Math.max(1, ...contagens);
+  const barrasManejo = janela.map((j,i)=>{ const h=Math.max(6, Math.round((contagens[i]/maxJanela)*22)); return `<div style="width:9px;height:22px;display:flex;align-items:flex-end;"><div style="width:100%;height:${h}px;background:${j.hoje?'#1C3327':'#C79B4E'};border-radius:2px;"></div></div>`; }).join('');
+  const prog = computeProgramacao();
+  const atrasadasCount = prog.filter(r=>r.situacao==='atrasado').length;
+  const proximasCount = prog.filter(r=>r.situacao==='proximo').length;
+  pilares.push({ view:'calendario', icone:'calendario', rotulo:'Manejo', numero:(byDate[hojeStr]||[]).length, legenda:'tarefa(s) hoje',
+    grafico:`<div style="display:flex;gap:4px;align-items:flex-end;height:22px;">${barrasManejo}</div>`,
+    contexto:`<span style="${atrasadasCount>0?'color:var(--alert-ink);font-weight:600;':''}">${atrasadasCount} atrasada(s)</span> · ${proximasCount} nos próximos 7 dias` });
+
+  if(acessos.includes('veterinaria')){
+    const emCurso = tratamentos.filter(t=> statusTratamento(t)!=='concluido').length;
+    const seteDiasAtras = toISODate(new Date(Date.now()-7*86400000));
+    let examesNovos = 0; horses.forEach(h=> (h.exames||[]).forEach(e=>{ if((e.dataUpload||'')>=seteDiasAtras) examesNovos++; }));
+    const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S').length;
+    const ultimaVisita = visitas.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||''))[0];
+    pilares.push({ view:'veterinaria', icone:'coracao', rotulo:'Saúde', numero:emCurso, legenda:'tratamento(s) em curso',
+      grafico:`<div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="dash-chip" style="background:var(--chip-bg);color:#5C5744;padding:3px 9px;font-size:11px;">${examesNovos} exame(s) novo(s)</span>
+        <span class="dash-chip" style="background:#F6DDE3;color:#8A3B4C;padding:3px 9px;font-size:11px;">${prenhezes} prenhez(es)</span>
+      </div>`,
+      contexto: ultimaVisita ? `Última visita ${fmtDate(ultimaVisita.data)} · ${ultimaVisita.veterinario||'—'}` : 'Nenhuma visita registrada ainda' });
+  }
+
+  if(perfil==='admin'){
+    const calcSaldoMes = (ano,mes)=>{
+      const ini=toISODate(new Date(ano,mes,1)), fim=toISODate(new Date(ano,mes+1,0));
+      const doMes = todosLancamentosFinanceiro().filter(l=>l.data>=ini&&l.data<=fim);
+      const s = arr=> arr.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0) - arr.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+      return { brl:s(doMes.filter(l=>l.moeda!=='USD')), usd:s(doMes.filter(l=>l.moeda==='USD')) };
+    };
+    const now = new Date();
+    const atual = calcSaldoMes(now.getFullYear(), now.getMonth());
+    const mesAnteriorD = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const anterior = calcSaldoMes(mesAnteriorD.getFullYear(), mesAnteriorD.getMonth());
+    let pct = null;
+    if(anterior.brl!==0) pct = Math.round(((atual.brl-anterior.brl)/Math.abs(anterior.brl))*100);
+    const mesLabel = MESES_LABEL[now.getMonth()].toLowerCase();
+    pilares.push({ view:'financeiro', icone:'cedula', rotulo:`Caixa de ${mesLabel}`, peek:true,
+      numeroHtml:`<span class="peek"><strong class="blurred" style="font-size:26px;">${fmtMoeda(atual.brl,'BRL')}</strong>${icoLupa()}</span>`,
+      legenda: pct!==null ? `<span style="margin-left:10px;color:${pct>=0?'var(--ok-ink)':'var(--alert-ink)'};font-weight:600;font-size:12.5px;">${pct>=0?'+':''}${pct}%</span>` : '',
+      grafico:`<div class="dash-barra"><div style="width:${Math.max(4,Math.min(100,Math.abs(atual.brl)>0?71:0))}%;background:${atual.brl>=0?'#4C7A5D':'var(--alert-ink)'};"></div></div>`,
+      contexto: atual.usd!==0 ? `e <span class="peek"><span class="blurred">${fmtMoeda(atual.usd,'USD')}</span>${icoLupa()}</span> — contados à parte` : '' });
+  }
+
+  host.style.setProperty('--n-pilares', pilares.length);
+  host.innerHTML = pilares.map(p=>`
+    <div class="dash-pilar pillar-btn ${p.peek?'peek-card':''}" data-viewpilar="${p.view}">
+      <div class="dash-pilar-rotulo"><span>${ico(p.icone,17)} ${p.rotulo}</span>${icoGo()}</div>
+      <div class="dash-pilar-num">${p.numeroHtml || `<strong>${p.numero}</strong>`}<span>${p.legenda||''}</span></div>
+      ${p.grafico||''}
+      <div class="dash-pilar-ctx">${p.contexto||''}</div>
+    </div>`).join('');
+  host.querySelectorAll('[data-viewpilar]').forEach(el=> el.addEventListener('click', (e)=>{ if(e.target.closest('.peek,.lupa')) return; irParaView(el.dataset.viewpilar); }));
+}
+
+// "A agenda dos próximos dias" — Dia/Semana trocam a lista aqui mesmo; Mês navega pra aba Calendário.
+function renderInicioAgenda(){
+  const host = document.getElementById('inicioAgendaCard');
+  const tasks = computeCalendarTasks();
+  const byDate = tasksByDate(tasks);
+  const hoje = new Date();
+
+  const atrasadas = tasks.filter(t=>t.situacao==='atrasado').sort((a,b)=> (a.proxima?+a.proxima:0) - (b.proxima?+b.proxima:0));
+  const atrasadasHtml = atrasadas.length===0 ? '' : `
+    <div class="dash-atrasadas-box">
+      <div style="display:flex;justify-content:space-between;"><span class="dash-atrasadas-rotulo">Atrasadas</span><span style="font-size:11px;color:#A5776F;">a mais tempo primeiro</span></div>
+      ${atrasadas.slice(0,4).map(t=>{
+        const dias = t.proxima ? Math.floor((hoje - new Date(t.proxima)) / 86400000) : null;
+        return `<div class="dash-atrasada-linha"><span style="flex:1;">${ico(iconeParaTipo(t.tipo),15,'var(--alert-ink)')} <strong>${t.label||t.tipo}</strong> · ${t.animalNome}</span><span style="color:var(--alert-ink);font-weight:600;white-space:nowrap;">${dias!==null?(dias+' dia(s)'):''}</span></div>`;
+      }).join('')}
+    </div>`;
+
+  const nDias = inicioAgendaView==='dia' ? 1 : 7;
+  const NOMES_DIA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  let timelineHtml = '';
+  for(let i=0;i<nDias;i++){
+    const d = new Date(hoje); d.setDate(d.getDate()+i);
+    const iso = toISODate(d);
+    const doDia = (byDate[iso]||[]);
+    const porManejo = {};
+    doDia.forEach(t=>{ const key=t.label||t.tipo; if(!porManejo[key]) porManejo[key]={tipo:t.tipo, animais:[]}; porManejo[key].animais.push(t.animalNome); });
+    const grupos = Object.entries(porManejo);
+    const nomeDia = i===0 ? 'Hoje' : (i===1?'Amanhã':NOMES_DIA[d.getDay()]);
+    timelineHtml += `<div class="dash-timeline-dia">
+      <div class="dash-timeline-data"><div class="nome">${nomeDia}</div><div class="data">${NOMES_DIA[d.getDay()].slice(0,3).toUpperCase()} ${fmtDate(iso).slice(0,5)}</div></div>
+      <div class="dash-timeline-trilho"></div>
+      <div style="flex:1;">
+        ${grupos.length===0 ? `<div class="dash-tarefa-sub" style="padding:6px 0;">Nenhuma tarefa prevista.</div>` :
+          grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${label} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${info.animais.join(', ')}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  host.innerHTML = `
+    ${dashCardHead('calendario','A agenda dos próximos dias','Calendário')}
+    <div class="dash-agenda-seg">
+      <span data-seg="dia" class="${inicioAgendaView==='dia'?'active':''}">Dia</span>
+      <span data-seg="semana" class="${inicioAgendaView==='semana'?'active':''}">Semana</span>
+      <span data-seg="mes">Mês</span>
+    </div>
+    ${atrasadasHtml}
+    <div>${timelineHtml}</div>
+  `;
+  host.querySelector('.dash-card-head').addEventListener('click', ()=>irParaView('calendario'));
+  host.querySelectorAll('.dash-agenda-seg [data-seg]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(el.dataset.seg==='mes'){ irParaView('calendario'); return; }
+      inicioAgendaView = el.dataset.seg; renderInicioAgenda();
+    });
+  });
+}
+
+// "O plantel hoje" — banner com a foto da tropa + composição real por categoria e por pelagem.
+function renderInicioPlantel(){
+  const host = document.getElementById('inicioPlantelCard');
+  const ativosArr = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
+  const catCounts = {};
+  ativosArr.forEach(h=>{ const c=h.categoria||'Sem categoria'; catCounts[c]=(catCounts[c]||0)+1; });
+  const catOrdenadas = Object.entries(catCounts).sort((a,b)=>b[1]-a[1]);
+  const rampa = ['#1C3327','#4C7A5D','#A97B32','#C79B4E','#B9A277','#D8CFB8'];
+  const total = ativosArr.length || 1;
+  const barra = catOrdenadas.map(([,n],i)=>`<div style="width:${(n/total)*100}%;background:${rampa[i%rampa.length]};"></div>`).join('');
+  const legenda = catOrdenadas.map(([cat,n],i)=>`<div class="dash-legenda-linha"><span class="dash-legenda-quad" style="background:${rampa[i%rampa.length]};"></span><span class="nome">${cat}</span><span class="num">${n}</span></div>`).join('');
+
+  const pelCounts = {};
+  ativosArr.forEach(h=>{ if(h.pelagem) pelCounts[h.pelagem]=(pelCounts[h.pelagem]||0)+1; });
+  const CORES_PELAGEM = { 'Castanho':'#7A4A29', 'Alazão':'#B4622A', 'Tordilho':'#BDB4A6', 'Zaino':'#34291F', 'Baio':'#C79B4E' };
+  const pelOrdenadas = Object.entries(pelCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const pelagemHtml = pelOrdenadas.length===0 ? '' : `
+    <div style="border-top:1px solid var(--line-soft);padding-top:13px;">
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px;">Pelagem</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${pelOrdenadas.map(([pel,n])=>`<span class="dash-chip" style="background:var(--card-well);color:var(--text-body);padding:4px 10px;font-size:11.5px;"><span style="width:9px;height:9px;border-radius:50%;background:${CORES_PELAGEM[pel]||'#B9A277'};display:inline-block;"></span> ${pel} ${n}</span>`).join('')}
+      </div>
+    </div>`;
+
+  host.innerHTML = `
+    ${dashCardHead('ferradura','O plantel hoje','Animais')}
+    <div style="position:relative;height:128px;border-radius:10px;overflow:hidden;">
+      <img src="./img/foto-tropa-pasto.jpg" alt="Tropa no pasto" style="width:100%;height:100%;object-fit:cover;object-position:center 42%;display:block;">
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,51,39,0) 42%,rgba(28,51,39,.62) 100%);"></div>
+      <div style="position:absolute;left:12px;bottom:9px;color:#F4EFE0;font-size:11px;font-weight:600;text-shadow:0 1px 3px rgba(20,17,12,.5);">${ativosArr.length} animal(is) ativo(s)</div>
+    </div>
+    <div class="dash-barra" style="height:10px;border-radius:5px;">${barra}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${legenda}</div>
+    ${pelagemHtml}
+  `;
+  host.onclick = ()=>irParaView('animais');
+}
+
+// "O dinheiro do mês" — só Administrador (mesma regra de privacidade do Financeiro/Funcionários no
+// menu). Sem acesso, o cartão some e as outras duas colunas ocupam o espaço.
+function renderInicioDinheiro(){
+  const host = document.getElementById('inicioDinheiroCard');
+  const tresCol = document.getElementById('inicioTresColunas');
+  const isAdmin = currentUser && currentUser.perfil==='admin';
+  if(!isAdmin){ host.style.display='none'; tresCol.style.setProperty('--cols-3col','1.6fr 1fr'); return; }
+  host.style.display=''; tresCol.style.setProperty('--cols-3col','1.38fr 1fr 1fr');
+
+  const now = new Date();
+  const inicioMes = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const fimMes = toISODate(new Date(now.getFullYear(), now.getMonth()+1, 0));
+  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes);
+  const doMesBRL = doMes.filter(l=>l.moeda!=='USD'), doMesUSD = doMes.filter(l=>l.moeda==='USD');
+  const somaTipo = (arr,tipo)=> arr.filter(l=>l.tipo===tipo).reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const entradaR = somaTipo(doMesBRL,'entrada'), saidaR = somaTipo(doMesBRL,'saida'), saldoR = entradaR-saidaR;
+  const entradaU = somaTipo(doMesUSD,'entrada'), saidaU = somaTipo(doMesUSD,'saida'), saldoU = entradaU-saidaU;
+  const mesLabel = MESES_LABEL[now.getMonth()].toLowerCase();
+
+  const porCategoria = {};
+  doMesBRL.filter(l=>l.tipo==='saida').forEach(l=>{ const c=l.categoria||'Sem categoria'; porCategoria[c]=(porCategoria[c]||0)+(Number(l.valor)||0); });
+  const categorias = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const rampaCat = ['#1C3327','#4C7A5D','#A97B32','#C79B4E','#D8CFB8'];
+  const maiorCat = categorias.length ? categorias[0][1] : 0;
+
+  const ativos = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
+  const custoPorAnimal = ativos>0 ? saidaR/ativos : 0;
+  const folhaMes = doMesBRL.filter(l=>l.categoria==='Salário'&&l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const nFuncPagos = funcionarios.filter(fu=>salarioConfirmadoNoMes(fu.id, now.getFullYear(), now.getMonth())).length;
+
+  const poco = (rotulo, entrada, saida, saldo, moeda) => `
+    <div class="dash-moeda-poco">
+      <div class="dash-moeda-rotulo">${rotulo}</div>
+      <div class="dash-moeda-linha"><span style="color:var(--ok-ink);">Entrou</span><span class="blurred">${fmtMoeda(entrada,moeda)}</span></div>
+      <div class="dash-moeda-linha"><span style="color:var(--alert-ink);">Saiu</span><span class="blurred">${fmtMoeda(saida,moeda)}</span></div>
+      <div class="dash-moeda-saldo"><span style="font-size:11.5px;color:var(--text-faint);">Saldo</span><strong class="blurred">${fmtMoeda(saldo,moeda)}</strong></div>
+    </div>`;
+
+  host.innerHTML = `
+    ${dashCardHead('cedula','O dinheiro de '+mesLabel,'Financeiro')}
+    <div class="peek-card" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+      ${poco('Reais', entradaR, saidaR, saldoR, 'BRL')}
+      ${doMesUSD.length ? poco('Dólares', entradaU, saidaU, saldoU, 'USD') : ''}
+    </div>
+    <div style="margin-top:-8px;font-size:11px;color:var(--text-faint);display:flex;align-items:center;gap:5px;">${icoLupa('var(--text-faint)',13)} Passe o mouse no bloco pra ver os valores — reais e dólares nunca são somados.</div>
+    ${categorias.length ? `
+    <div style="border-top:1px solid var(--line-soft);padding-top:13px;">
+      <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-faint);text-transform:uppercase;font-weight:700;margin-bottom:8px;"><span>Para onde foi</span><span style="text-transform:none;font-weight:600;color:var(--ink);">${fmtMoeda(saidaR,'BRL')}</span></div>
+      ${categorias.map(([cat,val],i)=>`
+        <div class="dash-medidor-linha"><span>${cat}</span><span>${fmtMoeda(val,'BRL')}</span></div>
+        <div class="dash-medidor-barra"><div style="width:${maiorCat>0?Math.max(4,(val/maiorCat)*100):0}%;background:${rampaCat[i%rampaCat.length]};"></div></div>
+      `).join('')}
+    </div>` : ''}
+    <div style="border-top:1px solid var(--line-soft);padding-top:13px;display:flex;gap:10px;">
+      <div class="peek-card" style="flex:1;background:var(--card-well);border-radius:10px;padding:11px 13px;">
+        <div style="font-size:11px;color:var(--text-faint);">Custo por animal</div>
+        <div style="margin-top:2px;"><span class="peek"><span class="blurred" style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--green);">${fmtMoeda(custoPorAnimal,'BRL')}</span>${icoLupa()}</span></div>
+        <div style="font-size:10.5px;color:var(--text-faint);">média do mês</div>
+      </div>
+      <div class="peek-card" style="flex:1;background:var(--ok-bg);border-radius:10px;padding:11px 13px;">
+        <div style="font-size:11px;color:var(--ok-ink);">Folha de ${mesLabel}</div>
+        <div style="margin-top:2px;"><span class="peek"><span class="blurred" style="font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--green);">${fmtMoeda(folhaMes,'BRL')}</span>${icoLupa('var(--ok-ink)')}</span></div>
+        <div style="font-size:10.5px;color:var(--ok-ink);">${nFuncPagos} de ${funcionarios.length} funcionário(s) · confirma dia 05</div>
+      </div>
+    </div>
+  `;
+  host.onclick = ()=>irParaView('financeiro');
 }
 function calLabel(){
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -9116,7 +9387,7 @@ function aplicarPermissoes(){
   // O Início pode já ter sido desenhado antes do login terminar (loadAll roda antes de currentUser
   // existir) — os blocos que dependem do perfil (saldo em caixa, cartões financeiros) precisam
   // recalcular aqui, mesmo se a view ativa continuar sendo Início e o "if" acima não disparar.
-  if(typeof renderInicioHero==='function'){ renderInicioHero(); renderInicioFinResumo(); renderInicioModulos(); }
+  if(typeof renderInicio==='function') renderInicio();
 }
 
 function showUserListScreen(){
@@ -9999,7 +10270,7 @@ document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   // Guarda quando foi o último export, pra avisar no Início se fizer tempo que ninguém tira um backup.
   config.ultimoBackupEm = new Date().toISOString();
   await storeSet('config', config);
-  renderInicioStats();
+  if(typeof renderInicio==='function') renderInicio();
   showAlert('Backup exportado: '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros, '+funcionarios.length+' funcionários.');
 });
 
