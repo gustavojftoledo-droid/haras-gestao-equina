@@ -1130,6 +1130,7 @@
         <div class="field"><label>Proprietário</label><div style="display:flex;gap:6px;"><select id="f_proprietario" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="proprietarios">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="proprietarios" data-selid="f_proprietario" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="proprietarios" data-selid="f_proprietario" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="f_valorMoeda" style="flex:0 0 78px;"><option value="R$">R$</option><option value="US$">US$</option></select><input type="text" id="f_valorNumero" placeholder="0,00" style="flex:1;"></div></div>
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
+        <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_compra" style="width:15px;height:15px;margin:0;"> Animal comprado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(entrou no plantel por compra, não nascimento)</span></label></div>
         <div class="field" id="f_doadorWrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_doador" style="width:15px;height:15px;margin:0;"> Doadora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(só fêmeas)</span></label></div>
         <div class="field full"><label>Link da foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cole um link do Google Drive, Imgur, etc — ou escolha uma foto do celular abaixo)</span></label>
           <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
@@ -3288,6 +3289,7 @@ function openHorseEdit(id){
   document.getElementById('f_valorMoeda').value = valorTxt.trim().startsWith('US$') ? 'US$' : 'R$';
   document.getElementById('f_valorNumero').value = valorTxt.replace(/^\s*(R\$|US\$)\s*/,'').trim();
   document.getElementById('f_doador').checked = !!h.doador;
+  document.getElementById('f_compra').checked = !!h.compra;
   atualizarDoadorWrap();
   atualizarFotoPreview();
   tryAutoFillGrandparents();
@@ -3402,7 +3404,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     proprietario:titleCase(f('f_proprietario')),valor: f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '',comprador:titleCase(f('f_comprador')),
-    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
+    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
   // Guarda o estado anterior do animal (antes de sobrescrever) — é assim que a gente sabe se a
   // venda é NOVA (virou "Vendido" agora) e não só uma edição de um animal que já estava vendido.
   const situacaoAnterior = editingHorseId ? (horses.find(h=>h.id===editingHorseId)||{}).situacao : null;
@@ -3961,6 +3963,31 @@ function abrirListaInicio(tipo){
       }).join('') + `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnIrEstoqueInicio">Ver na tela de Estoque</button></div>`;
       document.getElementById('btnIrEstoqueInicio').addEventListener('click', ()=>{ closeModal('overlayInicioLista'); irParaView('estoque'); });
     }
+  } else if(tipo==='comprados'){
+    // Todo animal marcado "Animal comprado" no cadastro, mesmo que depois tenha sido vendido ou
+    // falecido — só entram os ativos primeiro, ordenados por nome, depois os inativos.
+    const ehAtivo = h=> h.situacao!=='V' && !h.falecimento;
+    const itens = horses.filter(h=>h.compra).slice().sort((a,b)=>{
+      const ativoA = ehAtivo(a), ativoB = ehAtivo(b);
+      if(ativoA!==ativoB) return ativoA ? -1 : 1;
+      return (a.nome||'').localeCompare(b.nome||'','pt');
+    });
+    titulo.textContent = 'Animais comprados — ' + itens.length;
+    if(itens.length===0){
+      body.innerHTML = '<div class="empty">Nenhum animal marcado como comprado ainda. Marque o check "Animal comprado" no cadastro do animal.</div>';
+    } else {
+      body.innerHTML = itens.map(h=>{
+        const situ = h.falecimento ? 'Falecido' : (h.situacao==='V' ? 'Vendido' : (h.situacao==='E' ? 'Externo' : 'Ativo'));
+        const cls = situ==='Ativo' ? 'st-ativo' : (situ==='Vendido'||situ==='Falecido' ? 'st-descarte' : 'st-outro');
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+          <div><button type="button" class="eye-inline" data-irperfilinicio="${h.id}" title="Abrir ficha">👁</button> <strong>${h.nome}</strong></div>
+          <span class="pill ${cls}">${situ}</span>
+        </div>`;
+      }).join('');
+      body.querySelectorAll('[data-irperfilinicio]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{ closeModal('overlayInicioLista'); abrirPerfilAnimal(btn.dataset.irperfilinicio); });
+      });
+    }
   }
   openModal('overlayInicioLista');
 }
@@ -4238,6 +4265,17 @@ function renderInicioPlantel(){
       </div>
     </div>`;
 
+  // "Animais comprados" — só aparece se algum animal estiver marcado com o check "Animal comprado"
+  // no cadastro. Abre a lista completa (ativos primeiro, mas inclui vendidos/falecidos também).
+  const comprados = horses.filter(h=>h.compra);
+  const compradosHtml = comprados.length===0 ? '' : `
+    <div style="border-top:1px solid var(--line-soft);padding-top:13px;">
+      <div class="dash-tarefa-box" data-abrircomprados style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        <span class="dash-tarefa-titulo">${ico('ferradura',15,'var(--brass)')} Animais comprados · ${comprados.length}</span>
+        ${icoGo()}
+      </div>
+    </div>`;
+
   host.innerHTML = `
     ${dashCardHead('ferradura','O plantel hoje','Animais')}
     <div style="position:relative;height:128px;border-radius:10px;overflow:hidden;">
@@ -4248,8 +4286,11 @@ function renderInicioPlantel(){
     <div class="dash-barra" style="height:10px;border-radius:5px;">${barra}</div>
     <div style="display:flex;flex-direction:column;gap:6px;">${legenda}</div>
     ${pelagemHtml}
+    ${compradosHtml}
   `;
   host.onclick = ()=>irParaView('animais');
+  const btnComprados = host.querySelector('[data-abrircomprados]');
+  if(btnComprados) btnComprados.addEventListener('click', (e)=>{ e.stopPropagation(); abrirListaInicio('comprados'); });
 }
 
 // "O dinheiro do mês" — só Administrador (mesma regra de privacidade do Financeiro/Funcionários no
