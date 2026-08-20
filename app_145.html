@@ -165,8 +165,9 @@
   .selector-body{max-height:min(520px, calc(100vh - 420px));min-height:260px;overflow-y:auto;}
   .srow{display:grid;grid-template-columns:32px 1fr 1fr 1.3fr;align-items:center;padding:7px 10px;border-bottom:1px solid #EEE7D4;font-size:12.8px;outline:none;}
   .has-extra-valor .srow{grid-template-columns:32px 1fr 1fr 1.1fr 90px;}
+  .has-extra-valor.has-extra-valor2 .srow{grid-template-columns:32px 1fr 1fr 1.1fr 80px 80px;}
   .has-tipo-ferragem .srow{grid-template-columns:32px 1fr 1fr 130px 1fr 90px;}
-  .srow input[type=number],.srow input.srow-valorextra{padding:5px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;width:100%;}
+  .srow input[type=number],.srow input.srow-valorextra,.srow input.srow-valorextra2{padding:5px 6px;border:1px solid var(--line);border-radius:4px;font-size:12px;width:100%;}
   .srow select.srow-tipo{padding:5px 4px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;width:100%;}
   .srow:nth-child(even){background:#FAF7EE;}
   .srow.row-focused{background:#EFE3C6 !important;box-shadow:inset 0 0 0 1.5px var(--brass);}
@@ -857,6 +858,7 @@
       <div id="vtrview_visitas" style="display:none;">
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnNewVisita">+ Nova Visita</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnNewMedicamentoAplicacao">+ Novo medicamento / Nova aplicação</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnRelVisitasFiltro" style="display:none;">📄 Gerar Relatório (dos filtrados)</button>
         </div>
         <div class="filters">
@@ -930,7 +932,9 @@
           <button class="btn btn-ghost btn-sm no-print" id="btnVoltarPerfil">← Voltar</button>
           <div><div class="title" id="perfilNome">—</div><div class="subtitle" id="perfilSubtitle"></div></div>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm no-print" id="btnPerfilNovoManejo">+ Inserir Manejo</button>
+          <button class="btn btn-sm no-print" id="btnPerfilNovaVeterinaria">+ Inserir Veterinária</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilEditar">✎ Editar cadastro</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilImprimir">🖨 Imprimir</button><button class="btn btn-ghost btn-sm no-print" id="btnPdfPerfil">⬇ Baixar PDF</button>
         </div>
@@ -1375,7 +1379,9 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
       <div class="form-grid cols3">
         <div class="field"><label>Valor sugerido (total do treino)</label><div style="display:flex;gap:6px;"><select id="t_cob_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="t_cob_valorSugerido" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
         <div class="field" style="align-self:flex-end;"><button type="button" class="btn btn-sm" id="btnRatearTreino">🔄 Ratear entre os selecionados</button></div>
+        <div class="field"><label>Dono da tropa <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><div class="field-plus"><select id="t_donoTropa_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="donoTropa">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="donoTropa" data-selid="t_donoTropa_sel" title="Excluir valor selecionado">🗑</button></div></div>
       </div>
+      <div class="hint-text" id="t_donoTropaHint" style="display:none;margin:-6px 0 10px;">Preenchendo "Dono da tropa", esse valor é só registrado na atividade — não vira lançamento no Financeiro (é cobrança de terceiro, não despesa do haras).</div>
       <div class="section-label" style="border-top:none;padding-top:0;margin-top:10px;">Outros custos <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— frete, etc. (opcional, também entra no rateio)</span></div>
       <div id="treinoOutrosCustosHost" style="margin:8px 0;"></div>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAddTreinoCusto">+ Adicionar custo</button>
@@ -1876,6 +1882,7 @@ async function loadAll(){
   // mais caso a caso): Ferrado pés (mesmo valor de Ferrado mãos), Reposição e Repregar ferradura.
   ['Ferrado pés','Reposição de Ferradura','Repregar Ferradura'].forEach(v=>{ if(!aux.subtipoFerrageamento.includes(v)){ aux.subtipoFerrageamento.push(v); auxChanged=true; } });
   if(!aux.classeMedicamento) { aux.classeMedicamento=[]; auxChanged=true; } // lista livre — você inclui/apaga as classes que usar (Antiinflamatório, Antibiótico...)
+  if(!aux.donoTropa) { aux.donoTropa=[]; auxChanged=true; } // lista livre — pessoa responsável pela tropa, no Treino Cobrado
   // Serviços de Visita Veterinária (Consulta, Raio-X...) — nomes ficam em aux (lista livre, editável em
   // "Gerenciar serviços"), valor de referência de cada um em config.valoresServico (mesmo esquema de
   // aux.subtipoFerrageamento + config.valoresCasco, já usado em Manejos).
@@ -1968,6 +1975,7 @@ function populateAuxSelects(){
   fill('vs_veterinario_sel', aux.veterinario||[]);
   fill('m_subtipoCasco', aux.subtipoFerrageamento||[]);
   fill('fin_categoria', aux.finCategoria||[]);
+  fill('t_donoTropa_sel', aux.donoTropa||[]);
 }
 const AUX_META = {
   status:{label:'Status', selId:'f_status'},
@@ -1986,7 +1994,8 @@ const AUX_META = {
   veterinario:{label:'Veterinário / Responsável', selId:'vs_veterinario_sel'},
   subtipoFerrageamento:{label:'Tipo de Ferrageamento', selId:'m_subtipoCasco'},
   classeMedicamento:{label:'Classe do Medicamento', selId:'pd_classe'},
-  finCategoria:{label:'Categoria financeira', selId:'fin_categoria'}
+  finCategoria:{label:'Categoria financeira', selId:'fin_categoria'},
+  donoTropa:{label:'Dono da Tropa', selId:'t_donoTropa_sel'}
 };
 document.querySelectorAll('[data-aux]').forEach(btn=>{
   btn.addEventListener('click', async ()=>{
@@ -1999,7 +2008,9 @@ document.querySelectorAll('[data-aux]').forEach(btn=>{
     if(!aux[key].includes(val)) aux[key].push(val);
     await storeSet('aux_lists', aux);
     populateAuxSelects();
-    document.getElementById(meta.selId).value = val;
+    const sel = document.getElementById(meta.selId);
+    sel.value = val;
+    sel.dispatchEvent(new Event('change')); // dispara pra qualquer listener que reaja à mudança (ex: recalcular valor, mostrar aviso)
   });
 });
 
@@ -2514,10 +2525,14 @@ function createAnimalSelector(hostEl, opts){
     hostEl.classList.toggle('has-tipo-ferragem', mostrarTipo);
     const mostrarValor = !!opts.extraValor && (!opts.extraValorCondition || opts.extraValorCondition());
     hostEl.classList.toggle('has-extra-valor', mostrarValor);
+    // Segundo campo de valor opcional (ex: "Extra" do Treino Cobrado, um adicional por animal em cima
+    // do valor rateado) — mesma mecânica do primeiro, só que outro nome de campo (valorExtra2).
+    const mostrarValor2 = !!opts.extraValor2 && (!opts.extraValor2Condition || opts.extraValor2Condition());
+    hostEl.classList.toggle('has-extra-valor2', mostrarValor2);
     if(list.length===0){ body.innerHTML = `<div class="empty">${state.onlySelected?'Nada selecionado ainda.':'Nenhum animal encontrado.'}</div>`; updateCount(); return; }
     const tipoAtualDefault = mostrarTipo ? (document.getElementById('m_subtipoCasco') ? document.getElementById('m_subtipoCasco').value : '') : '';
     body.innerHTML = list.map((h,idx)=>{
-      const sel = state.selected[h.id] || {checked:false, extra:'', valorExtra:'', tipo:''};
+      const sel = state.selected[h.id] || {checked:false, extra:'', valorExtra:'', valorExtra2:'', tipo:''};
       return `<div class="srow" tabindex="0" data-id="${h.id}" data-idx="${idx}">
         <input type="checkbox" data-id="${h.id}" ${sel.checked?'checked':''}>
         <span>${h.nome||''}</span>
@@ -2525,13 +2540,14 @@ function createAnimalSelector(hostEl, opts){
         ${mostrarTipo ? `<select class="srow-tipo" data-idtipo="${h.id}" title="Tipo de ferrageamento deste animal">${(aux.subtipoFerrageamento||[]).map(t=>`<option value="${t}" ${((sel.tipo||tipoAtualDefault)===t)?'selected':''}>${t}</option>`).join('')}</select>` : ''}
         <input type="text" data-id="${h.id}" placeholder="${opts.extraPlaceholder||''}" value="${sel.extra||''}">
         ${mostrarValor ? `<input type="text" inputmode="decimal" class="srow-valorextra" data-idval="${h.id}" placeholder="${opts.valorExtraPlaceholder||'+R$'}" title="${opts.valorExtraTitle||'Valor extra a somar por causa dessa observação'}" value="${sel.valorExtra||''}">` : ''}
+        ${mostrarValor2 ? `<input type="text" inputmode="decimal" class="srow-valorextra2" data-idval2="${h.id}" placeholder="${opts.valorExtra2Placeholder||'Extra'}" title="${opts.valorExtra2Title||'Valor extra adicional'}" value="${sel.valorExtra2||''}">` : ''}
       </div>`;
     }).join('');
     body.querySelectorAll('input[type=checkbox]').forEach(cb=>{
       cb.addEventListener('change', ()=>{
         const id=cb.dataset.id;
         const jaExistia = !!state.selected[id];
-        state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',tipo:mostrarTipo?tipoAtualDefault:''};
+        state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',valorExtra2:'',tipo:mostrarTipo?tipoAtualDefault:''};
         state.selected[id].checked=cb.checked;
         if(state.onlySelected) drawBody(); else updateCount();
         persistSelection();
@@ -2539,10 +2555,10 @@ function createAnimalSelector(hostEl, opts){
       });
     });
     body.querySelectorAll('input[type=text][data-id]').forEach(inp=>{
-      inp.addEventListener('input', ()=>{ const id=inp.dataset.id; state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',tipo:''}; state.selected[id].extra=inp.value; });
+      inp.addEventListener('input', ()=>{ const id=inp.dataset.id; state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',valorExtra2:'',tipo:''}; state.selected[id].extra=inp.value; });
     });
-    if(opts.extraValor){
-      body.querySelectorAll('input[data-idval]').forEach(inp=>{
+    function wireCampoValor(seletorAttr, campo){
+      body.querySelectorAll(`input[${seletorAttr}]`).forEach(inp=>{
         inp.addEventListener('input', ()=>{
           // Aceita só dígitos e uma casa decimal (vírgula ou ponto) — evita que o usuário digite lixo
           // e mantém o campo como texto normal (sem as setinhas de input number, que atrapalhavam digitar).
@@ -2550,11 +2566,13 @@ function createAnimalSelector(hostEl, opts){
           const partes = v.split(/[.,]/);
           if(partes.length>2) v = partes[0]+','+partes.slice(1).join('');
           inp.value = v;
-          const id=inp.dataset.idval; state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',tipo:''}; state.selected[id].valorExtra=v;
+          const id=inp.dataset.idval||inp.dataset.idval2; state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',valorExtra2:'',tipo:''}; state.selected[id][campo]=v;
           if(opts.onChange) opts.onChange();
         });
       });
     }
+    if(opts.extraValor) wireCampoValor('data-idval', 'valorExtra');
+    if(opts.extraValor2) wireCampoValor('data-idval2', 'valorExtra2');
     if(mostrarTipo){
       body.querySelectorAll('select[data-idtipo]').forEach(sel=>{
         sel.addEventListener('change', ()=>{
@@ -2605,14 +2623,14 @@ function createAnimalSelector(hostEl, opts){
 
   return {
     draw,
-    getSelected(){ return Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id,s])=>{ const h=horses.find(x=>x.id===id); return {id, nome:h?h.nome:'', apelido:h?h.apelido:'', extra:s.extra||'', valorExtra: s.valorExtra?Number(String(s.valorExtra).replace(',','.')):0, tipo: s.tipo||''}; }); },
+    getSelected(){ return Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id,s])=>{ const h=horses.find(x=>x.id===id); return {id, nome:h?h.nome:'', apelido:h?h.apelido:'', extra:s.extra||'', valorExtra: s.valorExtra?Number(String(s.valorExtra).replace(',','.')):0, valorExtra2: s.valorExtra2?Number(String(s.valorExtra2).replace(',','.')):0, tipo: s.tipo||''}; }); },
     reset(){ state.selected={}; state.search=''; state.categorias=new Set(); state.localizacoes=new Set(); state.includeVendidos=false; state.includeFalecidos=false; state.includeExternos=false; state.onlySelected=false; persistSelection(); draw(); },
     // Pré-marca uma lista de animais (com o texto extra de cada um) — usado ao abrir um registro existente pra edição.
-    // list: [{id, extra, valorExtra, tipo}]
+    // list: [{id, extra, valorExtra, valorExtra2, tipo}]
     setSelected(list){
       state.selected = {};
       state.search = ''; // limpa a busca de nome anterior — cada lançamento aberto começa com a busca zerada
-      (list||[]).forEach(item=>{ state.selected[item.id] = {checked:true, extra:item.extra||'', valorExtra:item.valorExtra||'', tipo:item.tipo||''}; });
+      (list||[]).forEach(item=>{ state.selected[item.id] = {checked:true, extra:item.extra||'', valorExtra:item.valorExtra||'', valorExtra2:item.valorExtra2||'', tipo:item.tipo||''}; });
       draw();
     },
     // Aplica um tipo de ferrageamento pra todos os animais já marcados de uma vez — usado quando o
@@ -2649,6 +2667,7 @@ const treinoHost = document.getElementById('treinoSelectorHost');
 treinoHost.id='treinoSelectorHost';
 const treinoSelector = createAnimalSelector(treinoHost, {extraPlaceholder:'Tempo / observações', reportFilter:true, hideExternos:true,
   extraValor:true, extraValorCondition:()=>document.getElementById('t_cobrado').checked, valorExtraPlaceholder:'R$', valorExtraTitle:'Valor deste treino para este animal',
+  extraValor2:true, extraValor2Condition:()=>document.getElementById('t_cobrado').checked, valorExtra2Placeholder:'Extra', valorExtra2Title:'Valor extra adicional pra este animal (soma no total)',
   onChange:()=>atualizarValorTotalTreino()});
 
 const dietaAnimaisHost = document.getElementById('dietaAnimaisSelectorHost');
@@ -2810,6 +2829,12 @@ function titleCase(str){
   if(!str) return str;
   return str.trim().split(/\s+/).map(w=> w.length ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w).join(' ');
 }
+// Normaliza um nome pra COMPARAR parentesco (irmãos/filhos, ou nascimento x.pai/x.mae) — tira espaços
+// nas pontas e colapsa espaço duplo no meio, além de ignorar maiúsculo/minúsculo. Sem isso, um registro
+// gravado como "Estrela " (com espaço a mais) e outro como "Estrela" contavam como mães diferentes, e
+// a quantidade de irmãos maternos passava a depender de qual animal da ninhada você estava vendo —
+// cada um comparando contra o PRÓPRIO texto de mãe, que podia estar formatado de um jeito diferente.
+function normNomeParentesco(s){ return (s||'').trim().replace(/\s+/g,' ').toLowerCase(); }
 const NAME_FIELDS = ['nome','apelido','pai','mae','avopat','avopatmat','avomatpat','avomat','proprietario','pelagem','categoria','status','localizacao'];
 document.getElementById('btnNormalizeCasing').addEventListener('click', async ()=>{
   if(!(await showConfirm('Isso vai ajustar Nome, Pelagem, Categoria, Localização, Status, Pai, Mãe, Avós e Proprietário de TODOS os animais (e também Tipo/Local dos treinos) para "Primeira Letra Maiúscula". Nada é apagado, só o formato do texto muda. Continuar?'))) return;
@@ -3815,19 +3840,38 @@ function renderCalWeekHtml(byDate, nDias){
 }
 // Marca uma tarefa de manejo (Casco/Dente/Vacina/Vermífugo) como concluída direto do Calendário:
 // registra um lançamento de hoje pra esse animal+tipo — some da lista de pendentes e entra pro Histórico de Manejos.
-async function concluirTarefaManejo(animalId, tipo){
+// Último tipo de Casco/Ferrageamento lançado pra esse animal (o mais recente) — usado pra pré-marcar
+// o mesmo procedimento como padrão ao concluir a próxima tarefa de Casco pelo Calendário (Fase 4).
+function ultimoSubtipoCasco(animalId){
+  const regs = manejos.filter(m=>m.tipo==='Casco' && (m.animais||[]).some(a=>a.id===animalId)).sort((a,b)=>b.data.localeCompare(a.data));
+  return regs[0] ? (regs[0].subtipoCasco||'') : '';
+}
+async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
-  manejos.push({ id:'mj_'+Date.now(), data: toISODate(new Date()), tipo, obs:'Concluído pelo Calendário', animais:[{id:h.id, nome:h.nome}] });
+  const registro = { id:'mj_'+Date.now(), data: toISODate(new Date()), tipo, obs:'Concluído pelo Calendário', animais:[{id:h.id, nome:h.nome}] };
+  if(tipo==='Casco' && subtipoCasco){
+    registro.subtipoCasco = subtipoCasco;
+    registro.animais[0].tipo = subtipoCasco;
+    registro.animais[0].valorBase = valorBaseParaTipo(subtipoCasco);
+  }
+  manejos.push(registro);
   await storeSet('manejos_list', manejos);
   renderManejos(); renderCalendar(); renderInicio();
 }
 // Marca a mesma tarefa (Casco/Dente/Vacina/Vermífugo) como concluída pra vários animais de uma vez —
 // evita ter que clicar animal por animal quando o dia inteiro precisa do mesmo manejo.
-async function concluirTarefaManejoEmLote(animalIds, tipo){
+async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal){
   const hoje = toISODate(new Date());
   animalIds.forEach(animalId=>{
     const h = horses.find(x=>x.id===animalId); if(!h) return;
-    manejos.push({ id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data: hoje, tipo, obs:'Concluído pelo Calendário (em lote)', animais:[{id:h.id, nome:h.nome}] });
+    const registro = { id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data: hoje, tipo, obs:'Concluído pelo Calendário (em lote)', animais:[{id:h.id, nome:h.nome}] };
+    const subtipoCasco = subtiposPorAnimal && subtiposPorAnimal[animalId];
+    if(tipo==='Casco' && subtipoCasco){
+      registro.subtipoCasco = subtipoCasco;
+      registro.animais[0].tipo = subtipoCasco;
+      registro.animais[0].valorBase = valorBaseParaTipo(subtipoCasco);
+    }
+    manejos.push(registro);
   });
   await storeSet('manejos_list', manejos);
   renderManejos(); renderCalendar(); renderInicio();
@@ -3860,20 +3904,27 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehGestacao = arr[0].categoria==='gestacao';
     const ehPotro = arr[0].categoria==='potro';
     const ehFuncionario = arr[0].categoria==='funcionario';
+    const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
+    const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
+    const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;">${btnFront}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button></div>
+          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button></div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
           ${btnFront}
         </div>`;
-    const rows = arr.map(t=>`
-      <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+    const rows = arr.map(t=>{
+      // Casco: mostra o procedimento como select, já pré-marcado com o último que esse animal teve
+      // (Fase 4 — muda 30/60 dias sozinho conforme o que for escolhido aqui). Editável antes de concluir.
+      const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
+      return `
+      <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
         <div>${t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
         ${ehTratamento
           ? `<button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button>`
@@ -3881,10 +3932,17 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
-              : `<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
-      </div>`).join('');
+              : `<div style="display:flex;gap:6px;align-items:center;">${seletorCasco}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
+      </div>`;
+    }).join('');
     return header+rows;
   }).join('');
+  document.getElementById('calDetBody').querySelectorAll('[data-caldet-subtipomaster]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      if(!sel.value) return;
+      document.getElementById('calDetBody').querySelectorAll('[data-caldet-subtipo]').forEach(rowSel=>{ rowSel.value = sel.value; });
+    });
+  });
   document.getElementById('calDetBody').querySelectorAll('[data-irperfil]').forEach(btn=>{
     btn.addEventListener('click', ()=>{ closeModal('overlayCalDetalhe'); abrirPerfilAnimal(btn.dataset.irperfil); });
   });
@@ -3898,7 +3956,8 @@ function abrirDetalheCalendario(iso, tipoFiltro){
   document.getElementById('calDetBody').querySelectorAll('[data-concluirmanejo]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const [animalId, tipo] = btn.dataset.concluirmanejo.split('|');
-      await concluirTarefaManejo(animalId, tipo);
+      const seletorCasco = document.querySelector(`[data-caldet-subtipo="${animalId}"]`);
+      await concluirTarefaManejo(animalId, tipo, seletorCasco ? seletorCasco.value : undefined);
       closeModal('overlayCalDetalhe');
     });
   });
@@ -3917,6 +3976,15 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       if(!(await showConfirm(`Marcar ${tipo} como concluído pra ${grupo.length} item(ns) hoje?`))) return;
       if(grupo[0].categoria==='tratamento'){
         await concluirDosesTratamentoEmLote(grupo.map(t=>({tratamentoId:t.tratamentoId, doseKey:t.doseKey})));
+      } else if(tipo==='Casco'){
+        // Lê o procedimento escolhido linha a linha (cada select já pode ter sido individualmente
+        // ajustado, mesmo depois de usar "Aplicar a todos") — respeita o que está na tela na hora do clique.
+        const subtiposPorAnimal = {};
+        grupo.forEach(t=>{
+          const sel = document.querySelector(`[data-caldet-subtipo="${t.animalId}"]`);
+          if(sel) subtiposPorAnimal[t.animalId] = sel.value;
+        });
+        await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo, subtiposPorAnimal);
       } else {
         await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo);
       }
@@ -4694,20 +4762,28 @@ function atualizarValorTotalTreino(){
   if(!disp) return;
   if(!document.getElementById('t_cobrado').checked){ disp.textContent=''; return; }
   const selecionados = treinoSelector.getSelected();
-  const totalIndividual = selecionados.reduce((s,a)=> s + (Number(String(a.valorExtra||0).replace(',','.'))||0), 0);
+  const totalIndividual = selecionados.reduce((s,a)=> s + valorTreinoAnimal(a), 0);
   const somaOutros = treinoOutrosCustosState.reduce((s,c)=>s+(Number(c.valor)||0),0);
   const moeda = document.getElementById('t_cob_moeda').value==='USD' ? 'US$' : 'R$';
   disp.textContent = `Total dos animais: ${moeda} ${totalIndividual.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})}` + (somaOutros>0 ? ` (outros custos: ${moeda} ${somaOutros.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2})})` : '');
 }
-// Valor efetivamente cobrado de um animal num treino (o que a linha dele guarda) — usado no Financeiro,
-// no custo por animal e na timeline. Só existe valor se o treino tiver t.cobranca.
-function valorTreinoAnimal(a){ return Number(String((a&&a.valorExtra)||0).replace(',','.'))||0; }
+// Valor efetivamente cobrado de um animal num treino: valor rateado/ajustado + Extra (adicional à
+// parte, ex: um exercício a mais só pra esse animal) — usado no Financeiro, no custo por animal e na
+// timeline. Só existe valor se o treino tiver t.cobranca.
+function valorTreinoAnimal(a){
+  const base = Number(String((a&&a.valorExtra)||0).replace(',','.'))||0;
+  const extra = Number(String((a&&a.valorExtra2)||0).replace(',','.'))||0;
+  return base + extra;
+}
 function valorTotalTreino(t){ if(!t.cobranca) return 0; return (t.animais||[]).reduce((s,a)=> s+valorTreinoAnimal(a), 0); }
 document.getElementById('t_cob_valorSugerido').addEventListener('input', atualizarValorTotalTreino);
 document.getElementById('t_cobrado').addEventListener('change', ()=>{
   document.getElementById('treinoCobrancaFields').style.display = document.getElementById('t_cobrado').checked ? 'block' : 'none';
   treinoSelector.draw();
   atualizarValorTotalTreino();
+});
+document.getElementById('t_donoTropa_sel').addEventListener('change', ()=>{
+  document.getElementById('t_donoTropaHint').style.display = f('t_donoTropa_sel') ? 'block' : 'none';
 });
 document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
   const selected = treinoSelector.getSelected();
@@ -4757,6 +4833,8 @@ function openTreinoNew(){
   document.getElementById('treinoCobrancaFields').style.display = 'none';
   document.getElementById('t_cob_valorSugerido').value = '';
   document.getElementById('t_cob_moeda').value = 'BRL';
+  document.getElementById('t_donoTropa_sel').value = '';
+  document.getElementById('t_donoTropaHint').style.display = 'none';
   treinoOutrosCustosState = [];
   renderTreinoOutrosCustos();
   treinoSelector.reset();
@@ -4780,9 +4858,11 @@ function openTreinoEdit(id){
   document.getElementById('treinoCobrancaFields').style.display = cobrado ? 'block' : 'none';
   document.getElementById('t_cob_valorSugerido').value = cobrado && t.cobranca.valorSugerido ? t.cobranca.valorSugerido : '';
   document.getElementById('t_cob_moeda').value = cobrado && t.cobranca.moeda==='USD' ? 'USD' : 'BRL';
+  document.getElementById('t_donoTropa_sel').value = cobrado ? (t.cobranca.donoDaTropa||'') : '';
+  document.getElementById('t_donoTropaHint').style.display = (cobrado && t.cobranca.donoDaTropa) ? 'block' : 'none';
   treinoOutrosCustosState = cobrado ? (t.cobranca.outrosCustos||[]).map(c=>({...c})) : [];
   renderTreinoOutrosCustos();
-  treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||''})));
+  treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||'', valorExtra2:a.valorExtra2||''})));
   openModal('overlayTreino');
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
@@ -4800,7 +4880,8 @@ document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
     registro.cobranca = {
       valorSugerido: Number(document.getElementById('t_cob_valorSugerido').value)||0,
       moeda: document.getElementById('t_cob_moeda').value==='USD' ? 'USD' : 'BRL',
-      outrosCustos
+      outrosCustos,
+      donoDaTropa: f('t_donoTropa_sel')
     };
   }
   treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
@@ -7011,21 +7092,27 @@ function renderVisitaCustos(){
         ? `<select data-vcfield="produtoId" data-idx="${idx}"><option value="">Selecione...</option>${estoqueProdutos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}</select>`
         : `<select data-vcfield="nome" data-idx="${idx}"><option value="">Selecione...</option>${(aux.servicoVeterinario||[]).map(s=>`<option value="${s}" ${it.nome===s?'selected':''}>${s}</option>`).join('')}</select>`;
       const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>`;
-      return `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+      return `<div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line);">
+      <div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:6px;">
         <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option></select>
         ${nomeField}
         ${animalField}
         ${isProduto ? `<input type="number" step="0.01" min="0" data-vcfield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="Qtd">` : '<span></span>'}
         <input type="number" step="0.01" min="0" data-vcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00" ${isProduto?'readonly title="Calculado pelo produto x quantidade"':''}>
         <button type="button" class="btn btn-sm btn-danger" data-vcremove="${idx}" title="Remover">✕</button>
+      </div>
+      <input type="text" data-vcfield="obs" data-idx="${idx}" value="${it.obs||''}" placeholder="Observação (opcional)" style="width:100%;">
       </div>`;
     }).join('');
   host.querySelectorAll('[data-vcfield="tipo"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const idx=Number(sel.dataset.idx);
-      visitaCustosState[idx] = { tipo: sel.value, animalId: visitaCustosState[idx].animalId||'' };
+      visitaCustosState[idx] = { tipo: sel.value, animalId: visitaCustosState[idx].animalId||'', obs: visitaCustosState[idx].obs||'' };
       renderVisitaCustos();
     });
+  });
+  host.querySelectorAll('[data-vcfield="obs"]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ visitaCustosState[Number(inp.dataset.idx)].obs = inp.value; });
   });
   host.querySelectorAll('[data-vcfield="nome"]').forEach(sel=>{
     sel.addEventListener('change', ()=>{
@@ -7159,6 +7246,9 @@ document.getElementById('btnAddVisitaDoc').addEventListener('click', ()=>{
   renderVisitaDocs();
 });
 
+// Atalho na aba Visitas: abre o mesmo cadastro de Aplicação (medicamento) usado na aba Lista, sem
+// precisar trocar de subaba pra registrar um medicamento aplicado durante a visita.
+document.getElementById('btnNewMedicamentoAplicacao').addEventListener('click', openTratamentoNew);
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   editingVisitaId = null;
   document.getElementById('vsModalTitle').textContent = 'Nova Visita';
@@ -7198,10 +7288,10 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
   for(const c of visitaCustosState){
     if(c.tipo==='produto'){
       if(!c.produtoId || !c.animalId || !(Number(c.quantidade)>0)) { showAlert('Complete todas as linhas de Produto (produto, animal e quantidade) ou remova as incompletas.'); return; }
-      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'produto', produtoId:c.produtoId, produtoNome:c.produtoNome, animalId:c.animalId, quantidade:Number(c.quantidade), valor:Number(c.valor)||0 });
+      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'produto', produtoId:c.produtoId, produtoNome:c.produtoNome, animalId:c.animalId, quantidade:Number(c.quantidade), valor:Number(c.valor)||0, obs:(c.obs||'').trim() });
     } else {
       if(!c.nome || !c.animalId || !(Number(c.valor)>0)) { showAlert('Complete todas as linhas de Serviço (serviço, animal e valor) ou remova as incompletas.'); return; }
-      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'servico', nome:c.nome, animalId:c.animalId, valor:Number(c.valor) });
+      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'servico', nome:c.nome, animalId:c.animalId, valor:Number(c.valor), obs:(c.obs||'').trim() });
     }
   }
   const docsValidos = visitaDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
@@ -7600,6 +7690,11 @@ function verGrupoNoFront(id){
 function abrirAnimaisNoFront(nome, animaisArr){
   if(!animaisArr || animaisArr.length===0){ showAlert('Nenhum animal nessa lista.'); return; }
   grupoFiltroAtivo = { nome, animais: animaisArr };
+  // Já marca os checkboxes da Lista (Editar em Lote) E o seletor de Relatórios (Relatório/PDF) — as
+  // duas estruturas de seleção que já existiam, sem inventar nenhuma nova. Sem isso o usuário chegava
+  // na lista filtrada mas precisava marcar tudo de novo à mão em cada aba pra gerar relatório do grupo.
+  selectedHorseIds = new Set(animaisArr.map(a=>a.id));
+  if(typeof relFichaSelector!=='undefined') relFichaSelector.setSelected(animaisArr.map(a=>({id:a.id})));
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.toggle('active', i.dataset.view==='animais'));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animais').classList.add('active');
@@ -7936,7 +8031,9 @@ function lancamentosDerivadosEstoque(){
 // é calculado na hora a partir do treino (que já guarda o valor individual de cada animal), então nunca
 // desatualiza nem duplica se o treino for editado ou excluído depois.
 function lancamentosDerivadosTreinos(){
-  return treinos.filter(t=>t.cobranca).map(t=>{
+  // Treino com "Dono da tropa" preenchido é cobrança de terceiro (o valor é do cliente, não uma
+  // despesa do haras) — só fica registrado na atividade, sem virar lançamento de dinheiro no Financeiro.
+  return treinos.filter(t=>t.cobranca && !t.cobranca.donoDaTropa).map(t=>{
     const total = valorTotalTreino(t);
     if(!total || total<=0) return null;
     const qtd = (t.animais||[]).length;
@@ -8809,6 +8906,27 @@ document.getElementById('btnVoltarPerfil').addEventListener('click', ()=>{
   document.querySelector('.nav-item[data-view="animais"]').classList.add('active');
 });
 document.getElementById('btnPerfilEditar').addEventListener('click', ()=>{ if(perfilAnimalId) openHorseEdit(perfilAnimalId); });
+// Atalhos "+ Inserir Manejo" / "+ Inserir Veterinária" na Ficha do Animal — abrem o cadastro normal
+// (mesmo modal de sempre) já com esse animal marcado no seletor, sem precisar buscar ele de novo.
+document.getElementById('btnPerfilNovoManejo').addEventListener('click', ()=>{
+  if(!perfilAnimalId) return;
+  const animalId = perfilAnimalId;
+  irParaView('manejos');
+  setTimeout(()=>{
+    document.getElementById('btnNewManejo').click();
+    setTimeout(()=> manejoSelector.setSelected([{id:animalId}]), 30);
+  }, 30);
+});
+document.getElementById('btnPerfilNovaVeterinaria').addEventListener('click', ()=>{
+  if(!perfilAnimalId) return;
+  const animalId = perfilAnimalId;
+  irParaView('veterinaria');
+  setTimeout(()=>{
+    document.getElementById('vtrtab_visitas').click();
+    document.getElementById('btnNewVisita').click();
+    setTimeout(()=> visitaSelector.setSelected([{id:animalId}]), 30);
+  }, 30);
+});
 document.getElementById('btnPerfilImprimir').addEventListener('click', ()=>window.print());
 
 function tarefaBadge(situacao){
@@ -8836,17 +8954,20 @@ function renderAnimalPerfil(id){
   const tarefas = computeProgramacao().filter(r=>r.animalId===h.id);
 
   // Irmãos/Descendência: puxados da genealogia já cadastrada (Pai/Mãe), sem precisar de nada novo.
-  // Comparação por nome (case-insensitive) — mesma lógica usada no resto do cadastro de filiação.
+  // Comparação por nome normalizado (normNomeParentesco) — assim a contagem não muda dependendo de
+  // qual animal da ninhada está sendo visto, mesmo se algum registro tiver espaço a mais no nome.
   const irmaosProprios=[], irmaosPaternos=[], irmaosMaternos=[];
+  const hPaiNorm = normNomeParentesco(h.pai), hMaeNorm = normNomeParentesco(h.mae);
   horses.forEach(x=>{
     if(x.id===h.id) return;
-    const mesmoPai = h.pai && x.pai && h.pai.toLowerCase()===x.pai.toLowerCase();
-    const mesmaMae = h.mae && x.mae && h.mae.toLowerCase()===x.mae.toLowerCase();
+    const mesmoPai = hPaiNorm && normNomeParentesco(x.pai)===hPaiNorm;
+    const mesmaMae = hMaeNorm && normNomeParentesco(x.mae)===hMaeNorm;
     if(mesmoPai && mesmaMae) irmaosProprios.push(x);
     else if(mesmoPai) irmaosPaternos.push(x);
     else if(mesmaMae) irmaosMaternos.push(x);
   });
-  const filhos = h.nome ? horses.filter(x=> x.id!==h.id && ((x.pai&&x.pai.toLowerCase()===h.nome.toLowerCase()) || (x.mae&&x.mae.toLowerCase()===h.nome.toLowerCase()))) : [];
+  const hNomeNorm = normNomeParentesco(h.nome);
+  const filhos = hNomeNorm ? horses.filter(x=> x.id!==h.id && (normNomeParentesco(x.pai)===hNomeNorm || normNomeParentesco(x.mae)===hNomeNorm)) : [];
   // "Competições" reaproveita os Treinos já lançados — conta os que não são "Treino" simples (jogo,
   // amistoso, torneio...), pra separar prática de competição de verdade.
   const competicoesDoAnimal = treinos.filter(t=> t.tipo && t.tipo!=='Treino' && (t.animais||[]).some(a=>a.id===h.id));
@@ -8909,8 +9030,8 @@ function renderAnimalPerfil(id){
 
     <div class="perfil-card">
       <div class="perfil-card-body" style="padding:4px 0;">
-        <div class="stat-list-row" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
-        <div class="stat-list-row" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
+        <div class="stat-list-row ${competicoesDoAnimal.length?'clicavel':''}" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
+        <div class="stat-list-row clicavel" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
         <div class="stat-list-row ${irmaosMaternos.length?'clicavel':''}" data-statclick="irmaosMaternos"><span>Irmãos maternos</span><strong>${irmaosMaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosPaternos.length?'clicavel':''}" data-statclick="irmaosPaternos"><span>Irmãos paternos</span><strong>${irmaosPaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosProprios.length?'clicavel':''}" data-statclick="irmaosProprios"><span>Irmãos próprios <span style="color:var(--muted);font-weight:400;">(pai e mãe)</span></span><strong>${irmaosProprios.length}</strong></div>
@@ -8918,7 +9039,7 @@ function renderAnimalPerfil(id){
       </div>
     </div>
 
-    <div class="perfil-card">
+    <div class="perfil-card" id="perfilVideosCard">
       <div class="perfil-card-head">🎬 Vídeos</div>
       <div class="perfil-card-body">
         <div id="perfilVideosLista">${(h.videos||[]).length===0 ? '<div class="hint-text">Nenhum vídeo ainda.</div>' : (h.videos||[]).map((v,i)=>`
@@ -8965,7 +9086,16 @@ function renderAnimalPerfil(id){
       else if(chave==='irmaosPaternos' && irmaosPaternos.length) abrirAnimaisNoFront('Irmãos paternos de '+h.nome, irmaosPaternos.map(x=>({id:x.id,nome:x.nome})));
       else if(chave==='irmaosProprios' && irmaosProprios.length) abrirAnimaisNoFront('Irmãos próprios de '+h.nome, irmaosProprios.map(x=>({id:x.id,nome:x.nome})));
       else if(chave==='filhos' && filhos.length) abrirAnimaisNoFront('Filhos de '+h.nome, filhos.map(x=>({id:x.id,nome:x.nome})));
-      else if(chave==='competicoes' && competicoesDoAnimal.length) irParaView('treinos');
+      else if(chave==='competicoes' && competicoesDoAnimal.length){
+        // Vai direto pro card de Atividades logo abaixo, já filtrado só nas competições (qualquer
+        // tipo que não seja "Treino" simples) — sem sair da ficha do animal.
+        treinosPerfilFiltro = '__competicoes';
+        renderTreinosPerfil(h);
+        document.getElementById('perfilAtividadesCard').scrollIntoView({behavior:'smooth', block:'start'});
+      }
+      else if(chave==='videos'){
+        document.getElementById('perfilVideosCard').scrollIntoView({behavior:'smooth', block:'start'});
+      }
     });
   });
   document.getElementById('btnAddVideoPerfil').addEventListener('click', async ()=>{
@@ -9001,20 +9131,22 @@ function renderTreinosPerfil(h){
   const porTipo = {};
   todos.forEach(t=>{ const tp = t.tipo||'Sem tipo'; porTipo[tp] = (porTipo[tp]||0)+1; });
   const tipos = Object.keys(porTipo).sort((a,b)=>a.localeCompare(b,'pt'));
-  const filtroValido = treinosPerfilFiltro==='todos' || tipos.includes(treinosPerfilFiltro);
+  const filtroValido = treinosPerfilFiltro==='todos' || treinosPerfilFiltro==='__competicoes' || tipos.includes(treinosPerfilFiltro);
   if(!filtroValido) treinosPerfilFiltro = 'todos';
-  const filtrados = treinosPerfilFiltro==='todos' ? todos : todos.filter(t=>(t.tipo||'Sem tipo')===treinosPerfilFiltro);
+  const filtrados = treinosPerfilFiltro==='todos' ? todos
+    : treinosPerfilFiltro==='__competicoes' ? todos.filter(t=>t.tipo && t.tipo!=='Treino')
+    : todos.filter(t=>(t.tipo||'Sem tipo')===treinosPerfilFiltro);
   const chip = (val,label,n)=>`<span class="chip ${treinosPerfilFiltro===val?'active':''}" data-trf="${val}" style="font-size:11px;padding:4px 10px;">${label}${n!=null?(' ('+n+')'):''}</span>`;
-  host.innerHTML = `<div class="perfil-card">
-    <div class="perfil-card-head">🐴 Histórico de Treinos</div>
+  host.innerHTML = `<div class="perfil-card" id="perfilAtividadesCard">
+    <div class="perfil-card-head">🐴 Atividades</div>
     <div class="perfil-card-body">
-      ${todos.length===0 ? '<div class="hint-text">Nenhum treino registrado ainda pra esse animal.</div>' : `
+      ${todos.length===0 ? '<div class="hint-text">Nenhuma atividade registrada ainda pra esse animal.</div>' : `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
         ${chip('todos','Todos', todos.length)}
         ${tipos.map(tp=>chip(tp, tp, porTipo[tp])).join('')}
       </div>
       <div style="max-height:420px;overflow-y:auto;">
-        ${filtrados.length===0 ? '<div class="hint-text">Nenhum treino desse tipo.</div>' : filtrados.map(t=>{
+        ${filtrados.length===0 ? '<div class="hint-text">Nenhuma atividade desse tipo.</div>' : filtrados.map(t=>{
           const a = (t.animais||[]).find(x=>x.id===h.id);
           const valorCobrado = t.cobranca ? fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda) : null;
           const detalhe = [t.treinadores, a&&a.extra].filter(Boolean).join(' · ');
@@ -9033,7 +9165,7 @@ function renderTreinosPerfil(h){
     chipEl.addEventListener('click', ()=>{ treinosPerfilFiltro = chipEl.dataset.trf; renderTreinosPerfil(h); });
   });
 }
-const TIMELINE_ICON = { manejo:'💉', treino:'🐴', nascimento:'🍼', filho:'🐣', visita:'🩺' };
+const TIMELINE_ICON = { manejo:'💉', treino:'🐴', filho:'🍼', visita:'🩺' };
 function computeTimelineAnimal(h){
   const eventos = [];
   manejos.forEach(m=>{
@@ -9060,12 +9192,15 @@ function computeTimelineAnimal(h){
     });
   });
   nascimentos.forEach(n=>{
+    // "Nasceu" (o próprio nascimento do animal) e "Filho nasceu"/"Cobertura registrada" (quando o
+    // animal é o pai/mãe) são a mesma informação de fundo — nascimento registrado — só vista de lados
+    // diferentes. Ficam na mesma categoria "Filhos" da Linha do Tempo, sem filtro duplicado.
     if(n.animalId===h.id){
-      eventos.push({ data:n.datanasc||n.datacob, tipo:'nascimento', titulo:'Nasceu', detalhe:['Pai: '+(n.pai||'—'), 'Mãe: '+(n.matriz||'—')].join(' · ') });
+      eventos.push({ data:n.datanasc||n.datacob, tipo:'filho', titulo:'Nasceu', detalhe:['Pai: '+(n.pai||'—'), 'Mãe: '+(n.matriz||'—')].join(' · ') });
     }
-    const nomeH = (h.nome||'').toLowerCase();
-    const ehMae = n.matriz && n.matriz.toLowerCase()===nomeH;
-    const ehPai = n.pai && n.pai.toLowerCase()===nomeH;
+    const nomeH = normNomeParentesco(h.nome);
+    const ehMae = nomeH && normNomeParentesco(n.matriz)===nomeH;
+    const ehPai = nomeH && normNomeParentesco(n.pai)===nomeH;
     if(ehMae || ehPai){
       const outroPapel = ehMae ? ('Pai: '+(n.pai||'—')) : ('Mãe: '+(n.matriz||'—'));
       eventos.push({
@@ -9080,7 +9215,7 @@ function computeTimelineAnimal(h){
 function renderAnimalTimeline(h){
   const todos = computeTimelineAnimal(h);
   const filtrados = timelineFiltro==='todos' ? todos : todos.filter(e=>e.tipo===timelineFiltro);
-  const counts = { manejo:0, treino:0, visita:0, nascimento:0, filho:0 };
+  const counts = { manejo:0, treino:0, visita:0, filho:0 };
   todos.forEach(e=>counts[e.tipo]++);
   const chip = (val,label,n)=>`<span class="chip ${timelineFiltro===val?'active':''}" data-tf="${val}">${label}${n!=null?(' ('+n+')'):''}</span>`;
   const host = document.getElementById('perfilTimelineWrap');
@@ -9093,8 +9228,7 @@ function renderAnimalTimeline(h){
           ${chip('manejo','💉 Manejos', counts.manejo)}
           ${chip('treino','🐴 Treinos', counts.treino)}
           ${chip('visita','🩺 Visitas', counts.visita)}
-          ${chip('nascimento','🍼 Nascimento', counts.nascimento)}
-          ${chip('filho','🐣 Filhos', counts.filho)}
+          ${chip('filho','🍼 Filhos', counts.filho)}
         </div>
         ${filtrados.length===0 ? '<div class="hint-text">Nenhum evento encontrado ainda pra esse animal (ou pra esse filtro).</div>' :
           `<div class="timeline">${filtrados.map(e=>`
