@@ -669,24 +669,12 @@
             <button type="button" class="btn btn-sm" id="btnGerarRel1Treino">Relatório 1 — Por Animal <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button>
             <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel2Treino">Relatório 2 — Tabela de Presença <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+2)</span></button>
             <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel3Treino">Relatório 3 — Por Treino <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+3)</span></button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRelCobranca">💰 Gerar Relatório de Cobrança</button>
           </div>
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelTreino" style="display:none;">⬇ Baixar PDF</button>
         </div>
+        <div class="hint-text" style="margin-top:8px;">O Relatório de Cobrança usa os mesmos filtros acima (animais, categoria, localização, proprietário) e o período em "Data de/até" — filtre pelo proprietário/localização da tropa e marque os animais dele antes de gerar.</div>
         <div id="treinoRelResult" style="margin-top:14px;"></div>
-
-        <div class="section-label" style="margin-top:24px;">💰 Relatório de Cobrança <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— pra enviar ao dono da tropa/proprietário</span></div>
-        <div class="filters">
-          <div class="f"><label>Dono da Tropa</label><select id="trCobFiltroDono"><option value="">Todos</option></select></div>
-          <div class="f"><label>Local</label><select id="trCobFiltroLocal"><option value="">Todos</option></select></div>
-          <div class="f"><label>Tipo</label><select id="trCobFiltroTipo"><option value="">Todos</option></select></div>
-          <div class="f"><label>Data de</label><input type="date" id="trCobFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="trCobFiltroAte"></div>
-        </div>
-        <div class="toolbar-row">
-          <button type="button" class="btn btn-sm" id="btnGerarRelCobranca">Gerar Relatório de Cobrança</button>
-          <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelCobranca" style="display:none;">⬇ Baixar PDF</button>
-        </div>
-        <div id="relCobrancaResult" style="margin-top:14px;"></div>
       </div>
     </div>
 
@@ -2446,7 +2434,7 @@ function createAnimalSelector(hostEl, opts){
   // extraValor: mostra um campo "R$" por animal. extraValorCondition (opcional): função que decide se mostra
   // agora (ex: só quando "Treino Cobrado" está marcado) — sem ela, mostra sempre que extraValor for true (Manejos).
   // valorExtraPlaceholder/valorExtraTitle: textos do campo — default é o de "valor extra" (Manejos); Treino usa outros.
-  const state = { search:'', categorias: new Set(), localizacoes: new Set(), selected:{}, includeVendidos:false, includeFalecidos:false, includeExternos:false, onlySelected:false }; // selected[codigo] = {checked, extra, valorExtra}
+  const state = { search:'', categorias: new Set(), localizacoes: new Set(), proprietarios: new Set(), selected:{}, includeVendidos:false, includeFalecidos:false, includeExternos:false, onlySelected:false }; // selected[codigo] = {checked, extra, valorExtra}
   function persistSelection(){
     if(!opts.persistKey) return;
     relSelecoes[opts.persistKey] = Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id])=>id);
@@ -2470,17 +2458,20 @@ function createAnimalSelector(hostEl, opts){
       const matchSearch = !t || (h.nome||'').toLowerCase().includes(t) || (h.apelido||'').toLowerCase().includes(t);
       const matchCat = state.categorias.size===0 || state.categorias.has(h.categoria);
       const matchLoc = state.localizacoes.size===0 || state.localizacoes.has(h.localizacao);
+      const matchProp = state.proprietarios.size===0 || state.proprietarios.has(h.proprietario);
       const matchSelected = !state.onlySelected || (state.selected[h.id] && state.selected[h.id].checked);
-      return matchSearch && matchCat && matchLoc && matchSelected;
+      return matchSearch && matchCat && matchLoc && matchProp && matchSelected;
     });
   }
   function categories(){ return sortCategorias([...new Set(basePool().map(h=>h.categoria).filter(Boolean))]); }
   function localizacoesDisponiveis(){ return [...new Set(basePool().map(h=>h.localizacao).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')); }
+  function proprietariosDisponiveis(){ return [...new Set(basePool().map(h=>h.proprietario).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')); }
 
   function draw(){
     const list = relevantAnimals();
     const cats = categories();
     const locs = localizacoesDisponiveis();
+    const props = proprietariosDisponiveis();
     const nSel = Object.values(state.selected).filter(s=>s.checked).length;
     hostEl.innerHTML = `
       <div class="selector">
@@ -2497,13 +2488,18 @@ function createAnimalSelector(hostEl, opts){
           <button type="button" class="chip" data-loc="__clear">Todas</button>
           ${locs.map(l=>`<span class="chip" data-loc="${l}">${l}</span>`).join('')}
         </div>` : ''}
+        ${props.length>0 ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
+          <span class="hint-text" style="margin-right:2px;">Proprietário:</span>
+          <button type="button" class="chip" data-prop="__clear">Todos</button>
+          ${props.map(p=>`<span class="chip" data-prop="${p}">${p}</span>`).join('')}
+        </div>` : ''}
         ${opts.reportFilter ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
           <span class="hint-text" style="margin-right:2px;">Ativos sempre aparecem. Incluir também:</span>
           ${!opts.hideVendidos ? `<span class="chip ${state.includeVendidos?'active':''}" data-inc="vendidos">Vendidos</span>` : ''}
           ${!opts.hideFalecidos ? `<span class="chip ${state.includeFalecidos?'active':''}" data-inc="falecidos">Falecidos</span>` : ''}
           ${!opts.hideExternos ? `<span class="chip ${state.includeExternos?'active':''}" data-inc="externos">Externos</span>` : ''}
         </div>` : ''}
-        <div class="selector-hint">Clique em uma ou mais categorias/localizações pra filtrar (pode combinar várias ao mesmo tempo). Setas ↑ ↓ navegam na lista e espaço marca/desmarca.</div>
+        <div class="selector-hint">Clique em uma ou mais categorias/localizações/proprietários pra filtrar (pode combinar várias ao mesmo tempo, inclusive entre filtros diferentes). Setas ↑ ↓ navegam na lista e espaço marca/desmarca.</div>
         <div class="selector-body" id="${hostEl.id}_body"></div>
         <div class="selector-footer"><span id="${hostEl.id}_count">0 selecionados</span><span>${list.length} animal(is) na lista</span></div>
       </div>`;
@@ -2529,6 +2525,18 @@ function createAnimalSelector(hostEl, opts){
         if(state.localizacoes.has(loc)) chip.classList.add('active');
         chip.addEventListener('click', ()=>{
           if(state.localizacoes.has(loc)) state.localizacoes.delete(loc); else state.localizacoes.add(loc);
+          draw();
+        });
+      }
+    });
+    hostEl.querySelectorAll('.chip[data-prop]').forEach(chip=>{
+      const prop = chip.dataset.prop;
+      if(prop==='__clear'){
+        chip.addEventListener('click', ()=>{ state.proprietarios.clear(); draw(); });
+      } else {
+        if(state.proprietarios.has(prop)) chip.classList.add('active');
+        chip.addEventListener('click', ()=>{
+          if(state.proprietarios.has(prop)) state.proprietarios.delete(prop); else state.proprietarios.add(prop);
           draw();
         });
       }
@@ -2658,7 +2666,7 @@ function createAnimalSelector(hostEl, opts){
   return {
     draw,
     getSelected(){ return Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id,s])=>{ const h=horses.find(x=>x.id===id); return {id, nome:h?h.nome:'', apelido:h?h.apelido:'', extra:s.extra||'', valorExtra: s.valorExtra?Number(String(s.valorExtra).replace(',','.')):0, valorExtra2: s.valorExtra2?Number(String(s.valorExtra2).replace(',','.')):0, tipo: s.tipo||''}; }); },
-    reset(){ state.selected={}; state.search=''; state.categorias=new Set(); state.localizacoes=new Set(); state.includeVendidos=false; state.includeFalecidos=false; state.includeExternos=false; state.onlySelected=false; persistSelection(); draw(); },
+    reset(){ state.selected={}; state.search=''; state.categorias=new Set(); state.localizacoes=new Set(); state.proprietarios=new Set(); state.includeVendidos=false; state.includeFalecidos=false; state.includeExternos=false; state.onlySelected=false; persistSelection(); draw(); },
     // Pré-marca uma lista de animais (com o texto extra de cada um) — usado ao abrir um registro existente pra edição.
     // list: [{id, extra, valorExtra, valorExtra2, tipo}]
     setSelected(list){
@@ -3800,19 +3808,24 @@ function abrirListaInicio(tipo){
     if(rows.length===0){
       body.innerHTML = '<div class="empty">Nada por aqui.</div>';
     } else {
-      // Agrupado por dia primeiro (a data prevista), depois os manejos/animais daquele dia — facilita
-      // ver a agenda pendente de uma vez, em vez de uma lista solta ordenada só por animal.
+      // Agrupado por dia primeiro (a data prevista), e dentro do dia por tipo de manejo — junta os
+      // animais do mesmo manejo numa linha só ("Casqueamento: Cavalo A, Cavalo B..."), em vez de
+      // repetir o nome do manejo pra cada animal.
       const porDia = {};
       rows.forEach(r=>{ const iso = r.proxima ? toISODate(r.proxima) : '—'; if(!porDia[iso]) porDia[iso]=[]; porDia[iso].push(r); });
       const dias = Object.keys(porDia).sort();
-      body.innerHTML = dias.map(iso=>`
-        <div style="margin-bottom:16px;">
+      body.innerHTML = dias.map(iso=>{
+        const porManejo = {};
+        porDia[iso].forEach(r=>{ const key = r.label||r.tipo; if(!porManejo[key]) porManejo[key]=[]; porManejo[key].push(r); });
+        const linhas = Object.entries(porManejo).map(([label,animais])=>`
+          <div style="padding:6px 0;border-bottom:1px solid var(--line);">
+            <strong>${label}:</strong> ${animais.map(r=>`<button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> ${r.animal}`).join(', ')}
+          </div>`).join('');
+        return `<div style="margin-bottom:16px;">
           <div style="font-family:'Fraunces',serif;font-weight:600;font-size:14px;padding:6px 0 4px;border-bottom:2px solid var(--line);margin-bottom:4px;">${iso==='—'?'Sem data prevista':fmtDate(iso)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${porDia[iso].length})</span></div>
-          ${porDia[iso].map(r=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);">
-              <div><button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> <strong>${r.label||r.tipo}</strong> — ${r.animal}</div>
-            </div>`).join('')}
-        </div>`).join('') + (tipo==='atrasadas' ? `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnVerAtrasadosFront">🐴 Selecionar esses animais na tela de Animais</button></div>` : '');
+          ${linhas}
+        </div>`;
+      }).join('') + (tipo==='atrasadas' ? `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnVerAtrasadosFront">🐴 Selecionar esses animais na tela de Animais</button></div>` : '');
       body.querySelectorAll('[data-irperfilinicio]').forEach(btn=>{
         btn.addEventListener('click', ()=>{ closeModal('overlayInicioLista'); abrirPerfilAnimal(btn.dataset.irperfilinicio); });
       });
@@ -3994,10 +4007,11 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
     const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
+    const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button></div>
+          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -4049,6 +4063,17 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Excluir essa tarefa da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo manejo desse tipo pra esse animal).'))) return;
       dismissedManejoTasks.add(btn.dataset.excluirmanejo);
+      await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
+      renderCalendar(); renderInicio();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirtodosmanejo]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tipo = btn.dataset.excluirtodosmanejo;
+      const grupo = porTipo[tipo];
+      if(!(await showConfirm(`Excluir a tarefa de ${tipo} pra ${grupo.length} animal(is) de uma vez? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente pra todos eles.`))) return;
+      grupo.forEach(t=> dismissedManejoTasks.add(chaveTarefaManejo(t)));
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
       closeModal('overlayCalDetalhe');
@@ -4890,11 +4915,6 @@ document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
 
 function renderTreinos(){
   populateSelectFilter('tFiltroTipo', treinos.map(t=>t.tipo));
-  if(document.getElementById('trCobFiltroDono')){
-    populateSelectFilter('trCobFiltroDono', treinos.map(t=>t.cobranca&&t.cobranca.donoDaTropa));
-    populateSelectFilter('trCobFiltroLocal', treinos.map(t=>t.local));
-    populateSelectFilter('trCobFiltroTipo', treinos.map(t=>t.tipo));
-  }
   const tipo=document.getElementById('tFiltroTipo').value;
   const de=document.getElementById('tFiltroDe').value;
   const ate=document.getElementById('tFiltroAte').value;
@@ -5135,52 +5155,52 @@ document.getElementById('btnPdfRelTreino').addEventListener('click', ()=>{
   baixarRelatorioManejoPDF(host.innerHTML, 'Relatorio_Treinos.pdf');
 });
 
-// Relatório de Cobrança — pensado pra facilitar cobrar treinos feitos pra terceiros: filtra por Dono
-// da Tropa/Local/Tipo/período (independente de seleção de animais) e mostra treino por treino, com os
-// animais e valores de cada um, pronto pra conferência e envio. Só entram treinos com t.cobranca.
+// Relatório de Cobrança — reaproveita 100% o mesmo seletor de animais e o mesmo período (Data de/até)
+// já usados pelos Relatórios 1/2/3 (sem seção de filtro própria): filtre os animais por Proprietário
+// e/ou Localização (chips que já existem em qualquer seletor) e marque quem interessa antes de gerar.
+// Só entram treinos com t.cobranca que tenham pelo menos um dos animais marcados; dentro de cada
+// treino, só mostra a parte dos animais marcados (não o treino inteiro, se ele tiver outros animais
+// de fora do filtro) — assim o relatório fica certo pra cobrar só quem é daquele proprietário/tropa.
 function gerarRelatorioCobrancaTreinos(){
-  const dono = f('trCobFiltroDono'), local = f('trCobFiltroLocal'), tipo = f('trCobFiltroTipo');
-  const de = f('trCobFiltroDe'), ate = f('trCobFiltroAte');
+  const selecionados = treinoRelSelector.getSelected();
+  if(selecionados.length===0){ showAlert('Selecione ao menos um animal (ou "Selecionar todos") — use os filtros de Proprietário/Localização acima pra achar rápido a tropa certa.'); return; }
+  const idsSelecionados = new Set(selecionados.map(a=>a.id));
+  const de = f('trFiltroDe'), ate = f('trFiltroAte');
   const lista = treinos.filter(t=>{
     if(!t.cobranca) return false;
-    if(dono && (t.cobranca.donoDaTropa||'')!==dono) return false;
-    if(local && t.local!==local) return false;
-    if(tipo && t.tipo!==tipo) return false;
     if(de && t.data<de) return false;
     if(ate && t.data>ate) return false;
-    return true;
+    return (t.animais||[]).some(a=>idsSelecionados.has(a.id));
   }).sort((a,b)=>a.data.localeCompare(b.data));
-  const host = document.getElementById('relCobrancaResult');
-  if(lista.length===0){ host.innerHTML='<div class="empty">Nenhum treino cobrado encontrado com esses filtros.</div>'; document.getElementById('btnPdfRelCobranca').style.display='none'; return; }
-  let totalBRL=0, totalUSD=0;
+  const host = document.getElementById('treinoRelResult');
+  const btnPdf = document.getElementById('btnPdfRelTreino');
+  if(lista.length===0){ host.innerHTML='<div class="empty">Nenhum treino cobrado encontrado pros animais/período selecionados.</div>'; btnPdf.style.display='none'; return; }
+  let totalBRL=0, totalUSD=0, totalAnimaisLinha=0;
   const linhas = lista.map(t=>{
-    const totalTreino = valorTotalTreino(t);
+    const animaisDoFiltro = (t.animais||[]).filter(a=>idsSelecionados.has(a.id));
+    const totalTreino = animaisDoFiltro.reduce((s,a)=>s+valorTreinoAnimal(a),0);
     if(t.cobranca.moeda==='USD') totalUSD+=totalTreino; else totalBRL+=totalTreino;
-    const animaisDetalhe = (t.animais||[]).map(a=>`${a.nome}: ${fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda)}`).join(', ');
+    totalAnimaisLinha += animaisDoFiltro.length;
+    const animaisDetalhe = animaisDoFiltro.map(a=>`${a.nome}: ${fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda)}`).join(', ');
     return `<tr>
       <td>${fmtDate(t.data)}</td><td>${t.tipo||'—'}</td><td>${t.local||'—'}</td>
-      <td>${(t.animais||[]).length}</td>
+      <td>${animaisDoFiltro.length}</td>
       <td style="font-size:11.5px;color:var(--muted);">${animaisDetalhe}</td>
       <td style="font-weight:600;white-space:nowrap;">${fmtMoeda(totalTreino, t.cobranca.moeda)}</td>
     </tr>`;
   }).join('');
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório de Cobrança — Treinos</div>
-    <div class="subtitle" style="margin-bottom:14px;">Dono da tropa: ${dono||'Todos'}${local?(' · Local: '+local):''}${tipo?(' · Tipo: '+tipo):''}${(de||ate)?(' · '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')):' · todo o histórico'}</div>
+    <div class="subtitle" style="margin-bottom:14px;">${selecionados.length} animal(is) selecionado(s)${(de||ate)?(' · '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')):' · todo o histórico'}</div>
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Qtd.</th><th>Animais e valores</th><th>Total do treino</th></tr></thead>
       <tbody>${linhas}</tbody>
     </table></div>
-    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL: ${fmtMoeda(totalBRL,'BRL')}${totalUSD>0?' · '+fmtMoeda(totalUSD,'USD'):''} — ${lista.length} treino(s)</h2>
+    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL: ${fmtMoeda(totalBRL,'BRL')}${totalUSD>0?' · '+fmtMoeda(totalUSD,'USD'):''} — ${lista.length} treino(s), ${totalAnimaisLinha} lançamento(s) de animal</h2>
   </div>`;
-  document.getElementById('btnPdfRelCobranca').style.display='inline-block';
+  btnPdf.style.display='inline-block';
 }
 document.getElementById('btnGerarRelCobranca').addEventListener('click', gerarRelatorioCobrancaTreinos);
-document.getElementById('btnPdfRelCobranca').addEventListener('click', ()=>{
-  const host = document.getElementById('relCobrancaResult');
-  if(!host.innerHTML.trim()) return;
-  baixarRelatorioManejoPDF(host.innerHTML, 'Relatorio_Cobranca_Treinos.pdf');
-});
 
 /* ================= NASCIMENTOS ================= */
 // Data provável de nascimento = Data Cobertura + tempo de gestação configurado (em dias).
