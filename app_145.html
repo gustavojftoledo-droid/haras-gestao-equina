@@ -3846,8 +3846,9 @@ function computeCalendarTasks(){
   const tratamentoTasks = [];
   tratamentos.forEach(t=>{
     const concluidas = new Set(t.doseConcluidas||[]);
+    const excluidas = new Set(t.doseExcluidas||[]);
     gerarDosesTratamento(t).forEach(ds=>{
-      if(concluidas.has(ds.key)) return; // já baixada, não aparece mais como pendente
+      if(concluidas.has(ds.key) || excluidas.has(ds.key)) return; // já baixada ou excluída da agenda, não aparece mais como pendente
       tratamentoTasks.push({
         data: ds.data, tipo:'Tratamento', categoria:'tratamento',
         tratamentoId: t.id, doseKey: ds.key, periodo: ds.periodo,
@@ -4481,6 +4482,25 @@ async function concluirDosesTratamentoEmLote(itens){
   renderTratamentos(); renderEstoque(); renderCalendar(); renderInicio();
   if(semEstoque.length>0) showAlert('Alguns itens ficaram pendentes por falta de estoque:\n\n'+semEstoque.join('\n'));
 }
+// Excluir uma dose de Tratamento da agenda — igual o "Excluir" dos manejos (Casco/Dente/Vacina/
+// Vermífugo): some da lista de pendentes, sem baixar estoque nem lançar financeiro, sem registrar
+// nenhuma execução. Diferente de "Marcar aplicado" (que baixa estoque de verdade).
+async function excluirDoseTratamento(tratamentoId, doseKey){
+  const t = tratamentos.find(x=>x.id===tratamentoId); if(!t) return;
+  if((t.doseExcluidas||[]).includes(doseKey)) return;
+  t.doseExcluidas = [...(t.doseExcluidas||[]), doseKey];
+  await storeSet('tratamentos_list', tratamentos);
+  renderTratamentos(); renderCalendar(); renderInicio();
+}
+async function excluirDosesTratamentoEmLote(itens){
+  for(const {tratamentoId, doseKey} of itens){
+    const t = tratamentos.find(x=>x.id===tratamentoId); if(!t) continue;
+    if((t.doseExcluidas||[]).includes(doseKey)) continue;
+    t.doseExcluidas = [...(t.doseExcluidas||[]), doseKey];
+  }
+  await storeSet('tratamentos_list', tratamentos);
+  renderTratamentos(); renderCalendar(); renderInicio();
+}
 function abrirDetalheCalendario(iso, tipoFiltro){
   const tasks = computeCalendarTasks().filter(t=>t.data===iso && (!tipoFiltro||t.tipo===tipoFiltro));
   if(tasks.length===0) return;
@@ -4500,7 +4520,8 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
     const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
-    const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
+    const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
+      : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${CAL_ICON[tipo]||''} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -4518,7 +4539,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
         <div>${t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
         ${ehTratamento
-          ? `<button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button>`
+          ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button><button type="button" class="btn btn-sm btn-danger" data-excluirtratid="${t.tratamentoId}" data-excluirdosekey="${t.doseKey}" title="Remove essa dose da agenda sem baixar estoque nem lançar financeiro">🗑 Excluir</button></div>`
           : (ehGestacao||ehPotro)
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
             : ehFuncionario
@@ -4569,6 +4590,22 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       grupo.forEach(t=> dismissedManejoTasks.add(chaveTarefaManejo(t)));
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirtratid]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir essa dose da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo tratamento pra esse animal).'))) return;
+      await excluirDoseTratamento(btn.dataset.excluirtratid, btn.dataset.excluirdosekey);
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirtodostratamento]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tipo = btn.dataset.excluirtodostratamento;
+      const grupo = porTipo[tipo];
+      if(!(await showConfirm(`Excluir a tarefa de ${tipo} pra ${grupo.length} item(ns) de uma vez? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente pra todos eles.`))) return;
+      await excluirDosesTratamentoEmLote(grupo.map(t=>({tratamentoId:t.tratamentoId, doseKey:t.doseKey})));
       closeModal('overlayCalDetalhe');
     });
   });
