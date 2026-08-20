@@ -186,6 +186,18 @@
   .dash-3col{display:grid;grid-template-columns:var(--cols-3col, 1.38fr 1fr 1fr);gap:18px;align-items:start;margin-top:18px;}
   @media (max-width:860px){ .dash-3col{grid-template-columns:1fr;} }
 
+  .dash-row4{display:grid;grid-template-columns:var(--cols-row4, repeat(3,1fr));gap:18px;align-items:start;margin-top:18px;}
+  @media (max-width:860px){ .dash-row4{grid-template-columns:1fr;} }
+  .dash-poco-linha{background:var(--card-well);border-radius:10px;padding:11px 13px;}
+  .dash-mini-pocos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .dash-mini-poco{background:var(--card-well);border-radius:10px;padding:10px 11px;text-align:left;}
+  .dash-mini-poco strong{font-family:'Fraunces',serif;font-size:19px;color:var(--green);display:block;}
+  .dash-mini-poco span{font-size:10.5px;color:var(--text-faint);line-height:1.3;display:block;}
+  .dash-footer-2col{display:flex;gap:14px;border-top:1px solid var(--line-soft);padding-top:12px;}
+  .dash-footer-2col > div{flex:1;}
+  .dash-footer-2col .rotulo{font-size:11px;color:var(--text-faint);margin-bottom:2px;}
+  .dash-footer-2col .valor{font-family:'Fraunces',serif;font-size:16px;color:var(--green);}
+
   .dash-agenda-seg{display:flex;gap:6px;}
   .dash-agenda-seg span{padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:600;cursor:pointer;background:var(--chip-bg);color:var(--muted);}
   .dash-agenda-seg span.active{background:var(--green);color:var(--card);}
@@ -498,6 +510,14 @@
         <div class="dash-card card-btn" id="inicioPlantelCard" title="Abrir Animais"></div>
         <div class="dash-card card-btn" id="inicioDinheiroCard" title="Abrir Financeiro"></div>
       </div>
+
+      <div class="dash-row4" id="inicioLinha4">
+        <div class="dash-card card-btn" id="inicioSaudeCard" title="Abrir Veterinária"></div>
+        <div class="dash-card card-btn" id="inicioEstoqueCard" title="Abrir Estoque"></div>
+        <div class="dash-card card-btn" id="inicioAtividadesCard" title="Abrir Atividades"></div>
+      </div>
+
+      <div style="text-align:center;font-size:11.5px;color:var(--text-faint);padding-top:4px;">Todos os quadros são atalhos — clique em qualquer um pra abrir a tela correspondente.</div>
     </div>
 
     <!-- CALENDÁRIO (antes vivia dentro do Início; agora é aba própria — o cartão "Calendário de
@@ -4064,6 +4084,7 @@ function renderInicio(){
   renderInicioAgenda();
   renderInicioPlantel();
   renderInicioDinheiro();
+  renderInicioLinha4();
 }
 
 // Faixa de abertura: saudação + foto + frase-resumo (com o saldo do mês embaçado, só admin) + até
@@ -4388,6 +4409,155 @@ function renderInicioDinheiro(){
   `;
   host.onclick = ()=>irParaView('financeiro');
 }
+
+// Quarta linha do Início — "Saúde e nascimentos" (Veterinária), "O que está acabando" (Estoque) e
+// "Atividades e tropas" (Atividades). Cada um só aparece pra quem tem acesso àquele módulo (mesma
+// regra de PERFIL_VIEWS já usada no resto da tela) — a linha inteira soma quantos cartões vão
+// aparecer e ajusta a grade sozinha, do 1 ao 3.
+function renderInicioLinha4(){
+  const acessos = PERFIL_VIEWS[currentUser && currentUser.perfil]||[];
+  const linha = document.getElementById('inicioLinha4');
+  const cards = [
+    {id:'inicioSaudeCard', view:'veterinaria', ok:acessos.includes('veterinaria'), render:renderInicioSaude},
+    {id:'inicioEstoqueCard', view:'estoque', ok:acessos.includes('estoque'), render:renderInicioEstoque},
+    {id:'inicioAtividadesCard', view:'treinos', ok:acessos.includes('treinos'), render:renderInicioAtividades},
+  ];
+  let visiveis = 0;
+  cards.forEach(c=>{
+    const el = document.getElementById(c.id);
+    if(!c.ok){ el.style.display='none'; return; }
+    el.style.display=''; visiveis++;
+    c.render(el);
+    el.onclick = ()=>irParaView(c.view);
+  });
+  linha.style.display = visiveis===0 ? 'none' : 'grid';
+  linha.style.setProperty('--cols-row4', `repeat(${visiveis},1fr)`);
+}
+
+// "Saúde e nascimentos": resumo da última visita (com os serviços daquela visita — Raio-X, Ultrassom
+// etc., o que o veterinário de fato lançou), progresso real das doses de cada tratamento em curso, e
+// prenhezes confirmadas + previsão de parto (calculada a partir da data de cobertura, igual o resto
+// do app já faz).
+function renderInicioSaude(host){
+  const ultimaVisita = visitas.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||''))[0];
+  let pocoVisita = '<div class="hint-text">Nenhuma visita registrada ainda.</div>';
+  if(ultimaVisita){
+    const servicos = (ultimaVisita.custos||[]).filter(c=>c.tipo==='servico').slice(0,2);
+    const totalCusto = (ultimaVisita.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
+    pocoVisita = `<div class="dash-poco-linha">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--green);margin-bottom:6px;">
+        <span>Última visita · ${ultimaVisita.veterinario||'—'}</span><span>${fmtDate(ultimaVisita.data)}</span>
+      </div>
+      ${servicos.length===0 ? '' : servicos.map(s=>{
+        const animalNome = (ultimaVisita.animais||[]).find(a=>a.id===s.animalId)?.nome||'';
+        return `<div style="font-size:11.5px;color:var(--text-body);display:flex;gap:6px;align-items:baseline;"><span style="width:5px;height:5px;border-radius:50%;background:var(--brass);flex-shrink:0;"></span>${s.nome} · <strong>${animalNome}</strong>${s.obs?(' — '+s.obs):''}</div>`;
+      }).join('')}
+      <div style="border-top:1px solid var(--line-well);margin-top:8px;padding-top:6px;font-size:10.5px;color:var(--text-faint);">${(ultimaVisita.documentos||[]).length} documento(s) anexado(s) · ${fmtMoeda(totalCusto,'BRL')} lançado(s) no Financeiro</div>
+    </div>`;
+  }
+
+  const emCurso = tratamentos.filter(t=>statusTratamento(t)!=='concluido').slice(0,3);
+  const tratamentosHtml = emCurso.length===0 ? '<div class="hint-text">Nenhum tratamento em curso.</div>' : emCurso.map(t=>{
+    const total = gerarDosesTratamento(t).length || 1;
+    const feitas = (t.doseConcluidas||[]).length;
+    const pct = Math.min(100, Math.round((feitas/total)*100));
+    const animaisTxt = (t.animais||[]).map(a=>a.nome).join(', ');
+    return `<div class="dash-medidor-linha"><span><strong>${animaisTxt||'—'}</strong> · ${t.medicamentoNome||''}</span><span>${feitas} de ${total} doses</span></div>
+      <div class="dash-medidor-barra"><div style="width:${pct}%;background:#4C7A5D;"></div></div>`;
+  }).join('');
+
+  const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
+  const previstos = prenhezes.map(n=>({matriz:n.matriz, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
+    .filter(p=>p.prevista).sort((a,b)=>(a.prevista>b.prevista?1:-1)).slice(0,2);
+
+  host.innerHTML = `
+    ${dashCardHead('coracao','Saúde e nascimentos','Veterinária')}
+    ${pocoVisita}
+    <div>
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
+      ${tratamentosHtml}
+    </div>
+    <div class="dash-footer-2col">
+      <div><div class="rotulo">Prenhezes confirmadas</div><div class="valor">${prenhezes.length}</div></div>
+      <div style="flex:1.6;"><div class="rotulo">Partos previstos</div><div style="font-size:12px;color:var(--text-body);">${previstos.length===0?'—':previstos.map(p=>`${p.matriz} ${fmtDate(p.prevista).slice(0,5)}`).join(' · ')}</div></div>
+    </div>
+  `;
+}
+
+// "O que está acabando": os mesmos produtos zerados/perto do mínimo já usados no chip do topo,
+// agora com barra de progresso (quantidade sobre o mínimo cadastrado) — e o rodapé mostra a última
+// baixa de estoque de verdade (não um exemplo), lida de estoqueMovimentos.
+function renderInicioEstoque(host){
+  const criticos = estoqueProdutos.filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
+    .sort((a,b)=>{ const ordem={zerado:0,perto:1}; const d=ordem[situacaoEstoque(a)]-ordem[situacaoEstoque(b)]; return d!==0?d:(a.nome||'').localeCompare(b.nome||'','pt'); })
+    .slice(0,4);
+  const medidores = criticos.length===0 ? '<div class="hint-text">Nenhum produto em alerta agora.</div>' : criticos.map(p=>{
+    const sit = situacaoEstoque(p);
+    const qtd = Number(p.quantidade)||0;
+    const min = (p.minimo!=='' && p.minimo!=null) ? Number(p.minimo) : null;
+    const pct = min ? Math.min(100, Math.round((qtd/min)*100)) : (qtd<=0?0:50);
+    return `<div class="dash-medidor-linha"><span>${p.nome}</span><span class="dash-chip" style="background:${sit==='zerado'?'var(--alert-bg)':'var(--warn-bg)'};color:${sit==='zerado'?'var(--alert-ink)':'var(--warn-ink)'};padding:2px 8px;font-size:10.5px;">${sit==='zerado'?'Zerado':'No mínimo'}</span></div>
+      <div class="dash-medidor-barra"><div style="width:${pct}%;background:${sit==='zerado'?'var(--alert-ink)':'#B5651D'};"></div></div>
+      <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">${qtd}${p.unidade?(' '+p.unidade):''} — mínimo ${min!=null?min:'—'}${p.unidade?(' '+p.unidade):''}</div>`;
+  }).join('');
+
+  const ultimaSaida = estoqueMovimentos.filter(m=>m.tipoMov==='saida').slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+
+  host.innerHTML = `
+    ${dashCardHead('caixa','O que está acabando','Estoque')}
+    ${medidores}
+    <div class="dash-footer-2col">
+      <div><div class="rotulo">Produtos cadastrados</div><div class="valor">${estoqueProdutos.length}</div></div>
+      <div><div class="rotulo">Última baixa</div><div style="font-size:12px;color:var(--text-body);">${ultimaSaida?(fmtDate(ultimaSaida.data)+' — '+ultimaSaida.produtoNome):'—'}</div></div>
+    </div>
+  `;
+}
+
+// "Atividades e tropas": atividade real da semana/mês, a última sessão registrada, e o Treino
+// Cobrado do mês agrupado por tropa (t.cobranca.donoDaTropa) — mesmo campo já usado no cadastro de
+// Treino Cobrado, sem inventar categoria nenhuma que o app não tenha de verdade.
+function renderInicioAtividades(host){
+  const hoje = new Date();
+  const inicioSemana = new Date(hoje); inicioSemana.setDate(inicioSemana.getDate()-inicioSemana.getDay());
+  const semanaISO = toISODate(inicioSemana);
+  const inicioMes = toISODate(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const treinosSemana = treinos.filter(t=>t.data>=semanaISO);
+  const animaisSemana = new Set();
+  treinosSemana.forEach(t=>(t.animais||[]).forEach(a=>animaisSemana.add(a.id)));
+  const cobradosMes = treinos.filter(t=>t.cobranca && t.data>=inicioMes);
+  const totalCobradoMes = cobradosMes.reduce((s,t)=>s+valorTotalTreino(t),0);
+
+  const ultima = treinos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+
+  const porTropa = {};
+  cobradosMes.forEach(t=>{ const chave = t.cobranca.donoDaTropa || 'Sem tropa definida'; porTropa[chave] = (porTropa[chave]||0) + valorTotalTreino(t); });
+  const tropas = Object.entries(porTropa).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  const gruposHtml = grupos.slice(0,3).map(g=>`<span class="dash-chip" style="background:var(--chip-bg);color:var(--text-body);padding:4px 10px;font-size:11.5px;">${g.nome} · ${(g.animais||[]).length}</span>`).join('');
+
+  host.innerHTML = `
+    ${dashCardHead('bandeira','Atividades e tropas','Atividades')}
+    <div class="dash-mini-pocos">
+      <div class="dash-mini-poco"><strong>${treinosSemana.length}</strong><span>sessões na semana</span></div>
+      <div class="dash-mini-poco"><strong>${animaisSemana.size}</strong><span>animal(is) em atividade</span></div>
+      <div class="dash-mini-poco"><strong>${fmtMoeda(totalCobradoMes,'BRL')}</strong><span>cobrado no mês</span></div>
+    </div>
+    ${ultima ? `<div class="dash-poco-linha" style="font-size:12px;">
+      <strong>Última sessão · ${fmtDate(ultima.data)}</strong> — ${ultima.tipo||'Treino'}${ultima.local?(' · '+ultima.local):''}
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;">${(ultima.animais||[]).length} animal(is)${ultima.treinadores?(' · '+ultima.treinadores):''}</div>
+    </div>` : ''}
+    ${tropas.length>0 ? `
+    <div>
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Treino cobrado no mês</div>
+      ${tropas.map(([tropa,val])=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;"><span><span style="width:5px;height:5px;border-radius:50%;background:var(--brass-light);display:inline-block;margin-right:6px;"></span>${tropa}</span><span style="font-weight:600;">${fmtMoeda(val,'BRL')}</span></div>`).join('')}
+    </div>` : ''}
+    ${grupos.length>0 ? `<div style="border-top:1px solid var(--line-soft);padding-top:12px;">
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px;">Grupos</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">${gruposHtml}</div>
+    </div>` : ''}
+  `;
+}
+
 function calLabel(){
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   if(calView==='mes') return meses[calDate.getMonth()]+' de '+calDate.getFullYear();
