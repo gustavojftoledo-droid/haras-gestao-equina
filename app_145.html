@@ -445,12 +445,8 @@
         </div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="hSearch" placeholder="Nome, código, proprietário..."></div>
-          <div class="f"><label>Sexo</label><select id="hSexo"><option value="">Todos</option><option value="MASCULINO">Macho</option><option value="FEMININO">Fêmea</option></select></div>
-          <div class="f"><label>Status</label><select id="hStatus"><option value="">Todos</option></select></div>
-          <div class="f"><label>Categoria</label><select id="hCategoria"><option value="">Todas</option></select></div>
-          <div class="f"><label>Pelagem</label><select id="hPelagem"><option value="">Todas</option></select></div>
-          <div class="f"><label>Localização</label><select id="hLocalizacao"><option value="">Todas</option></select></div>
         </div>
+        <div id="hFiltrosChips" style="margin-bottom:14px;"></div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr>
             <th style="width:30px;"><input type="checkbox" id="hSelectAll" title="Selecionar todos os visíveis"></th>
@@ -487,6 +483,7 @@
               <button type="button" class="btn btn-sm" id="btnGerarRel1Ficha">Relatório 1 — Ficha Completa (Genealogia) <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button>
               <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel2Ficha">Relatório 2 — Lista Resumida <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+2)</span></button>
               <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel3Ficha">Relatório 3 — Custo por Animal <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+3)</span></button>
+              <button type="button" class="btn btn-sm btn-ghost" id="btnGerarRel4Ficha">Relatório 4 — Lista Simples (só nomes)</button>
             </div>
             <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelFicha" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelFicha" style="display:none;">⬇ Baixar PDF</button>
           </div>
@@ -676,6 +673,20 @@
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelTreino" style="display:none;">⬇ Baixar PDF</button>
         </div>
         <div id="treinoRelResult" style="margin-top:14px;"></div>
+
+        <div class="section-label" style="margin-top:24px;">💰 Relatório de Cobrança <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— pra enviar ao dono da tropa/proprietário</span></div>
+        <div class="filters">
+          <div class="f"><label>Dono da Tropa</label><select id="trCobFiltroDono"><option value="">Todos</option></select></div>
+          <div class="f"><label>Local</label><select id="trCobFiltroLocal"><option value="">Todos</option></select></div>
+          <div class="f"><label>Tipo</label><select id="trCobFiltroTipo"><option value="">Todos</option></select></div>
+          <div class="f"><label>Data de</label><input type="date" id="trCobFiltroDe"></div>
+          <div class="f"><label>Data até</label><input type="date" id="trCobFiltroAte"></div>
+        </div>
+        <div class="toolbar-row">
+          <button type="button" class="btn btn-sm" id="btnGerarRelCobranca">Gerar Relatório de Cobrança</button>
+          <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelCobranca" style="display:none;">⬇ Baixar PDF</button>
+        </div>
+        <div id="relCobrancaResult" style="margin-top:14px;"></div>
       </div>
     </div>
 
@@ -830,35 +841,31 @@
     <!-- VETERINARIA -->
     <div class="view" id="view-veterinaria">
       <div class="topbar">
-        <div><div class="title">Veterinária</div><div class="subtitle">Medicamentos aplicados, com baixa automática ou manual no Estoque</div></div>
-        <button class="btn" id="btnNewTratamento">+ Nova Aplicação</button>
+        <div><div class="title">Veterinária</div><div class="subtitle">Visitas e tratamentos, com baixa automática ou manual no Estoque</div></div>
       </div>
       <div class="subtabs">
         <span class="chip active" data-vtrtab="lista" id="vtrtab_lista">Lista</span>
-        <span class="chip" data-vtrtab="visitas" id="vtrtab_visitas">Visitas</span>
-        <span class="chip" data-vtrtab="relatorio" id="vtrtab_relatorio">Relatório</span>
+        <span class="chip" data-vtrtab="visitas" id="vtrtab_visitas">Visita</span>
+        <span class="chip" data-vtrtab="tratamento" id="vtrtab_tratamento">Tratamento</span>
       </div>
 
+      <!-- LISTA: histórico geral, reúne Visitas + Tratamentos -->
       <div id="vtrview_lista">
-        <div class="toolbar-row">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelAll">Selecionar todos</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelNone">Limpar seleção</button>
-            <span class="hint-text" id="tratSelCount">0 selecionado(s)</span>
-          </div>
-          <button type="button" class="btn btn-sm btn-danger" id="btnTratDelSel" style="display:none;">🗑 Excluir selecionados</button>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="vlSearch" placeholder="Veterinário, medicamento, animal..."></div>
+          <div class="f"><label>Data de</label><input type="date" id="vlFiltroDe"></div>
+          <div class="f"><label>Data até</label><input type="date" id="vlFiltroAte"></div>
         </div>
-        <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
         <div class="grid-wrap"><table class="grid">
-          <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th>Animais</th><th>Período</th><th>Meio</th><th>Status</th><th></th></tr></thead>
-          <tbody id="trTbody"></tbody>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Resumo</th><th>Animais</th><th></th></tr></thead>
+          <tbody id="vlTbody"></tbody>
         </table></div>
       </div>
 
+      <!-- VISITA: histórico de visitas veterinárias -->
       <div id="vtrview_visitas" style="display:none;">
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnNewVisita">+ Nova Visita</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="btnNewMedicamentoAplicacao">+ Novo medicamento / Nova aplicação</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnRelVisitasFiltro" style="display:none;">📄 Gerar Relatório (dos filtrados)</button>
         </div>
         <div class="filters">
@@ -872,7 +879,24 @@
         </table></div>
       </div>
 
-      <div id="vtrview_relatorio" style="display:none;">
+      <!-- TRATAMENTO: histórico de aplicações/tratamentos + relatório -->
+      <div id="vtrview_tratamento" style="display:none;">
+        <div class="toolbar-row">
+          <button class="btn btn-sm" id="btnNewTratamento">+ Novo Tratamento</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelAll">Selecionar todos</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelNone">Limpar seleção</button>
+            <span class="hint-text" id="tratSelCount">0 selecionado(s)</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-danger" id="btnTratDelSel" style="display:none;">🗑 Excluir selecionados</button>
+        </div>
+        <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
+        <div class="grid-wrap"><table class="grid">
+          <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th>Animais</th><th>Período</th><th>Meio</th><th>Status</th><th></th></tr></thead>
+          <tbody id="trTbody"></tbody>
+        </table></div>
+
+        <div class="section-label" style="margin-top:20px;">📄 Relatório de Tratamentos</div>
         <div class="filters">
           <div class="f"><label>Status</label><select id="vrFiltroStatus"><option value="">Todos</option><option value="ativo">Em andamento</option><option value="atrasado">Com dose(s) atrasada(s)</option><option value="concluido">Concluído</option></select></div>
           <div class="f"><label>Início de</label><input type="date" id="vrFiltroDe"></div>
@@ -1595,7 +1619,7 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
   <div class="modal">
     <div class="modal-head"><div class="modal-title" id="inicioListaTitulo">Lista</div><button class="modal-close" data-close="overlayInicioLista">✕</button></div>
     <div id="inicioListaBody"></div>
-    <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayInicioLista">Fechar</button></div></div>
+    <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost no-print" id="btnPrintInicioLista">🖨 Imprimir</button><button type="button" class="btn btn-ghost no-print" id="btnPdfInicioLista">⬇ Baixar PDF</button><button type="button" class="btn btn-ghost" data-close="overlayInicioLista">Fechar</button></div></div>
   </div>
 </div>
 
@@ -1706,6 +1730,14 @@ let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
+// Tarefas de manejo (Casco/Dente/Vacina/Vermífugo) previstas no Calendário que o usuário excluiu sem
+// realizar — não é um registro de manejo de verdade (a tarefa é calculada, não salva), então "excluir"
+// só marca essa ocorrência específica (animal+tipo+rótulo+data) como dispensada, sem nenhum efeito
+// colateral (não baixa estoque, não lança financeiro, não conta como feito). Se um novo manejo real
+// desse tipo for lançado depois, a data prevista muda e deixa de bater com a chave dispensada — a
+// tarefa volta a aparecer normalmente, exatamente como esperado.
+let dismissedManejoTasks = new Set();
+function chaveTarefaManejo(t){ return [t.animalId, t.tipo, t.label||'', t.data].join('|'); }
 let relSelecoes = {}; // lembra a última seleção de animais de cada seletor de relatório (persistido)
 let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null, editingFuncionarioId=null;
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
@@ -1789,6 +1821,7 @@ async function loadAll(){
   const rN = await storeGet('nascimentos_list');
   const rAux = await storeGet('aux_lists');
   const rDismissed = await storeGet('dismissed_duplicates');
+  const rDismissedManejo = await storeGet('dismissed_manejo_tasks');
   const rEP = await storeGet('estoque_produtos');
   const rEM = await storeGet('estoque_movimentos');
   const rDT = await storeGet('dietas_list');
@@ -1852,6 +1885,7 @@ async function loadAll(){
   }
   if(rRS.value && !Array.isArray(rRS.value)) relSelecoes = rRS.value;
   if(Array.isArray(rDismissed.value)) dismissedDuplicates = new Set(rDismissed.value);
+  if(Array.isArray(rDismissedManejo.value)) dismissedManejoTasks = new Set(rDismissedManejo.value);
   if(!rH.ok || !rM.ok || !rT.ok || !rN.ok || !rAux.ok || !rEP.ok || !rEM.ok || !rDT.ok || !rG.ok || !rTR.ok || !rFin.ok){ showLoadWarning(); }
   const savedAux = rAux.value;
   if(savedAux && !Array.isArray(savedAux)){
@@ -1950,7 +1984,7 @@ async function loadAll(){
   if(dietasChanged) await storeSet('dietas_list', dietas);
   refreshDatalists();
   populateAuxSelects();
-  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderFinanceiro(); renderFuncionarios();
+  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios();
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
@@ -2219,7 +2253,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='inicio') renderInicio();
       if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); }
       if(view==='estoque') renderEstoque();
-      if(view==='veterinaria') renderTratamentos();
+      if(view==='veterinaria') renderVetLista();
       if(view==='grupos') renderGrupos();
       if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
@@ -2852,11 +2886,38 @@ document.getElementById('btnNormalizeCasing').addEventListener('click', async ()
   showAlert('Textos padronizados em '+horses.length+' animais e '+treinos.length+' treinos.');
 });
 
+// Filtros múltiplos da lista de Animais (Sexo/Status/Categoria/Pelagem/Localização) — cada um é um
+// Set, então dá pra marcar várias opções ao mesmo tempo no mesmo filtro (ex: Categoria "3° Ano" +
+// "4° Ano" juntas). Mesmo padrão de chip-toggle já usado nos seletores de animais dos outros módulos.
+let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), localizacao:new Set() };
+function renderFiltrosAnimaisChips(){
+  const host = document.getElementById('hFiltrosChips');
+  const chipGrupo = (chave, label, opcoes)=>{
+    const set = filtrosAnimaisMultiplos[chave];
+    return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+      <span class="hint-text" style="margin:0;min-width:80px;">${label}</span>
+      <span class="chip ${set.size===0?'active':''}" data-fam="${chave}|__clear">Todos</span>
+      ${opcoes.map(o=>`<span class="chip ${set.has(o.value)?'active':''}" data-fam="${chave}|${o.value}">${o.label}</span>`).join('')}
+    </div>`;
+  };
+  const sexoOpts = [{value:'MASCULINO',label:'Macho'},{value:'FEMININO',label:'Fêmea'}];
+  const dedupOrdenado = campo => [...new Set(horses.map(h=>h[campo]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')).map(v=>({value:v,label:v}));
+  const statusOpts = dedupOrdenado('status');
+  const categoriaOpts = sortCategorias([...new Set(horses.map(h=>h.categoria).filter(Boolean))]).map(v=>({value:v,label:v}));
+  const pelagemOpts = dedupOrdenado('pelagem');
+  const localizacaoOpts = dedupOrdenado('localizacao');
+  host.innerHTML = chipGrupo('sexo','Sexo',sexoOpts) + chipGrupo('status','Status',statusOpts) + chipGrupo('categoria','Categoria',categoriaOpts) + chipGrupo('pelagem','Pelagem',pelagemOpts) + chipGrupo('localizacao','Localização',localizacaoOpts);
+  host.querySelectorAll('[data-fam]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const [chave, val] = chip.dataset.fam.split('|');
+      if(val==='__clear') filtrosAnimaisMultiplos[chave].clear();
+      else { if(filtrosAnimaisMultiplos[chave].has(val)) filtrosAnimaisMultiplos[chave].delete(val); else filtrosAnimaisMultiplos[chave].add(val); }
+      renderHorses();
+    });
+  });
+}
 function renderHorses(){
-  populateSelectFilter('hStatus', horses.map(h=>h.status));
-  populateSelectFilter('hCategoria', horses.map(h=>h.categoria));
-  populateSelectFilter('hPelagem', horses.map(h=>h.pelagem));
-  populateSelectFilter('hLocalizacao', horses.map(h=>h.localizacao));
+  renderFiltrosAnimaisChips();
   const banner = document.getElementById('grupoFiltroBanner');
   if(grupoFiltroAtivo){
     banner.style.display='flex';
@@ -2869,11 +2930,6 @@ function renderHorses(){
   document.getElementById('viewModeChips').style.opacity = grupoFiltroAtivo ? '0.4' : '1';
   document.getElementById('viewModeChips').style.pointerEvents = grupoFiltroAtivo ? 'none' : 'auto';
   const term=document.getElementById('hSearch').value.toLowerCase();
-  const sexo=document.getElementById('hSexo').value;
-  const status=document.getElementById('hStatus').value;
-  const categoria=document.getElementById('hCategoria').value;
-  const pelagem=document.getElementById('hPelagem').value;
-  const localizacao=document.getElementById('hLocalizacao').value;
   const baseList = horses.filter(h=>{
     if(grupoFiltroAtivo) return grupoFiltroAtivo.animais.some(a=>a.id===h.id);
     switch(viewMode){
@@ -2884,9 +2940,15 @@ function renderHorses(){
       case 'ativos': default: return h.situacao!=='E' && !h.falecimento && h.situacao!=='V';
     }
   });
+  const fm = filtrosAnimaisMultiplos;
   const filtered = baseList.filter(h=>{
     const matchTerm = !term || (h.nome||'').toLowerCase().includes(term) || (h.codigo||'').toLowerCase().includes(term) || (h.proprietario||'').toLowerCase().includes(term);
-    return matchTerm && (!sexo||h.sexo===sexo) && (!status||h.status===status) && (!categoria||h.categoria===categoria) && (!pelagem||h.pelagem===pelagem) && (!localizacao||h.localizacao===localizacao);
+    return matchTerm
+      && (fm.sexo.size===0 || fm.sexo.has(h.sexo))
+      && (fm.status.size===0 || fm.status.has(h.status))
+      && (fm.categoria.size===0 || fm.categoria.has(h.categoria))
+      && (fm.pelagem.size===0 || fm.pelagem.has(h.pelagem))
+      && (fm.localizacao.size===0 || fm.localizacao.has(h.localizacao));
   });
   if(sortColumn){
     filtered.sort((a,b)=>{
@@ -2953,7 +3015,7 @@ document.getElementById('hSelectAll').addEventListener('change', (e)=>{
   const list = [...rows].map(cb=>horses.find(h=>h.id===cb.dataset.id)).filter(Boolean);
   renderValorSelecaoBar(list);
 });
-['hSearch','hSexo','hStatus','hCategoria','hPelagem','hLocalizacao'].forEach(id=>document.getElementById(id).addEventListener('input', renderHorses));
+document.getElementById('hSearch').addEventListener('input', renderHorses);
 
 let sortColumn = null, sortDir = 'asc';
 let selectedHorseIds = new Set();
@@ -3615,7 +3677,10 @@ function computeProgramacao(dataReferencia){
       rows.push({ animal:h.nome, animalId:h.id, tipo:'Vacina', label:'Vacinação: '+nomeVacina, freq: freqDias+' dias', ultima, proxima, situacao: situacaoPara(proxima) });
     });
   });
-  return rows;
+  // Tarefas excluídas pelo usuário (🗑 no Calendário) somem daqui — na fonte, não só na grade do
+  // Calendário — pra "desaparecer completamente" valer também pros stats do Início, Ficha do Animal
+  // etc, que leem computeProgramacao() direto sem passar pelo Calendário.
+  return rows.filter(r=> !r.proxima || !dismissedManejoTasks.has(chaveTarefaManejo({animalId:r.animalId, tipo:r.tipo, label:r.label, data:toISODate(r.proxima)})));
 }
 
 /* ================= CALENDÁRIO DE TAREFAS (página Início) =================
@@ -3629,6 +3694,8 @@ const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊',
 const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário' };
 function toISODate(d){ return d.toISOString().slice(0,10); }
 function computeCalendarTasks(){
+  // dismissedManejoTasks já é filtrado dentro de computeProgramacao() (na fonte) — aqui só mapeia pro
+  // formato do Calendário, sem precisar filtrar de novo.
   const rows = computeProgramacao().filter(r=>r.proxima);
   const manejoTasks = rows.map(r=>({
     data: toISODate(r.proxima), tipo:r.tipo, label:r.label, categoria:'manejo',
@@ -3733,9 +3800,18 @@ function abrirListaInicio(tipo){
     if(rows.length===0){
       body.innerHTML = '<div class="empty">Nada por aqui.</div>';
     } else {
-      body.innerHTML = rows.map(r=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-          <div><button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> <strong>${r.animal}</strong> — ${r.label||r.tipo} <span style="color:var(--muted);font-size:12px;">(prevista ${r.proxima?fmtDate(toISODate(r.proxima)):'—'})</span></div>
+      // Agrupado por dia primeiro (a data prevista), depois os manejos/animais daquele dia — facilita
+      // ver a agenda pendente de uma vez, em vez de uma lista solta ordenada só por animal.
+      const porDia = {};
+      rows.forEach(r=>{ const iso = r.proxima ? toISODate(r.proxima) : '—'; if(!porDia[iso]) porDia[iso]=[]; porDia[iso].push(r); });
+      const dias = Object.keys(porDia).sort();
+      body.innerHTML = dias.map(iso=>`
+        <div style="margin-bottom:16px;">
+          <div style="font-family:'Fraunces',serif;font-weight:600;font-size:14px;padding:6px 0 4px;border-bottom:2px solid var(--line);margin-bottom:4px;">${iso==='—'?'Sem data prevista':fmtDate(iso)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${porDia[iso].length})</span></div>
+          ${porDia[iso].map(r=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);">
+              <div><button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> <strong>${r.label||r.tipo}</strong> — ${r.animal}</div>
+            </div>`).join('')}
         </div>`).join('') + (tipo==='atrasadas' ? `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnVerAtrasadosFront">🐴 Selecionar esses animais na tela de Animais</button></div>` : '');
       body.querySelectorAll('[data-irperfilinicio]').forEach(btn=>{
         btn.addEventListener('click', ()=>{ closeModal('overlayInicioLista'); abrirPerfilAnimal(btn.dataset.irperfilinicio); });
@@ -3767,6 +3843,14 @@ function abrirListaInicio(tipo){
   }
   openModal('overlayInicioLista');
 }
+// Imprimir/Baixar PDF do painel do Início — usa exatamente o que está renderizado em #inicioListaBody
+// na hora (mesmos dados/filtros/agrupamento já aplicados), sem recalcular nada separado.
+document.getElementById('btnPrintInicioLista').addEventListener('click', ()=>window.print());
+document.getElementById('btnPdfInicioLista').addEventListener('click', ()=>{
+  const titulo = (document.getElementById('inicioListaTitulo').textContent||'Relatorio').trim();
+  const conteudo = `<h1 style="border:none;">${titulo}</h1>` + document.getElementById('inicioListaBody').innerHTML;
+  baixarRelatorioManejoPDF(conteudo, 'Relatorio_'+titulo.replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf');
+});
 function renderInicio(){
   renderInicioStats();
   renderCalendar();
@@ -3932,7 +4016,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
-              : `<div style="display:flex;gap:6px;align-items:center;">${seletorCasco}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
+              : `<div style="display:flex;gap:6px;align-items:center;">${seletorCasco}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
       </div>`;
     }).join('');
     return header+rows;
@@ -3958,6 +4042,15 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const [animalId, tipo] = btn.dataset.concluirmanejo.split('|');
       const seletorCasco = document.querySelector(`[data-caldet-subtipo="${animalId}"]`);
       await concluirTarefaManejo(animalId, tipo, seletorCasco ? seletorCasco.value : undefined);
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirmanejo]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir essa tarefa da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo manejo desse tipo pra esse animal).'))) return;
+      dismissedManejoTasks.add(btn.dataset.excluirmanejo);
+      await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
+      renderCalendar(); renderInicio();
       closeModal('overlayCalDetalhe');
     });
   });
@@ -4797,6 +4890,11 @@ document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
 
 function renderTreinos(){
   populateSelectFilter('tFiltroTipo', treinos.map(t=>t.tipo));
+  if(document.getElementById('trCobFiltroDono')){
+    populateSelectFilter('trCobFiltroDono', treinos.map(t=>t.cobranca&&t.cobranca.donoDaTropa));
+    populateSelectFilter('trCobFiltroLocal', treinos.map(t=>t.local));
+    populateSelectFilter('trCobFiltroTipo', treinos.map(t=>t.tipo));
+  }
   const tipo=document.getElementById('tFiltroTipo').value;
   const de=document.getElementById('tFiltroDe').value;
   const ate=document.getElementById('tFiltroAte').value;
@@ -5035,6 +5133,53 @@ document.getElementById('btnPdfRelTreino').addEventListener('click', ()=>{
   const host = document.getElementById('treinoRelResult');
   if(!host.innerHTML.trim()) return;
   baixarRelatorioManejoPDF(host.innerHTML, 'Relatorio_Treinos.pdf');
+});
+
+// Relatório de Cobrança — pensado pra facilitar cobrar treinos feitos pra terceiros: filtra por Dono
+// da Tropa/Local/Tipo/período (independente de seleção de animais) e mostra treino por treino, com os
+// animais e valores de cada um, pronto pra conferência e envio. Só entram treinos com t.cobranca.
+function gerarRelatorioCobrancaTreinos(){
+  const dono = f('trCobFiltroDono'), local = f('trCobFiltroLocal'), tipo = f('trCobFiltroTipo');
+  const de = f('trCobFiltroDe'), ate = f('trCobFiltroAte');
+  const lista = treinos.filter(t=>{
+    if(!t.cobranca) return false;
+    if(dono && (t.cobranca.donoDaTropa||'')!==dono) return false;
+    if(local && t.local!==local) return false;
+    if(tipo && t.tipo!==tipo) return false;
+    if(de && t.data<de) return false;
+    if(ate && t.data>ate) return false;
+    return true;
+  }).sort((a,b)=>a.data.localeCompare(b.data));
+  const host = document.getElementById('relCobrancaResult');
+  if(lista.length===0){ host.innerHTML='<div class="empty">Nenhum treino cobrado encontrado com esses filtros.</div>'; document.getElementById('btnPdfRelCobranca').style.display='none'; return; }
+  let totalBRL=0, totalUSD=0;
+  const linhas = lista.map(t=>{
+    const totalTreino = valorTotalTreino(t);
+    if(t.cobranca.moeda==='USD') totalUSD+=totalTreino; else totalBRL+=totalTreino;
+    const animaisDetalhe = (t.animais||[]).map(a=>`${a.nome}: ${fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda)}`).join(', ');
+    return `<tr>
+      <td>${fmtDate(t.data)}</td><td>${t.tipo||'—'}</td><td>${t.local||'—'}</td>
+      <td>${(t.animais||[]).length}</td>
+      <td style="font-size:11.5px;color:var(--muted);">${animaisDetalhe}</td>
+      <td style="font-weight:600;white-space:nowrap;">${fmtMoeda(totalTreino, t.cobranca.moeda)}</td>
+    </tr>`;
+  }).join('');
+  host.innerHTML = `<div class="report-card print-block">
+    <div class="title" style="margin-bottom:6px;">Relatório de Cobrança — Treinos</div>
+    <div class="subtitle" style="margin-bottom:14px;">Dono da tropa: ${dono||'Todos'}${local?(' · Local: '+local):''}${tipo?(' · Tipo: '+tipo):''}${(de||ate)?(' · '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')):' · todo o histórico'}</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Qtd.</th><th>Animais e valores</th><th>Total do treino</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table></div>
+    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL: ${fmtMoeda(totalBRL,'BRL')}${totalUSD>0?' · '+fmtMoeda(totalUSD,'USD'):''} — ${lista.length} treino(s)</h2>
+  </div>`;
+  document.getElementById('btnPdfRelCobranca').style.display='inline-block';
+}
+document.getElementById('btnGerarRelCobranca').addEventListener('click', gerarRelatorioCobrancaTreinos);
+document.getElementById('btnPdfRelCobranca').addEventListener('click', ()=>{
+  const host = document.getElementById('relCobrancaResult');
+  if(!host.innerHTML.trim()) return;
+  baixarRelatorioManejoPDF(host.innerHTML, 'Relatorio_Cobranca_Treinos.pdf');
 });
 
 /* ================= NASCIMENTOS ================= */
@@ -7246,9 +7391,6 @@ document.getElementById('btnAddVisitaDoc').addEventListener('click', ()=>{
   renderVisitaDocs();
 });
 
-// Atalho na aba Visitas: abre o mesmo cadastro de Aplicação (medicamento) usado na aba Lista, sem
-// precisar trocar de subaba pra registrar um medicamento aplicado durante a visita.
-document.getElementById('btnNewMedicamentoAplicacao').addEventListener('click', openTratamentoNew);
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   editingVisitaId = null;
   document.getElementById('vsModalTitle').textContent = 'Nova Visita';
@@ -7369,6 +7511,7 @@ function renderVisitas(){
     e.stopPropagation();
     gerarRelatorioVisitaUnica(b.dataset.relvisita);
   }));
+  if(typeof renderVetLista==='function') renderVetLista();
 }
 let visitasFiltradasAtual = [];
 ['vsFiltroDe','vsFiltroAte','vsSearch'].forEach(id=>{
@@ -7462,6 +7605,7 @@ function renderTratamentos(){
     });
   });
   updateTratSelUI();
+  if(typeof renderVetLista==='function') renderVetLista();
 }
 function updateTratSelUI(){
   const n = tratSelecionados.size;
@@ -7486,17 +7630,59 @@ document.getElementById('btnTratDelSel').addEventListener('click', async ()=>{
   renderTratamentos();
 });
 
+// LISTA: histórico geral de Veterinária, reunindo Visitas e Tratamentos num único lugar — cada linha
+// mantém os dois botões de sempre (📄/🖨 "abrir/folha" pra ver a folha, ✎ Editar pra abrir o cadastro),
+// só que aqui misturado e ordenado por data. Não guarda nada de novo, só lê visitas+tratamentos.
+function combinedVetHistorico(){
+  const v = visitas.map(x=>({ origemTipo:'visita', id:x.id, data:x.data,
+    resumo: 'Visita'+(x.veterinario?(' — '+x.veterinario):''), animais:x.animais||[],
+    buscaTxt: [x.veterinario, x.obsGeral, ...(x.animais||[]).map(a=>a.nome)].filter(Boolean).join(' ').toLowerCase() }));
+  const t = tratamentos.map(x=>({ origemTipo:'tratamento', id:x.id, data:x.dataInicio,
+    resumo: 'Tratamento — '+(x.medicamentoNome||'(produto excluído)'), animais:x.animais||[],
+    buscaTxt: [x.medicamentoNome, x.responsavel, ...(x.animais||[]).map(a=>a.nome)].filter(Boolean).join(' ').toLowerCase() }));
+  return [...v, ...t].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+}
+function renderVetLista(){
+  const tbody = document.getElementById('vlTbody');
+  if(!tbody) return;
+  const termo = (document.getElementById('vlSearch').value||'').toLowerCase();
+  const de = document.getElementById('vlFiltroDe').value, ate = document.getElementById('vlFiltroAte').value;
+  const lista = combinedVetHistorico().filter(r=>
+    (!termo || r.buscaTxt.includes(termo)) && (!de || r.data>=de) && (!ate || r.data<=ate)
+  );
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
+  tbody.innerHTML = lista.map(r=>`<tr>
+    <td>${fmtDate(r.data)}</td>
+    <td><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span></td>
+    <td>${r.resumo}</td>
+    <td>${animaisComOlhoHTML(r.animais)||'—'}</td>
+    <td style="white-space:nowrap;">
+      <button type="button" class="btn btn-sm btn-ghost" data-vlabrir="${r.origemTipo}|${r.id}" title="Ver folha">${r.origemTipo==='visita'?'📄':'🖨'}</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-vleditar="${r.origemTipo}|${r.id}">Editar</button>
+    </td>
+  </tr>`).join('');
+  tbody.querySelectorAll('[data-vlabrir]').forEach(b=>b.addEventListener('click', ()=>{
+    const [tipo,id] = b.dataset.vlabrir.split('|');
+    if(tipo==='visita') gerarRelatorioVisitaUnica(id); else gerarFolhaTratamento(id);
+  }));
+  tbody.querySelectorAll('[data-vleditar]').forEach(b=>b.addEventListener('click', ()=>{
+    const [tipo,id] = b.dataset.vleditar.split('|');
+    if(tipo==='visita') openVisitaEdit(id); else openTratamentoEdit(id);
+  }));
+}
+['vlSearch','vlFiltroDe','vlFiltroAte'].forEach(id=> document.getElementById(id).addEventListener('input', renderVetLista));
 function showVetTab(tab){
-  ['lista','visitas','relatorio'].forEach(t=>{
+  ['lista','visitas','tratamento'].forEach(t=>{
     document.getElementById('vtrtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('vtrview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
-  if(tab==='relatorio' && vetRelSelector){ vetRelSelector.draw(); }
+  if(tab==='tratamento' && vetRelSelector){ vetRelSelector.draw(); renderTratamentos(); }
   if(tab==='visitas') renderVisitas();
+  if(tab==='lista') renderVetLista();
 }
 document.getElementById('vtrtab_lista').addEventListener('click', ()=>showVetTab('lista'));
 document.getElementById('vtrtab_visitas').addEventListener('click', ()=>showVetTab('visitas'));
-document.getElementById('vtrtab_relatorio').addEventListener('click', ()=>showVetTab('relatorio'));
+document.getElementById('vtrtab_tratamento').addEventListener('click', ()=>showVetTab('tratamento'));
 
 const vetRelHost = document.getElementById('vetRelSelectorHost');
 const vetRelSelector = createAnimalSelector(vetRelHost, {extraPlaceholder:'', reportFilter:true, persistKey:'veterinaria'});
@@ -9032,6 +9218,7 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body" style="padding:4px 0;">
         <div class="stat-list-row ${competicoesDoAnimal.length?'clicavel':''}" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
         <div class="stat-list-row clicavel" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
+        <div class="stat-list-row clicavel" data-statclick="exames"><span>Exames</span><strong>${(h.exames||[]).length}</strong></div>
         <div class="stat-list-row ${irmaosMaternos.length?'clicavel':''}" data-statclick="irmaosMaternos"><span>Irmãos maternos</span><strong>${irmaosMaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosPaternos.length?'clicavel':''}" data-statclick="irmaosPaternos"><span>Irmãos paternos</span><strong>${irmaosPaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosProprios.length?'clicavel':''}" data-statclick="irmaosProprios"><span>Irmãos próprios <span style="color:var(--muted);font-weight:400;">(pai e mãe)</span></span><strong>${irmaosProprios.length}</strong></div>
@@ -9051,6 +9238,22 @@ function renderAnimalPerfil(id){
           <input type="text" id="perfilNovoVideo" placeholder="Link do vídeo (YouTube, Drive...)" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <button type="button" class="btn btn-sm" id="btnAddVideoPerfil">+ Adicionar</button>
         </div>
+      </div>
+    </div>
+
+    <div class="perfil-card" id="perfilExamesCard">
+      <div class="perfil-card-head">📎 Exames</div>
+      <div class="perfil-card-body">
+        <div id="perfilExamesLista">${(h.exames||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (h.exames||[]).map((e,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
+            <a href="${e.dataUrl}" target="_blank" rel="noopener" download="${e.nome}" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">📄 ${e.nome}</a>
+            <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
+          </div>`).join('')}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+          <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
+          <button type="button" class="btn btn-sm" id="btnAddExamePerfil">+ Anexar</button>
+        </div>
+        <div class="hint-text" style="margin-top:6px;">Arquivo fica salvo dentro do sistema, vinculado só a esse animal. Pra não pesar o navegador, anexe arquivos de até 3 MB (comprima o PDF/foto se precisar).</div>
       </div>
     </div>
 
@@ -9096,6 +9299,35 @@ function renderAnimalPerfil(id){
       else if(chave==='videos'){
         document.getElementById('perfilVideosCard').scrollIntoView({behavior:'smooth', block:'start'});
       }
+      else if(chave==='exames'){
+        document.getElementById('perfilExamesCard').scrollIntoView({behavior:'smooth', block:'start'});
+      }
+    });
+  });
+  document.getElementById('btnAddExamePerfil').addEventListener('click', async ()=>{
+    const inp = document.getElementById('perfilNovoExame');
+    const file = inp.files[0];
+    if(!file){ showAlert('Escolha um arquivo primeiro.'); return; }
+    const LIMITE_EXAME = 3*1024*1024; // 3 MB — acima disso arrisca estourar o armazenamento do navegador (localStorage costuma ter só 5-10 MB no total, pra tudo)
+    if(file.size > LIMITE_EXAME){ showAlert('Arquivo muito grande ('+(file.size/1024/1024).toFixed(1)+' MB). Pra não sobrecarregar o armazenamento do navegador, anexe arquivos de até 3 MB — comprima o PDF/foto se precisar.'); return; }
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      if(!h.exames) h.exames = [];
+      h.exames.push({ id:'ex_'+Date.now(), nome:file.name, tipo:file.type||'', tamanho:file.size, dataUpload: toISODate(new Date()), dataUrl: reader.result });
+      const ok = await storeSet('horses_list', horses);
+      if(!ok){ h.exames.pop(); return; } // storeSet já mostra o aviso (ex: cota do navegador estourada) — desfaz se não salvou
+      inp.value = '';
+      renderAnimalPerfil(h.id);
+    };
+    reader.onerror = ()=> showAlert('Não consegui ler esse arquivo.');
+    reader.readAsDataURL(file);
+  });
+  document.querySelectorAll('[data-delexame]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Remover esse exame? Não pode ser desfeito.'))) return;
+      h.exames.splice(Number(btn.dataset.delexame),1);
+      await storeSet('horses_list', horses);
+      renderAnimalPerfil(h.id);
     });
   });
   document.getElementById('btnAddVideoPerfil').addEventListener('click', async ()=>{
@@ -9286,6 +9518,18 @@ function gerarRelatorioFicha2(){
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
+// Relatório 4 — só o nome dos animais selecionados, sem mais nada (lista limpa pra imprimir/levar).
+function gerarRelatorioFicha4(){
+  const lista = fichaSelecionados();
+  if(lista.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
+  const host = document.getElementById('relFichaResult');
+  host.innerHTML = `<div class="report-card print-block">
+    <div class="title" style="margin-bottom:12px;">Relatório 4 — Lista Simples (${lista.length} ${pluralAnimal(lista.length)})</div>
+    <ul class="animais-simples">${lista.map(h=>`<li>${h.nome||''}</li>`).join('')}</ul>
+  </div>`;
+  document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
+}
+document.getElementById('btnGerarRel4Ficha').addEventListener('click', gerarRelatorioFicha4);
 // ---- Relatório 3 — Custo por Animal ----
 // Junta Manejos (Casco/Dente) + Veterinária (medicamentos aplicados) num período, mais a Dieta atual
 // como estimativa mensal à parte (Dietas não têm data de início/fim, então não dá pra somar com
