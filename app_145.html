@@ -1061,7 +1061,7 @@
     <div class="field full"><label>Observações</label><input type="text" id="g_obs" spellcheck="true" lang="pt-BR"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteGrupo" style="display:none;">Excluir</button></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayGrupo">Cancelar</button><button type="button" class="btn" id="btnSaveGrupo">Salvar Grupo <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" id="btnPdfGrupoSelecao">📄 Gerar PDF</button><button type="button" class="btn btn-ghost" data-close="overlayGrupo">Cancelar</button><button type="button" class="btn" id="btnSaveGrupo">Salvar Grupo <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -7575,6 +7575,19 @@ document.getElementById('btnDeleteGrupo').addEventListener('click', async ()=>{
   await storeSet('grupos_list', grupos, true);
   closeModal('overlayGrupo'); renderGrupos();
 });
+// PDF só dos animais marcados agora nos checkboxes — não precisa salvar o grupo antes. Reaproveita o
+// mesmo layout do Relatório de Grupos e a mesma prévia/baixa em PDF usada em Manejos/Treinos/Visitas.
+document.getElementById('btnPdfGrupoSelecao').addEventListener('click', ()=>{
+  const selecionados = grupoSelector.getSelected();
+  if(selecionados.length===0){ showAlert('Marque ao menos um animal antes de gerar o PDF.'); return; }
+  const nome = f('g_nome').trim() || 'Grupo sem nome';
+  const conteudo = `<div class="report-card print-block">
+    <div class="title" style="margin-bottom:6px;">${nome}</div>
+    <div class="subtitle" style="margin-bottom:14px;">${selecionados.length} ${pluralAnimal(selecionados.length)}</div>
+    <div class="report-row">${animaisComOlhoHTML(selecionados)}</div>
+  </div>`;
+  abrirPreviaRelatorio(conteudo, `Grupo_${nome.replace(/[^a-zA-Z0-9]+/g,'_')}.pdf`, nome);
+});
 
 function verGrupoNoFront(id){
   const g = grupos.find(x=>x.id===id); if(!g) return;
@@ -7950,6 +7963,25 @@ function lancamentosDerivadosVisitas(){
     };
   }).filter(Boolean);
 }
+// Aplicações (tratamentos) com medicamento — mesma lógica de nunca virar registro de verdade em
+// `lancamentos`, sempre calculada a partir do tratamento. Conta idêntica à usada em
+// custoVeterinariaPorAnimal: custoUnitarioProduto(produto) * quantidade * diasTratamento.
+function lancamentosDerivadosTratamentos(){
+  return tratamentos.map(t=>{
+    const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
+    const valorUnit = custoUnitarioProduto(prod);
+    if(!valorUnit) return null;
+    const total = valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
+    if(!total || total<=0) return null;
+    const qtdAnimais = (t.animais||[]).length;
+    return {
+      id: 'auto_tt_'+t.id, origemId: t.id, origem: 'tratamentos',
+      data: t.dataInicio, tipo: 'saida', categoria: 'Veterinário / Medicamento',
+      descricao: `Aplicação${prod?(' — '+prod.nome):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`,
+      valor: total, moeda: 'BRL'
+    };
+  }).filter(Boolean);
+}
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
 function fmtMoedaFin(l){
@@ -7976,17 +8008,18 @@ function renderFinanceiroStats(lista){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas' };
-// Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados e Visitas
-// Veterinárias) — usado tanto na lista filtrável quanto no painel fixo do mês, pra nunca ter duas
-// contas diferentes pro mesmo dinheiro.
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações' };
+// Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados, Visitas
+// Veterinárias e Aplicações/Tratamentos) — usado tanto na lista filtrável quanto no painel fixo do
+// mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
 function todosLancamentosFinanceiro(){
   return [
     ...lancamentos.map(l=>({...l, origem:'manual'})),
     ...lancamentosDerivadosManejos(),
     ...lancamentosDerivadosEstoque(),
     ...lancamentosDerivadosTreinos(),
-    ...lancamentosDerivadosVisitas()
+    ...lancamentosDerivadosVisitas(),
+    ...lancamentosDerivadosTratamentos()
   ];
 }
 
@@ -8100,6 +8133,9 @@ function renderFinanceiro(){
     } else if(tipoOrigem==='visitas'){
       irParaView('veterinaria');
       setTimeout(()=>{ document.getElementById('vtrtab_visitas').click(); openVisitaEdit(id); }, 30);
+    } else if(tipoOrigem==='tratamentos'){
+      irParaView('veterinaria');
+      setTimeout(()=>{ document.getElementById('vtrtab_lista').click(); openTratamentoEdit(id); }, 30);
     }
   }));
 }
