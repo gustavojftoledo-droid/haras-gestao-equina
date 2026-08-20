@@ -1316,9 +1316,38 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
     </div>
     <div class="section-label" style="border-top:none;padding-top:0;">Animais revisados <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— marque quem foi revisado e anote uma observação individual, se precisar</span></div>
     <div id="visitaSelectorHost" style="margin:10px 0 16px;"></div>
+    <div class="section-label" style="border-top:none;padding-top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>Serviços e Produtos <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— cada custo é de um animal específico</span></span>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnGerenciarServicos" style="text-transform:none;">⚙ Gerenciar serviços</button>
+    </div>
+    <div id="visitaCustosHost" style="margin:8px 0;"></div>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaCusto">+ Adicionar custo</button>
+    <div class="hint-text" style="margin-top:8px;" id="visitaCustoTotalDisplay"></div>
+    <div class="hint-text" style="margin-top:2px;">Serviços não dão baixa no estoque (só entram no custo). Produtos usam a mesma baixa de sempre no Estoque. Tudo entra no custo do animal e no Financeiro. Editar uma visita já salva não repete a baixa automaticamente.</div>
+    <div class="section-label" style="border-top:none;padding-top:0;margin-top:16px;">Documentos / Exames <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— links (Drive, foto na nuvem...), não arquivos anexados</span></div>
+    <div id="visitaDocsHost" style="margin:8px 0;"></div>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaDoc">+ Adicionar documento</button>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisita" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisita">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- GERENCIAR SERVIÇOS (Visita Veterinária) -->
+<div class="overlay" id="overlayServicos">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Gerenciar Serviços</div><button class="modal-close" data-close="overlayServicos">✕</button></div>
+    <div class="hint-text" style="margin-bottom:14px;">Valores de referência — preenchem sozinhos o custo ao escolher o serviço numa visita (pode ajustar cada um na hora).</div>
+    <div id="servicosListaHost" style="margin-bottom:14px;"></div>
+    <div style="display:flex;gap:6px;align-items:flex-end;">
+      <div class="field" style="flex:1;margin:0;"><label>Novo serviço</label><input type="text" id="novoServicoNome" placeholder="Ex: Endoscopia"></div>
+      <div class="field" style="flex:0 0 110px;margin:0;"><label>Valor (R$)</label><input type="number" id="novoServicoValor" min="0" step="0.01" placeholder="0,00"></div>
+      <button type="button" class="btn btn-sm" id="btnAddServico">Adicionar</button>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn" data-close="overlayServicos">Fechar</button></div>
     </div>
   </div>
 </div>
@@ -1843,6 +1872,11 @@ async function loadAll(){
   // mais caso a caso): Ferrado pés (mesmo valor de Ferrado mãos), Reposição e Repregar ferradura.
   ['Ferrado pés','Reposição de Ferradura','Repregar Ferradura'].forEach(v=>{ if(!aux.subtipoFerrageamento.includes(v)){ aux.subtipoFerrageamento.push(v); auxChanged=true; } });
   if(!aux.classeMedicamento) { aux.classeMedicamento=[]; auxChanged=true; } // lista livre — você inclui/apaga as classes que usar (Antiinflamatório, Antibiótico...)
+  // Serviços de Visita Veterinária (Consulta, Raio-X...) — nomes ficam em aux (lista livre, editável em
+  // "Gerenciar serviços"), valor de referência de cada um em config.valoresServico (mesmo esquema de
+  // aux.subtipoFerrageamento + config.valoresCasco, já usado em Manejos).
+  if(!aux.servicoVeterinario || aux.servicoVeterinario.length===0){ aux.servicoVeterinario=['Consulta','Raio-X','Ultrassom','Acupuntura','Fisioterapia','Outro procedimento']; auxChanged=true; }
+  if(!config.valoresServico) config.valoresServico = {};
   treinos.forEach(t=>{
     if(t.tipo && !aux.tipotreino.includes(t.tipo)){ aux.tipotreino.push(t.tipo); auxChanged=true; }
     if(t.local && !aux.localtreino.includes(t.local)){ aux.localtreino.push(t.local); auxChanged=true; }
@@ -6915,7 +6949,176 @@ bindSaveShortcut('overlayTratamento','btnSaveTratamento');
 
 /* ================= VISITAS (Veterinária) ================= */
 const visitaHost = document.getElementById('visitaSelectorHost');
-const visitaSelector = createAnimalSelector(visitaHost, {extraLabel:'Observação', extraPlaceholder:'Observação sobre esse animal (opcional)', onlyActive:true});
+const visitaSelector = createAnimalSelector(visitaHost, {extraLabel:'Observação', extraPlaceholder:'Observação sobre esse animal (opcional)', onlyActive:true, onChange:()=>{ renderVisitaCustos(); renderVisitaDocs(); }});
+
+/* ---- Serviços e Produtos da visita ---- */
+// Cada linha de custo é de UM animal específico (uma visita pode revisar vários cavalos, cada um com
+// seus próprios exames/procedimentos) — por isso o seletor de Animal em cada linha, preenchido com
+// quem estiver marcado em "Animais revisados" ali em cima.
+let visitaCustosState = [];
+function opcoesAnimaisVisita(){ return visitaSelector.getSelected().map(a=>({id:a.id, nome:a.nome})); }
+function valorRefServico(nome){ const v = config.valoresServico && config.valoresServico[nome]; return (v!==undefined && v!==null) ? v : ''; }
+function renderVisitaCustos(){
+  const host = document.getElementById('visitaCustosHost');
+  const animaisOpts = opcoesAnimaisVisita();
+  const cols = '100px 1fr 130px 64px 96px 32px';
+  if(visitaCustosState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum custo adicionado.</div>'; atualizarTotalCustosVisita(); return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Tipo</div><div>Serviço / Produto</div><div>Animal</div><div>Qtd</div><div>Valor</div><div></div>
+    </div>` +
+    visitaCustosState.map((it,idx)=>{
+      const isProduto = it.tipo==='produto';
+      const nomeField = isProduto
+        ? `<select data-vcfield="produtoId" data-idx="${idx}"><option value="">Selecione...</option>${estoqueProdutos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}</select>`
+        : `<select data-vcfield="nome" data-idx="${idx}"><option value="">Selecione...</option>${(aux.servicoVeterinario||[]).map(s=>`<option value="${s}" ${it.nome===s?'selected':''}>${s}</option>`).join('')}</select>`;
+      const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>`;
+      return `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+        <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option></select>
+        ${nomeField}
+        ${animalField}
+        ${isProduto ? `<input type="number" step="0.01" min="0" data-vcfield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="Qtd">` : '<span></span>'}
+        <input type="number" step="0.01" min="0" data-vcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00" ${isProduto?'readonly title="Calculado pelo produto x quantidade"':''}>
+        <button type="button" class="btn btn-sm btn-danger" data-vcremove="${idx}" title="Remover">✕</button>
+      </div>`;
+    }).join('');
+  host.querySelectorAll('[data-vcfield="tipo"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx=Number(sel.dataset.idx);
+      visitaCustosState[idx] = { tipo: sel.value, animalId: visitaCustosState[idx].animalId||'' };
+      renderVisitaCustos();
+    });
+  });
+  host.querySelectorAll('[data-vcfield="nome"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx=Number(sel.dataset.idx);
+      visitaCustosState[idx].nome = sel.value;
+      visitaCustosState[idx].valor = valorRefServico(sel.value);
+      renderVisitaCustos();
+    });
+  });
+  host.querySelectorAll('[data-vcfield="produtoId"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx=Number(sel.dataset.idx);
+      const p = estoqueProdutos.find(x=>x.id===sel.value);
+      visitaCustosState[idx].produtoId = sel.value;
+      visitaCustosState[idx].produtoNome = p?p.nome:'';
+      const qtd = Number(visitaCustosState[idx].quantidade)||0;
+      visitaCustosState[idx].valor = qtd>0 ? Math.round((custoUnitarioProduto(p)||0)*qtd*100)/100 : '';
+      renderVisitaCustos();
+    });
+  });
+  host.querySelectorAll('[data-vcfield="animalId"]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{ visitaCustosState[Number(sel.dataset.idx)].animalId = sel.value; });
+  });
+  host.querySelectorAll('[data-vcfield="quantidade"]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const idx=Number(inp.dataset.idx);
+      visitaCustosState[idx].quantidade = inp.value;
+      const p = estoqueProdutos.find(x=>x.id===visitaCustosState[idx].produtoId);
+      const qtd = Number(inp.value)||0;
+      visitaCustosState[idx].valor = (p && qtd>0) ? Math.round((custoUnitarioProduto(p)||0)*qtd*100)/100 : '';
+      document.querySelector(`[data-vcfield="valor"][data-idx="${idx}"]`).value = visitaCustosState[idx].valor;
+      atualizarTotalCustosVisita();
+    });
+  });
+  host.querySelectorAll('[data-vcfield="valor"]:not([readonly])').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      visitaCustosState[Number(inp.dataset.idx)].valor = inp.value;
+      atualizarTotalCustosVisita();
+    });
+  });
+  host.querySelectorAll('[data-vcremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ visitaCustosState.splice(Number(btn.dataset.vcremove),1); renderVisitaCustos(); });
+  });
+  atualizarTotalCustosVisita();
+}
+function atualizarTotalCustosVisita(){
+  const disp = document.getElementById('visitaCustoTotalDisplay');
+  if(!disp) return;
+  const total = visitaCustosState.reduce((s,c)=>s+(Number(c.valor)||0),0);
+  disp.textContent = total>0 ? ('Total: '+fmtMoeda(total,'BRL')) : '';
+}
+document.getElementById('btnAddVisitaCusto').addEventListener('click', ()=>{
+  const animaisOpts = opcoesAnimaisVisita();
+  visitaCustosState.push({ tipo:'servico', nome:'', animalId: animaisOpts.length===1?animaisOpts[0].id:'', valor:'' });
+  renderVisitaCustos();
+});
+
+/* ---- Gerenciar Serviços (valores de referência) ---- */
+function renderListaServicos(){
+  const host = document.getElementById('servicosListaHost');
+  const nomes = aux.servicoVeterinario||[];
+  if(nomes.length===0){ host.innerHTML = '<div class="hint-text">Nenhum serviço cadastrado ainda.</div>'; return; }
+  host.innerHTML = nomes.map(nome=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+      <span style="flex:1;font-size:12.8px;">${nome}</span>
+      <input type="number" step="0.01" min="0" style="width:100px;" data-svfield="${nome}" value="${valorRefServico(nome)}">
+      <button type="button" class="btn btn-sm btn-danger" data-svremove="${nome}" title="Excluir">✕</button>
+    </div>`).join('');
+  host.querySelectorAll('[data-svfield]').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      config.valoresServico[inp.dataset.svfield] = Number(inp.value)||0;
+      await storeSet('config', config);
+    });
+  });
+  host.querySelectorAll('[data-svremove]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const nome = btn.dataset.svremove;
+      if(!(await showConfirm(`Excluir o serviço "${nome}"? Visitas já lançadas com ele não são alteradas.`))) return;
+      aux.servicoVeterinario = aux.servicoVeterinario.filter(n=>n!==nome);
+      delete config.valoresServico[nome];
+      await storeSet('aux_lists', aux); await storeSet('config', config);
+      renderListaServicos(); renderVisitaCustos();
+    });
+  });
+}
+document.getElementById('btnGerenciarServicos').addEventListener('click', ()=>{
+  renderListaServicos();
+  document.getElementById('novoServicoNome').value = ''; document.getElementById('novoServicoValor').value = '';
+  openModal('overlayServicos');
+});
+async function adicionarNovoServico(){
+  const nome = titleCase(document.getElementById('novoServicoNome').value.trim());
+  if(!nome) return;
+  const valor = Number(document.getElementById('novoServicoValor').value)||0;
+  if(!aux.servicoVeterinario.includes(nome)) aux.servicoVeterinario.push(nome);
+  config.valoresServico[nome] = valor;
+  await storeSet('aux_lists', aux); await storeSet('config', config);
+  document.getElementById('novoServicoNome').value=''; document.getElementById('novoServicoValor').value='';
+  renderListaServicos(); renderVisitaCustos();
+}
+document.getElementById('btnAddServico').addEventListener('click', adicionarNovoServico);
+['novoServicoNome','novoServicoValor'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); adicionarNovoServico(); } });
+});
+
+/* ---- Documentos / Exames da visita (links, não arquivos — ver nota no código de exportação) ---- */
+let visitaDocsState = [];
+function renderVisitaDocs(){
+  const host = document.getElementById('visitaDocsHost');
+  const animaisOpts = opcoesAnimaisVisita();
+  const cols = '130px 1fr 1.4fr 32px';
+  if(visitaDocsState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum documento adicionado.</div>'; return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Animal</div><div>Nome</div><div>Link</div><div></div>
+    </div>` +
+    visitaDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+      <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>
+      <input type="text" data-vdfield="nome" data-idx="${idx}" value="${it.nome||''}" placeholder="Ex: Raio-X do casco">
+      <input type="text" data-vdfield="url" data-idx="${idx}" value="${it.url||''}" placeholder="Link (Drive, foto na nuvem...)">
+      <button type="button" class="btn btn-sm btn-danger" data-vdremove="${idx}" title="Remover">✕</button>
+    </div>`).join('');
+  host.querySelectorAll('[data-vdfield]').forEach(el=>{
+    el.addEventListener('input', ()=>{ visitaDocsState[Number(el.dataset.idx)][el.dataset.vdfield] = el.value; });
+  });
+  host.querySelectorAll('[data-vdremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ visitaDocsState.splice(Number(btn.dataset.vdremove),1); renderVisitaDocs(); });
+  });
+}
+document.getElementById('btnAddVisitaDoc').addEventListener('click', ()=>{
+  const animaisOpts = opcoesAnimaisVisita();
+  visitaDocsState.push({ animalId: animaisOpts.length===1?animaisOpts[0].id:'', nome:'', url:'' });
+  renderVisitaDocs();
+});
 
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   editingVisitaId = null;
@@ -6926,6 +7129,8 @@ document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   document.getElementById('btnDeleteVisita').style.display = 'none';
   visitaSelector.setSelected([]);
   visitaSelector.draw();
+  visitaCustosState = []; renderVisitaCustos();
+  visitaDocsState = []; renderVisitaDocs();
   openModal('overlayVisita');
 });
 function openVisitaEdit(id){
@@ -6938,6 +7143,10 @@ function openVisitaEdit(id){
   document.getElementById('btnDeleteVisita').style.display = 'inline-block';
   visitaSelector.setSelected((v.animais||[]).map(a=>({id:a.id, extra:a.obs||''})));
   visitaSelector.draw();
+  visitaCustosState = (v.custos||[]).map(c=>({...c}));
+  renderVisitaCustos();
+  visitaDocsState = (v.documentos||[]).map(d=>({...d}));
+  renderVisitaDocs();
   openModal('overlayVisita');
 }
 document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
@@ -6945,20 +7154,56 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
   if(!data){ showAlert('Informe a data da visita.'); return; }
   const animaisSel = visitaSelector.getSelected();
   if(animaisSel.length===0){ showAlert('Selecione ao menos um animal revisado.'); return; }
+  // Valida as linhas de custo: cada uma precisa de nome/produto, animal e valor.
+  const custosValidos = [];
+  for(const c of visitaCustosState){
+    if(c.tipo==='produto'){
+      if(!c.produtoId || !c.animalId || !(Number(c.quantidade)>0)) { showAlert('Complete todas as linhas de Produto (produto, animal e quantidade) ou remova as incompletas.'); return; }
+      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'produto', produtoId:c.produtoId, produtoNome:c.produtoNome, animalId:c.animalId, quantidade:Number(c.quantidade), valor:Number(c.valor)||0 });
+    } else {
+      if(!c.nome || !c.animalId || !(Number(c.valor)>0)) { showAlert('Complete todas as linhas de Serviço (serviço, animal e valor) ou remova as incompletas.'); return; }
+      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'servico', nome:c.nome, animalId:c.animalId, valor:Number(c.valor) });
+    }
+  }
+  const docsValidos = visitaDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
   const record = {
     id: editingVisitaId || ('vs_'+Date.now()),
     data, veterinario: f('vs_veterinario_sel'), obsGeral: f('vs_obsGeral'),
-    animais: animaisSel.map(a=>({ id:a.id, nome:a.nome, obs:a.extra||'' }))
+    animais: animaisSel.map(a=>({ id:a.id, nome:a.nome, obs:a.extra||'' })),
+    custos: custosValidos, documentos: docsValidos
   };
+  // Baixa automática dos Produtos no estoque — só em visita NOVA, pra não repetir a baixa toda vez que
+  // reabrir e salvar de novo (mesma regra já usada em Manejos de Vacina/Vermífugo).
+  if(!editingVisitaId){
+    const linhasProduto = custosValidos.filter(c=>c.tipo==='produto');
+    if(linhasProduto.length>0){
+      // Soma por produto ANTES de checar — duas linhas do mesmo produto (ex: mesmo medicamento em dois
+      // animais) precisam ser somadas pra checagem de saldo bater com o que realmente vai ser baixado.
+      const totalPorProduto = {};
+      linhasProduto.forEach(c=>{ totalPorProduto[c.produtoId] = (totalPorProduto[c.produtoId]||0) + c.quantidade; });
+      const itensBaixa = Object.entries(totalPorProduto).map(([produtoId,quantidade])=>({produtoId,quantidade}));
+      const faltando = checarEstoqueParaBaixa(itensBaixa);
+      if(faltando.length>0){
+        const msg = 'Estoque insuficiente pra dar baixa: '+faltando.map(f=>`${f.nome} (falta ${f.falta}${f.unidade?(' '+f.unidade):''})`).join(', ')+'. Salvar a visita mesmo assim, sem dar baixa no estoque?';
+        if(!(await showConfirm(msg))) return;
+      } else {
+        for(const c of linhasProduto){
+          const animalNome = (animaisSel.find(a=>a.id===c.animalId)||{}).nome||'';
+          await registrarMovimento(c.produtoId, 'saida', c.quantidade, 'veterinaria', 'Visita veterinária'+(animalNome?(' — '+animalNome):''), data);
+        }
+        renderEstoque();
+      }
+    }
+  }
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
   await storeSet('visitas_list', visitas);
-  closeModal('overlayVisita'); renderVisitas();
+  closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
 });
 document.getElementById('btnDeleteVisita').addEventListener('click', async ()=>{
-  if(!editingVisitaId || !(await showConfirm('Excluir esta visita?'))) return;
+  if(!editingVisitaId || !(await showConfirm('Excluir esta visita? O histórico de baixas de produto já feitas no estoque não é desfeito.'))) return;
   visitas = visitas.filter(v=>v.id!==editingVisitaId);
   await storeSet('visitas_list', visitas, true);
-  closeModal('overlayVisita'); renderVisitas();
+  closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
 });
 bindSaveShortcut('overlayVisita','btnSaveVisita');
 
@@ -6976,12 +7221,15 @@ function renderVisitas(){
   const tbody = document.getElementById('vsTbody');
   document.getElementById('btnRelVisitasFiltro').style.display = filtered.length ? 'inline-block' : 'none';
   if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(v=>`<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
+  tbody.innerHTML = filtered.map(v=>{
+    const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
+    return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
     <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td>
     <td>${animaisComOlhoHTML(v.animais)||'—'}</td>
-    <td>${v.obsGeral||''}</td>
+    <td>${v.obsGeral||''}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
     <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisita="${v.id}" title="Gerar PDF desta visita">📄</button></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(row=>{
     row.addEventListener('click', e=>{
       if(e.target.closest('button')) return;
@@ -7002,11 +7250,17 @@ let visitasFiltradasAtual = [];
 // Relatório em PDF de uma visita — mesmo esquema já usado em Manejos, Treinos e Nascimentos:
 // mostra a prévia na tela primeiro, só baixa o PDF quando a pessoa pedir.
 function blocoRelatorioVisita(v){
+  const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
+  const nomeAnimal = id => { const a=(v.animais||[]).find(x=>x.id===id); return a?a.nome:''; };
   return `<h1 style="border:none;">Visita Veterinária — ${fmtDate(v.data)}</h1>
     <div class="sub">Veterinário / Responsável: ${v.veterinario||'—'}</div>
     <div class="report-tipo-titulo">Animais revisados (${(v.animais||[]).length})</div>
     <ul class="animais-simples">${(v.animais||[]).map(a=>`<li>${a.nome}${a.obs?(' — '+a.obs):''}</li>`).join('')}</ul>
-    ${v.obsGeral?`<div class="sub" style="margin-top:14px;"><b>Observação geral:</b> ${v.obsGeral}</div>`:''}`;
+    ${v.obsGeral?`<div class="sub" style="margin-top:14px;"><b>Observação geral:</b> ${v.obsGeral}</div>`:''}
+    ${(v.custos||[]).length>0 ? `<div class="report-tipo-titulo" style="margin-top:14px;">Serviços e Produtos — Total: ${fmtMoeda(totalCustos,'BRL')}</div>
+    <ul class="animais-simples">${v.custos.map(c=>`<li>${nomeAnimal(c.animalId)} — ${c.tipo==='produto'?(c.produtoNome+' (x'+c.quantidade+')'):c.nome} — ${fmtMoeda(c.valor,'BRL')}</li>`).join('')}</ul>` : ''}
+    ${(v.documentos||[]).length>0 ? `<div class="report-tipo-titulo" style="margin-top:14px;">Documentos / Exames</div>
+    <ul class="animais-simples">${v.documentos.map(d=>`<li>${nomeAnimal(d.animalId)} — ${d.nome}: ${d.url}</li>`).join('')}</ul>` : ''}`;
 }
 function gerarRelatorioVisitaUnica(id){
   const v = visitas.find(x=>x.id===id); if(!v) return;
@@ -7642,6 +7896,21 @@ function lancamentosDerivadosTreinos(){
     };
   }).filter(Boolean);
 }
+// Visitas Veterinárias com serviços/produtos lançados — mesma lógica de nunca virar registro de
+// verdade em `lancamentos`, sempre calculado a partir da visita (soma dos custos de todos os animais).
+function lancamentosDerivadosVisitas(){
+  return visitas.filter(v=>(v.custos||[]).length>0).map(v=>{
+    const total = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
+    if(!total || total<=0) return null;
+    const qtdAnimais = new Set((v.custos||[]).map(c=>c.animalId)).size;
+    return {
+      id: 'auto_vs_'+v.id, origemId: v.id, origem: 'visitas',
+      data: v.data, tipo: 'saida', categoria: 'Veterinário / Medicamento',
+      descricao: `Visita veterinária${v.veterinario?(' — '+v.veterinario):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`,
+      valor: total, moeda: 'BRL'
+    };
+  }).filter(Boolean);
+}
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
 function fmtMoedaFin(l){
@@ -7668,15 +7937,17 @@ function renderFinanceiroStats(lista){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos' };
-// Junta os lançamentos manuais com os derivados (Manejos, Estoque e Treinos Cobrados) — usado tanto na
-// lista filtrável quanto no painel fixo do mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas' };
+// Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados e Visitas
+// Veterinárias) — usado tanto na lista filtrável quanto no painel fixo do mês, pra nunca ter duas
+// contas diferentes pro mesmo dinheiro.
 function todosLancamentosFinanceiro(){
   return [
     ...lancamentos.map(l=>({...l, origem:'manual'})),
     ...lancamentosDerivadosManejos(),
     ...lancamentosDerivadosEstoque(),
-    ...lancamentosDerivadosTreinos()
+    ...lancamentosDerivadosTreinos(),
+    ...lancamentosDerivadosVisitas()
   ];
 }
 
@@ -7787,6 +8058,9 @@ function renderFinanceiro(){
     } else if(tipoOrigem==='treinos'){
       irParaView('treinos');
       setTimeout(()=>openTreinoEdit(id), 30);
+    } else if(tipoOrigem==='visitas'){
+      irParaView('veterinaria');
+      setTimeout(()=>{ document.getElementById('vtrtab_visitas').click(); openVisitaEdit(id); }, 30);
     }
   }));
 }
@@ -8638,7 +8912,7 @@ function renderAnimalPerfil(id){
    ordenados por data (mais recente primeiro). Eventos manuais (linha do tempo escrita à mão) ficam
    pra uma próxima etapa, se fizer falta além do que já é puxado automático daqui. */
 let timelineFiltro = 'todos';
-const TIMELINE_ICON = { manejo:'💉', treino:'🐴', nascimento:'🍼', filho:'🐣' };
+const TIMELINE_ICON = { manejo:'💉', treino:'🐴', nascimento:'🍼', filho:'🐣', visita:'🩺' };
 function computeTimelineAnimal(h){
   const eventos = [];
   manejos.forEach(m=>{
@@ -8651,6 +8925,18 @@ function computeTimelineAnimal(h){
     if(!a) return;
     const valorCobrado = t.cobranca ? fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda) : null;
     eventos.push({ data:t.data, tipo:'treino', titulo:'Treino'+(t.tipo?(': '+t.tipo):''), detalhe:[t.local, t.treinadores, a.extra, valorCobrado?('💰 '+valorCobrado):null].filter(Boolean).join(' · ') });
+  });
+  visitas.forEach(v=>{
+    const a = (v.animais||[]).find(x=>x.id===h.id);
+    if(!a) return;
+    const custosDoAnimal = (v.custos||[]).filter(c=>c.animalId===h.id);
+    const totalCusto = custosDoAnimal.reduce((s,c)=>s+(Number(c.valor)||0),0);
+    const nomesCustos = custosDoAnimal.map(c=>c.tipo==='produto'?c.produtoNome:c.nome).filter(Boolean).join(', ');
+    const linksDoc = (v.documentos||[]).filter(d=>d.animalId===h.id).map(d=>`<a href="${d.url}" target="_blank" rel="noopener">📎 ${d.nome||'Documento'}</a>`).join(' · ');
+    eventos.push({
+      data: v.data, tipo:'visita', titulo:'Visita Veterinária'+(v.veterinario?(' — '+v.veterinario):''),
+      detalhe: [a.extra, nomesCustos||null, totalCusto>0?('💰 '+fmtMoeda(totalCusto,'BRL')):null, linksDoc||null].filter(Boolean).join(' · ')
+    });
   });
   nascimentos.forEach(n=>{
     if(n.animalId===h.id){
@@ -8673,7 +8959,7 @@ function computeTimelineAnimal(h){
 function renderAnimalTimeline(h){
   const todos = computeTimelineAnimal(h);
   const filtrados = timelineFiltro==='todos' ? todos : todos.filter(e=>e.tipo===timelineFiltro);
-  const counts = { manejo:0, treino:0, nascimento:0, filho:0 };
+  const counts = { manejo:0, treino:0, visita:0, nascimento:0, filho:0 };
   todos.forEach(e=>counts[e.tipo]++);
   const chip = (val,label,n)=>`<span class="chip ${timelineFiltro===val?'active':''}" data-tf="${val}">${label}${n!=null?(' ('+n+')'):''}</span>`;
   const host = document.getElementById('perfilTimelineWrap');
@@ -8685,6 +8971,7 @@ function renderAnimalTimeline(h){
           ${chip('todos','Todos', todos.length)}
           ${chip('manejo','💉 Manejos', counts.manejo)}
           ${chip('treino','🐴 Treinos', counts.treino)}
+          ${chip('visita','🩺 Visitas', counts.visita)}
           ${chip('nascimento','🍼 Nascimento', counts.nascimento)}
           ${chip('filho','🐣 Filhos', counts.filho)}
         </div>
@@ -8773,6 +9060,13 @@ function custoVeterinariaPorAnimal(animalId, de, ate){
     const valorUnit = custoUnitarioProduto(prod);
     if(!valorUnit) return;
     total += valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
+  });
+  // Serviços e produtos lançados em Visitas Veterinárias, só do animal em questão (cada custo já é
+  // individual por animal, não precisa dividir por ninguém).
+  visitas.forEach(v=>{
+    if(de && v.data<de) return;
+    if(ate && v.data>ate) return;
+    (v.custos||[]).forEach(c=>{ if(c.animalId===animalId) total += Number(c.valor)||0; });
   });
   return total;
 }
