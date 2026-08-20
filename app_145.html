@@ -114,6 +114,39 @@
   .stat-num{font-family:'Fraunces',serif;font-size:23px;font-weight:600;color:var(--green);}
   .stat-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-top:2px;}
 
+  /* ---------- Início: cartão de saudação com foto do haras ---------- */
+  .inicio-hero{position:relative;border-radius:10px;overflow:hidden;margin-bottom:18px;min-height:132px;
+    display:flex;align-items:center;background:var(--green);color:#EDE7D6;}
+  .inicio-hero-photo{position:absolute;inset:0;background-size:cover;background-position:center;}
+  .inicio-hero-fade{position:absolute;inset:0;background:linear-gradient(90deg, var(--green) 26%, rgba(28,51,39,.35) 62%, rgba(28,51,39,.1) 100%);}
+  .inicio-hero-caption{position:absolute;right:14px;bottom:10px;font-size:10.5px;color:rgba(237,231,214,.75);letter-spacing:.03em;}
+  .inicio-hero-content{position:relative;padding:22px 26px;z-index:1;max-width:62%;}
+  .inicio-hero-content .hero-title{font-family:'Fraunces',serif;font-size:23px;font-weight:600;color:#fff;}
+  .inicio-hero-content .hero-sub{color:#D9D2BC;font-size:12.5px;margin-top:4px;}
+  .inicio-hero-content .hero-money{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--brass-light);}
+  @media (max-width:860px){ .inicio-hero-content{max-width:100%;} }
+
+  /* ---------- "Espiar" valores sensíveis: embaçado até passar o mouse (ou tocar, no celular) em
+     cima do cartão inteiro — o cartão vira uma "lupa" sobre o próprio valor. Uso: pontos de dinheiro
+     do Início que ficam visíveis pra qualquer perfil (mesmo os sem acesso ao Financeiro completo),
+     então começam ocultos por padrão. ---------- */
+  .peek-card{cursor:zoom-in;}
+  .peek-value{filter:blur(6px);transition:filter .15s ease;user-select:none;}
+  .peek-card:hover .peek-value, .peek-card.peek-open .peek-value{filter:blur(0);}
+  .peek-hint{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+
+  .modulos-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .modulo-tile{flex:1 1 150px;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s, transform .15s;}
+  .modulo-tile:hover{border-color:var(--brass-light);transform:translateY(-1px);}
+  .modulo-tile .modulo-icone{font-size:18px;}
+  .modulo-tile .modulo-nome{font-family:'Fraunces',serif;font-size:14px;font-weight:600;margin-top:4px;}
+  .modulo-tile .modulo-desc{font-size:11px;color:var(--muted);margin-top:2px;}
+  .modulo-tile.modulo-foto{position:relative;overflow:hidden;color:#EDE7D6;min-height:78px;display:flex;flex-direction:column;justify-content:flex-end;}
+  .modulo-tile.modulo-foto .modulo-tile-photo{position:absolute;inset:0;background-size:cover;background-position:center 30%;}
+  .modulo-tile.modulo-foto .modulo-tile-fade{position:absolute;inset:0;background:linear-gradient(180deg, rgba(28,51,39,.05) 40%, rgba(20,17,12,.78) 100%);}
+  .modulo-tile.modulo-foto .modulo-nome, .modulo-tile.modulo-foto .modulo-desc{position:relative;color:#EDE7D6;}
+  .modulo-tile.modulo-foto .modulo-desc{color:#D9D2BC;}
+
   table.grid{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.8px;}
   table.grid th{background:#E4DDC8;text-align:left;padding:9px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line);position:sticky;top:0;}
   table.grid th.sortable{cursor:pointer;user-select:none;}
@@ -373,10 +406,19 @@
   <div class="main">
 
     <div class="view active" id="view-inicio">
-      <div class="topbar">
-        <div><div class="title">Início</div><div class="subtitle">Panorama do haras e tarefas agendadas</div></div>
+      <div class="inicio-hero" id="inicioHero">
+        <div class="inicio-hero-photo" style="background-image:url('./img/foto-cavalos-tarde.jpg');"></div>
+        <div class="inicio-hero-fade"></div>
+        <div class="inicio-hero-content">
+          <div class="hero-title" id="inicioSaudacao">Olá</div>
+          <div class="hero-sub">Panorama do haras e tarefas agendadas</div>
+          <div class="hero-money peek-card" id="inicioHeroCaixaCard" title="Passe o mouse pra ver o valor"><span class="peek-value" id="inicioHeroCaixaValor">—</span><div class="peek-hint">saldo em caixa · passe o mouse</div></div>
+        </div>
       </div>
+
       <div class="stats" id="inicioStats" style="margin-bottom:22px;"></div>
+
+      <div id="inicioFinResumo"></div>
 
       <div class="perfil-card" id="inicioAgendaCard" style="cursor:pointer;" title="Abrir o Calendário completo">
         <div class="perfil-card-head">
@@ -386,6 +428,14 @@
         <div class="perfil-card-body">
           <div class="hint-text" style="margin-bottom:10px;">Mostra Casco/Dente/Vacina/Vermífugo previstos (calculado a partir da frequência cadastrada de cada animal). Clique aqui pra abrir o calendário completo, com as visões Mês/Semana/Dia.</div>
           <div id="inicioAgendaResumo"></div>
+        </div>
+      </div>
+
+      <div class="perfil-card">
+        <div class="perfil-card-head"><span>🐴 Módulos</span></div>
+        <div class="perfil-card-body">
+          <div class="hint-text" style="margin-bottom:12px;">Atalho pra qualquer tela — clique num cartão.</div>
+          <div class="modulos-grid" id="inicioModulosGrid"></div>
         </div>
       </div>
     </div>
@@ -3887,8 +3937,95 @@ document.getElementById('btnPdfInicioLista').addEventListener('click', ()=>{
   baixarRelatorioManejoPDF(conteudo, 'Relatorio_'+titulo.replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf');
 });
 function renderInicio(){
+  renderInicioHero();
   renderInicioStats();
   renderInicioAgendaResumo();
+  renderInicioFinResumo();
+  renderInicioModulos();
+}
+// Saudação + foto do haras no topo do Início. O saldo em caixa fica "embaçado" por padrão — dado
+// sensível, só visível pro perfil Administrador, e mesmo assim só revela ao passar o mouse (mesmo
+// padrão .peek-card usado nos cartões financeiros logo abaixo).
+function renderInicioHero(){
+  const hora = new Date().getHours();
+  const saudacao = hora<12 ? 'Bom dia' : (hora<18 ? 'Boa tarde' : 'Boa noite');
+  const nome = (currentUser && currentUser.nome) ? currentUser.nome.split(' ')[0] : '';
+  const elSaud = document.getElementById('inicioSaudacao');
+  if(elSaud) elSaud.textContent = saudacao + (nome ? ', '+nome : '') + '!';
+  const cardEl = document.getElementById('inicioHeroCaixaCard');
+  if(!cardEl) return;
+  if(currentUser && currentUser.perfil==='admin'){
+    const todos = todosLancamentosFinanceiro();
+    const brl = todos.filter(l=>l.moeda!=='USD'), usd = todos.filter(l=>l.moeda==='USD');
+    const saldoBRL = brl.reduce((s,l)=> s + (l.tipo==='entrada'?1:-1)*(Number(l.valor)||0), 0);
+    const saldoUSD = usd.reduce((s,l)=> s + (l.tipo==='entrada'?1:-1)*(Number(l.valor)||0), 0);
+    document.getElementById('inicioHeroCaixaValor').innerHTML = fmtMoeda(saldoBRL,'BRL') + (usd.length ? ' <span style="opacity:.85;">+ '+fmtMoeda(saldoUSD,'USD')+'</span>' : '');
+    cardEl.style.display = '';
+  } else {
+    cardEl.style.display = 'none';
+  }
+}
+// Cartões financeiros "espiáveis" do Início — só pro perfil Administrador (mesma regra de acesso do
+// Financeiro/Funcionários). Reaproveita a mesma lógica de todosLancamentosFinanceiro() do Financeiro,
+// só que sempre olhando pro mês corrente (não navega junto com o "Resumo do mês" da aba Financeiro).
+function renderInicioFinResumo(){
+  const host = document.getElementById('inicioFinResumo');
+  if(!host) return;
+  if(!currentUser || currentUser.perfil!=='admin'){ host.innerHTML=''; return; }
+  const now = new Date();
+  const ano = now.getFullYear(), mes = now.getMonth();
+  const inicioMes = toISODate(new Date(ano, mes, 1));
+  const fimMes = toISODate(new Date(ano, mes+1, 0));
+  const doMesBRL = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.moeda!=='USD');
+  const totalEntrada = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const totalSaida = doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const saldoMes = totalEntrada - totalSaida;
+  const ativos = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
+  const custoPorAnimal = ativos>0 ? totalSaida/ativos : 0;
+  const folhaMes = doMesBRL.filter(l=>l.categoria==='Salário' && l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const mesLabel = MESES_LABEL[mes].toLowerCase();
+  host.innerHTML = `
+    <div class="stats" style="margin-bottom:18px;">
+      <div class="stat peek-card"><div class="stat-num peek-value" style="color:${saldoMes>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoMes,'BRL')}</div><div class="stat-label">O dinheiro de ${mesLabel}</div><div class="peek-hint">passe o mouse</div></div>
+      <div class="stat peek-card"><div class="stat-num peek-value">${fmtMoeda(custoPorAnimal,'BRL')}</div><div class="stat-label">Custo por animal</div><div class="peek-hint">passe o mouse</div></div>
+      <div class="stat peek-card"><div class="stat-num peek-value">${fmtMoeda(folhaMes,'BRL')}</div><div class="stat-label">Folha de ${mesLabel}</div><div class="peek-hint">passe o mouse</div></div>
+    </div>`;
+}
+// Cartões de atalho pra cada módulo do sistema — só mostra os que o perfil logado tem acesso
+// (mesma lista de PERFIL_VIEWS que já controla o menu lateral).
+const MODULOS_INFO = {
+  animais:{icone:'🐴', nome:'Animais', desc:'Fichas e cadastro'},
+  grupos:{icone:'📁', nome:'Grupos', desc:'Times e lotes'},
+  manejos:{icone:'🛠️', nome:'Manejos', desc:'Casco, dente, vacina, vermífugo'},
+  treinos:{icone:'🏇', nome:'Atividades', desc:'Treino, jogo, bate-bola, montada'},
+  nascimentos:{icone:'🐣', nome:'Nascimentos', desc:'Partos e potros'},
+  estoque:{icone:'📦', nome:'Estoque', desc:'Produtos e dietas'},
+  veterinaria:{icone:'🩺', nome:'Veterinária', desc:'Tratamentos e visitas'},
+  funcionarios:{icone:'👤', nome:'Funcionários', desc:'Equipe do haras'},
+  financeiro:{icone:'💰', nome:'Financeiro', desc:'Lançamentos e caixa'},
+  usuarios:{icone:'🔑', nome:'Usuários', desc:'Perfis de acesso'},
+};
+function renderInicioModulos(){
+  const host = document.getElementById('inicioModulosGrid');
+  if(!host) return;
+  const permitidas = (PERFIL_VIEWS[currentUser && currentUser.perfil]||[]).filter(v=> v!=='inicio' && v!=='calendario');
+  host.innerHTML = permitidas.map(v=>{
+    const info = MODULOS_INFO[v] || {icone:'▪️', nome:v, desc:''};
+    if(v==='animais'){
+      return `<div class="modulo-tile modulo-foto" data-modulo="${v}" title="Abrir ${info.nome}">
+        <div class="modulo-tile-photo" style="background-image:url('./img/foto-tropa-pasto.jpg');"></div>
+        <div class="modulo-tile-fade"></div>
+        <div class="modulo-nome">${info.icone} ${info.nome}</div>
+        <div class="modulo-desc">${info.desc}</div>
+      </div>`;
+    }
+    return `<div class="modulo-tile" data-modulo="${v}" title="Abrir ${info.nome}">
+      <div class="modulo-icone">${info.icone}</div>
+      <div class="modulo-nome">${info.nome}</div>
+      <div class="modulo-desc">${info.desc}</div>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-modulo]').forEach(el=> el.addEventListener('click', ()=> irParaView(el.dataset.modulo)));
 }
 // Resumo curto no cartão do Início (o calendário completo, com Mês/Semana/Dia, agora mora na
 // aba Calendário — este resumo só mostra as tarefas de hoje e convida a clicar pra abrir o resto).
@@ -8976,6 +9113,10 @@ function aplicarPermissoes(){
     document.getElementById('view-inicio').classList.add('active');
     renderInicio();
   }
+  // O Início pode já ter sido desenhado antes do login terminar (loadAll roda antes de currentUser
+  // existir) — os blocos que dependem do perfil (saldo em caixa, cartões financeiros) precisam
+  // recalcular aqui, mesmo se a view ativa continuar sendo Início e o "if" acima não disparar.
+  if(typeof renderInicioHero==='function'){ renderInicioHero(); renderInicioFinResumo(); renderInicioModulos(); }
 }
 
 function showUserListScreen(){
