@@ -813,6 +813,7 @@
         <div><div class="title">Nascimentos</div><div class="subtitle">Coberturas, confirmações e nascimentos</div></div>
         <div style="display:flex;gap:10px;">
           <button class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
+          <button class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
           <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Nova Cobertura</button>
         </div>
       </div>
@@ -1368,6 +1369,31 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
       <div class="modal-actions">
         <div><button type="button" class="btn btn-ghost" id="btnVoltarImportCasco">← Voltar e editar</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportCasco">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportCasco">Confirmar importação</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORTAR NASCIMENTOS (relatório em PDF do sistema antigo) -->
+<div class="overlay" id="overlayImportNasc">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Importar Nascimentos (PDF do sistema antigo)</div><button class="modal-close" data-close="overlayImportNasc">✕</button></div>
+    <div id="importNascStep1">
+      <div class="hint-text" style="margin-bottom:10px;">
+        Escolha o arquivo PDF da "Listagem de Nascimentos de Animais por Data de Nascimento" (o programa lê as colunas sozinho, pela posição de cada uma na página). Se preferir colar manualmente, use colunas separadas por TAB, na ordem: <strong>Matriz, Pai, Receptora, Dt Cobertura, Dt Prevista, Dt Nascimento, Confirmação (S/N), Nome Nascido, Sexo (M/F), Observações</strong>.
+      </div>
+      <div style="margin-bottom:14px;"><input type="file" id="importNascArquivo" accept="application/pdf"> <span class="hint-text" id="importNascArquivoStatus"></span></div>
+      <textarea id="importNascTexto" rows="10" style="width:100%;font-family:monospace;font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="Cole aqui o texto do PDF, ou o conteúdo lido automaticamente aparece nessa caixa depois de escolher o arquivo acima."></textarea>
+      <div class="modal-actions">
+        <div></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportNasc">Cancelar</button><button type="button" class="btn" id="btnAnalisarImportNasc">Analisar</button></div>
+      </div>
+    </div>
+    <div id="importNascStep2" style="display:none;">
+      <div id="importNascResumo"></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn btn-ghost" id="btnVoltarImportNasc">← Voltar e editar</button></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportNasc">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportNasc">Confirmar importação</button></div>
       </div>
     </div>
   </div>
@@ -5359,6 +5385,190 @@ document.getElementById('btnConfirmarImportCasco').addEventListener('click', asy
   closeModal('overlayImportCasco');
   showAlert(importCascoGrupos.length+' lançamento(s) importado(s) com sucesso.');
   importCascoGrupos = [];
+});
+
+/* ========= Importar Nascimentos (relatório "Listagem de Nascimentos" em PDF do sistema antigo) =========
+   Diferente do importador de Ferrageamento acima (que junta cada linha visual num texto só), aqui as
+   colunas Matriz/Pai/Receptora têm largura variável e não dá pra adivinhar onde uma termina e a outra
+   começa só pelo texto (ex: "Y V8 Russo Nativa" — nome de 1 palavra, pai de 2, receptora de 1). Por isso
+   extrai pela POSIÇÃO (x) de cada célula na página, usando a linha do cabeçalho da tabela pra descobrir
+   onde cada coluna começa. Testado linha a linha contra o PDF real do Gustavo antes de entrar aqui. */
+async function extrairTabelaColunas(file, colunasAlvo){
+  if(typeof pdfjsLib === 'undefined'){ throw new Error('Não consegui carregar o leitor de PDF (precisa de internet na primeira vez). Cole o texto manualmente na caixa abaixo, com colunas separadas por TAB.'); }
+  if(!pdfjsLib.GlobalWorkerOptions.workerSrc){ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  let colunas = null; // [{chave,x}] ordenadas por x, descobertas na própria linha do cabeçalho da tabela
+  const alvoJunto = colunasAlvo.map(c=>({chave:c.chave, texto:c.texto.replace(/\s+/g,'').toUpperCase()}));
+  const linhas = [];
+  for(let p=1; p<=pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const porLinha = {};
+    content.items.forEach(item=>{
+      if(!item.str || !item.str.trim()) return;
+      const y = Math.round(item.transform[5]);
+      if(!porLinha[y]) porLinha[y] = [];
+      porLinha[y].push({x:item.transform[4], texto:item.str});
+    });
+    const ys = Object.keys(porLinha).map(Number).sort((a,b)=>b-a);
+    ys.forEach(y=>{
+      const itens = porLinha[y].slice().sort((a,b)=>a.x-b.x);
+      if(!colunas){
+        // Tenta reconhecer essa linha como o cabeçalho: acumula os itens da esquerda pra direita e vê
+        // se, concatenados sem espaço, formam a sequência esperada de rótulos — funciona não importa
+        // se o PDF juntou "DT COBER" num item só ou separou em "DT" + "COBER".
+        let idx = 0, acumulado = '', xInicio = null;
+        const achadas = [];
+        for(const it of itens){
+          if(idx>=alvoJunto.length) break;
+          if(acumulado==='') xInicio = it.x;
+          acumulado += it.texto.replace(/\s+/g,'').toUpperCase();
+          if(acumulado===alvoJunto[idx].texto){
+            achadas.push({chave:alvoJunto[idx].chave, x:xInicio});
+            idx++; acumulado=''; xInicio=null;
+          } else if(!alvoJunto[idx].texto.startsWith(acumulado)){
+            achadas.length = 0; idx = -1; break;
+          }
+        }
+        if(idx===alvoJunto.length) colunas = achadas;
+        return; // nunca trata a própria linha de cabeçalho como dado
+      }
+      const linhaObj = {};
+      colunas.forEach(c=> linhaObj[c.chave]='');
+      itens.forEach(it=>{
+        let alvo = colunas[0];
+        for(const c of colunas){ if(it.x >= c.x - 10) alvo = c; else break; }
+        linhaObj[alvo.chave] = (linhaObj[alvo.chave] ? linhaObj[alvo.chave]+' ' : '') + it.texto;
+      });
+      linhas.push(linhaObj);
+    });
+  }
+  if(!colunas) throw new Error('Não consegui reconhecer o cabeçalho da tabela nesse PDF. Cole o texto manualmente, com colunas separadas por TAB.');
+  return { colunas: colunas.map(c=>c.chave), linhas };
+}
+const IMPORT_NASC_COLUNAS = [
+  {chave:'matriz', texto:'MATRIZ'}, {chave:'pai', texto:'PAI'}, {chave:'receptora', texto:'RECEPTORA'},
+  {chave:'datacob', texto:'DT COBER'}, {chave:'dataprevn', texto:'DT PREV N'}, {chave:'datanasc', texto:'DT NASC'},
+  {chave:'con', texto:'CON'}, {chave:'nome', texto:'NOME NASCIDO'}, {chave:'sexo', texto:'SEX'}, {chave:'obs', texto:'OBSERVAÇÕES'}
+];
+function converterDataBR(str){
+  const m = (str||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? m[3]+'-'+m[2]+'-'+m[1] : '';
+}
+let importNascValidos = [];
+// Linhas de cabeçalho de ano ("2022  B  22") e de rodapé ("TOTAL DE ANIMAIS...") acabam bucketizadas
+// em alguma coluna (não tem como evitar sem também reconhecê-las explicitamente), mas nunca preenchem
+// matriz+data de nascimento+nome+sexo os quatro ao mesmo tempo — é exatamente essa exigência que as
+// filtra fora aqui, sem precisar de nenhuma regra especial pra "linha de grupo" ou "linha de total".
+function parseImportNascimentos(linhasTabela){
+  const validos = [], invalidos = [], jaExistentes = [];
+  linhasTabela.forEach((linha, i)=>{
+    const matriz = titleCase((linha.matriz||'').trim());
+    const pai = titleCase((linha.pai||'').trim());
+    const receptora = titleCase((linha.receptora||'').trim());
+    const datacob = converterDataBR(linha.datacob);
+    const datanasc = converterDataBR(linha.datanasc);
+    const nome = titleCase((linha.nome||'').trim());
+    const sexoTxt = (linha.sexo||'').trim().toUpperCase();
+    const sexo = sexoTxt==='M' ? 'MASCULINO' : (sexoTxt==='F' ? 'FEMININO' : '');
+    const obs = (linha.obs||'').trim();
+    if(!matriz || !datanasc || !nome || !sexo){
+      invalidos.push({linha:i+1, motivo:'Cabeçalho de grupo/rodapé do relatório — ignorada normalmente, não é um nascimento de verdade.'});
+      return;
+    }
+    const jaExiste = horses.find(h=> h.nome && h.nome.toLowerCase()===nome.toLowerCase() && h.nascimento===datanasc);
+    if(jaExiste){ jaExistentes.push({linha:i+1, matriz, nome}); return; }
+    validos.push({ matriz, pai, receptora, datacob, datanasc, nome, sexo, obs, letra: nome.charAt(0).toUpperCase() });
+  });
+  return { validos, invalidos, jaExistentes };
+}
+document.getElementById('btnImportNasc').addEventListener('click', ()=>{
+  document.getElementById('importNascTexto').value='';
+  document.getElementById('importNascArquivo').value='';
+  document.getElementById('importNascArquivoStatus').textContent='';
+  document.getElementById('importNascStep1').style.display='block';
+  document.getElementById('importNascStep2').style.display='none';
+  openModal('overlayImportNasc');
+});
+document.getElementById('importNascArquivo').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('importNascArquivoStatus');
+  status.textContent = 'Lendo PDF...';
+  try{
+    const { linhas } = await extrairTabelaColunas(file, IMPORT_NASC_COLUNAS);
+    const texto = linhas.map(l=> IMPORT_NASC_COLUNAS.map(c=>l[c.chave]||'').join('\t')).join('\n');
+    document.getElementById('importNascTexto').value = texto;
+    status.textContent = linhas.length+' linha(s) lida(s) — confira abaixo (uma por linha, colunas separadas por TAB) e clique em Analisar.';
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Não consegui ler esse PDF automaticamente (' + err.message + ').';
+  }
+});
+document.getElementById('btnAnalisarImportNasc').addEventListener('click', ()=>{
+  const texto = document.getElementById('importNascTexto').value;
+  if(!texto.trim()){ showAlert('Escolha o PDF ou cole o conteúdo antes de analisar.'); return; }
+  const linhasTabela = texto.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim()!=='').map(l=>{
+    const cols = l.split('\t');
+    const obj = {};
+    IMPORT_NASC_COLUNAS.forEach((c,i)=> obj[c.chave] = cols[i]||'');
+    return obj;
+  });
+  const { validos, invalidos, jaExistentes } = parseImportNascimentos(linhasTabela);
+  importNascValidos = validos;
+  let html = `<div class="hint-text" style="margin-bottom:14px;">
+    <strong>${validos.length}</strong> nascimento(s) prontos pra importar — cada um confirma o nascimento e já cadastra o animal, igual marcar "Confirmar nascimento" manualmente.<br>
+    ${jaExistentes.length} já existente(s) no cadastro (mesmo nome + mesma data de nascimento — ignorado, não duplica) · ${invalidos.length} linha(s) de cabeçalho/rodapé do relatório ignoradas normalmente.
+  </div>`;
+  if(validos.length>0){
+    html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
+      <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Dt Nascimento</th><th>Nome</th><th>Sexo</th></tr></thead>
+      <tbody>${validos.map(v=>`<tr><td>${v.matriz}</td><td>${v.pai||'—'}</td><td>${v.receptora||'—'}</td><td>${v.datacob?fmtDate(v.datacob):'—'}</td><td>${fmtDate(v.datanasc)}</td><td>${v.nome}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  if(jaExistentes.length>0){
+    html += `<div class="hint-text" style="margin-bottom:8px;"><strong>Já existentes</strong> (não importados de novo):<br>${jaExistentes.map(j=>j.nome+' ('+j.matriz+')').join(', ')}</div>`;
+  }
+  document.getElementById('importNascResumo').innerHTML = html;
+  document.getElementById('btnConfirmarImportNasc').disabled = validos.length===0;
+  document.getElementById('btnConfirmarImportNasc').style.opacity = validos.length===0 ? '0.5' : '1';
+  document.getElementById('importNascStep1').style.display='none';
+  document.getElementById('importNascStep2').style.display='block';
+});
+document.getElementById('btnVoltarImportNasc').addEventListener('click', ()=>{
+  document.getElementById('importNascStep1').style.display='block';
+  document.getElementById('importNascStep2').style.display='none';
+});
+document.getElementById('btnConfirmarImportNasc').addEventListener('click', async ()=>{
+  if(importNascValidos.length===0) return;
+  if(!(await showConfirm('Importar '+importNascValidos.length+' nascimento(s)? Cada um confirma o nascimento e cadastra o animal automaticamente (igual preencher e confirmar manualmente, um por um).'))) return;
+  importNascValidos.forEach(v=>{
+    ensureExternalAnimal(v.matriz, 'FEMININO');
+    if(v.pai) ensureExternalAnimal(v.pai, 'MASCULINO');
+    if(v.receptora) ensureExternalAnimal(v.receptora, 'FEMININO');
+    const mae = horses.find(h=>h.nome && h.nome.toLowerCase()===v.matriz.toLowerCase());
+    const pai = v.pai ? horses.find(h=>h.nome && h.nome.toLowerCase()===v.pai.toLowerCase()) : null;
+    const novoAnimal = {
+      id:'h_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), codigo:'', nome:v.nome, apelido:'', sexo:v.sexo,
+      situacao:'P', status:'', nascimento:v.datanasc, falecimento:'', pelagem:'', categoria:'',
+      pai: pai ? pai.nome : (v.pai||''), mae: mae ? mae.nome : v.matriz,
+      avopat: pai ? pai.pai : '', avopatmat: pai ? pai.mae : '',
+      avomatpat: mae ? mae.pai : '', avomat: mae ? mae.mae : '',
+      freqcasco:'',freqdente:'',freqvacina:'',freqvermifugo:'', proprietario: mae ? mae.proprietario : '', valor:'',
+      obs:'Importado do sistema antigo via PDF de Nascimentos', protocoloPotro: gerarProtocoloPotro(v.datanasc)
+    };
+    horses.push(novoAnimal);
+    nascimentos.push({ id:'ns_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), matriz:v.matriz, pai:v.pai, receptora:v.receptora,
+      datacob:v.datacob, datanasc:v.datanasc, letra:v.letra, obs:v.obs, confirm:'S', animalId: novoAnimal.id,
+      prenhezConfirmada:'N', prenhezUltima:'', prenhezHistorico:[] });
+  });
+  await storeSet('horses_list', horses);
+  await storeSet('nascimentos_list', nascimentos);
+  closeModal('overlayImportNasc');
+  refreshDatalists(); renderHorses(); renderNascimentos();
+  showAlert(importNascValidos.length+' nascimento(s) importado(s) com sucesso — os animais já aparecem no cadastro.');
+  importNascValidos = [];
 });
 
 /* ================= TREINOS ================= */
