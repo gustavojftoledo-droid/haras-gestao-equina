@@ -1,207 +1,225 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar com o código deste repositório.
 
-## What this is
+## O que é isso
 
-**Haras — Gestão Equina** is a farm-management app for a horse breeding operation (plantel,
-manejos/husbandry, training, births, inventory, veterinary visits, diets, staff, finance). It's
-built and used in Brazilian Portuguese; all UI copy, variable/function names, comments, and commit
-messages in this repo are in pt-BR — match that when editing.
+**Haras — Gestão Equina** é um app de gestão de haras (plantel, manejos, treinos, nascimentos,
+estoque, visitas veterinárias, dietas, funcionários, financeiro). É construído e usado em
+português do Brasil; todo o texto da interface, nomes de variáveis/funções, comentários e mensagens
+de commit deste repositório estão em pt-BR — siga esse padrão ao editar.
 
-The repo has three independent parts that don't share a build or deploy pipeline:
+O repositório tem três partes independentes, sem pipeline de build ou deploy compartilhado:
 
-- **`app_145.html`** (root) — the actual application. A single self-contained HTML/CSS/JS file,
-  no build step, no framework, no npm dependency. This is where almost all feature work happens.
-- **`mcp-server/`** — a local, read-only MCP (stdio) server, a small Node/TypeScript project.
-- **`mcp-remote/`** — a remote, read-only MCP server deployed as a Cloudflare Worker with GitHub
-  OAuth, a separate Node/TypeScript project.
+- **`app_145.html`** (raiz) — o aplicativo em si. Um único arquivo HTML/CSS/JS autocontido, sem
+  build, sem framework, sem dependência npm. É onde acontece quase todo o trabalho de features.
+- **`mcp-server/`** — um servidor MCP (stdio) local, somente leitura, projeto Node/TypeScript pequeno.
+- **`mcp-remote/`** — um servidor MCP remoto, somente leitura, implantado como Cloudflare Worker com
+  login via GitHub OAuth, em um projeto Node/TypeScript separado.
 
-`index.html` is just a redirect stub (`meta http-equiv="refresh"`) that forwards to
-`./app_145.html`, kept so a stable URL (e.g. GitHub Pages root) always opens the current app file.
+`index.html` é só um redirecionamento (`meta http-equiv="refresh"`) que encaminha para
+`./app_145.html`, mantido para que uma URL estável (ex.: raiz do GitHub Pages) sempre abra o
+arquivo do app atual.
 
-## The main app (`app_145.html`)
+## O app principal (`app_145.html`)
 
-### Architecture
+### Arquitetura
 
-Everything — markup, CSS, and JS — lives in this one file (~9.6k lines). There is no bundler, no
-module system, no package.json for it: it's edited directly and opened directly in a browser (or
-deployed as a static file, e.g. GitHub Pages). When making changes, edit `app_145.html` in place;
-do not split it into multiple files or introduce a build step unless explicitly asked.
+Tudo — markup, CSS e JS — vive nesse único arquivo (~9,6 mil linhas). Não há bundler, sistema de
+módulos nem package.json para ele: é editado diretamente e aberto diretamente no navegador (ou
+implantado como arquivo estático, ex.: GitHub Pages). Ao fazer mudanças, edite o `app_145.html` no
+lugar; não divida em vários arquivos nem introduza um passo de build a menos que seja pedido
+explicitamente.
 
-Rough layout of the file:
-- `<head>`: two CDN scripts (`pdf.js` for reading uploaded PDFs, `html2pdf.js` for downloading
-  reports as PDF — both require internet and are only used by those specific features), PWA tags
-  (manifest, icons, theme color), Google Fonts.
-- `<style>`: all CSS, using CSS custom properties defined on `:root` (`--ink`, `--paper`, `--card`,
-  `--green`, `--brass`, `--burgundy`, etc.) for the app's color palette. Reuse these tokens instead
-  of hardcoding colors.
-- Body markup: a sidebar nav (`.nav-item[data-view="..."]`) and one `<div class="view" id="view-X">`
-  per section. Only one `.view` has class `active` at a time — see "Navigation" below.
-- `<script>` (single block starting ~line 1660): all application logic, as plain top-level
-  functions and global `let`/`const` state — no classes, no modules, no framework.
+Estrutura geral do arquivo:
+- `<head>`: dois scripts via CDN (`pdf.js` para ler PDFs enviados, `html2pdf.js` para baixar
+  relatórios como PDF — ambos exigem internet e são usados só nessas funções específicas), tags de
+  PWA (manifest, ícones, cor do tema), fontes do Google Fonts.
+- `<style>`: todo o CSS, usando variáveis CSS definidas em `:root` (`--ink`, `--paper`, `--card`,
+  `--green`, `--brass`, `--burgundy`, etc.) para a paleta de cores do app. Reaproveite esses tokens
+  em vez de fixar cores no código.
+- Markup do body: um menu lateral (`.nav-item[data-view="..."]`) e um `<div class="view"
+  id="view-X">` por seção. Só uma `.view` tem a classe `active` por vez — ver "Navegação" abaixo.
+- `<script>` (bloco único a partir da linha ~1660): toda a lógica do aplicativo, como funções de
+  nível superior e estado global em `let`/`const` — sem classes, sem módulos, sem framework.
 
-### State & persistence
+### Estado e persistência
 
-Global mutable arrays hold all data in memory: `horses`, `manejos`, `treinos`, `nascimentos`,
-`estoqueProdutos`, `estoqueMovimentos`, `dietas`, `grupos`, `tratamentos`, `visitas`,
-`lancamentos`, `funcionarios`, `usuarios`, plus `config` (object) and `aux` (auxiliary
-dropdown/autocomplete lists). These are loaded once at startup by `loadAll()` and kept in sync with
-storage by explicit `storeSet(key, value)` calls after every mutation — there's no reactive
-framework, so **any code that mutates one of these arrays/objects must also call `storeSet`** (and
-usually the relevant `renderX()` function) or the change won't persist or show up.
+Arrays globais mutáveis guardam todos os dados em memória: `horses`, `manejos`, `treinos`,
+`nascimentos`, `estoqueProdutos`, `estoqueMovimentos`, `dietas`, `grupos`, `tratamentos`, `visitas`,
+`lancamentos`, `funcionarios`, `usuarios`, além de `config` (objeto) e `aux` (listas auxiliares de
+dropdown/autocomplete). São carregados uma vez na inicialização por `loadAll()` e mantidos
+sincronizados com o armazenamento via chamadas explícitas a `storeSet(key, value)` depois de cada
+mutação — não há framework reativo, então **todo código que altera um desses arrays/objetos precisa
+também chamar `storeSet`** (e normalmente a `renderX()` correspondente), ou a mudança não persiste
+nem aparece na tela.
 
-Persistence is abstracted through `storeGet(key)` / `storeSet(key, value)`, which transparently
-target one of two backends depending on `HAS_CLOUD_STORAGE` (`typeof window.storage !== 'undefined'`):
-- Running as a Claude.ai artifact → uses `window.storage` (cloud-backed, with retry logic).
-- Opened as a plain file/static host (browser, PWA) → falls back to the browser's `localStorage`,
-  namespaced with `LS_PREFIX = 'haras_gestao_equina__'`.
+A persistência é abstraída por `storeGet(key)` / `storeSet(key, value)`, que direcionam de forma
+transparente para um de dois backends conforme `HAS_CLOUD_STORAGE`
+(`typeof window.storage !== 'undefined'`):
+- Rodando como artifact do Claude.ai → usa `window.storage` (na nuvem, com lógica de retry).
+- Aberto como arquivo simples/hospedagem estática (navegador, PWA) → cai para o `localStorage` do
+  navegador, com namespace `LS_PREFIX = 'haras_gestao_equina__'`.
 
-All real farm data lives only in that storage — never committed to the repo. Users export/import
-JSON snapshots via the "⚙ Exportar/Importar Backup" buttons (`btnExportBackup`/`btnImportBackup`),
-producing files named `haras_backup_<timestamp>.json`. `.gitignore` explicitly excludes
-`haras_backup_*.json` — never commit or unignore real backup files, they contain the farm's private
-data. Import merges by `id` (skips exact-id duplicates; same-name-different-id entries are surfaced
-later in a "Possíveis Duplicados" screen, `computeDuplicatePairs`/`renderDuplicatesList`, for the
-user to resolve manually).
+Todos os dados reais do haras vivem só nesse armazenamento — nunca são commitados no repositório.
+Os usuários exportam/importam snapshots em JSON pelos botões "⚙ Exportar/Importar Backup"
+(`btnExportBackup`/`btnImportBackup`), gerando arquivos chamados `haras_backup_<timestamp>.json`.
+O `.gitignore` exclui explicitamente `haras_backup_*.json` — nunca commite nem tire do
+`.gitignore` arquivos de backup reais, eles contêm dados privados da fazenda. A importação faz merge
+por `id` (ignora duplicatas com id exatamente igual; registros com mesmo nome mas id diferente
+aparecem depois na tela "Possíveis Duplicados" — `computeDuplicatePairs`/`renderDuplicatesList` —
+para o usuário resolver manualmente).
 
-`loadAll()` also carries forward defensive migrations for older backups/state shapes (e.g. renamed
-`valoresCasco` categories, first-time seeding of `config.protocoloVacinasGestacao` /
-`protocoloVacinasPotro`). When changing the shape of `config` or a stored list, add a similar
-one-time migration there rather than assuming fresh state.
+`loadAll()` também carrega migrações defensivas para formatos antigos de backup/estado (ex.:
+categorias renomeadas de `valoresCasco`, criação inicial de `config.protocoloVacinasGestacao` /
+`protocoloVacinasPotro` na primeira vez). Ao mudar o formato de `config` ou de uma lista
+persistida, adicione ali uma migração parecida em vez de assumir estado sempre "do zero".
 
-### Navigation & rendering
+### Navegação e renderização
 
-Sections ("views") are plain show/hide, not a router: `irParaView(view)` toggles the `active` class
-on `.nav-item[data-view]` and the matching `#view-<name>` element, and calls that section's
-`renderX()` to (re)build its DOM from the in-memory arrays. There's no virtual DOM — render
-functions rebuild `innerHTML` from the current state on every call. Keyboard shortcuts
-(`Alt+Shift+<letter>`, shown in each nav item's `title`) call `irParaView` too.
+As seções ("views") funcionam por mostrar/esconder simples, não por um router: `irParaView(view)`
+alterna a classe `active` em `.nav-item[data-view]` e no `#view-<name>` correspondente, e chama o
+`renderX()` daquela seção para (re)construir seu DOM a partir dos arrays em memória. Não há DOM
+virtual — as funções de render reconstroem o `innerHTML` a partir do estado atual a cada chamada.
+Atalhos de teclado (`Alt+Shift+<letra>`, indicados no `title` de cada item do menu) também chamam
+`irParaView`.
 
-Each domain has its own `render*()`/`open*New()`/`open*Edit(id)` trio (e.g. `renderHorses` /
-`openHorseNew` / `openHorseEdit`, `renderManejos` / `openManejoNew`(inline) / `openManejoEdit`,
-similarly for Treinos, Nascimentos, Estoque, Dietas, Grupos, Tratamentos, Visitas, Financeiro,
-Funcionários, Usuários). Follow that same naming/structure pattern for any new domain or field.
+Cada domínio tem seu próprio trio `render*()`/`open*New()`/`open*Edit(id)` (ex.: `renderHorses` /
+`openHorseNew` / `openHorseEdit`, `renderManejos` / abertura inline / `openManejoEdit`, e o mesmo
+padrão para Treinos, Nascimentos, Estoque, Dietas, Grupos, Tratamentos, Visitas, Financeiro,
+Funcionários, Usuários). Siga o mesmo padrão de nomenclatura/estrutura para qualquer novo domínio
+ou campo.
 
-Editing state for "which record is open" uses module-level `editingXId` variables (e.g.
-`editingHorseId`, `editingManejoId`, `editingProdutoId`, ...) rather than passing the id through the
-DOM — check these when working on a form's save/cancel logic.
+O estado de "qual registro está aberto para edição" usa variáveis `editingXId` no nível do módulo
+(ex.: `editingHorseId`, `editingManejoId`, `editingProdutoId`, ...) em vez de passar o id pelo DOM —
+verifique essas variáveis ao trabalhar na lógica de salvar/cancelar de um formulário.
 
-`showAlert`, `showConfirm`, `showPrompt` are custom replacements for `alert`/`confirm`/`prompt`
-(native dialogs can be blocked in sandboxed iframes, e.g. when this runs as a Claude artifact) —
-always use these instead of the native browser dialogs.
+`showAlert`, `showConfirm`, `showPrompt` substituem `alert`/`confirm`/`prompt` nativos (diálogos
+nativos podem ser bloqueados em iframes sandboxed, ex.: quando isso roda como artifact do Claude) —
+use sempre essas funções em vez dos diálogos nativos do navegador.
 
-### Cross-cutting features worth knowing about
+### Funcionalidades transversais importantes
 
-- **Financeiro (finance)**: `lancamentos` (manual entries) are combined at render time with entries
-  *derived* from other sections — `lancamentosDerivadosManejos`, `...Estoque`, `...Treinos`,
-  `...Visitas`, `...Tratamentos` — unified by `todosLancamentosFinanceiro()`. When adding a cost to
-  any other domain, decide whether it should also appear in Financeiro via one of these derivers
-  rather than by writing directly into `lancamentos`.
-- **Vacinas (vaccines)**: pending/overdue vaccines come from two independent mechanisms — regular
-  per-animal vaccination history (frequency from `config.freqVacinas`) and the gestação/potro
-  protocols (`config.protocoloVacinasGestacao`/`protocoloVacinasPotro`, tracked per
-  `nascimento`/`horse`). Both MCP servers reimplement this same logic for their `listar_vacinas_pendentes`
-  tool — keep them in sync if you change the rules (see `mcp-server/README.md`'s note that "a
-  vaccine an animal never received doesn't show as pending" is intentional app behavior, not a bug).
-- **Ferrageamento/Casqueamento (farrier)**: the next due date is now computed dynamically from the
-  *last logged procedure type* (Ferrageamento=30 days, Casqueamento=60 days by default, both
-  editable in Manejos → "Editar valores de referência") — not a fixed per-animal field.
-- **PDF/report generation**: `gerarRelatorio*` functions build an HTML string, preview it in a
-  modal, then either print or hand off to `html2pdf.js` via `wireBaixarPdfBtn`. Follow the existing
-  `blocoRelatorio*` + `gerarRelatorio*` pattern for new reports.
-- **Voice input**: `wireBotaoVoz`/`interpretarDitado`/`parseComandoLancamento` etc. implement a
-  generic keyword-driven voice-dictation engine used across several forms (Manejos, Estoque,
-  Animais, Nascimentos, Financeiro) — it only fills fields, never auto-submits.
-- **Users (`view-usuarios`)**: a lightweight local PIN-based profile switcher (`entrarNoApp`,
-  `tentarLogin`, `aplicarPermissoes`) for organizing who sees which screens — explicitly *not* a
-  security boundary ("não é senha de banco, é organização").
+- **Financeiro**: os `lancamentos` (lançamentos manuais) são combinados, na hora de renderizar, com
+  lançamentos *derivados* de outras seções — `lancamentosDerivadosManejos`, `...Estoque`,
+  `...Treinos`, `...Visitas`, `...Tratamentos` — unificados por `todosLancamentosFinanceiro()`. Ao
+  adicionar um custo em qualquer outro domínio, decida se ele também deve aparecer no Financeiro
+  via um desses "derivadores" em vez de escrever direto em `lancamentos`.
+- **Vacinas**: vacinas pendentes/atrasadas vêm de dois mecanismos independentes — vacinação
+  regular por animal (frequência vinda de `config.freqVacinas`) e os protocolos de
+  gestação/potro (`config.protocoloVacinasGestacao`/`protocoloVacinasPotro`, rastreados por
+  `nascimento`/`horse`). Os dois servidores MCP reimplementam essa mesma lógica na ferramenta
+  `listar_vacinas_pendentes` — mantenha-os sincronizados se você mudar as regras (ver a observação
+  em `mcp-server/README.md` de que "uma vacina que o animal nunca recebeu não aparece como
+  pendente" é comportamento intencional do app, não um bug).
+- **Ferrageamento/Casqueamento**: a próxima data prevista agora é calculada dinamicamente a partir
+  do *tipo do último procedimento lançado* (Ferrageamento = 30 dias, Casqueamento = 60 dias por
+  padrão, ambos editáveis em Manejos → "Editar valores de referência") — não é mais um campo fixo
+  por animal.
+- **Geração de relatórios/PDF**: as funções `gerarRelatorio*` montam uma string HTML, mostram uma
+  prévia em modal e depois imprimem ou repassam para o `html2pdf.js` via `wireBaixarPdfBtn`. Siga o
+  padrão já existente `blocoRelatorio*` + `gerarRelatorio*` para novos relatórios.
+- **Comando de voz**: `wireBotaoVoz`/`interpretarDitado`/`parseComandoLancamento` etc. implementam
+  um motor genérico de ditado por palavra-chave usado em vários formulários (Manejos, Estoque,
+  Animais, Nascimentos, Financeiro) — ele só preenche campos, nunca salva sozinho.
+- **Usuários (`view-usuarios`)**: um seletor de perfil local baseado em PIN (`entrarNoApp`,
+  `tentarLogin`, `aplicarPermissoes`), leve, para organizar quem vê quais telas — explicitamente
+  *não* é uma barreira de segurança ("não é senha de banco, é organização").
 
 ### PWA / offline
 
-`manifest.json` + `sw.js` (+ the icon files) implement "Add to Home Screen" / offline support.
-`sw.js` uses a network-first strategy (always fetch fresh over the network; fall back to the cache
-only when offline) — deliberate, since the app still changes often; don't switch it to cache-first.
-The service worker only activates when served over http(s) (e.g. GitHub Pages), not for a `file://`
-double-click open. It caches app shell files only — it never touches stored data.
+`manifest.json` + `sw.js` (+ os arquivos de ícone) implementam "Adicionar à tela de início" /
+funcionamento offline. O `sw.js` usa estratégia rede-primeiro (sempre busca a versão mais nova pela
+rede; só cai para o cache quando está offline) — é proposital, já que o app ainda muda com
+frequência; não troque para cache-primeiro. O service worker só entra em ação quando servido via
+http(s) (ex.: GitHub Pages), não quando o arquivo é aberto direto com duplo clique (`file://`). Ele
+só guarda em cache os arquivos do "app shell" — nunca mexe nos dados armazenados.
 
-### No build/test/lint tooling
+### Sem ferramental de build/teste/lint
 
-There is no bundler, package manager, linter, formatter, or test suite for `app_145.html` — it's
-plain HTML/CSS/JS edited by hand. "Testing" a change means opening the file in a browser and
-exercising the relevant view manually; there's also an in-app "Diagnóstico" panel
-(`btnDiagnostico`) that reports per-key record counts from storage and round-trips a test value,
-useful for sanity-checking persistence after storage-related changes.
+Não há bundler, gerenciador de pacotes, linter, formatador nem suíte de testes para o
+`app_145.html` — é HTML/CSS/JS puro, editado à mão. "Testar" uma mudança significa abrir o arquivo
+no navegador e usar a tela relevante manualmente; também existe um painel "Diagnóstico" no app
+(`btnDiagnostico`) que mostra a contagem de registros por chave no armazenamento e faz um teste de
+ida-e-volta com um valor, útil para checar a persistência depois de mudanças relacionadas a
+armazenamento.
 
-## `mcp-server/` — local MCP server (read-only)
+## `mcp-server/` — servidor MCP local (somente leitura)
 
-A stdio MCP server (Node ≥20, TypeScript) that reads a `haras_backup_*.json` file exported from the
-app and exposes two read-only tools: `listar_animais` and `listar_vacinas_pendentes`. It never
-writes to the app or the backup file. See `mcp-server/README.md` for full setup/Claude Desktop
-wiring instructions (in pt-BR).
+Um servidor MCP via stdio (Node ≥20, TypeScript) que lê um arquivo `haras_backup_*.json` exportado
+do app e expõe duas ferramentas somente leitura: `listar_animais` e `listar_vacinas_pendentes`.
+Nunca escreve no app nem no arquivo de backup. Ver `mcp-server/README.md` para instruções completas
+de instalação/configuração no Claude Desktop.
 
 ```bash
 cd mcp-server
 npm install
 npm run build      # tsc -> build/index.js
-npm run inspect     # opens MCP Inspector against build via stdio, for manual tool testing
+npm run inspect     # abre o MCP Inspector contra o build via stdio, para testar as ferramentas manualmente
 npm start            # node build/index.js
 ```
 
-Backup file resolution order (`src/backup.ts`, `resolveBackupPath`): `--backup <path>` CLI arg >
-`HARAS_BACKUP_PATH` env var > auto-discovery of the newest `haras_backup_*.json` at the project
-root. Backups have real farm data — don't add paths pointing at them into committed files; prefer
-`HARAS_BACKUP_PATH` set outside version control.
+Ordem de resolução do arquivo de backup (`src/backup.ts`, `resolveBackupPath`): argumento
+`--backup <path>` > variável de ambiente `HARAS_BACKUP_PATH` > busca automática pelo
+`haras_backup_*.json` mais recente na raiz do projeto. Backups têm dados reais da fazenda — não
+adicione caminhos apontando para eles em arquivos commitados; prefira configurar
+`HARAS_BACKUP_PATH` fora do controle de versão.
 
-Structure: `src/index.ts` (server bootstrap, stdio transport), `src/backup.ts` (backup file
-loading/caching by mtime, defensive normalization), `src/types.ts` (shared types), `src/tools/`
-(one file per tool: `listarAnimais.ts`, `listarVacinasPendentes.ts`).
+Estrutura: `src/index.ts` (inicialização do servidor, transporte stdio), `src/backup.ts`
+(carregamento/cache do arquivo de backup por mtime, normalização defensiva), `src/types.ts` (tipos
+compartilhados), `src/tools/` (um arquivo por ferramenta: `listarAnimais.ts`,
+`listarVacinasPendentes.ts`).
 
-Known limitations (see `mcp-server/README.md`): read-only by design (no write tools), no
-genealogy/observações/foto/`valor` fields in `listar_animais` output (the `valor` field's currency
-format is inconsistent — parsing it would mean replicating `parseValorLivre()` from `app_145.html`),
-and no financeiro tool.
+Limitações conhecidas (ver `mcp-server/README.md`): somente leitura por design (nenhuma ferramenta
+de escrita), `listar_animais` não retorna genealogia/observações/foto/campo `valor` (o formato de
+moeda do `valor` é inconsistente — parseá-lo exigiria replicar `parseValorLivre()` do
+`app_145.html`), e não há ferramenta de financeiro.
 
-## `mcp-remote/` — remote MCP server (Cloudflare Worker, read-only)
+## `mcp-remote/` — servidor MCP remoto (Cloudflare Worker, somente leitura)
 
-The same idea as `mcp-server/`, but deployed remotely (Cloudflare Workers + Durable Objects) with
-GitHub OAuth gating access, so it can be reached from a phone/browser instead of only Claude
-Desktop on the same machine as the backup file. It reads the latest `haras_backup_*.json` via the
-GitHub API from a **private** backup repo (`BACKUP_REPO_OWNER`/`BACKUP_REPO_NAME` in
-`wrangler.jsonc`, currently `gustavojftoledo-droid/haras-backups`) instead of the local filesystem.
-Access is further restricted to specific GitHub usernames via `ALLOWED_USERNAMES` in `src/index.ts`.
+A mesma ideia do `mcp-server/`, mas implantado remotamente (Cloudflare Workers + Durable Objects)
+com login via GitHub OAuth controlando o acesso, para poder ser usado de um celular/navegador em
+vez de só do Claude Desktop na mesma máquina que tem o arquivo de backup. Ele lê o
+`haras_backup_*.json` mais recente via API do GitHub, a partir de um repositório **privado** de
+backups (`BACKUP_REPO_OWNER`/`BACKUP_REPO_NAME` em `wrangler.jsonc`, atualmente
+`gustavojftoledo-droid/haras-backups`) em vez do sistema de arquivos local. O acesso é ainda mais
+restrito a usuários específicos do GitHub via `ALLOWED_USERNAMES` em `src/index.ts`.
 
 ```bash
 cd mcp-remote
 npm install
-npm run dev          # wrangler dev, local at http://localhost:8788
+npm run dev          # wrangler dev, local em http://localhost:8788
 npm run type-check   # tsc --noEmit
 npm run deploy       # wrangler deploy
-npm run cf-typegen   # regenerate worker-configuration.d.ts from wrangler config
+npm run cf-typegen   # regenera worker-configuration.d.ts a partir da config do wrangler
 ```
 
-Secrets (never committed — set via `wrangler secret put <NAME>`, or in `.dev.vars` locally, copied
-from `.dev.vars.example`): `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `COOKIE_ENCRYPTION_KEY`,
-`BACKUP_REPO_TOKEN` (GitHub token with read access to the private backup repo).
+Secrets (nunca commitados — configure via `wrangler secret put <NAME>`, ou em `.dev.vars` local,
+copiado de `.dev.vars.example`): `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
+`COOKIE_ENCRYPTION_KEY`, `BACKUP_REPO_TOKEN` (token do GitHub com acesso de leitura ao repositório
+privado de backups).
 
-Structure: `src/index.ts` (the `MyMCP` agent — tool definitions and the `OAuthProvider` export),
-`src/github-handler.ts` (GitHub OAuth login flow), `src/harasData.ts` (backup fetch via GitHub API +
-a port of the vaccine-pending business logic from `mcp-server/src/`), `src/utils.ts`,
-`src/workers-oauth-utils.ts`. `src/harasData.ts` explicitly notes it reimplements
-`mcp-server`'s logic adapted for HTTP-fetch instead of filesystem access — **keep the two in sync**
-when the underlying vaccine/animal rules in `app_145.html` change.
+Estrutura: `src/index.ts` (o agente `MyMCP` — definição das ferramentas e export do
+`OAuthProvider`), `src/github-handler.ts` (fluxo de login via GitHub OAuth), `src/harasData.ts`
+(busca do backup via API do GitHub + uma portagem da lógica de vacinas pendentes de
+`mcp-server/src/`), `src/utils.ts`, `src/workers-oauth-utils.ts`. O `src/harasData.ts` deixa
+explícito, em comentário, que reimplementa a lógica do `mcp-server` adaptada para busca via HTTP em
+vez de acesso ao sistema de arquivos — **mantenha os dois sincronizados** quando as regras de
+vacina/animal em `app_145.html` mudarem.
 
-This project started from Cloudflare's `remote-mcp-github-oauth` template; most of
-`mcp-remote/README.md` is still generic template documentation (OAuth Provider / Durable MCP / MCP
-Remote background, generic deploy steps) — the Haras-specific pieces are `harasData.ts`, the two
-tools in `index.ts`, and the `ALLOWED_USERNAMES`/`BACKUP_REPO_*` config.
+Este projeto começou a partir do template `remote-mcp-github-oauth` da Cloudflare; boa parte do
+`mcp-remote/README.md` ainda é documentação genérica do template (fundamentos de OAuth Provider /
+Durable MCP / MCP Remote, passos genéricos de deploy) — as partes específicas do Haras são
+`harasData.ts`, as duas ferramentas em `index.ts` e a configuração
+`ALLOWED_USERNAMES`/`BACKUP_REPO_*`.
 
-## Conventions across the repo
+## Convenções em todo o repositório
 
-- Write UI copy, comments, and commit messages in **pt-BR**, matching the existing style (concise,
-  present-tense, explaining the *why* for non-obvious logic — see the density of comments already
-  in `app_145.html` around storage/migrations).
-- Both MCP servers are **strictly read-only** by design (explicitly called out in both READMEs) —
-  don't add tools that write back to the app's data or the backup files without discussing it first.
-- Never write real farm data (backup JSON, tokens, `HARAS_BACKUP_PATH` values pointing at real
-  files) into committed/tracked files.
+- Escreva texto de interface, comentários e mensagens de commit em **pt-BR**, seguindo o estilo já
+  usado (conciso, no presente, explicando o *porquê* de lógica não óbvia — ver a densidade de
+  comentários já existente em `app_145.html` em torno de armazenamento/migrações).
+- Os dois servidores MCP são **estritamente somente leitura** por design (deixado explícito nos
+  dois READMEs) — não adicione ferramentas que escrevam de volta nos dados do app ou nos arquivos
+  de backup sem discutir isso antes.
+- Nunca coloque dados reais da fazenda (JSON de backup, tokens, valores de `HARAS_BACKUP_PATH`
+  apontando para arquivos reais) em arquivos rastreados/commitados.
