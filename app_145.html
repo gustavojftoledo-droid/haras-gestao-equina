@@ -345,10 +345,11 @@
     <div class="brand"><div class="brand-mark">Haras</div><div class="brand-sub">Gestão Equina</div></div>
     <div class="nav" id="nav">
       <div class="nav-item active" data-view="inicio" title="Atalho: Alt+Shift+I"><span class="dot"></span>Início</div>
+      <div class="nav-item" data-view="calendario" title="Atalho: Alt+Shift+C"><span class="dot"></span>Calendário</div>
       <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
       <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
       <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
-      <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Treinos</div>
+      <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Atividades</div>
       <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
       <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
       <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
@@ -377,6 +378,24 @@
       </div>
       <div class="stats" id="inicioStats" style="margin-bottom:22px;"></div>
 
+      <div class="perfil-card" id="inicioAgendaCard" style="cursor:pointer;" title="Abrir o Calendário completo">
+        <div class="perfil-card-head">
+          <span>📅 Calendário de Tarefas</span>
+          <span class="btn btn-sm btn-ghost" id="btnAbrirCalendario">Abrir calendário completo →</span>
+        </div>
+        <div class="perfil-card-body">
+          <div class="hint-text" style="margin-bottom:10px;">Mostra Casco/Dente/Vacina/Vermífugo previstos (calculado a partir da frequência cadastrada de cada animal). Clique aqui pra abrir o calendário completo, com as visões Mês/Semana/Dia.</div>
+          <div id="inicioAgendaResumo"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALENDÁRIO (antes vivia dentro do Início; agora é aba própria — o cartão "Calendário de
+         Tarefas" do Início leva pra cá) -->
+    <div class="view" id="view-calendario">
+      <div class="topbar">
+        <div><div class="title">Calendário</div><div class="subtitle">Tarefas previstas de Casco, Dente, Vacina e Vermífugo</div></div>
+      </div>
       <div class="perfil-card">
         <div class="perfil-card-head">
           <span>📅 Calendário de Tarefas</span>
@@ -2236,9 +2255,10 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     item.classList.add('active');
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    if(['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
+      if(view==='calendario') renderCalendar();
       if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); }
       if(view==='estoque') renderEstoque();
       if(view==='veterinaria') renderVetLista();
@@ -2300,6 +2320,7 @@ document.addEventListener('keydown', (e)=>{
 // conflitar: por exemplo Alt+A abre um Animal novo, Alt+Shift+A só vai pra tela de Animais.
 const ATALHOS_NAVEGACAO = {
   'i': 'inicio',
+  'c': 'calendario',
   'a': 'animais',
   'g': 'grupos',
   'm': 'manejos',
@@ -3858,6 +3879,7 @@ function abrirListaInicio(tipo){
 }
 // Imprimir/Baixar PDF do painel do Início — usa exatamente o que está renderizado em #inicioListaBody
 // na hora (mesmos dados/filtros/agrupamento já aplicados), sem recalcular nada separado.
+document.getElementById('inicioAgendaCard').addEventListener('click', ()=>irParaView('calendario'));
 document.getElementById('btnPrintInicioLista').addEventListener('click', ()=>window.print());
 document.getElementById('btnPdfInicioLista').addEventListener('click', ()=>{
   const titulo = (document.getElementById('inicioListaTitulo').textContent||'Relatorio').trim();
@@ -3866,7 +3888,29 @@ document.getElementById('btnPdfInicioLista').addEventListener('click', ()=>{
 });
 function renderInicio(){
   renderInicioStats();
-  renderCalendar();
+  renderInicioAgendaResumo();
+}
+// Resumo curto no cartão do Início (o calendário completo, com Mês/Semana/Dia, agora mora na
+// aba Calendário — este resumo só mostra as tarefas de hoje e convida a clicar pra abrir o resto).
+function renderInicioAgendaResumo(){
+  const host = document.getElementById('inicioAgendaResumo');
+  if(!host) return;
+  const tasks = computeCalendarTasks();
+  const byDate = tasksByDate(tasks);
+  const hojeStr = toISODate(new Date());
+  const tarefasHoje = (byDate[hojeStr]||[]).slice().sort((a,b)=> a.tipo.localeCompare(b.tipo,'pt'));
+  const atrasadas = tasks.filter(t=>t.situacao==='atrasado');
+  let html = `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px;">
+    <div><strong style="font-size:20px;">${tarefasHoje.length}</strong> <span class="hint-text" style="margin:0;">tarefa(s) hoje</span></div>
+    <div><strong style="font-size:20px;color:${atrasadas.length>0?'var(--burgundy)':'inherit'};">${atrasadas.length}</strong> <span class="hint-text" style="margin:0;">atrasada(s)</span></div>
+  </div>`;
+  if(tarefasHoje.length===0){
+    html += `<div class="hint-text">Nenhuma tarefa prevista pra hoje.</div>`;
+  }else{
+    html += tarefasHoje.slice(0,5).map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}">${CAL_ICON[t.tipo]||''} <strong>${t.label||t.tipo}</strong> — ${t.animalNome}</div>`).join('');
+    if(tarefasHoje.length>5) html += `<div class="hint-text" style="margin-top:4px;">+ ${tarefasHoje.length-5} outra(s) hoje.</div>`;
+  }
+  host.innerHTML = html;
 }
 function calLabel(){
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -8905,15 +8949,15 @@ document.getElementById('btnDeleteFuncionario').addEventListener('click', async 
 // quem vê o quê, evitando que um ferrador mexa em Estoque por engano, por exemplo.
 const PERFIL_LABEL = { admin:'Administrador', veterinario:'Veterinário', ferrador:'Ferrador' };
 const PERFIL_VIEWS = {
-  admin: ['inicio','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
-  veterinario: ['inicio','animais','manejos','estoque','veterinaria'],
-  ferrador: ['inicio','animais','manejos'],
+  admin: ['inicio','calendario','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
+  veterinario: ['inicio','calendario','animais','manejos','estoque','veterinaria'],
+  ferrador: ['inicio','calendario','animais','manejos'],
 };
 // Financeiro (e Funcionários, que é dado de salário) só entram no perfil Administrador de propósito —
 // é dado sensível do negócio, não precisa (nem deve) aparecer pra quem cuida do dia a dia de campo
 // (ferrador, veterinário).
 function descreverAcesso(perfil){
-  const nomes = { inicio:'Início', animais:'Animais', grupos:'Grupos', manejos:'Manejos', treinos:'Treinos', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
+  const nomes = { inicio:'Início', calendario:'Calendário', animais:'Animais', grupos:'Grupos', manejos:'Manejos', treinos:'Atividades', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
   return (PERFIL_VIEWS[perfil]||[]).map(v=>nomes[v]).join(', ');
 }
 function aplicarPermissoes(){
