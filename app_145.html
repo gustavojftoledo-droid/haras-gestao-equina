@@ -977,7 +977,7 @@
         <div class="field"><label>Avô Materno</label><input type="text" id="f_avomatpat"></div>
         <div class="field"><label>Avó Materna</label><input type="text" id="f_avomat"></div>
         <div class="section-label">Frequências de Manejo</div>
-        <div class="field"><label>Freq. Casco (dias)</label><input type="number" id="f_freqcasco"></div>
+        <div class="field"><label>Freq. Casco (dias) <span style="font-weight:400;text-transform:none;letter-spacing:0;">— só até o 1º registro</span></label><input type="number" id="f_freqcasco" title="Usado só antes do primeiro Casco/Ferrageamento deste animal. Depois disso, a próxima data é recalculada sozinha pelo tipo do último procedimento (veja Manejos → ⚙ Editar valores de referência)."></div>
         <div class="field"><label>Freq. Dente (meses)</label><input type="number" id="f_freqdente"></div>
         <div class="field"><label>Freq. Vacina (meses)</label><input type="number" id="f_freqvacina"></div>
         <div class="field"><label>Freq. Vermífugo (meses)</label><input type="number" id="f_freqvermifugo"></div>
@@ -1159,7 +1159,7 @@
 <div class="overlay" id="overlayValoresCasco">
   <div class="modal">
     <div class="modal-head"><div class="modal-title">Valores de Referência — Ferrageamento</div><button class="modal-close" data-close="overlayValoresCasco">✕</button></div>
-    <div class="hint-text" style="margin-bottom:14px;">Esses valores preenchem automaticamente o campo Valor ao escolher o tipo de ferrageamento. Podem ser alterados aqui ou ajustados individualmente em cada lançamento.</div>
+    <div class="hint-text" style="margin-bottom:14px;">Os valores em R$ preenchem sozinhos o campo Valor ao escolher o tipo de ferrageamento (ajustável em cada lançamento). Os dois campos de "Próxima data" definem de quanto em quanto tempo o sistema recalcula sozinho — sempre a partir do ÚLTIMO tipo de procedimento feito, não de um valor fixo por animal.</div>
     <div class="form-grid cols2" id="vc_camposDinamicos"></div>
     <div class="modal-actions">
       <div></div>
@@ -1813,6 +1813,10 @@ async function loadAll(){
     if(config.valoresCasco['Ferrado mãos']===100) config.valoresCasco['Ferrado mãos'] = 140;
     Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
     if(!config.freqVacinas) config.freqVacinas = {};
+    // Frequência dinâmica de Casco (Fase 4): recalcula a próxima data sozinha conforme o último tipo
+    // de procedimento (Ferrageamento ou Casqueamento), em vez de um valor fixo por animal.
+    if(config.freqFerrageamento===undefined) config.freqFerrageamento = 30;
+    if(config.freqCasqueamento===undefined) config.freqCasqueamento = 60;
   }
   // Protocolo de vacinas de gestação/potro — sugestão inicial (revisar com veterinário). Só cria na
   // primeira vez; depois disso é 100% editável em Nascimentos → Protocolo de Vacinas, sem se autoreescrever.
@@ -3522,16 +3526,34 @@ function addToDate(dateStr, amount, unit){
   return d;
 }
 
-// Calcula, pra cada animal, a próxima data prevista de Casco/Dente/Vermífugo (uma frequência geral por
-// tipo, cadastrada no animal) e de cada VACINA especificamente aplicada (cada vacina tem sua própria
-// frequência, cadastrada em Manejos → "⚙ Editar frequência de vacinas" — assim "Vacina contra Encefalomielite"
-// e "Lexington Gold" no mesmo animal têm datas previstas independentes, em vez de uma data genérica só).
+// Frequência dinâmica de Casco: não é mais um valor fixo por animal — depende do ÚLTIMO tipo de
+// procedimento feito (Fase 4). Ferrageamento (mãos/completo/pés) recalcula pra 30 dias, Casqueamento
+// pra 60 — sempre a partir do mais recente. Se hoje for ferrado e daqui a pouco vier um casqueamento,
+// a próxima data já passa a ser 60 dias depois desse casqueamento; se voltar a ferrar, volta pra 30.
+// Reposição/Repregar ferradura contam como ferrageamento (30 dias). Retorna null se o subtipo não bate
+// com nenhum padrão conhecido (aí quem chama cai pro freqcasco do animal, cadastrado à mão).
+function freqDinamicaCasco(subtipo){
+  if(!subtipo) return null;
+  if(/ferrad/i.test(subtipo)) return Number(config.freqFerrageamento)||30;
+  if(/casquead/i.test(subtipo)) return Number(config.freqCasqueamento)||60;
+  return null;
+}
+function labelCasco(subtipo){
+  if(subtipo && /ferrad/i.test(subtipo)) return 'Ferrageamento';
+  if(subtipo && /casquead/i.test(subtipo)) return 'Casqueamento';
+  return 'Ferrageamento';
+}
+// Calcula, pra cada animal, a próxima data prevista de Casco (frequência dinâmica — veja acima),
+// Dente/Vermífugo (frequência geral cadastrada no animal) e de cada VACINA especificamente aplicada
+// (cada vacina tem sua própria frequência, cadastrada em Manejos → "⚙ Editar frequência de vacinas" —
+// assim "Vacina contra Encefalomielite" e "Lexington Gold" no mesmo animal têm datas previstas
+// independentes, em vez de uma data genérica só).
 function computeProgramacao(dataReferencia){
-  const tiposSimples = ['Casco','Dente','Vermífugo'];
+  const tiposSimples = ['Dente','Vermífugo'];
   const rows = [];
   const today = dataReferencia ? new Date(dataReferencia+'T00:00:00') : new Date();
   today.setHours(0,0,0,0);
-  const LABEL_TIPO_TAREFA = { Casco:'Ferrageamento', Dente:'Cheque Dental', 'Vermífugo':'Desparasitação' };
+  const LABEL_TIPO_TAREFA = { Dente:'Cheque Dental', 'Vermífugo':'Desparasitação' };
   function situacaoPara(prox){
     const diffDias = Math.round((prox - today)/(1000*60*60*24));
     return diffDias < 0 ? 'atrasado' : (diffDias <= 7 ? 'proximo' : 'emdia');
@@ -3539,6 +3561,17 @@ function computeProgramacao(dataReferencia){
   // Só entram na programação os animais próprios e ativos (não-externos, não vendidos, não falecidos) —
   // mesma regra usada na aba Animais pra "Ativos". Vendidos/falecidos não têm mais manejo a fazer aqui.
   horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).forEach(h=>{
+    {
+      const registrosCasco = manejos.filter(m=> m.tipo==='Casco' && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
+      const ultimoCasco = registrosCasco[0];
+      const freq = ultimoCasco ? (freqDinamicaCasco(ultimoCasco.subtipoCasco) || h.freqcasco) : h.freqcasco;
+      if(freq){
+        const ultima = ultimoCasco ? ultimoCasco.data : null;
+        let proxima = null, situacao = 'nunca';
+        if(ultima){ proxima = addToDate(ultima, freq, 'dias'); situacao = situacaoPara(proxima); }
+        rows.push({ animal:h.nome, animalId:h.id, tipo:'Casco', label: labelCasco(ultimoCasco&&ultimoCasco.subtipoCasco), freq: freq+' dias', ultima, proxima, situacao });
+      }
+    }
     tiposSimples.forEach(tipo=>{
       const freq = h[FREQ_FIELD[tipo]];
       if(!freq) return; // sem frequência definida para esse animal/tipo
@@ -4368,7 +4401,10 @@ document.getElementById('btnEditarValoresCasco').addEventListener('click', ()=>{
   container.innerHTML = (aux.subtipoFerrageamento||[]).map(tipo=>{
     const val = (config.valoresCasco && config.valoresCasco[tipo]!==undefined) ? config.valoresCasco[tipo] : '';
     return `<div class="field"><label>${tipo} (R$)</label><input type="number" min="0" step="0.01" data-vctipo="${tipo}" value="${val}"></div>`;
-  }).join('') + `<div class="field"><label>Deslocamento padrão do ferrador (R$)</label><input type="number" id="vc_deslocamentoPadrao" min="0" step="0.01" value="${config.deslocamentoFerrador||0}"></div>`;
+  }).join('')
+    + `<div class="field"><label>Deslocamento padrão do ferrador (R$)</label><input type="number" id="vc_deslocamentoPadrao" min="0" step="0.01" value="${config.deslocamentoFerrador||0}"></div>`
+    + `<div class="field"><label>Próxima data — Ferrageamento (dias)</label><input type="number" min="1" step="1" id="vc_freqFerrageamento" value="${config.freqFerrageamento||30}"></div>`
+    + `<div class="field"><label>Próxima data — Casqueamento (dias)</label><input type="number" min="1" step="1" id="vc_freqCasqueamento" value="${config.freqCasqueamento||60}"></div>`;
   openModal('overlayValoresCasco');
 });
 document.getElementById('btnSalvarValoresCasco').addEventListener('click', async ()=>{
@@ -4377,9 +4413,12 @@ document.getElementById('btnSalvarValoresCasco').addEventListener('click', async
     config.valoresCasco[inp.dataset.vctipo] = Number(inp.value)||0;
   });
   config.deslocamentoFerrador = Number(document.getElementById('vc_deslocamentoPadrao').value)||0;
+  config.freqFerrageamento = Number(document.getElementById('vc_freqFerrageamento').value)||30;
+  config.freqCasqueamento = Number(document.getElementById('vc_freqCasqueamento').value)||60;
   await storeSet('config', config);
   closeModal('overlayValoresCasco');
   preencherValorRefCasco();
+  renderInicio();
   showAlert('Valores de referência atualizados.');
 });
 
