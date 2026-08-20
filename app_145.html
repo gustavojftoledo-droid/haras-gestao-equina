@@ -893,7 +893,6 @@
         <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F">+ Novo Lançamento</button>
       </div>
       <div id="finPainelMes" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
-      <div id="finQuadroNaoRateado" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
       <div class="section-label" style="border-top:none;padding-top:0;">Todos os lançamentos</div>
       <div class="stats" id="finStats"></div>
       <div class="filters">
@@ -901,7 +900,6 @@
         <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
         <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
         <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
-        <div class="f" style="align-self:flex-end;"><label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap;"><input type="checkbox" id="finFiltroNaoRateado" style="width:auto;"> Só custos não rateados</label></div>
       </div>
       <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
       <div class="grid-wrap"><table class="grid">
@@ -913,13 +911,13 @@
     <!-- FUNCIONARIOS -->
     <div class="view" id="view-funcionarios">
       <div class="topbar">
-        <div><div class="title">Funcionários</div><div class="subtitle">Custos de pessoal — entram direto no Financeiro, sem ratear entre os animais</div></div>
+        <div><div class="title">Funcionários</div><div class="subtitle">Cadastro básico — salários e custos entram no Financeiro em "Lançar custo"</div></div>
         <button class="btn" id="btnNewFuncionario" title="Atalho: Alt+P">+ Novo Funcionário</button>
       </div>
       <div class="stats" id="funcStats"></div>
-      <div class="hint-text" style="margin:0 0 10px;">Cadastre aqui e use "Lançar custo" pra mandar um pagamento pro Financeiro (categoria "Funcionários", já marcado como custo não rateado). O valor mensal do cadastro é só uma referência que pré-preenche o lançamento.</div>
+      <div class="hint-text" style="margin:0 0 10px;">Cadastro só de identificação. Todo dia 5, o Calendário do Início lembra de confirmar o pagamento do salário de cada funcionário — clique lá pra confirmar (e ajustar o valor se precisar). Outros custos (vale, adiantamento...) entram por "Lançar custo".</div>
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Nome</th><th>Função</th><th>Custo mensal (ref.)</th><th>Admissão</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Documento</th><th>Nascimento</th><th>Último salário lançado</th><th></th></tr></thead>
         <tbody id="funcTbody"></tbody>
       </table></div>
     </div>
@@ -1078,8 +1076,6 @@
       <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
-    <label style="display:flex;align-items:center;gap:7px;margin:-4px 0 12px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="fin_naoRateado" style="width:auto;"> Custo geral (não rateado entre os animais)</label>
-    <div class="hint-text" style="margin:-8px 0 12px;">Marque pra custos como funcionários e despesas gerais que não são de nenhum animal específico — aparecem juntos no quadro "Custos Não Rateados" do Financeiro.</div>
     <div class="hint-text" id="fin_vozStatus" style="display:none;margin:-6px 0 12px;"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteLancamento" style="display:none;">Excluir</button></div>
@@ -1094,14 +1090,11 @@
     <div class="modal-head"><div class="modal-title" id="funcModalTitle">Novo Funcionário</div><button class="modal-close" data-close="overlayFuncionario">✕</button></div>
     <div class="form-grid" style="margin-bottom:14px;">
       <div class="field full"><label>Nome</label><input type="text" id="fu_nome" spellcheck="true" lang="pt-BR"></div>
-      <div class="field full"><label>Função</label><input type="text" id="fu_funcao" list="dl_funcoes" placeholder="Ex: Tratador, Peão, Administrativo..."></div>
-      <div class="field"><label>Custo mensal (referência)</label><div style="display:flex;gap:6px;"><select id="fu_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fu_valorMensal" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
-      <div class="field"><label>Admissão</label><input type="date" id="fu_admissao"></div>
-      <div class="field"><label>Status</label><select id="fu_ativo"><option value="1">Ativo</option><option value="0">Inativo / Desligado</option></select></div>
-      <div class="field" id="fu_desligamentoWrap" style="display:none;"><label>Data de desligamento</label><input type="date" id="fu_desligamento"></div>
+      <div class="field"><label>Documento (CPF/RG)</label><input type="text" id="fu_documento" placeholder="Opcional"></div>
+      <div class="field"><label>Data de nascimento</label><input type="date" id="fu_nascimento"></div>
       <div class="field full"><label>Observações</label><input type="text" id="fu_obs" spellcheck="true" lang="pt-BR"></div>
     </div>
-    <div class="hint-text" style="margin-bottom:12px;">O custo mensal aqui é só referência — não lança nada sozinho no Financeiro. Depois de salvar, use "Lançar custo" na listagem pra registrar cada pagamento de verdade.</div>
+    <div class="hint-text" style="margin-bottom:12px;">Cadastro só de identificação — não tem valor nem entra no Financeiro sozinho. Salários e outros custos são lançados à parte (veja "Lançar custo" na listagem, ou a confirmação de salário todo dia 5 no Calendário do Início).</div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteFuncionario" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayFuncionario">Cancelar</button><button type="button" class="btn" id="btnSaveFuncionario">Salvar Funcionário <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -1619,7 +1612,6 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
   </div>
 </div>
 <datalist id="dl_allhorses"></datalist>
-<datalist id="dl_funcoes"></datalist>
 
 <script>
 /* ---------- CUSTOM DIALOGS (prompt/alert/confirm can be blocked in sandboxed frames) ---------- */
@@ -2145,7 +2137,6 @@ function refreshDatalists(){
   setDL('dl_femeas', horses.filter(h=>h.sexo==='FEMININO').map(h=>h.nome));
   setDL('dl_allhorses', horses.map(h=>h.nome));
   setDL('dl_medicamentos', estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome));
-  setDL('dl_funcoes', funcionarios.map(f=>f.funcao));
 }
 
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -3514,8 +3505,8 @@ function computeProgramacao(dataReferencia){
    o calendário já passa a mostrar também as aplicações de medicamento, sem mudar nada aqui. */
 let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
-const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣' };
-const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro' };
+const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰' };
+const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário' };
 function toISODate(d){ return d.toISOString().slice(0,10); }
 function computeCalendarTasks(){
   const rows = computeProgramacao().filter(r=>r.proxima);
@@ -3562,7 +3553,20 @@ function computeCalendarTasks(){
       });
     });
   });
-  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks];
+  // Salário de funcionário: lembrete recorrente todo dia 5 do mês, um por funcionário cadastrado —
+  // some sozinho assim que aquele mês tiver um lançamento categoria "Salário" ligado a ele.
+  const salarioTasks = [];
+  const agora = new Date();
+  const diaCinco = toISODate(new Date(agora.getFullYear(), agora.getMonth(), 5));
+  funcionarios.forEach(fu=>{
+    if(salarioConfirmadoNoMes(fu.id, agora.getFullYear(), agora.getMonth())) return;
+    salarioTasks.push({
+      data: diaCinco, tipo:'Salario', label:'Confirmar pagamento de salário', categoria:'funcionario',
+      animalId:null, animalNome:fu.nome, funcionarioId:fu.id,
+      situacao: diaCinco<hoje ? 'atrasado' : (diaCinco<=toISODate(new Date(Date.now()+7*86400000)) ? 'proximo' : 'emdia')
+    });
+  });
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...salarioTasks];
 }
 function tasksByDate(tasks){
   const map = {};
@@ -3760,6 +3764,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehTratamento = arr[0].categoria==='tratamento';
     const ehGestacao = arr[0].categoria==='gestacao';
     const ehPotro = arr[0].categoria==='potro';
+    const ehFuncionario = arr[0].categoria==='funcionario';
     const podeLote = (ehManejo||ehTratamento) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
@@ -3779,12 +3784,21 @@ function abrirDetalheCalendario(iso, tipoFiltro){
           ? `<button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button>`
           : (ehGestacao||ehPotro)
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
-            : `<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
+            : ehFuncionario
+              ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
+              : `<div style="display:flex;gap:6px;"><button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button></div>`}
       </div>`).join('');
     return header+rows;
   }).join('');
   document.getElementById('calDetBody').querySelectorAll('[data-irperfil]').forEach(btn=>{
     btn.addEventListener('click', ()=>{ closeModal('overlayCalDetalhe'); abrirPerfilAnimal(btn.dataset.irperfil); });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-confirmarsalariocal]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const fu = funcionarios.find(x=>x.id===btn.dataset.confirmarsalariocal); if(!fu) return;
+      closeModal('overlayCalDetalhe');
+      openLancamentoDeFuncionario(fu, 'salario');
+    });
   });
   document.getElementById('calDetBody').querySelectorAll('[data-concluirmanejo]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -7594,56 +7608,18 @@ function renderPainelMesFinanceiro(){
   document.getElementById('btnFinMesHoje').addEventListener('click', ()=>{ const d=new Date(); d.setDate(1); d.setHours(0,0,0,0); finPainelMesRef=d; renderPainelMesFinanceiro(); });
 }
 
-// Quadro de Custos Não Rateados — junta tudo que foi marcado como "não rateado entre os animais"
-// (o checkbox do lançamento manual, sempre ligado nos lançamentos de Funcionários). Fica de fora
-// os custos de Manejos/Estoque e a Venda de Animal, que são sempre ligados a um ou mais animais —
-// veja a nota no rodapé do card. É sobre TODO o histórico, não só o mês em exibição no painel de cima.
-function renderQuadroNaoRateado(){
-  const naoRateados = lancamentos.map(l=>({...l, origem:'manual'})).filter(l=>l.naoRateado);
-  const host = document.getElementById('finQuadroNaoRateado');
-  if(naoRateados.length===0){
-    host.innerHTML = `<div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;margin-bottom:6px;">Custos Não Rateados</div>
-    <div class="hint-text" style="margin:0;">Nenhum lançamento marcado como custo não rateado ainda. Cadastre em <strong>Funcionários</strong> e use "Lançar custo", ou marque o checkbox "Custo geral (não rateado entre os animais)" ao criar um lançamento manual.</div>`;
-    return;
-  }
-  const emBRL = naoRateados.filter(l=>l.moeda!=='USD'), emUSD = naoRateados.filter(l=>l.moeda==='USD');
-  const totalBRL = emBRL.reduce((s,l)=>s+(Number(l.valor)||0),0);
-  const totalUSD = emUSD.reduce((s,l)=>s+(Number(l.valor)||0),0);
-  const porCategoria = {};
-  emBRL.forEach(l=>{ const cat = l.categoria||'Sem categoria'; porCategoria[cat] = (porCategoria[cat]||0)+(Number(l.valor)||0); });
-  const categorias = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]);
-  const maior = categorias.length ? categorias[0][1] : 0;
-  host.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-      <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;">Custos Não Rateados <span style="font-size:11px;color:var(--muted);font-weight:400;">(todo o histórico)</span></div>
-      <div style="text-align:right;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--burgundy);">${fmtMoeda(totalBRL,'BRL')}</div>
-        ${emUSD.length ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--muted);">${fmtMoeda(totalUSD,'USD')}</div>` : ''}
-      </div>
-    </div>
-    ${categorias.map(([cat,total])=>`
-      <div style="margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;"><span>${cat}</span><span style="font-family:'IBM Plex Mono',monospace;">${fmtMoeda(total,'BRL')}</span></div>
-        <div style="background:#EFE9D8;border-radius:4px;height:7px;overflow:hidden;"><div style="background:var(--burgundy);height:100%;width:${maior>0?Math.max(4,(total/maior)*100):0}%;"></div></div>
-      </div>`).join('')}
-    <div class="hint-text" style="margin:8px 0 0;">Funcionários e custos gerais que não são de nenhum animal específico — não entram no relatório de Custo por Animal. Marque "Só custos não rateados" abaixo pra ver a lista completa.</div>
-  `;
-}
 function renderFinanceiro(){
   renderPainelMesFinanceiro();
-  renderQuadroNaoRateado();
   const todos = todosLancamentosFinanceiro();
   populateSelectFilter('finFiltroCategoria', todos.map(l=>l.categoria));
   const termo = (document.getElementById('finSearch').value||'').toLowerCase();
   const tipo = document.getElementById('finFiltroTipo').value;
   const categoria = document.getElementById('finFiltroCategoria').value;
-  const soNaoRateado = document.getElementById('finFiltroNaoRateado').checked;
   const { de, ate } = finFiltroPeriodo.getRange();
   const filtered = todos.filter(l=>
     (!termo || (l.descricao||'').toLowerCase().includes(termo)) &&
     (!tipo || l.tipo===tipo) &&
     (!categoria || l.categoria===categoria) &&
-    (!soNaoRateado || l.naoRateado) &&
     (!de || l.data>=de) && (!ate || l.data<=ate)
   ).sort((a,b)=> b.data.localeCompare(a.data));
   renderFinanceiroStats(filtered);
@@ -7668,7 +7644,7 @@ function renderFinanceiro(){
     if(!(await showConfirm('Excluir este lançamento?'))) return;
     lancamentos = lancamentos.filter(l=>l.id!==b.dataset.delfin);
     await storeSet('financeiro_lancamentos', lancamentos, true);
-    renderFinanceiro(); renderFuncionarios();
+    renderFinanceiro(); renderFuncionarios(); renderInicio();
   }));
   tbody.querySelectorAll('[data-verorigemfin]').forEach(b=>b.addEventListener('click', ()=>{
     const tipoOrigem = b.dataset.tipoorigemfin, id = b.dataset.idorigemfin;
@@ -7682,7 +7658,7 @@ function renderFinanceiro(){
   }));
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
-['finSearch','finFiltroTipo','finFiltroCategoria','finFiltroNaoRateado'].forEach(id=>{
+['finSearch','finFiltroTipo','finFiltroCategoria'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderFinanceiro);
 });
 function openLancamentoNew(){
@@ -7695,7 +7671,6 @@ function openLancamentoNew(){
   document.getElementById('fin_descricao').value = '';
   document.getElementById('fin_valor').value = '';
   document.getElementById('fin_moeda').value = 'BRL';
-  document.getElementById('fin_naoRateado').checked = false;
   populateAuxSelects();
   document.getElementById('fin_categoria').value = '';
   openModal('overlayLancamento');
@@ -7711,27 +7686,29 @@ function openLancamentoEdit(id){
   document.getElementById('fin_descricao').value = l.descricao||'';
   document.getElementById('fin_valor').value = (l.valor!==undefined && l.valor!==null) ? l.valor : '';
   document.getElementById('fin_moeda').value = l.moeda==='USD' ? 'USD' : 'BRL';
-  document.getElementById('fin_naoRateado').checked = !!l.naoRateado;
   populateAuxSelects();
   document.getElementById('fin_categoria').value = l.categoria||'';
   openModal('overlayLancamento');
 }
-// Aberto a partir de "Lançar custo" na aba Funcionários — pré-preenche categoria, descrição, valor e
-// moeda com os dados do funcionário, já marcado como custo não rateado, e liga o registro a ele.
-function openLancamentoDeFuncionario(func){
+// Aberto a partir da aba Funcionários (botão "Lançar custo", ou a confirmação de salário do dia 5 no
+// Calendário). modo 'salario' pré-preenche com o categoria fixa "Salário" e o último valor confirmado
+// (fácil só confirmar, ou ajustar antes de salvar); modo 'custo' é genérico (vale, adiantamento etc.),
+// categoria "Funcionários", valor em branco.
+function openLancamentoDeFuncionario(func, modo){
   editingLancamentoId = null;
   novoLancamentoFuncionarioId = func.id;
-  document.getElementById('finModalTitle').textContent = 'Lançar custo — '+func.nome;
+  const ehSalario = modo==='salario';
+  document.getElementById('finModalTitle').textContent = (ehSalario?'Confirmar salário — ':'Lançar custo — ')+func.nome;
   document.getElementById('btnDeleteLancamento').style.display = 'none';
   document.getElementById('fin_data').value = toISODate(new Date());
   document.getElementById('fin_tipo').value = 'saida';
-  document.getElementById('fin_descricao').value = 'Salário — '+func.nome+(func.funcao?(' ('+func.funcao+')'):'');
-  document.getElementById('fin_valor').value = (func.valorMensal!==undefined && func.valorMensal!==null) ? func.valorMensal : '';
-  document.getElementById('fin_moeda').value = func.moeda==='USD' ? 'USD' : 'BRL';
-  document.getElementById('fin_naoRateado').checked = true;
+  document.getElementById('fin_descricao').value = (ehSalario?'Salário — ':'Custo — ')+func.nome;
+  document.getElementById('fin_valor').value = (ehSalario && func.ultimoSalarioValor!==undefined && func.ultimoSalarioValor!==null) ? func.ultimoSalarioValor : '';
+  document.getElementById('fin_moeda').value = func.ultimoSalarioMoeda==='USD' ? 'USD' : 'BRL';
   populateAuxSelects();
-  if(!aux.finCategoria.includes('Funcionários')){ aux.finCategoria.push('Funcionários'); storeSet('aux_lists', aux); populateAuxSelects(); }
-  document.getElementById('fin_categoria').value = 'Funcionários';
+  const categoria = ehSalario ? 'Salário' : 'Funcionários';
+  if(!aux.finCategoria.includes(categoria)){ aux.finCategoria.push(categoria); storeSet('aux_lists', aux); populateAuxSelects(); }
+  document.getElementById('fin_categoria').value = categoria;
   openModal('overlayLancamento');
 }
 document.getElementById('btnNewLancamento').addEventListener('click', openLancamentoNew);
@@ -8012,62 +7989,77 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
   const origemFuncionarioId = editingLancamentoId
     ? (lancamentos.find(l=>l.id===editingLancamentoId)||{}).origemFuncionarioId
     : (novoLancamentoFuncionarioId || undefined);
+  const categoria = f('fin_categoria');
+  const moeda = f('fin_moeda')==='USD' ? 'USD' : 'BRL';
   const registro = {
     id: editingLancamentoId || ('fn_'+Date.now()),
-    data, tipo: f('fin_tipo'), categoria: f('fin_categoria'), descricao: f('fin_descricao').trim(), valor,
-    moeda: f('fin_moeda')==='USD' ? 'USD' : 'BRL',
-    naoRateado: document.getElementById('fin_naoRateado').checked,
+    data, tipo: f('fin_tipo'), categoria, descricao: f('fin_descricao').trim(), valor,
+    moeda,
     origemFuncionarioId
   };
   lancamentos = editingLancamentoId ? lancamentos.map(l=>l.id===editingLancamentoId?registro:l) : [...lancamentos, registro];
   await storeSet('financeiro_lancamentos', lancamentos);
-  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios();
+  // Lançamento de Salário ligado a um funcionário: guarda o valor confirmado como sugestão pra próxima
+  // vez (é o que faz "ajustar o valor" ficar valendo pro mês seguinte, sem precisar digitar de novo).
+  if(origemFuncionarioId && categoria==='Salário'){
+    const idx = funcionarios.findIndex(fu=>fu.id===origemFuncionarioId);
+    if(idx>=0){
+      funcionarios[idx] = {...funcionarios[idx], ultimoSalarioValor: valor, ultimoSalarioMoeda: moeda};
+      await storeSet('funcionarios_list', funcionarios);
+    }
+  }
+  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios(); renderInicio();
 });
 document.getElementById('btnDeleteLancamento').addEventListener('click', async ()=>{
   if(!editingLancamentoId || !(await showConfirm('Excluir este lançamento?'))) return;
   lancamentos = lancamentos.filter(l=>l.id!==editingLancamentoId);
   await storeSet('financeiro_lancamentos', lancamentos, true);
-  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios();
+  closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios(); renderInicio();
 });
 
 /* ================= FUNCIONÁRIOS ================= */
-// Cadastro de funcionários e seus custos de referência. O cadastro em si não lança nada no Financeiro
-// sozinho — cada pagamento de verdade é um lançamento próprio (criado via "Lançar custo", que abre o
-// mesmo modal de Lançamento do Financeiro, pré-preenchido e já marcado como custo não rateado). Isso
-// evita inventar histórico de pagamento que nunca existiu de verdade, e reaproveita 100% da tela de
-// Financeiro (editar, excluir, aparecer nos relatórios) sem duplicar lógica.
-function custoMensalFuncionarios(){
-  const ativos = funcionarios.filter(f=>f.ativo!==false);
-  const porMoeda = { BRL:0, USD:0 };
-  ativos.forEach(f=>{ const v = Number(f.valorMensal)||0; if(v>0) porMoeda[f.moeda==='USD'?'USD':'BRL'] += v; });
-  return { ativos: ativos.length, porMoeda };
+// Cadastro só de identificação (nome, documento, nascimento) — sem valor, sem status. Salário e
+// qualquer outro custo do funcionário são lançamentos de verdade no Financeiro (categoria "Salário"
+// ou "Funcionários"), ligados ao cadastro via origemFuncionarioId. O sistema não inventa pagamento
+// nenhum sozinho: todo mês ele só PEDE pra confirmar (dia 5, pelo Calendário do Início, ou a qualquer
+// hora pelo botão "Confirmar salário" aqui) — você confere/ajusta o valor e decide lançar.
+// Guarda o último valor de salário confirmado de cada funcionário, pra sugerir automaticamente da
+// próxima vez (é o que faz "ajustar o valor" valer pro mês seguinte sem digitar tudo de novo).
+function salarioConfirmadoNoMes(funcionarioId, ano, mes){
+  const inicio = toISODate(new Date(ano, mes, 1)), fim = toISODate(new Date(ano, mes+1, 0));
+  return lancamentos.some(l=> l.origemFuncionarioId===funcionarioId && l.categoria==='Salário' && l.data>=inicio && l.data<=fim);
 }
 function renderFuncionarios(){
-  const { ativos, porMoeda } = custoMensalFuncionarios();
+  const hoje = new Date();
+  const pendentes = funcionarios.filter(fu=>!salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth())).length;
   document.getElementById('funcStats').innerHTML = `
     <div class="stat"><div class="stat-num">${funcionarios.length}</div><div class="stat-label">Cadastrados</div></div>
-    <div class="stat"><div class="stat-num">${ativos}</div><div class="stat-label">Ativos</div></div>
-    <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(porMoeda.BRL,'BRL')}</div>${porMoeda.USD>0?`<div style="font-size:13px;color:var(--muted);margin-top:2px;">${fmtMoeda(porMoeda.USD,'USD')}</div>`:''}<div class="stat-label">Custo mensal de referência (ativos)</div></div>`;
+    <div class="stat"><div class="stat-num" style="color:${pendentes>0?'var(--burgundy)':'inherit'};">${pendentes}</div><div class="stat-label">Salário pendente de confirmar (${MESES_LABEL[hoje.getMonth()]})</div></div>
+    <div class="stat"><div class="stat-num">${funcionarios.length-pendentes}</div><div class="stat-label">Salário já confirmado (${MESES_LABEL[hoje.getMonth()]})</div></div>`;
   const tbody = document.getElementById('funcTbody');
-  if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; return; }
+  if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; return; }
   const lista = [...funcionarios].sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
   tbody.innerHTML = lista.map(fu=>{
     const qtdLancamentos = lancamentos.filter(l=>l.origemFuncionarioId===fu.id).length;
+    const pago = salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth());
     return `<tr>
     <td><strong>${fu.nome||''}</strong></td>
-    <td>${fu.funcao||''}</td>
-    <td style="font-family:'IBM Plex Mono',monospace;">${fu.valorMensal ? fmtMoeda(fu.valorMensal, fu.moeda) : '—'}</td>
-    <td>${fu.dataAdmissao ? fmtDate(fu.dataAdmissao) : '—'}</td>
-    <td><span class="pill ${fu.ativo!==false?'st-ativo':'st-descarte'}">${fu.ativo!==false?'Ativo':'Inativo'}</span></td>
+    <td>${fu.documento||'—'}</td>
+    <td>${fu.dataNascimento ? fmtDate(fu.dataNascimento) : '—'}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;">${fu.ultimoSalarioValor ? fmtMoeda(fu.ultimoSalarioValor, fu.ultimoSalarioMoeda) : '—'}${pago?' <span class="pill st-ativo" style="margin-left:4px;">Mês em dia</span>':''}</td>
     <td style="white-space:nowrap;">
-      <button type="button" class="btn btn-sm" data-lancarcusto="${fu.id}">Lançar custo</button>
+      <button type="button" class="btn btn-sm" data-confirmarsalario="${fu.id}">Confirmar salário</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-lancarcusto="${fu.id}">Lançar custo</button>
       <button type="button" class="btn btn-sm btn-ghost" data-editfunc="${fu.id}">Editar</button>
       ${qtdLancamentos>0 ? `<button type="button" class="btn btn-sm btn-ghost" data-verlancfunc="${fu.nome}">Ver ${qtdLancamentos} lançamento(s)</button>` : ''}
     </td>
   </tr>`;
   }).join('');
+  tbody.querySelectorAll('[data-confirmarsalario]').forEach(b=>b.addEventListener('click', ()=>{
+    const fu = funcionarios.find(x=>x.id===b.dataset.confirmarsalario); if(fu) openLancamentoDeFuncionario(fu, 'salario');
+  }));
   tbody.querySelectorAll('[data-lancarcusto]').forEach(b=>b.addEventListener('click', ()=>{
-    const fu = funcionarios.find(x=>x.id===b.dataset.lancarcusto); if(fu) openLancamentoDeFuncionario(fu);
+    const fu = funcionarios.find(x=>x.id===b.dataset.lancarcusto); if(fu) openLancamentoDeFuncionario(fu, 'custo');
   }));
   tbody.querySelectorAll('[data-editfunc]').forEach(b=>b.addEventListener('click', ()=>openFuncionarioEdit(b.dataset.editfunc)));
   tbody.querySelectorAll('[data-verlancfunc]').forEach(b=>b.addEventListener('click', ()=>{
@@ -8080,15 +8072,9 @@ function openFuncionarioNew(){
   document.getElementById('funcModalTitle').textContent = 'Novo Funcionário';
   document.getElementById('btnDeleteFuncionario').style.display = 'none';
   document.getElementById('fu_nome').value = '';
-  document.getElementById('fu_funcao').value = '';
-  document.getElementById('fu_valorMensal').value = '';
-  document.getElementById('fu_moeda').value = 'BRL';
-  document.getElementById('fu_admissao').value = toISODate(new Date());
-  document.getElementById('fu_ativo').value = '1';
-  document.getElementById('fu_desligamento').value = '';
-  document.getElementById('fu_desligamentoWrap').style.display = 'none';
+  document.getElementById('fu_documento').value = '';
+  document.getElementById('fu_nascimento').value = '';
   document.getElementById('fu_obs').value = '';
-  refreshDatalists();
   openModal('overlayFuncionario');
 }
 function openFuncionarioEdit(id){
@@ -8097,44 +8083,36 @@ function openFuncionarioEdit(id){
   document.getElementById('funcModalTitle').textContent = 'Editar Funcionário';
   document.getElementById('btnDeleteFuncionario').style.display = 'inline-block';
   document.getElementById('fu_nome').value = fu.nome||'';
-  document.getElementById('fu_funcao').value = fu.funcao||'';
-  document.getElementById('fu_valorMensal').value = (fu.valorMensal!==undefined && fu.valorMensal!==null) ? fu.valorMensal : '';
-  document.getElementById('fu_moeda').value = fu.moeda==='USD' ? 'USD' : 'BRL';
-  document.getElementById('fu_admissao').value = fu.dataAdmissao||'';
-  document.getElementById('fu_ativo').value = fu.ativo!==false ? '1' : '0';
-  document.getElementById('fu_desligamento').value = fu.dataDesligamento||'';
-  document.getElementById('fu_desligamentoWrap').style.display = fu.ativo===false ? 'block' : 'none';
+  document.getElementById('fu_documento').value = fu.documento||'';
+  document.getElementById('fu_nascimento').value = fu.dataNascimento||'';
   document.getElementById('fu_obs').value = fu.obs||'';
-  refreshDatalists();
   openModal('overlayFuncionario');
 }
 document.getElementById('btnNewFuncionario').addEventListener('click', openFuncionarioNew);
-document.getElementById('fu_ativo').addEventListener('change', ()=>{
-  document.getElementById('fu_desligamentoWrap').style.display = f('fu_ativo')==='0' ? 'block' : 'none';
-});
 document.getElementById('btnSaveFuncionario').addEventListener('click', async ()=>{
   const nome = f('fu_nome').trim();
   if(!nome){ showAlert('Informe o nome do funcionário.'); return; }
+  const anterior = editingFuncionarioId ? funcionarios.find(x=>x.id===editingFuncionarioId) : null;
   const registro = {
     id: editingFuncionarioId || ('fu_'+Date.now()),
-    nome: titleCase(nome), funcao: titleCase(f('fu_funcao').trim()),
-    valorMensal: f('fu_valorMensal') ? Number(f('fu_valorMensal')) : null,
-    moeda: f('fu_moeda')==='USD' ? 'USD' : 'BRL',
-    dataAdmissao: f('fu_admissao') || '',
-    ativo: f('fu_ativo')!=='0',
-    dataDesligamento: f('fu_ativo')==='0' ? (f('fu_desligamento')||'') : '',
-    obs: f('fu_obs').trim()
+    nome: titleCase(nome),
+    documento: f('fu_documento').trim(),
+    dataNascimento: f('fu_nascimento') || '',
+    obs: f('fu_obs').trim(),
+    // Não são campos do formulário — guardados por trás pra sugerir o valor da próxima confirmação de
+    // salário (atualizados sozinhos sempre que um lançamento de Salário é salvo).
+    ultimoSalarioValor: anterior ? anterior.ultimoSalarioValor : undefined,
+    ultimoSalarioMoeda: anterior ? anterior.ultimoSalarioMoeda : undefined
   };
   funcionarios = editingFuncionarioId ? funcionarios.map(x=>x.id===editingFuncionarioId?registro:x) : [...funcionarios, registro];
   await storeSet('funcionarios_list', funcionarios);
-  refreshDatalists();
   closeModal('overlayFuncionario'); renderFuncionarios();
 });
 document.getElementById('btnDeleteFuncionario').addEventListener('click', async ()=>{
-  if(!editingFuncionarioId || !(await showConfirm('Excluir este funcionário? Os lançamentos já feitos no Financeiro NÃO são apagados.'))) return;
+  if(!editingFuncionarioId || !(await showConfirm('Excluir este funcionário? Os lançamentos já feitos no Financeiro NÃO são apagados, e o lembrete de salário do dia 5 deixa de aparecer pra ele.'))) return;
   funcionarios = funcionarios.filter(x=>x.id!==editingFuncionarioId);
   await storeSet('funcionarios_list', funcionarios, true);
-  closeModal('overlayFuncionario'); renderFuncionarios();
+  closeModal('overlayFuncionario'); renderFuncionarios(); renderInicio();
 });
 
 /* ================= LOGIN E PERMISSÕES ================= */
