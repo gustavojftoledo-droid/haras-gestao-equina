@@ -936,8 +936,8 @@
         </div>
       </div>
       <div class="perfil-wrap" id="perfilWrap"></div>
-      <div id="perfilTimelineWrap" style="margin-top:4px;"></div>
-      <div class="hint-text no-print" style="margin-top:6px;">Vídeos do animal chegam numa próxima atualização.</div>
+      <div id="perfilTreinosWrap" style="margin-top:14px;"></div>
+      <div id="perfilTimelineWrap" style="margin-top:14px;"></div>
     </div>
 
     <!-- OTHER PLACEHOLDER -->
@@ -8797,6 +8797,7 @@ document.addEventListener('click', e=>{
 function abrirPerfilAnimal(id){
   perfilAnimalId = id;
   timelineFiltro = 'todos';
+  treinosPerfilFiltro = 'todos';
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animalPerfil').classList.add('active');
@@ -8954,6 +8955,7 @@ function renderAnimalPerfil(id){
   `;
 
   document.getElementById('perfilWrap').innerHTML = `<div>${main}</div><div>${sidebar}</div>`;
+  renderTreinosPerfil(h);
   renderAnimalTimeline(h);
 
   document.querySelectorAll('[data-statclick]').forEach(el=>{
@@ -8987,6 +8989,50 @@ function renderAnimalPerfil(id){
    ordenados por data (mais recente primeiro). Eventos manuais (linha do tempo escrita à mão) ficam
    pra uma próxima etapa, se fizer falta além do que já é puxado automático daqui. */
 let timelineFiltro = 'todos';
+// Área ampla exclusiva de Treinos na Ficha do Animal (Fase 6) — separada da Linha do Tempo geral
+// (que mistura Manejos/Treinos/Nascimentos). Filtros pequenos e dinâmicos: um chip por tipo de treino
+// que esse animal já tem registrado (Jogo, Treino, Montada, Bate-bola...) — assim que um tipo novo é
+// usado num treino desse animal, o filtro dele aparece sozinho aqui, sem precisar cadastrar nada.
+let treinosPerfilFiltro = 'todos';
+function renderTreinosPerfil(h){
+  const host = document.getElementById('perfilTreinosWrap');
+  if(!host) return;
+  const todos = treinos.filter(t=>(t.animais||[]).some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
+  const porTipo = {};
+  todos.forEach(t=>{ const tp = t.tipo||'Sem tipo'; porTipo[tp] = (porTipo[tp]||0)+1; });
+  const tipos = Object.keys(porTipo).sort((a,b)=>a.localeCompare(b,'pt'));
+  const filtroValido = treinosPerfilFiltro==='todos' || tipos.includes(treinosPerfilFiltro);
+  if(!filtroValido) treinosPerfilFiltro = 'todos';
+  const filtrados = treinosPerfilFiltro==='todos' ? todos : todos.filter(t=>(t.tipo||'Sem tipo')===treinosPerfilFiltro);
+  const chip = (val,label,n)=>`<span class="chip ${treinosPerfilFiltro===val?'active':''}" data-trf="${val}" style="font-size:11px;padding:4px 10px;">${label}${n!=null?(' ('+n+')'):''}</span>`;
+  host.innerHTML = `<div class="perfil-card">
+    <div class="perfil-card-head">🐴 Histórico de Treinos</div>
+    <div class="perfil-card-body">
+      ${todos.length===0 ? '<div class="hint-text">Nenhum treino registrado ainda pra esse animal.</div>' : `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+        ${chip('todos','Todos', todos.length)}
+        ${tipos.map(tp=>chip(tp, tp, porTipo[tp])).join('')}
+      </div>
+      <div style="max-height:420px;overflow-y:auto;">
+        ${filtrados.length===0 ? '<div class="hint-text">Nenhum treino desse tipo.</div>' : filtrados.map(t=>{
+          const a = (t.animais||[]).find(x=>x.id===h.id);
+          const valorCobrado = t.cobranca ? fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda) : null;
+          const detalhe = [t.treinadores, a&&a.extra].filter(Boolean).join(' · ');
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div><strong>${fmtDate(t.data)}</strong>${t.tipo?(' · '+t.tipo):''}${t.local?(' · '+t.local):''}</div>
+              ${valorCobrado?`<span class="pill st-ativo">💰 ${valorCobrado}</span>`:''}
+            </div>
+            ${detalhe?`<div style="font-size:12px;color:var(--muted);margin-top:2px;">${detalhe}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>
+  </div>`;
+  host.querySelectorAll('[data-trf]').forEach(chipEl=>{
+    chipEl.addEventListener('click', ()=>{ treinosPerfilFiltro = chipEl.dataset.trf; renderTreinosPerfil(h); });
+  });
+}
 const TIMELINE_ICON = { manejo:'💉', treino:'🐴', nascimento:'🍼', filho:'🐣', visita:'🩺' };
 function computeTimelineAnimal(h){
   const eventos = [];
