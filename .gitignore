@@ -5,6 +5,8 @@ haras_backup_*.json
 # Pastas de sessão/config do Claude Code, não fazem parte do app.
 .claude/
 
-# Cópias de rascunho da reforma visual (propostas A/B/C) — nunca commitar, são só pra comparar.
-app_145_opcao*.html
-app_145_backup_*.html
+# Referência de antes/depois da última mudança visual — nunca commitar, são só pra comparar/reverter.
+# Convenção: sempre que eu mudar o app_145.html de forma visível, guardo a versão anterior como
+# "Original" e a versão nova como "Novo" (sobrescrevendo o par anterior).
+app_145_original.html
+app_145_novo.html
