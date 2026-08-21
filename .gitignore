@@ -4,3 +4,7 @@ haras_backup_*.json
 
 # Pastas de sessão/config do Claude Code, não fazem parte do app.
 .claude/
+
+# Cópias de rascunho da reforma visual (propostas A/B/C) — nunca commitar, são só pra comparar.
+app_145_opcao*.html
+app_145_backup_*.html
