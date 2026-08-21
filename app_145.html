@@ -466,6 +466,7 @@
       <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
       <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
       <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
+      <div class="nav-item" data-view="transporte"><span class="dot"></span>Transporte</div>
       <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Atividades</div>
       <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
       <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
@@ -784,6 +785,23 @@
         </div>
         <div id="manejoRelResult" style="margin-top:14px;"></div>
       </div>
+    </div>
+
+    <!-- TRANSPORTE -->
+    <div class="view" id="view-transporte">
+      <div class="topbar">
+        <div><div class="title">Transporte</div><div class="subtitle">Saídas e deslocamentos dos animais</div></div>
+        <button class="btn" id="btnNewTransporte">+ Novo Transporte</button>
+      </div>
+      <div class="filters">
+        <div class="f grow"><label>Buscar</label><input type="text" id="tpSearch" placeholder="Origem, destino, motorista, motivo..."></div>
+        <div class="f"><label>Situação</label><select id="tpFiltroSituacao"><option value="">Todas</option><option value="N">Planejado</option><option value="S">Realizado</option></select></div>
+        <div class="f"><label>Período (data saída)</label><div id="tpFiltroPeriodo"></div></div>
+      </div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Data Saída</th><th>Origem → Destino</th><th>Meio</th><th>Motorista</th><th>Motivo</th><th>Qtd. Animais</th><th>Valor Frete</th><th>Situação</th><th></th></tr></thead>
+        <tbody id="tpTbody"></tbody>
+      </table></div>
     </div>
 
     <!-- TREINOS -->
@@ -1321,6 +1339,31 @@
     <div class="modal-actions">
       <div><button type="button" class="btn btn-ghost" id="btnRelatorioManejoUnico" style="display:none;">📄 Relatório deste lançamento <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button> <button type="button" class="btn btn-danger" id="btnDeleteManejoModal" style="display:none;">🗑 Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayManejo">Cancelar</button><button type="button" class="btn" id="btnSaveManejo">Salvar Lançamento <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSPORTE MODAL -->
+<div class="overlay" id="overlayTransporte">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="tpModalTitle">Novo Transporte</div><button class="modal-close" data-close="overlayTransporte">✕</button></div>
+    <div class="form-grid cols3" style="margin-bottom:16px;">
+      <div class="field"><label>Data Saída</label><input type="date" id="tp_data" required></div>
+      <div class="field"><label>Origem</label><select id="tp_origem_sel"></select></div>
+      <div class="field"><label>Destino</label><select id="tp_destino_sel"></select></div>
+      <div class="field"><label>Meio de Transporte</label><div class="field-plus"><select id="tp_meio_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="meioTransporte">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="meioTransporte" data-selid="tp_meio_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="meioTransporte" data-selid="tp_meio_sel" title="Excluir valor selecionado">🗑</button></div></div>
+      <div class="field"><label>Motorista</label><div class="field-plus"><select id="tp_motorista_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="motorista">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="motorista" data-selid="tp_motorista_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="motorista" data-selid="tp_motorista_sel" title="Excluir valor selecionado">🗑</button></div></div>
+      <div class="field"><label>Motivo</label><input type="text" id="tp_motivo" placeholder="Ex: Ida pra competição" spellcheck="true" lang="pt-BR"></div>
+      <div class="field"><label>Valor do Frete (R$) — total</label><input type="number" id="tp_valorFrete" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="field" style="justify-content:flex-end;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="tp_realizado" style="width:16px;height:16px;"> Transporte já realizado</label></div>
+    </div>
+    <div class="hint-text" style="margin-bottom:10px;" id="tp_realizadoHint">Marcando "Transporte já realizado", a Localização de cada animal selecionado abaixo muda sozinha pro Destino (só na hora de salvar — editar de novo não repete a troca).</div>
+    <div class="hint-text" style="margin-bottom:6px;">O valor do frete é dividido automaticamente entre os animais marcados abaixo — pode ajustar o valor de cada um à vontade depois de dividido.</div>
+    <div class="hint-text" id="transporteValorTotalDisplay" style="margin-bottom:10px;font-weight:600;"></div>
+    <div id="transporteSelectorHost"></div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteTransporte" style="display:none;">🗑 Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTransporte">Cancelar</button><button type="button" class="btn" id="btnSaveTransporte">Salvar Transporte <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -1894,7 +1937,7 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 
 /* ---------- STATE ---------- */
 let horses=[], manejos=[], treinos=[], nascimentos=[];
-let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[];
+let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 // Tarefas de manejo (Casco/Dente/Vacina/Vermífugo) previstas no Calendário que o usuário excluiu sem
@@ -1997,6 +2040,7 @@ async function loadAll(){
   const rU = await storeGet('usuarios_list');
   const rTR = await storeGet('tratamentos_list');
   const rVS = await storeGet('visitas_list');
+  const rTP = await storeGet('transportes_list');
   const rRS = await storeGet('rel_selecoes');
   const rNFA = await storeGet('nf_aprendizado');
   const rFin = await storeGet('financeiro_lancamentos');
@@ -2005,7 +2049,7 @@ async function loadAll(){
   usuarios = rU.value;
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
   estoqueProdutos = rEP.value; estoqueMovimentos = rEM.value; dietas = rDT.value; grupos = rG.value;
-  tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[];
+  tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[]; transportes = rTP.value||[];
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
   // Migração: versão antiga de valoresCasco tinha só 4 categorias (com "Ferrado mão casq. pé").
   // Essa nomenclatura foi substituída pelas 5 categorias novas (Casqueado mãos/completo/pés, Ferrado mãos/completo).
@@ -2084,6 +2128,8 @@ async function loadAll(){
   ['Ferrado pés','Reposição de Ferradura','Repregar Ferradura'].forEach(v=>{ if(!aux.subtipoFerrageamento.includes(v)){ aux.subtipoFerrageamento.push(v); auxChanged=true; } });
   if(!aux.classeMedicamento) { aux.classeMedicamento=[]; auxChanged=true; } // lista livre — você inclui/apaga as classes que usar (Antiinflamatório, Antibiótico...)
   if(!aux.donoTropa) { aux.donoTropa=[]; auxChanged=true; } // lista livre — pessoa responsável pela tropa, no Treino Cobrado
+  if(!aux.meioTransporte) { aux.meioTransporte=[]; auxChanged=true; } // lista livre — Caminhão, Van, Reboque... usado em Transporte
+  if(!aux.motorista) { aux.motorista=[]; auxChanged=true; } // lista livre — nome de quem dirigiu, usado em Transporte
   // Serviços de Visita Veterinária (Consulta, Raio-X...) — nomes ficam em aux (lista livre, editável em
   // "Gerenciar serviços"), valor de referência de cada um em config.valoresServico (mesmo esquema de
   // aux.subtipoFerrageamento + config.valoresCasco, já usado em Manejos).
@@ -2151,7 +2197,7 @@ async function loadAll(){
   if(dietasChanged) await storeSet('dietas_list', dietas);
   refreshDatalists();
   populateAuxSelects();
-  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios();
+  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
@@ -2177,6 +2223,8 @@ function populateAuxSelects(){
   fill('m_subtipoCasco', aux.subtipoFerrageamento||[]);
   fill('fin_categoria', aux.finCategoria||[]);
   fill('t_donoTropa_sel', aux.donoTropa||[]);
+  fill('tp_origem_sel', aux.localizacao||[]); fill('tp_destino_sel', aux.localizacao||[]);
+  fill('tp_meio_sel', aux.meioTransporte||[]); fill('tp_motorista_sel', aux.motorista||[]);
 }
 const AUX_META = {
   status:{label:'Status', selId:'f_status'},
@@ -2196,7 +2244,9 @@ const AUX_META = {
   subtipoFerrageamento:{label:'Tipo de Ferrageamento', selId:'m_subtipoCasco'},
   classeMedicamento:{label:'Classe do Medicamento', selId:'pd_classe'},
   finCategoria:{label:'Categoria financeira', selId:'fin_categoria'},
-  donoTropa:{label:'Dono da Tropa', selId:'t_donoTropa_sel'}
+  donoTropa:{label:'Dono da Tropa', selId:'t_donoTropa_sel'},
+  meioTransporte:{label:'Meio de Transporte', selId:'tp_meio_sel'},
+  motorista:{label:'Motorista', selId:'tp_motorista_sel'}
 };
 document.querySelectorAll('[data-aux]').forEach(btn=>{
   btn.addEventListener('click', async ()=>{
@@ -2415,7 +2465,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     item.classList.add('active');
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    if(['inicio','calendario','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -2423,6 +2473,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='estoque') renderEstoque();
       if(view==='veterinaria') renderVetLista();
       if(view==='grupos') renderGrupos();
+      if(view==='transporte') renderTransportes();
       if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios') renderUsuarios();
@@ -2896,9 +2947,24 @@ function createAnimalSelector(hostEl, opts){
   };
 }
 
+// Pré-marca um seletor de animais (ao abrir um cadastro NOVO) com quem já estiver selecionado na
+// tela de Animais (selectedHorseIds, o checkbox de cada linha ali). Assim, se você já marcou os
+// animais lá, eles chegam prontos em qualquer outra aba (Manejos, Treinos, Visitas, Transporte...) —
+// sem precisar marcar tudo de novo. Sem nada selecionado lá, funciona exatamente como sempre (vazio).
+// Só usado em fluxos de "Novo X" — editar um registro existente continua marcando os animais
+// daquele registro específico, sem interferência da seleção da tela de Animais.
+function resetSelectorComFront(selector){
+  selector.reset();
+  if(selectedHorseIds.size>0) selector.setSelected([...selectedHorseIds].map(id=>({id})));
+}
+
 const manejoHost = document.getElementById('manejoSelectorHost');
 manejoHost.id='manejoSelectorHost';
 const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Observação', onlyActive:true, extraValor:true, tipoFerragem:true, tipoFerragemCondition:()=>document.getElementById('m_tipo').value==='Casco', onChange:()=>atualizarValorTotalManejo()});
+
+const transporteHost = document.getElementById('transporteSelectorHost');
+transporteHost.id='transporteSelectorHost';
+const transporteSelector = createAnimalSelector(transporteHost, {extraPlaceholder:'Observação', onlyActive:true, extraValor:true, valorExtraPlaceholder:'R$', valorExtraTitle:'Parte do frete pra este animal (dividido automático, editável)', onChange:()=>atualizarValorTotalTransporte()});
 
 const treinoHost = document.getElementById('treinoSelectorHost');
 treinoHost.id='treinoSelectorHost';
@@ -3453,6 +3519,7 @@ bindSaveShortcut('overlayGrupo','btnSaveGrupo');
 bindSaveShortcut('overlayLancamento','btnSaveLancamento');
 bindSaveShortcut('overlayFuncionario','btnSaveFuncionario');
 bindSaveShortcut('overlayDietaAnimais','btnSaveDietaAnimais');
+bindSaveShortcut('overlayTransporte','btnSaveTransporte');
 document.getElementById('horseForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if(!f('f_nome').trim()){ showAlert('Informe ao menos o nome do animal.'); document.getElementById('f_nome').focus(); return; }
@@ -5118,7 +5185,7 @@ document.getElementById('btnNewManejo').addEventListener('click', async ()=>{
   }
   preencherValorRefCasco();
   atualizarCamposCascoVisibilidade();
-  manejoSelector.reset();
+  resetSelectorComFront(manejoSelector);
   openModal('overlayManejo');
 });
 // Abre um lançamento já existente pra edição — chamado ao clicar numa linha do histórico de Manejos.
@@ -5803,6 +5870,174 @@ document.getElementById('btnConfirmarImportNasc').addEventListener('click', asyn
   importNascValidos = [];
 });
 
+/* ================= TRANSPORTE =================
+   Registra saídas/deslocamentos: quem foi, de onde pra onde, com quem, por quê, quanto custou de
+   frete (dividido automático entre os animais, editável depois) — e, quando marcado como
+   "realizado", atualiza a Localização de cada animal pro Destino, uma vez só, do mesmo jeito que
+   Confirmar Nascimento gera o animal ou Concluir Manejo dá baixa: uma ação explícita, não um
+   recálculo automático toda hora. */
+const tpFiltroPeriodo = createDateRangePicker(document.getElementById('tpFiltroPeriodo'), {onChange: renderTransportes});
+let editingTransporteId = null;
+let transporteUltimaContagemAnimais = -1;
+// Redivide o valor do frete entre os animais marcados só quando a QUANTIDADE de marcados muda (ou
+// quando o próprio campo de valor total é editado, via listener próprio abaixo) — editar o valor de
+// UM animal à mão não deve resetar o rateio de todo mundo de novo.
+function atualizarValorTotalTransporte(){
+  const selecionados = transporteSelector.getSelected();
+  const n = selecionados.length;
+  const totalFrete = Number(document.getElementById('tp_valorFrete').value)||0;
+  if(n>0 && n!==transporteUltimaContagemAnimais){
+    transporteSelector.setValorParaTodosSelecionados((totalFrete/n).toFixed(2));
+  }
+  transporteUltimaContagemAnimais = n;
+  const disp = document.getElementById('transporteValorTotalDisplay');
+  if(!disp) return;
+  if(n===0){ disp.textContent=''; return; }
+  const soma = transporteSelector.getSelected().reduce((s,a)=>s+(a.valorExtra||0),0);
+  disp.textContent = `Frete total: ${fmtMoeda(totalFrete,'BRL')} · dividido entre ${n} animal(is) · soma atual dos valores: ${fmtMoeda(soma,'BRL')}`;
+}
+document.getElementById('tp_valorFrete').addEventListener('input', ()=>{
+  const selecionados = transporteSelector.getSelected();
+  const n = selecionados.length;
+  const totalFrete = Number(document.getElementById('tp_valorFrete').value)||0;
+  if(n>0) transporteSelector.setValorParaTodosSelecionados((totalFrete/n).toFixed(2));
+  atualizarValorTotalTransporte();
+});
+// Aplica a localização (destino) do transporte em cada animal dele — chamado só na transição pra
+// "realizado" (na hora de salvar, ou no botão "Marcar feito" da lista), nunca de novo depois.
+async function aplicarLocalizacaoTransporte(transporte){
+  if(!transporte.destino) return 0;
+  let count = 0;
+  (transporte.animais||[]).forEach(a=>{
+    const h = horses.find(x=>x.id===a.id);
+    if(h && h.localizacao!==transporte.destino){ h.localizacao = transporte.destino; count++; }
+  });
+  if(count>0) await storeSet('horses_list', horses);
+  return count;
+}
+function renderTransportes(){
+  const term = (document.getElementById('tpSearch').value||'').toLowerCase();
+  const sit = document.getElementById('tpFiltroSituacao').value;
+  const { de, ate } = tpFiltroPeriodo.getRange();
+  const filtered = transportes.filter(t=>{
+    if(sit && t.realizado!==sit) return false;
+    if(de && t.data<de) return false;
+    if(ate && t.data>ate) return false;
+    if(term){
+      const alvo = [t.origem,t.destino,t.motorista,t.motivo,t.meioTransporte].join(' ').toLowerCase();
+      if(!alvo.includes(term)) return false;
+    }
+    return true;
+  }).sort((a,b)=> b.data.localeCompare(a.data));
+  document.getElementById('tpTbody').innerHTML = filtered.length===0 ? `<tr><td colspan="9" class="empty">Nenhum transporte encontrado.</td></tr>` : filtered.map(t=>{
+    const nAnimais = (t.animais||[]).length;
+    const situ = t.realizado==='S';
+    return `<tr data-id="${t.id}">
+      <td>${fmtDate(t.data)}</td>
+      <td>${t.origem||'—'} → ${t.destino||'—'}</td>
+      <td>${t.meioTransporte||'—'}</td>
+      <td>${t.motorista||'—'}</td>
+      <td>${t.motivo||'—'}</td>
+      <td>${nAnimais}</td>
+      <td>${fmtMoeda(Number(t.valorFrete)||0,'BRL')}</td>
+      <td><span class="pill ${situ?'st-ativo':'st-outro'}">${situ?'Realizado':'Planejado'}</span></td>
+      <td style="white-space:nowrap;">${!situ?`<button type="button" class="btn btn-sm btn-ghost" data-marcarrealizado="${t.id}" title="Marca como realizado e atualiza a localização dos animais">✔ Marcar feito</button>`:''} <button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">🗑</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tpTbody').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openTransporteEdit(b.dataset.edit)));
+  document.getElementById('tpTbody').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(!(await showConfirm('Excluir este transporte do histórico? Isso NÃO desfaz a mudança de localização já aplicada (se ele já tiver sido marcado como realizado) — ajuste a localização do animal na mão se precisar.'))) return;
+    transportes = transportes.filter(t=>t.id!==b.dataset.del);
+    await storeSet('transportes_list', transportes, true);
+    renderTransportes();
+  }));
+  document.getElementById('tpTbody').querySelectorAll('[data-marcarrealizado]').forEach(b=>b.addEventListener('click', async ()=>{
+    const t = transportes.find(x=>x.id===b.dataset.marcarrealizado); if(!t) return;
+    if(!(await showConfirm('Marcar esse transporte como realizado? A localização de cada animal dele muda pro destino ("'+(t.destino||'—')+'") agora.'))) return;
+    t.realizado = 'S';
+    const count = await aplicarLocalizacaoTransporte(t);
+    await storeSet('transportes_list', transportes, true);
+    renderTransportes(); renderHorses();
+    showAlert('Transporte marcado como realizado.'+(count>0?(' Localização atualizada em '+count+' animal(is).'):''));
+  }));
+}
+document.getElementById('tpSearch').addEventListener('input', renderTransportes);
+document.getElementById('tpFiltroSituacao').addEventListener('change', renderTransportes);
+document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
+  editingTransporteId = null;
+  document.getElementById('tpModalTitle').textContent = 'Novo Transporte';
+  document.getElementById('btnDeleteTransporte').style.display = 'none';
+  document.getElementById('tp_data').value = toISODate(new Date());
+  populateAuxSelects();
+  document.getElementById('tp_origem_sel').value = '';
+  document.getElementById('tp_destino_sel').value = '';
+  document.getElementById('tp_meio_sel').value = '';
+  document.getElementById('tp_motorista_sel').value = '';
+  document.getElementById('tp_motivo').value = '';
+  document.getElementById('tp_valorFrete').value = '';
+  document.getElementById('tp_realizado').checked = false;
+  resetSelectorComFront(transporteSelector);
+  transporteUltimaContagemAnimais = -1;
+  atualizarValorTotalTransporte();
+  openModal('overlayTransporte');
+});
+function openTransporteEdit(id){
+  const t = transportes.find(x=>x.id===id); if(!t) return;
+  editingTransporteId = id;
+  document.getElementById('tpModalTitle').textContent = 'Editar Transporte';
+  document.getElementById('btnDeleteTransporte').style.display = 'inline-block';
+  populateAuxSelects();
+  document.getElementById('tp_data').value = t.data||'';
+  document.getElementById('tp_origem_sel').value = t.origem||'';
+  document.getElementById('tp_destino_sel').value = t.destino||'';
+  document.getElementById('tp_meio_sel').value = t.meioTransporte||'';
+  document.getElementById('tp_motorista_sel').value = t.motorista||'';
+  document.getElementById('tp_motivo').value = t.motivo||'';
+  document.getElementById('tp_valorFrete').value = t.valorFrete||'';
+  document.getElementById('tp_realizado').checked = t.realizado==='S';
+  transporteSelector.setSelected((t.animais||[]).map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||''})));
+  transporteUltimaContagemAnimais = (t.animais||[]).length; // já veio dividido — não redivide sozinho ao só abrir pra edição
+  atualizarValorTotalTransporte();
+  openModal('overlayTransporte');
+}
+document.getElementById('btnSaveTransporte').addEventListener('click', async ()=>{
+  const data = document.getElementById('tp_data').value;
+  if(!data){ showAlert('Informe a data de saída.'); return; }
+  const selected = transporteSelector.getSelected();
+  if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
+  const registroAnterior = editingTransporteId ? transportes.find(x=>x.id===editingTransporteId) : null;
+  const jaEstavaRealizado = !!(registroAnterior && registroAnterior.realizado==='S');
+  const registro = {
+    id: editingTransporteId || ('tp_'+Date.now()),
+    data,
+    origem: document.getElementById('tp_origem_sel').value,
+    destino: document.getElementById('tp_destino_sel').value,
+    meioTransporte: document.getElementById('tp_meio_sel').value,
+    motorista: document.getElementById('tp_motorista_sel').value,
+    motivo: f('tp_motivo').trim(),
+    valorFrete: Number(document.getElementById('tp_valorFrete').value)||0,
+    realizado: document.getElementById('tp_realizado').checked ? 'S' : 'N',
+    animais: selected
+  };
+  transportes = editingTransporteId ? transportes.map(x=>x.id===editingTransporteId?registro:x) : [...transportes, registro];
+  let countLoc = 0;
+  if(registro.realizado==='S' && !jaEstavaRealizado){
+    countLoc = await aplicarLocalizacaoTransporte(registro);
+  }
+  await storeSet('transportes_list', transportes);
+  closeModal('overlayTransporte');
+  renderTransportes(); renderHorses();
+  showAlert('Transporte salvo.'+(countLoc>0?(' Localização atualizada em '+countLoc+' animal(is).'):''));
+});
+document.getElementById('btnDeleteTransporte').addEventListener('click', async ()=>{
+  if(!editingTransporteId) return;
+  if(!(await showConfirm('Excluir este transporte? Isso NÃO desfaz a mudança de localização já aplicada (se ele já tiver sido marcado como realizado).'))) return;
+  transportes = transportes.filter(x=>x.id!==editingTransporteId);
+  await storeSet('transportes_list', transportes, true);
+  closeModal('overlayTransporte');
+  renderTransportes();
+});
+
 /* ================= TREINOS ================= */
 function showTreinoTab(tab){
   ['historico','relatorios'].forEach(t=>{
@@ -5927,7 +6162,7 @@ function openTreinoNew(){
   document.getElementById('t_donoTropaHint').style.display = 'none';
   treinoOutrosCustosState = [];
   renderTreinoOutrosCustos();
-  treinoSelector.reset();
+  resetSelectorComFront(treinoSelector);
   openModal('overlayTreino');
 }
 function openTreinoEdit(id){
@@ -8127,7 +8362,7 @@ function openTratamentoNew(){
   document.getElementById('tr_per_tarde').checked=false;
   document.getElementById('tr_per_noite').checked=false;
   atualizarDataTerminoUI();
-  tratamentoSelector.reset();
+  resetSelectorComFront(tratamentoSelector);
   openModal('overlayTratamento');
 }
 function openTratamentoEdit(id){
@@ -8390,8 +8625,7 @@ document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   document.getElementById('vs_veterinario_sel').value = '';
   document.getElementById('vs_obsGeral').value = '';
   document.getElementById('btnDeleteVisita').style.display = 'none';
-  visitaSelector.setSelected([]);
-  visitaSelector.draw();
+  resetSelectorComFront(visitaSelector);
   visitaCustosState = []; renderVisitaCustos();
   visitaDocsState = []; renderVisitaDocs();
   openModal('overlayVisita');
@@ -8807,7 +9041,7 @@ function openGrupoNew(){
   document.getElementById('gModalTitle').textContent='Novo Grupo';
   document.getElementById('btnDeleteGrupo').style.display='none';
   document.getElementById('g_nome').value=''; document.getElementById('g_obs').value='';
-  grupoSelector.reset();
+  resetSelectorComFront(grupoSelector);
   openModal('overlayGrupo');
 }
 function openGrupoEdit(id){
@@ -9877,15 +10111,15 @@ document.getElementById('btnDeleteFuncionario').addEventListener('click', async 
 // quem vê o quê, evitando que um ferrador mexa em Estoque por engano, por exemplo.
 const PERFIL_LABEL = { admin:'Administrador', veterinario:'Veterinário', ferrador:'Ferrador' };
 const PERFIL_VIEWS = {
-  admin: ['inicio','calendario','animais','grupos','manejos','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
-  veterinario: ['inicio','calendario','animais','manejos','estoque','veterinaria'],
-  ferrador: ['inicio','calendario','animais','manejos'],
+  admin: ['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
+  veterinario: ['inicio','calendario','animais','manejos','transporte','estoque','veterinaria'],
+  ferrador: ['inicio','calendario','animais','manejos','transporte'],
 };
 // Financeiro (e Funcionários, que é dado de salário) só entram no perfil Administrador de propósito —
 // é dado sensível do negócio, não precisa (nem deve) aparecer pra quem cuida do dia a dia de campo
 // (ferrador, veterinário).
 function descreverAcesso(perfil){
-  const nomes = { inicio:'Início', calendario:'Calendário', animais:'Animais', grupos:'Grupos', manejos:'Manejos', treinos:'Atividades', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
+  const nomes = { inicio:'Início', calendario:'Calendário', animais:'Animais', grupos:'Grupos', manejos:'Manejos', transporte:'Transporte', treinos:'Atividades', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
   return (PERFIL_VIEWS[perfil]||[]).map(v=>nomes[v]).join(', ');
 }
 function aplicarPermissoes(){
@@ -10851,7 +11085,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
   atualizarBackupPastaStatus();
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -10923,6 +11157,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     visitas = [...visitas, ...((backup.visitas||[]).filter(v=>!existingVisitIds.has(v.id)))];
     const existingFuncIds = new Set(funcionarios.map(fu=>fu.id));
     funcionarios = [...funcionarios, ...((backup.funcionarios||[]).filter(fu=>!existingFuncIds.has(fu.id)))];
+    const existingTranspIds = new Set(transportes.map(t=>t.id));
+    transportes = [...transportes, ...((backup.transportes||[]).filter(t=>!existingTranspIds.has(t.id)))];
     if(backup.aux){
       Object.keys(backup.aux).forEach(k=>{
         if(!aux[k]) aux[k]=[];
@@ -10935,7 +11171,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
     await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
     await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
-    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios();
+    await storeSet('transportes_list', transportes);
+    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
   }catch(err){ showAlert('Não foi possível ler esse arquivo de backup.'); }
   e.target.value='';
