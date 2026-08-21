@@ -183,10 +183,10 @@
     .dash-pilar{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px;}
   }
 
-  .dash-3col{display:grid;grid-template-columns:var(--cols-3col, 1.38fr 1fr 1fr);gap:18px;align-items:start;margin-top:18px;}
+  .dash-3col{display:grid;grid-template-columns:var(--cols-3col, 1.38fr 1fr 1fr);gap:18px;align-items:stretch;margin-top:18px;}
   @media (max-width:860px){ .dash-3col{grid-template-columns:1fr;} }
 
-  .dash-row4{display:grid;grid-template-columns:var(--cols-row4, repeat(3,1fr));gap:18px;align-items:start;margin-top:18px;}
+  .dash-row4{display:grid;grid-template-columns:var(--cols-row4, repeat(3,1fr));gap:18px;align-items:stretch;margin-top:18px;}
   @media (max-width:860px){ .dash-row4{grid-template-columns:1fr;} }
   .dash-poco-linha{background:var(--card-well);border-radius:10px;padding:11px 13px;}
   .dash-mini-pocos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -498,8 +498,6 @@
         </div>
         <div class="dash-hero-foto-wrap">
           <img src="./img/foto-cavalos-tarde.jpg" alt="Cavalos pastando ao entardecer">
-          <div style="position:absolute;inset:0;background:linear-gradient(90deg,var(--hero-fade) 0%,rgba(247,242,228,.92) 14%,rgba(247,242,228,.45) 34%,rgba(247,242,228,0) 62%);"></div>
-          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,51,39,0) 55%,rgba(28,51,39,.30) 100%);"></div>
         </div>
       </div>
 
@@ -4519,15 +4517,10 @@ function renderInicioSaude(host){
 function renderInicioEstoque(host){
   const criticos = estoqueProdutos.filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
     .sort((a,b)=>{ const ordem={zerado:0,perto:1}; const d=ordem[situacaoEstoque(a)]-ordem[situacaoEstoque(b)]; return d!==0?d:(a.nome||'').localeCompare(b.nome||'','pt'); })
-    .slice(0,4);
+    .slice(0,10);
   const medidores = criticos.length===0 ? '<div class="hint-text">Nenhum produto em alerta agora.</div>' : criticos.map(p=>{
     const sit = situacaoEstoque(p);
-    const qtd = Number(p.quantidade)||0;
-    const min = (p.minimo!=='' && p.minimo!=null) ? Number(p.minimo) : null;
-    const pct = min ? Math.min(100, Math.round((qtd/min)*100)) : (qtd<=0?0:50);
-    return `<div class="dash-medidor-linha"><span>${p.nome}</span><span class="dash-chip" style="background:${sit==='zerado'?'var(--alert-bg)':'var(--warn-bg)'};color:${sit==='zerado'?'var(--alert-ink)':'var(--warn-ink)'};padding:2px 8px;font-size:10.5px;">${sit==='zerado'?'Zerado':'No mínimo'}</span></div>
-      <div class="dash-medidor-barra"><div style="width:${pct}%;background:${sit==='zerado'?'var(--alert-ink)':'#B5651D'};"></div></div>
-      <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">${qtd}${p.unidade?(' '+p.unidade):''} — mínimo ${min!=null?min:'—'}${p.unidade?(' '+p.unidade):''}</div>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;"><span style="font-size:12.5px;">${p.nome}</span><span class="dash-chip" style="background:${sit==='zerado'?'var(--alert-bg)':'var(--warn-bg)'};color:${sit==='zerado'?'var(--alert-ink)':'var(--warn-ink)'};padding:2px 8px;font-size:10.5px;white-space:nowrap;">${sit==='zerado'?'Zerado':'No mínimo'}</span></div>`;
   }).join('');
 
   const ultimaSaida = estoqueMovimentos.filter(m=>m.tipoMov==='saida').slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
@@ -4556,7 +4549,7 @@ function renderInicioAtividades(host){
   const cobradosMes = treinos.filter(t=>t.cobranca && t.data>=inicioMes);
   const totalCobradoMes = cobradosMes.reduce((s,t)=>s+valorTotalTreino(t),0);
 
-  const ultima = treinos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+  const ultimas5 = treinos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,5);
 
   const porTropa = {};
   cobradosMes.forEach(t=>{ const chave = t.cobranca.donoDaTropa || 'Sem tropa definida'; porTropa[chave] = (porTropa[chave]||0) + valorTotalTreino(t); });
@@ -4569,11 +4562,14 @@ function renderInicioAtividades(host){
     <div class="dash-mini-pocos">
       <div class="dash-mini-poco"><strong>${treinosSemana.length}</strong><span>sessões na semana</span></div>
       <div class="dash-mini-poco"><strong>${animaisSemana.size}</strong><span>animal(is) em atividade</span></div>
-      <div class="dash-mini-poco"><strong>${fmtMoeda(totalCobradoMes,'BRL')}</strong><span>cobrado no mês</span></div>
+      <div class="dash-mini-poco"><strong class="peek"><span class="blurred">${fmtMoeda(totalCobradoMes,'BRL')}</span>${icoLupa()}</strong><span>cobrado no mês</span></div>
     </div>
-    ${ultima ? `<div class="dash-poco-linha" style="font-size:12px;">
-      <strong>Última sessão · ${fmtDate(ultima.data)}</strong> — ${ultima.tipo||'Treino'}${ultima.local?(' · '+ultima.local):''}
-      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;">${(ultima.animais||[]).length} animal(is)${ultima.treinadores?(' · '+ultima.treinadores):''}</div>
+    ${ultimas5.length>0 ? `<div>
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Últimas atividades</div>
+      ${ultimas5.map(t=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line-soft);">
+        <span><strong>${t.tipo||'Treino'}</strong>${t.local?(' · '+t.local):''} — ${(t.animais||[]).length} animal(is)</span>
+        <span style="color:var(--text-faint);white-space:nowrap;">${fmtDate(t.data).slice(0,5)}</span>
+      </div>`).join('')}
     </div>` : ''}
     ${tropas.length>0 ? `
     <div>
