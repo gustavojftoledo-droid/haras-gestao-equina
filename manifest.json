@@ -1,6 +1,6 @@
 {
-  "name": "Haras — Gestão Equina",
-  "short_name": "Haras",
+  "name": "Equinos Manager — Gestão Equina",
+  "short_name": "Equinos Manager",
   "description": "Gestão de plantel, manejos, estoque, veterinária e financeiro do haras.",
   "start_url": "./app_145.html",
   "scope": "./",

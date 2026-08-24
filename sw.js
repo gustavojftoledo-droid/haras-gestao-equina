@@ -1,4 +1,4 @@
-// Service Worker do Haras — Gestão Equina
+// Service Worker do Equinos Manager — Gestão Equina
 // Cache "rede primeiro" — sempre busca a versão mais nova quando tem internet, e só usa o que está
 // guardado se a rede falhar (offline), depois de instalado ("Adicionar à tela de início"). Só entra em
 // ação quando o app é servido por http/https (ex: GitHub Pages, Netlify) — não faz nada abrindo o
