@@ -13,6 +13,15 @@
      janela de impressão). Carregado de um CDN — precisa de internet pra essa função específica. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+<!-- Firebase: banco de dados na nuvem (Firestore) + login (Authentication), pra computador e celular
+     lerem/gravarem no mesmo lugar em vez de cada aparelho guardar sua própria cópia isolada.
+     SDK "compat" (estilo antigo, firebase.xxx()) porque esse app não usa build step/import — só
+     scripts direto, igual o pdf.js e o html2pdf.js acima. Só precisa de internet na primeira vez;
+     depois disso o cache offline do Firestore (ativado mais abaixo) guarda tudo localmente. -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
 <!-- PWA: permite "Adicionar à tela de início" e funcionar offline depois de instalado.
      Os arquivos manifest.json, sw.js, icon-192.png, icon-512.png e apple-touch-icon.png
      precisam estar na MESMA PASTA que este app.html pra isso funcionar. -->
@@ -478,20 +487,12 @@
 <div id="loginGate">
   <div class="login-card">
     <div class="login-title">🐴 Haras — Entrar</div>
-    <div class="login-subtitle" id="loginSubtitle">Escolha seu usuário pra continuar.</div>
-    <div id="loginUserList"></div>
-    <div id="loginPinBox" style="display:none;">
-      <button type="button" class="btn btn-ghost btn-sm" id="btnLoginVoltar" style="margin-bottom:10px;">← Trocar usuário</button>
-      <div style="font-weight:600;margin-bottom:4px;" id="loginPinNome"></div>
-      <input type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" class="login-pin-input" id="loginPinInput" placeholder="••••">
-      <div id="loginPinErro" style="color:var(--burgundy);font-size:12px;margin-bottom:8px;display:none;">PIN incorreto. Tente de novo.</div>
+    <div class="login-subtitle" id="loginSubtitle">Entre com seu e-mail e senha.</div>
+    <div id="loginFirebaseBox">
+      <div class="field" style="margin-bottom:10px;"><label>E-mail</label><input type="email" id="fbEmail" placeholder="seu@email.com" autocomplete="username"></div>
+      <div class="field" style="margin-bottom:10px;"><label>Senha</label><input type="password" id="fbSenha" placeholder="••••••••" autocomplete="current-password"></div>
+      <div id="loginFirebaseErro" style="color:var(--burgundy);font-size:12px;margin-bottom:8px;display:none;"></div>
       <button type="button" class="btn" id="btnLoginEntrar" style="width:100%;">Entrar</button>
-    </div>
-    <div id="loginSetupBox" style="display:none;">
-      <div class="field" style="margin-bottom:10px;"><label>Seu nome</label><input type="text" id="setupNome" placeholder="Ex: Gustavo"></div>
-      <div class="field" style="margin-bottom:10px;"><label>Crie um PIN de 4 dígitos</label><input type="password" inputmode="numeric" maxlength="4" class="login-pin-input" id="setupPin" placeholder="••••" style="letter-spacing:10px;font-size:20px;"></div>
-      <div class="hint-text" style="margin-bottom:14px;">Esse primeiro usuário vira o Administrador (acesso total), e pode cadastrar os outros depois, em Usuários.</div>
-      <button type="button" class="btn" id="btnSetupCriar" style="width:100%;">Criar usuário administrador</button>
     </div>
   </div>
 </div>
@@ -545,7 +546,12 @@
     </div>
     <div style="padding:12px 14px;border-top:1px solid rgba(237,231,214,0.12);">
       <div id="userBadge" style="color:#D9D2BC;"></div>
-      <button type="button" id="btnLogout" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:7px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;margin-top:8px;">🔒 Trocar usuário</button>
+      <button type="button" id="btnLogout" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:7px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;margin-top:8px;">🔒 Sair</button>
+    </div>
+    <div style="padding:12px 14px;border-top:1px solid rgba(237,231,214,0.12);">
+      <div style="font-size:9.5px;color:var(--brass-light);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Nuvem</div>
+      <button type="button" id="btnEnviarNuvem" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;">☁ Enviar dados deste aparelho pra nuvem</button>
+      <div style="font-size:10px;color:var(--brass-light);margin-top:6px;">Use só UMA VEZ, no aparelho com os dados certos — isso substitui o que estiver salvo na nuvem por tudo que está aqui agora.</div>
     </div>
     <div style="padding:12px 14px 18px;border-top:1px solid rgba(237,231,214,0.12);">
       <div style="font-size:9.5px;color:var(--brass-light);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Segurança dos dados</div>
@@ -2052,14 +2058,50 @@ function atualizarModoConsumoUI(){
 }
 document.getElementById('dt_modoConsumo').addEventListener('change', atualizarModoConsumoUI);
 
-// Este arquivo pode ser aberto de duas formas: (1) como artifact dentro do claude.ai, onde existe
-// window.storage; (2) baixado e aberto direto no navegador (ex: app desktop do Claude), onde
-// window.storage NÃO existe. Nesse segundo caso, usamos o localStorage do próprio navegador —
-// funciona normalmente porque a página deixou de estar dentro do ambiente restrito do Claude.
+// Firebase — Firestore é o banco de dados na nuvem (compartilhado entre computador e celular,
+// desde que logados com a mesma conta), e Authentication é o login. Scripts do SDK carregados no
+// <head>. Se por algum motivo o Firebase não inicializar (script bloqueado, sem internet bem na
+// primeiríssima visita), HAS_FIRESTORE fica false e o app cai pro localStorage isolado desse
+// aparelho — degradado, mas não trava o app.
+const firebaseConfig = {
+  apiKey: "AIzaSyCD_MHWa_7YcrQyAsaqGGOxUf4xqLXAxlw",
+  authDomain: "equinos-manager.firebaseapp.com",
+  projectId: "equinos-manager",
+  storageBucket: "equinos-manager.firebasestorage.app",
+  messagingSenderId: "500229261718",
+  appId: "1:500229261718:web:019c12d7775db7a53575b7"
+};
+let HAS_FIRESTORE = false;
+let db = null;
+try{
+  if(typeof firebase !== 'undefined'){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    // Cache offline: guarda os dados no próprio aparelho e sincroniza sozinho quando o sinal
+    // voltar — é o que permite continuar usando o app sem internet no meio do haras.
+    db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+      console.warn('Persistência offline do Firestore não ativada:', err.code);
+    });
+    HAS_FIRESTORE = true;
+  }
+}catch(e){ console.error('Firebase não inicializou:', e); }
+const FIRESTORE_COLLECTION = 'harasData';
+
+// Este arquivo pode ser aberto de três formas: (1) como artifact dentro do claude.ai, onde existe
+// window.storage; (2) publicado normalmente (GitHub Pages), onde usamos o Firestore acima — o
+// banco compartilhado entre todos os aparelhos; (3) sem o Firebase disponível por algum motivo,
+// onde caímos pro localStorage do próprio navegador como último recurso — funciona, só que fica
+// isolado nesse aparelho até o Firebase voltar a inicializar.
 const HAS_CLOUD_STORAGE = (typeof window.storage !== 'undefined');
 const LS_PREFIX = 'haras_gestao_equina__';
 
 async function storeGet(key){
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
+    try{
+      const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+      return { ok:true, value: snap.exists ? snap.data().value : [] };
+    }catch(e){ console.error('Firestore get failed for', key, e); return { ok:false, value: [] }; }
+  }
   if(!HAS_CLOUD_STORAGE){
     try{
       const raw = localStorage.getItem(LS_PREFIX+key);
@@ -2078,6 +2120,16 @@ async function storeGet(key){
   }
 }
 async function storeSet(key,val,userDeleted){
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
+    try{
+      if(Array.isArray(val) && val.length===0 && !userDeleted){
+        const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+        if(snap.exists){ const existing = snap.data().value; if(Array.isArray(existing)&&existing.length>0){ showAlert('Gravação bloqueada: isso apagaria dados existentes.'); return false; } }
+      }
+      await db.collection(FIRESTORE_COLLECTION).doc(key).set({ value: val, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+      return true;
+    }catch(e){ console.error('Firestore set failed for', key, e); showAlert('Aviso: não consegui salvar agora. Verifique sua conexão e tente de novo.'); return false; }
+  }
   if(!HAS_CLOUD_STORAGE){
     try{
       if(Array.isArray(val) && val.length===0 && !userDeleted){
@@ -10259,74 +10311,42 @@ function aplicarPermissoes(){
   if(typeof renderInicio==='function') renderInicio();
 }
 
-function showUserListScreen(){
-  document.getElementById('loginSetupBox').style.display='none';
-  document.getElementById('loginPinBox').style.display='none';
-  document.getElementById('loginUserList').style.display='block';
-  document.getElementById('loginSubtitle').textContent = 'Escolha seu usuário pra continuar.';
-  document.getElementById('loginUserList').innerHTML = usuarios.map(u=>
-    `<button type="button" class="login-user-btn" data-loginuser="${u.id}">${u.nome} <span class="perfil-tag">${PERFIL_LABEL[u.perfil]||u.perfil}</span></button>`
-  ).join('');
-  document.getElementById('loginUserList').querySelectorAll('[data-loginuser]').forEach(btn=>{
-    btn.addEventListener('click', ()=> showPinScreen(btn.dataset.loginuser));
-  });
+/* ================= LOGIN (Firebase Authentication — e-mail/senha) =================
+   Antes disso o app entrava sozinho, sem senha nenhuma (fazia sentido enquanto o dado morava só
+   no navegador de cada aparelho). Agora que o dado é compartilhado na nuvem (Firestore), precisa
+   de login de verdade — senão qualquer pessoa que achasse o link do site (público) leria/editaria
+   tudo. onAuthStateChanged é quem decide: sem sessão válida, a gaveta de login fica visível; com
+   sessão, carrega os dados e libera o app. */
+function mostrarErroLogin(msg){
+  const el = document.getElementById('loginFirebaseErro');
+  el.textContent = msg; el.style.display = 'block';
 }
-let loginPendingUserId = null;
-function showPinScreen(userId){
-  loginPendingUserId = userId;
-  const u = usuarios.find(x=>x.id===userId); if(!u) return;
-  document.getElementById('loginUserList').style.display='none';
-  document.getElementById('loginPinBox').style.display='block';
-  document.getElementById('loginPinNome').textContent = u.nome+' — '+(PERFIL_LABEL[u.perfil]||u.perfil);
-  const pinEl = document.getElementById('loginPinInput');
-  pinEl.value=''; document.getElementById('loginPinErro').style.display='none';
-  setTimeout(()=>pinEl.focus(), 50);
+function tentarLoginFirebase(){
+  const email = document.getElementById('fbEmail').value.trim();
+  const senha = document.getElementById('fbSenha').value;
+  document.getElementById('loginFirebaseErro').style.display = 'none';
+  if(!HAS_FIRESTORE){ mostrarErroLogin('Não consegui conectar com o servidor de login. Verifique sua internet e recarregue a página.'); return; }
+  if(!email || !senha){ mostrarErroLogin('Preencha e-mail e senha.'); return; }
+  const btn = document.getElementById('btnLoginEntrar');
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  firebase.auth().signInWithEmailAndPassword(email, senha)
+    .catch(err=>{
+      const semSenhaOuEmailErrado = ['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(err.code);
+      mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.' : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
+    })
+    .finally(()=>{ btn.disabled = false; btn.textContent = 'Entrar'; });
 }
-document.getElementById('btnLoginVoltar').addEventListener('click', showUserListScreen);
+document.getElementById('btnLoginEntrar').addEventListener('click', tentarLoginFirebase);
+document.getElementById('fbSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLoginFirebase(); });
+document.getElementById('fbEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('fbSenha').focus(); });
 function entrarNoApp(){
   document.getElementById('loginGate').style.display='none';
   document.getElementById('appRoot').style.display='';
   aplicarPermissoes();
 }
-function tentarLogin(){
-  const u = usuarios.find(x=>x.id===loginPendingUserId); if(!u) return;
-  const pin = document.getElementById('loginPinInput').value;
-  if(pin && pin===u.pin){ currentUser = u; entrarNoApp(); }
-  else{
-    document.getElementById('loginPinErro').style.display='block';
-    document.getElementById('loginPinInput').value='';
-    document.getElementById('loginPinInput').focus();
-  }
-}
-document.getElementById('btnLoginEntrar').addEventListener('click', tentarLogin);
-document.getElementById('loginPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLogin(); });
-document.getElementById('btnSetupCriar').addEventListener('click', async ()=>{
-  const nome = document.getElementById('setupNome').value.trim();
-  const pin = document.getElementById('setupPin').value;
-  if(!nome){ showAlert('Informe seu nome.'); return; }
-  if(!/^\d{4}$/.test(pin)){ showAlert('O PIN precisa ter exatamente 4 números.'); return; }
-  const novo = { id:'usr_'+Date.now(), nome, perfil:'admin', pin };
-  usuarios = [novo];
-  await storeSet('usuarios_list', usuarios);
-  currentUser = novo;
-  entrarNoApp();
-});
 document.getElementById('btnLogout').addEventListener('click', ()=>{
-  currentUser = null;
-  document.getElementById('appRoot').style.display='none';
-  document.getElementById('loginGate').style.display='flex';
-  showUserListScreen();
+  if(HAS_FIRESTORE) firebase.auth().signOut();
 });
-function initLoginScreen(){
-  if(usuarios.length===0){
-    document.getElementById('loginUserList').style.display='none';
-    document.getElementById('loginPinBox').style.display='none';
-    document.getElementById('loginSetupBox').style.display='block';
-    document.getElementById('loginSubtitle').textContent = 'Primeiro acesso — vamos criar seu usuário administrador.';
-  } else {
-    showUserListScreen();
-  }
-}
 
 /* ---- Usuários (CRUD, só visível pra Admin) ---- */
 function renderUsuarios(){
@@ -11073,17 +11093,38 @@ document.getElementById('btnCompareList').addEventListener('click', ()=>{
   `;
 });
 
-loadAll().then(()=>{
-  currentUser = { id:'usr_local', nome:'Usuário', perfil:'admin', pin:'' };
-  manejoRelSelector.restoreFromSaved();
-  treinoRelSelector.restoreFromSaved();
-  vetRelSelector.restoreFromSaved();
-  relFichaSelector.restoreFromSaved();
-  entrarNoApp();
-  // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
-  const paramAnimal = new URLSearchParams(location.search).get('animal');
-  if(paramAnimal && horses.some(h=>h.id===paramAnimal)) abrirPerfilAnimal(paramAnimal);
-});
+// Antes o app chamava loadAll() e entrava direto aqui, sem checar login nenhum (fazia sentido
+// quando o dado só existia localmente). Agora, com o Firestore compartilhado, só entra depois que
+// o Firebase confirmar uma sessão válida — onAuthStateChanged dispara sozinho tanto na primeira
+// carga da página quanto depois de um login bem-sucedido.
+function iniciarAppLogado(){
+  loadAll().then(()=>{
+    currentUser = { id:'usr_local', nome:'Usuário', perfil:'admin', pin:'' };
+    manejoRelSelector.restoreFromSaved();
+    treinoRelSelector.restoreFromSaved();
+    vetRelSelector.restoreFromSaved();
+    relFichaSelector.restoreFromSaved();
+    entrarNoApp();
+    // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
+    const paramAnimal = new URLSearchParams(location.search).get('animal');
+    if(paramAnimal && horses.some(h=>h.id===paramAnimal)) abrirPerfilAnimal(paramAnimal);
+  });
+}
+if(HAS_FIRESTORE){
+  firebase.auth().onAuthStateChanged((user)=>{
+    if(user){
+      iniciarAppLogado();
+    }else{
+      document.getElementById('appRoot').style.display='none';
+      document.getElementById('loginGate').style.display='flex';
+      document.getElementById('fbSenha').value='';
+    }
+  });
+}else{
+  // Firebase não inicializou (ver storeGet/storeSet) — cai pro modo antigo, sem login, com
+  // localStorage isolado nesse aparelho, pra não deixar a pessoa completamente na mão.
+  iniciarAppLogado();
+}
 
 /* ================= DIAGNÓSTICO ================= */
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
@@ -11232,6 +11273,45 @@ document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   showAlert((salvouNaPasta ? ('Backup salvo direto na pasta "'+nomePasta+'": '+nomeArquivo) : ('Backup baixado: '+nomeArquivo))+' — '+horses.length+' animais, '+manejos.length+' manejos, '+treinos.length+' treinos, '+nascimentos.length+' nascimentos, '+estoqueProdutos.length+' produtos em estoque, '+dietas.length+' dietas, '+grupos.length+' grupos, '+lancamentos.length+' lançamentos financeiros, '+funcionarios.length+' funcionários.');
 });
 atualizarBackupPastaStatus();
+
+// "Enviar dados deste aparelho pra nuvem" — migração manual e explícita pro Firestore. De propósito
+// NÃO é automática: se fosse, o primeiro aparelho a abrir depois dessa atualização decidiria sozinho
+// o que vira "verdade" na nuvem, e se por acaso fosse o celular (com dado velho) em vez do computador
+// (com dado certo), a gente perderia justamente o que estava tentando preservar. Com um botão manual,
+// quem decide é a pessoa, no aparelho certo, olhando os números antes de confirmar.
+//
+// IMPORTANTE: lê direto do localStorage (o que já estava salvo ANTES dessa atualização), não das
+// variáveis em memória (horses, manejos, etc.) — depois do login, loadAll() já populou essas
+// variáveis a partir da nuvem (que começa vazia), então elas não refletem mais o dado antigo deste
+// aparelho. O localStorage em si continua intacto, só não é mais o que o app lê pra tela.
+const MIGRACAO_CHAVES = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists',
+  'estoque_produtos','estoque_movimentos','dietas_list','grupos_list','config','usuarios_list',
+  'tratamentos_list','visitas_list','transportes_list','financeiro_lancamentos','funcionarios_list',
+  'rel_selecoes','nf_aprendizado','dismissed_duplicates','dismissed_manejo_tasks'];
+document.getElementById('btnEnviarNuvem').addEventListener('click', async ()=>{
+  if(!HAS_FIRESTORE){ showAlert('Sem conexão com a nuvem agora. Verifique sua internet e tente de novo.'); return; }
+  const dadosAntigos = {};
+  MIGRACAO_CHAVES.forEach(chave=>{
+    try{
+      const raw = localStorage.getItem(LS_PREFIX+chave);
+      if(raw!==null) dadosAntigos[chave] = JSON.parse(raw);
+    }catch(e){ console.error('Não consegui ler', chave, 'do localStorage antigo:', e); }
+  });
+  if(Object.keys(dadosAntigos).length===0){
+    showAlert('Não encontrei dados salvos neste navegador (localStorage) pra enviar. Se a tela já está mostrando os animais certos, é porque eles já vieram da nuvem — não precisa desse botão.');
+    return;
+  }
+  const totalAnimais = Array.isArray(dadosAntigos.horses_list) ? dadosAntigos.horses_list.length : 0;
+  const msg = `Isso vai SUBSTITUIR o que estiver salvo na nuvem pelos dados que JÁ ESTAVAM SALVOS NESTE NAVEGADOR antes desta atualização: ${totalAnimais} animal(is) e o restante do cadastro.\n\n`+
+    `Use isso só UMA VEZ, no aparelho com os dados certos e atualizados (geralmente o computador). Continuar?`;
+  if(!(await showConfirm(msg))) return;
+  try{
+    for(const [chave, valor] of Object.entries(dadosAntigos)){
+      await db.collection(FIRESTORE_COLLECTION).doc(chave).set({ value: valor, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    showAlert('Dados enviados para a nuvem com sucesso. Recarregue a página pra ver tudo vindo da nuvem, e logue com o mesmo e-mail/senha no outro aparelho.');
+  }catch(e){ console.error('Falha ao enviar dados pra nuvem:', e); showAlert('Não consegui enviar tudo — verifique sua conexão e tente de novo. Nada foi apagado.'); }
+});
 
 document.getElementById('btnImportBackup').addEventListener('click', ()=> document.getElementById('importBackupFile').click());
 document.getElementById('importBackupFile').addEventListener('change', async (e)=>{
