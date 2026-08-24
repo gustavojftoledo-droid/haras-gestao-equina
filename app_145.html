@@ -284,6 +284,20 @@
   .modal-actions{display:flex;justify-content:space-between;margin-top:22px;}
   .modal-actions-right{display:flex;gap:10px;}
 
+  /* Grade de permissões por usuário (tela Usuários) — cada linha é um módulo do menu, cada coluna uma
+     ação (Ver/Inserir/Editar/Excluir). overflow-x:auto é rede de segurança pra caber em qualquer tela,
+     mesmo celular deitado (mesma lógica do .matrix-wrap/.pedigree-tree-wrap). */
+  .perm-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:#fff;max-height:360px;overflow-y:auto;}
+  .perm-table{min-width:420px;}
+  .perm-row{display:grid;grid-template-columns:1fr repeat(4,50px);align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--line-soft);}
+  .perm-row.perm-head{background:var(--card-well);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;position:sticky;top:0;}
+  .perm-cel{text-align:center;}
+  .perm-cel input[type=checkbox]{width:16px;height:16px;}
+  .perm-grupo-label{font-size:10px;color:var(--brass);text-transform:uppercase;letter-spacing:.07em;font-weight:700;padding:8px 10px 2px;background:var(--card-well);}
+  .perm-sub-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:6px 10px 8px 22px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line-soft);}
+  .perm-sub-row label{display:flex;align-items:center;gap:4px;font-weight:400;cursor:pointer;}
+  .perm-sub-row input[type=checkbox]{width:14px;height:14px;}
+
   .placeholder{background:var(--card);border:1px dashed var(--line);border-radius:6px;padding:56px 30px;text-align:center;color:var(--muted);}
   .placeholder-title{font-family:'Fraunces',serif;font-size:19px;color:var(--ink);margin-bottom:6px;}
 
@@ -645,11 +659,11 @@
     <!-- USUÁRIOS -->
     <div class="view" id="view-usuarios">
       <div class="topbar">
-        <div><div class="title">Usuários</div><div class="subtitle">Cada perfil vê só as telas que precisa — não é senha de banco, é organização</div></div>
+        <div><div class="title">Usuários</div><div class="subtitle">Cada pessoa só vê e mexe no que você liberar pra ela, módulo por módulo</div></div>
         <button class="btn" id="btnNewUsuario" title="Atalho: Alt+U">+ Novo Usuário</button>
       </div>
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Nome</th><th>Perfil</th><th>Acesso</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Acesso</th><th></th></tr></thead>
         <tbody id="usrTbody"></tbody>
       </table></div>
     </div>
@@ -1883,19 +1897,25 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
 
 <!-- USUÁRIO MODAL -->
 <div class="overlay" id="overlayUsuario">
-  <div class="modal">
+  <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="usrModalTitle">Novo Usuário</div><button class="modal-close" data-close="overlayUsuario">✕</button></div>
     <form id="usuarioForm">
       <div class="form-grid">
         <div class="field"><label>Nome</label><input type="text" id="u_nome" required></div>
-        <div class="field"><label>Perfil</label><select id="u_perfil">
-          <option value="admin">Administrador (acesso total)</option>
-          <option value="veterinario">Veterinário</option>
-          <option value="ferrador">Ferrador</option>
-        </select></div>
-        <div class="field full"><label>PIN de 4 dígitos</label><input type="password" inputmode="numeric" maxlength="4" id="u_pin" placeholder="••••"></div>
-        <div class="field full hint-text" id="u_acessoPreview"></div>
+        <div class="field"><label>E-mail (login)</label><input type="email" id="u_email" required placeholder="nome@exemplo.com"></div>
+        <div class="field full hint-text">Esse e-mail precisa ter uma conta criada no Firebase Authentication (console do Firebase → Authentication → Add user), com a senha que a pessoa vai usar pra entrar. Aqui você só liga esse e-mail ao nome e aos acessos dela dentro do app.</div>
+        <div class="field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink);">
+            <input type="checkbox" id="u_admin" style="width:16px;height:16px;">
+            Administrador — acesso total a tudo (inclusive Usuários e Financeiro)
+          </label>
+        </div>
       </div>
+      <div id="u_permBlock" style="margin-top:16px;">
+        <div class="hint-text" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
+        <div class="perm-table-wrap"><div class="perm-table" id="u_permTable"></div></div>
+      </div>
+      <div class="field full hint-text" id="u_acessoPreview" style="margin-top:14px;"></div>
       <div class="modal-actions">
         <div><button type="button" class="btn btn-danger" id="btnDeleteUsuario" style="display:none;">Excluir</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayUsuario">Cancelar</button><button type="submit" class="btn">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -2635,8 +2655,8 @@ document.querySelectorAll('.nav-group-head').forEach(head=>{
   });
 });
 // Esconde por completo (no celular) um grupo cujos itens todos estão ocultos pela permissão do
-// perfil (PERFIL_VIEWS) — sem isso, um perfil sem acesso a nada de "Saúde", por exemplo, ainda
-// veria o cabeçalho "Saúde ›" no menu, só que vazio ao abrir.
+// usuário — sem isso, alguém sem acesso a nada de "Saúde", por exemplo, ainda veria o cabeçalho
+// "Saúde ›" no menu, só que vazio ao abrir.
 function atualizarGruposVaziosMenu(){
   document.querySelectorAll('.nav-group').forEach(grupo=>{
     const itens = grupo.querySelectorAll('.nav-item');
@@ -2702,8 +2722,7 @@ document.addEventListener('keydown', (e)=>{
   const key = e.key.toLowerCase();
   const atalho = ATALHOS_NOVO[key];
   if(!atalho) return;
-  const permitidas = PERFIL_VIEWS[currentUser.perfil]||[];
-  if(!permitidas.includes(atalho.view)) return; // esse perfil não tem acesso a essa tela
+  if(!temPermissao(atalho.view,'inserir')) return; // esse usuário não pode inserir nesse módulo
   const modalAberto = document.querySelector('.overlay.show');
   if(modalAberto) return; // já tem um cadastro aberto, não empilha outro
   e.preventDefault();
@@ -2734,8 +2753,7 @@ document.addEventListener('keydown', (e)=>{
   const key = e.key.toLowerCase();
   const view = ATALHOS_NAVEGACAO[key];
   if(!view) return;
-  const permitidas = PERFIL_VIEWS[currentUser.perfil]||[];
-  if(!permitidas.includes(view)) return;
+  if(!viewsPermitidas(currentUser).includes(view)) return;
   const modalAberto = document.querySelector('.overlay.show');
   if(modalAberto) return;
   e.preventDefault();
@@ -3759,7 +3777,10 @@ const mFiltroPeriodo = createDateRangePicker(document.getElementById('mFiltroPer
 function renderManejos(){
   const tipo=document.getElementById('mFiltroTipo').value;
   const { de, ate } = mFiltroPeriodo.getRange();
-  const filtered = manejos.filter(m=> (!tipo||m.tipo===tipo) && (!de||m.data>=de) && (!ate||m.data<=ate) ).sort((a,b)=> b.data.localeCompare(a.data));
+  // Um usuário restrito a certos tipos de manejo (ex: Ferrador só com Casco liberado) nem enxerga
+  // lançamentos dos outros tipos aqui — independente do que estiver marcado no filtro "Tipo" acima.
+  const tiposPermitidos = manejoTiposPermitidos(currentUser);
+  const filtered = manejos.filter(m=> tiposPermitidos.includes(m.tipo) && (!tipo||m.tipo===tipo) && (!de||m.data>=de) && (!ate||m.data<=ate) ).sort((a,b)=> b.data.localeCompare(a.data));
   // Tira da seleção quem saiu da lista filtrada (não existe mais ou não passa mais no filtro)
   const idsFiltrados = new Set(filtered.map(m=>m.id));
   [...manejoSelecionados].forEach(id=>{ if(!idsFiltrados.has(id)) manejoSelecionados.delete(id); });
@@ -3790,10 +3811,12 @@ function renderManejos(){
     });
     return temAlgumValor ? total : null;
   };
-  tbody.innerHTML = filtered.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="cursor:pointer;" title="Clique pra abrir e editar esse lançamento">
+  const podeEditarManejo = temPermissao('manejos','editar');
+  const podeExcluirManejo = temPermissao('manejos','excluir');
+  tbody.innerHTML = filtered.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
     <td><input type="checkbox" data-selid="${m.id}" ${manejoSelecionados.has(m.id)?'checked':''}></td>
     <td>${fmtDate(m.data)}</td><td>${m.tipo}</td><td>${m.subtipoCasco||''}</td><td>${m.ferrador||''}</td><td>${fmtValor(calcTotalBase(m))}</td><td>${fmtValor(calcTotal(m))}</td><td>${fmtValor(m.deslocamento)}</td><td>${m.animais.length}</td><td>${m.obs||''}</td>
-    <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> <button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button></td>
+    <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-rel]').forEach(b=>b.addEventListener('click', e=>{
     e.stopPropagation();
@@ -3817,6 +3840,7 @@ function renderManejos(){
   });
   tbody.querySelectorAll('tr[data-id]').forEach(row=>{
     row.addEventListener('click', e=>{
+      if(!podeEditarManejo) return; // sem permissão de editar, a linha só mostra os dados
       if(e.target.closest('input,button')) return; // não abre edição se clicou no checkbox ou nos botões da linha
       openManejoEdit(row.dataset.id);
     });
@@ -3828,6 +3852,7 @@ function renderManejos(){
         cb.checked = !cb.checked;
         cb.dispatchEvent(new Event('change'));
       } else if(e.key==='Enter'){
+        if(!podeEditarManejo) return;
         e.preventDefault();
         openManejoEdit(row.dataset.id);
       } else if(e.key==='ArrowDown'){
@@ -4357,9 +4382,9 @@ function renderInicio(){
   renderInicioLinha4();
 }
 
-// Faixa de abertura: saudação + foto + frase-resumo (com o saldo do mês embaçado, só admin) + até
-// 3 chips de atalho (atrasadas / estoque / folha do mês — cada um só aparece pra quem tem acesso
-// àquele módulo, mesma regra de PERFIL_VIEWS que já vale pro menu).
+// Faixa de abertura: saudação + foto + frase-resumo + até 3 chips de atalho (atrasadas / estoque /
+// backup — cada um só aparece pra quem tem acesso àquele módulo, mesma regra de permissão que já vale
+// pro menu).
 function renderInicioHero(){
   const hoje = new Date();
   const DIAS_SEMANA = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
@@ -4369,8 +4394,7 @@ function renderInicioHero(){
   const nome = (currentUser && currentUser.nome) ? currentUser.nome.split(' ')[0] : '';
   document.getElementById('inicioSaudacao').textContent = saudacao + (nome?(', '+nome):'') + '.';
 
-  const acessos = PERFIL_VIEWS[currentUser && currentUser.perfil]||[];
-  const isAdmin = currentUser && currentUser.perfil==='admin';
+  const acessos = viewsPermitidas(currentUser);
   const ativos = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
   const tasks = computeCalendarTasks();
   const byDate = tasksByDate(tasks);
@@ -4409,12 +4433,11 @@ function renderInicioHero(){
   chipsHost.querySelectorAll('[data-chipidx]').forEach(el=> el.addEventListener('click', ()=> chips[Number(el.dataset.chipidx)].onClick()));
 }
 
-// O "pulso" — um cartão só, com 2 a 4 colunas (Plantel/Manejo sempre; Saúde só quem acessa
-// Veterinária; Caixa só Administrador), separadas por um fio vertical em vez de 5 caixinhas soltas.
+// O "pulso" — um cartão só, com 2 a 3 colunas (Plantel/Manejo sempre; Saúde só quem acessa
+// Veterinária), separadas por um fio vertical em vez de caixinhas soltas.
 function renderInicioPilares(){
   const host = document.getElementById('inicioPilares');
-  const perfil = currentUser && currentUser.perfil;
-  const acessos = PERFIL_VIEWS[perfil]||[];
+  const acessos = viewsPermitidas(currentUser);
   const pilares = [];
 
   const ativosArr = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
@@ -4594,10 +4617,10 @@ function renderInicioDinheiro(){
 
 // Quarta linha do Início — "Saúde e nascimentos" (Veterinária), "O que está acabando" (Estoque) e
 // "Atividades e tropas" (Atividades). Cada um só aparece pra quem tem acesso àquele módulo (mesma
-// regra de PERFIL_VIEWS já usada no resto da tela) — a linha inteira soma quantos cartões vão
-// aparecer e ajusta a grade sozinha, do 1 ao 3.
+// regra de permissão já usada no resto da tela) — a linha inteira soma quantos cartões vão aparecer
+// e ajusta a grade sozinha, do 1 ao 3.
 function renderInicioLinha4(){
-  const acessos = PERFIL_VIEWS[currentUser && currentUser.perfil]||[];
+  const acessos = viewsPermitidas(currentUser);
   const linha = document.getElementById('inicioLinha4');
   const cards = [
     {id:'inicioSaudeCard', view:'veterinaria', ok:acessos.includes('veterinaria'), render:renderInicioSaude},
@@ -5240,15 +5263,18 @@ document.getElementById('btnNewManejo').addEventListener('click', async ()=>{
   document.getElementById('mModalTitle').textContent='Novo Lançamento de Manejo';
   document.getElementById('btnDeleteManejoModal').style.display='none';
   document.getElementById('btnRelatorioManejoUnico').style.display='none';
-  document.getElementById('m_data').value=toISODate(new Date()); document.getElementById('m_tipo').value='Casco'; document.getElementById('m_obs').value='';
+  const tiposPermitidosNovo = manejoTiposPermitidos(currentUser);
+  document.getElementById('m_data').value=toISODate(new Date());
+  document.getElementById('m_tipo').value = tiposPermitidosNovo.includes('Casco') ? 'Casco' : (tiposPermitidosNovo[0]||'Casco');
+  document.getElementById('m_obs').value='';
   document.getElementById('m_subtipoCasco').value='Casqueado mãos';
   document.getElementById('m_deslocamento').value = config.deslocamentoFerrador || '';
   document.getElementById('m_valorDente').value = '';
   document.getElementById('m_medicamento').value = ''; document.getElementById('m_medQuantidade').value = '';
   manejoUtensiliosState = []; renderManejoUtensilios(); refreshDatalists();
-  // Se quem está logado é um usuário com perfil "Ferrador", preenche o campo Ferrador automaticamente
-  // com o nome dele (e garante que o nome já esteja na lista de opções). Qualquer outro perfil vê o campo em branco.
-  if(currentUser && currentUser.perfil==='ferrador'){
+  // Se quem está logado só tem acesso a Casco em Manejos (o caso típico de um Ferrador), preenche o
+  // campo Ferrador automaticamente com o nome dele. Qualquer outro usuário vê o campo em branco.
+  if(currentUser && !currentUser.admin && tiposPermitidosNovo.length===1 && tiposPermitidosNovo[0]==='Casco'){
     if(!aux.ferrador.includes(currentUser.nome)){ aux.ferrador.push(currentUser.nome); await storeSet('aux_lists', aux); populateAuxSelects(); }
     document.getElementById('m_ferrador_sel').value = currentUser.nome;
   } else {
@@ -10196,29 +10222,90 @@ document.getElementById('btnDeleteFuncionario').addEventListener('click', async 
 });
 
 /* ================= LOGIN E PERMISSÕES ================= */
-// Não é segurança de verdade (o programa roda só no navegador, sem servidor) — serve pra organizar
-// quem vê o quê, evitando que um ferrador mexa em Estoque por engano, por exemplo.
-const PERFIL_LABEL = { admin:'Administrador', veterinario:'Veterinário', ferrador:'Ferrador' };
-const PERFIL_VIEWS = {
-  admin: ['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'],
-  veterinario: ['inicio','calendario','animais','manejos','transporte','estoque','veterinaria'],
-  ferrador: ['inicio','calendario','animais','manejos','transporte'],
-};
-// Financeiro (e Funcionários, que é dado de salário) só entram no perfil Administrador de propósito —
-// é dado sensível do negócio, não precisa (nem deve) aparecer pra quem cuida do dia a dia de campo
-// (ferrador, veterinário).
-function descreverAcesso(perfil){
-  const nomes = { inicio:'Início', calendario:'Calendário', animais:'Animais', grupos:'Grupos', manejos:'Manejos', transporte:'Transporte', treinos:'Atividades', nascimentos:'Nascimentos', estoque:'Estoque', veterinaria:'Veterinária', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
-  return (PERFIL_VIEWS[perfil]||[]).map(v=>nomes[v]).join(', ');
+// Não é segurança de verdade (o programa roda só no navegador, sem servidor de regras próprio — quem
+// barra de fato é a regra do Firestore, "precisa estar logado") — isso aqui é pra organizar quem vê e
+// mexe no quê, evitando que um ferrador mexa em Financeiro por engano, por exemplo.
+//
+// Modelo: cada usuário tem `admin:true` (acesso total, sem precisar configurar nada) OU um objeto
+// `permissoes` com uma entrada por módulo — { ver, inserir, editar, excluir } — mais um caso especial:
+// dentro de `permissoes.manejos`, um array `tipos` (ex: ['Casco']) restringe A QUAIS TIPOS de manejo
+// (Casco/Vacina/Vermífugo/Dente) o usuário tem acesso; array vazio ou ausente = todos os tipos.
+// Início e Calendário não entram nessa grade — todo usuário logado sempre vê os dois (é a base do app).
+const MODULOS_PERMISSAO = ['animais','grupos','nascimentos','manejos','veterinaria','transporte','treinos','estoque','funcionarios','financeiro','usuarios'];
+const MODULO_LABEL = { animais:'Animais', grupos:'Grupos', nascimentos:'Nascimentos', manejos:'Manejos', veterinaria:'Veterinária', transporte:'Transporte', treinos:'Atividades', estoque:'Estoque', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
+// Agrupado igual o menu lateral, só pra desenhar a grade de permissões na mesma ordem que a pessoa já reconhece.
+const MODULO_GRUPO = { 'Animais':['animais','grupos','nascimentos'], 'Saúde':['manejos','veterinaria'], 'Operação':['transporte','treinos'], 'Administração':['estoque','funcionarios','financeiro','usuarios'] };
+const ACOES_PERMISSAO = [['ver','Ver'],['inserir','Inserir'],['editar','Editar'],['excluir','Excluir']];
+const MANEJO_TIPOS_OPCOES = ['Casco','Vacina','Vermífugo','Dente'];
+function permissaoDe(user, modulo){
+  if(!user) return {ver:false, inserir:false, editar:false, excluir:false};
+  if(user.admin) return {ver:true, inserir:true, editar:true, excluir:true};
+  const p = (user.permissoes && user.permissoes[modulo]) || {};
+  return {ver:!!p.ver, inserir:!!p.inserir, editar:!!p.editar, excluir:!!p.excluir};
+}
+function temPermissao(modulo, acao){
+  return permissaoDe(currentUser, modulo)[acao]===true;
+}
+function viewsPermitidas(user){
+  if(!user) return [];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO];
+  return ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
+}
+// Pra Manejos, além de liberar a tela, dá pra restringir A QUAIS TIPOS o usuário tem acesso — o caso
+// de um Ferrador, que só deve ver/mexer em lançamentos do tipo Casco.
+function manejoTiposPermitidos(user){
+  if(!user) return [];
+  if(user.admin) return MANEJO_TIPOS_OPCOES.slice();
+  const p = user.permissoes && user.permissoes.manejos;
+  if(!p || !p.ver) return [];
+  if(!p.tipos || p.tipos.length===0) return MANEJO_TIPOS_OPCOES.slice(); // sem restrição marcada = todos os tipos
+  return p.tipos;
+}
+function descreverAcesso(user){
+  if(!user) return '';
+  if(user.admin) return 'Acesso total (Administrador)';
+  const partes = MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver).map(m=>{
+    if(m==='manejos'){
+      const tipos = manejoTiposPermitidos(user);
+      return MODULO_LABEL[m] + (tipos.length===MANEJO_TIPOS_OPCOES.length ? '' : ` (${tipos.join(', ')||'nenhum tipo'})`);
+    }
+    return MODULO_LABEL[m];
+  });
+  return partes.length ? partes.join(', ') : 'Nenhum acesso configurado ainda';
+}
+// Cada botão "+ Novo X" só aparece pra quem tem permissão de "inserir" no módulo dono dele.
+const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
+function aplicarPermissoesBotoesNovo(){
+  Object.entries(BOTOES_NOVO_POR_MODULO).forEach(([id,modulo])=>{
+    const btn = document.getElementById(id);
+    if(btn) btn.style.display = temPermissao(modulo,'inserir') ? '' : 'none';
+  });
+}
+// Restringe o seletor "Tipo de Manejo" (no filtro do histórico e no formulário de novo lançamento) a só
+// os tipos que o usuário logado pode acessar — pra um Ferrador (só Casco liberado), por exemplo, nem
+// aparece a opção de escolher Vacina.
+function aplicarRestricaoTiposManejoUI(){
+  const tipos = currentUser ? manejoTiposPermitidos(currentUser) : MANEJO_TIPOS_OPCOES;
+  const restrito = tipos.length < MANEJO_TIPOS_OPCOES.length;
+  ['mFiltroTipo','m_tipo'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    Array.from(sel.options).forEach(opt=>{
+      if(!opt.value) return; // mantém a opção "Todos" do filtro sempre visível
+      opt.hidden = restrito && !tipos.includes(opt.value);
+    });
+  });
 }
 function aplicarPermissoes(){
-  const permitidas = PERFIL_VIEWS[currentUser.perfil] || [];
+  const permitidas = viewsPermitidas(currentUser);
   document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     item.style.display = permitidas.includes(view) ? '' : 'none';
   });
   atualizarGruposVaziosMenu();
-  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${PERFIL_LABEL[currentUser.perfil]||currentUser.perfil}</span> ${currentUser.nome}`;
+  aplicarPermissoesBotoesNovo();
+  aplicarRestricaoTiposManejoUI();
+  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${currentUser.nome}`;
   const viewAtiva = document.querySelector('.nav-item.active');
   if(!viewAtiva || viewAtiva.style.display==='none'){
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -10228,10 +10315,12 @@ function aplicarPermissoes(){
     document.getElementById('view-inicio').classList.add('active');
     renderInicio();
   }
-  // O Início pode já ter sido desenhado antes do login terminar (loadAll roda antes de currentUser
-  // existir) — os blocos que dependem do perfil (saldo em caixa, cartões financeiros) precisam
-  // recalcular aqui, mesmo se a view ativa continuar sendo Início e o "if" acima não disparar.
+  // O Início (e Manejos) podem já ter sido desenhados antes do login terminar (loadAll roda antes de
+  // currentUser existir) — os blocos que dependem do usuário logado (saldo em caixa, cartões
+  // financeiros, filtro por tipo de manejo permitido) precisam recalcular aqui, mesmo se a view ativa
+  // não mudar e o "if" acima não disparar.
   if(typeof renderInicio==='function') renderInicio();
+  if(typeof renderManejos==='function') renderManejos();
 }
 
 /* ================= LOGIN (Firebase Authentication — e-mail/senha) =================
@@ -10277,22 +10366,101 @@ function renderUsuarios(){
   if(usuarios.length===0){ tbody.innerHTML='<tr><td colspan="4" class="empty">Nenhum usuário cadastrado.</td></tr>'; return; }
   tbody.innerHTML = usuarios.map(u=>`
     <tr>
-      <td><strong>${u.nome}</strong>${currentUser&&currentUser.id===u.id?' <span class="pill st-ativo">Você</span>':''}</td>
-      <td><span class="pill st-outro">${PERFIL_LABEL[u.perfil]||u.perfil}</span></td>
-      <td style="font-size:12px;color:var(--muted);">${descreverAcesso(u.perfil)}</td>
+      <td><strong>${u.nome}</strong>${currentUser&&currentUser.id===u.id?' <span class="pill st-ativo">Você</span>':''}<div style="font-size:11px;color:var(--muted);">${u.email||'<em>sem e-mail cadastrado</em>'}</div></td>
+      <td><span class="pill st-outro">${u.admin?'Administrador':'Acesso restrito'}</span></td>
+      <td style="font-size:12px;color:var(--muted);">${descreverAcesso(u)}</td>
       <td><button type="button" class="btn btn-sm btn-ghost" data-editarusr="${u.id}">Editar</button></td>
     </tr>`).join('');
   tbody.querySelectorAll('[data-editarusr]').forEach(b=>b.addEventListener('click', ()=>openUsuarioEdit(b.dataset.editarusr)));
 }
-function atualizarAcessoPreview(){
-  document.getElementById('u_acessoPreview').textContent = 'Esse perfil vê: '+descreverAcesso(document.getElementById('u_perfil').value);
+// Monta a grade de permissões (módulo × Ver/Inserir/Editar/Excluir) uma única vez — o conteúdo dos
+// checkboxes é atualizado depois, por usuário, em aplicarEstadoPermNoForm().
+function gerarPermTableHTML(){
+  let html = `<div class="perm-row perm-head"><div></div>${ACOES_PERMISSAO.map(([,l])=>`<div class="perm-cel">${l}</div>`).join('')}</div>`;
+  Object.entries(MODULO_GRUPO).forEach(([grupo, mods])=>{
+    html += `<div class="perm-grupo-label">${grupo}</div>`;
+    mods.forEach(m=>{
+      html += `<div class="perm-row">
+        <div>${MODULO_LABEL[m]}</div>
+        ${ACOES_PERMISSAO.map(([a])=>`<div class="perm-cel"><input type="checkbox" data-perm-modulo="${m}" data-perm-acao="${a}"></div>`).join('')}
+      </div>`;
+      if(m==='manejos'){
+        html += `<div class="perm-sub-row" id="u_manejoTiposRow">
+          <span>↳ Restringir a tipos de manejo:</span>
+          ${MANEJO_TIPOS_OPCOES.map(t=>`<label><input type="checkbox" data-perm-manejotipo="${t}">${t}</label>`).join('')}
+        </div>`;
+      }
+    });
+  });
+  return html;
 }
-document.getElementById('u_perfil').addEventListener('change', atualizarAcessoPreview);
+document.getElementById('u_permTable').innerHTML = gerarPermTableHTML();
+// "Ver" desmarcado esconde e desliga os outros três da mesma linha (sem ver, não faz sentido inserir/
+// editar/excluir); marcar qualquer um dos outros três liga "Ver" de volta automaticamente.
+document.getElementById('u_permTable').addEventListener('change', e=>{
+  const cb = e.target;
+  if(cb.matches('[data-perm-acao="ver"]')){
+    const modulo = cb.dataset.permModulo;
+    if(!cb.checked) document.querySelectorAll(`#u_permTable [data-perm-modulo="${modulo}"]:not([data-perm-acao="ver"])`).forEach(o=>o.checked=false);
+    if(modulo==='manejos'){
+      const linha = document.getElementById('u_manejoTiposRow');
+      if(linha) linha.style.display = cb.checked ? '' : 'none';
+    }
+  } else if(cb.matches('[data-perm-acao]') && cb.checked){
+    const verCb = document.querySelector(`#u_permTable [data-perm-modulo="${cb.dataset.permModulo}"][data-perm-acao="ver"]`);
+    if(verCb && !verCb.checked) verCb.checked = true;
+  }
+  atualizarAcessoPreview();
+});
+document.getElementById('u_admin').addEventListener('change', ()=>{
+  document.getElementById('u_permBlock').style.display = document.getElementById('u_admin').checked ? 'none' : '';
+  atualizarAcessoPreview();
+});
+// Lê o estado atual dos checkboxes do formulário e devolve no mesmo formato salvo em usuarios[].
+function lerPermissoesDoForm(){
+  const admin = document.getElementById('u_admin').checked;
+  if(admin) return { admin:true, permissoes:{} };
+  const permissoes = {};
+  document.querySelectorAll('#u_permTable [data-perm-modulo]').forEach(cb=>{
+    const m = cb.dataset.permModulo, a = cb.dataset.permAcao;
+    if(!permissoes[m]) permissoes[m] = {};
+    permissoes[m][a] = cb.checked;
+  });
+  if(permissoes.manejos){
+    const tipos = Array.from(document.querySelectorAll('#u_permTable [data-perm-manejotipo]:checked')).map(cb=>cb.dataset.permManejotipo);
+    // Todos marcados = igual a nenhuma restrição (evita salvar uma lista "completa" que quebra se um
+    // tipo novo for adicionado no futuro); só grava a lista quando é de fato um subconjunto.
+    permissoes.manejos.tipos = tipos.length===MANEJO_TIPOS_OPCOES.length ? [] : tipos;
+  }
+  return { admin:false, permissoes };
+}
+// Aplica no formulário o estado salvo de um usuário (ou o estado "em branco" pra um usuário novo).
+function aplicarEstadoPermNoForm(u){
+  const admin = !!u.admin;
+  document.getElementById('u_admin').checked = admin;
+  document.getElementById('u_permBlock').style.display = admin ? 'none' : '';
+  document.querySelectorAll('#u_permTable [data-perm-modulo]').forEach(cb=>{
+    const m = cb.dataset.permModulo, a = cb.dataset.permAcao;
+    cb.checked = !!(u.permissoes && u.permissoes[m] && u.permissoes[m][a]);
+  });
+  const tiposSalvos = (u.permissoes && u.permissoes.manejos && u.permissoes.manejos.tipos) || [];
+  document.querySelectorAll('#u_permTable [data-perm-manejotipo]').forEach(cb=>{
+    cb.checked = tiposSalvos.length===0 ? true : tiposSalvos.includes(cb.dataset.permManejotipo);
+  });
+  const linha = document.getElementById('u_manejoTiposRow');
+  const manejosVer = admin || !!(u.permissoes && u.permissoes.manejos && u.permissoes.manejos.ver);
+  if(linha) linha.style.display = manejosVer ? '' : 'none';
+}
+function atualizarAcessoPreview(){
+  const { admin, permissoes } = lerPermissoesDoForm();
+  document.getElementById('u_acessoPreview').textContent = 'Esse usuário vê: ' + descreverAcesso({ admin, permissoes });
+}
 function openUsuarioNew(){
   editingUsuarioId=null;
   document.getElementById('usrModalTitle').textContent='Novo Usuário';
   document.getElementById('btnDeleteUsuario').style.display='none';
   document.getElementById('usuarioForm').reset();
+  aplicarEstadoPermNoForm({admin:false, permissoes:{}});
   atualizarAcessoPreview();
   openModal('overlayUsuario');
 }
@@ -10302,8 +10470,8 @@ function openUsuarioEdit(id){
   document.getElementById('usrModalTitle').textContent=u.nome;
   document.getElementById('btnDeleteUsuario').style.display = usuarios.length>1 ? 'inline-block' : 'none';
   document.getElementById('u_nome').value=u.nome;
-  document.getElementById('u_perfil').value=u.perfil;
-  document.getElementById('u_pin').value=u.pin;
+  document.getElementById('u_email').value=u.email||'';
+  aplicarEstadoPermNoForm(u);
   atualizarAcessoPreview();
   openModal('overlayUsuario');
 }
@@ -10311,14 +10479,15 @@ document.getElementById('btnNewUsuario').addEventListener('click', openUsuarioNe
 document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const nome = document.getElementById('u_nome').value.trim();
-  const perfil = document.getElementById('u_perfil').value;
-  const pin = document.getElementById('u_pin').value;
+  const email = document.getElementById('u_email').value.trim().toLowerCase();
   if(!nome){ showAlert('Informe o nome.'); return; }
-  if(!/^\d{4}$/.test(pin)){ showAlert('O PIN precisa ter exatamente 4 números.'); return; }
-  if(editingUsuarioId && editingUsuarioId===currentUser.id && perfil!=='admin' && !usuarios.some(u=>u.id!==editingUsuarioId && u.perfil==='admin')){
-    showAlert('Esse é o único Administrador — não dá pra rebaixar o próprio perfil sem ter outro admin cadastrado.'); return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showAlert('Informe um e-mail válido — é ele que a pessoa vai usar pra entrar (a conta de login precisa existir no Firebase Authentication).'); return; }
+  if(usuarios.some(u=>u.id!==editingUsuarioId && (u.email||'').toLowerCase()===email)){ showAlert('Já existe um usuário cadastrado com esse e-mail.'); return; }
+  const { admin, permissoes } = lerPermissoesDoForm();
+  if(editingUsuarioId && editingUsuarioId===currentUser.id && !admin && !usuarios.some(u=>u.id!==editingUsuarioId && u.admin)){
+    showAlert('Esse é o único Administrador — não dá pra rebaixar o próprio acesso sem ter outro admin cadastrado.'); return;
   }
-  const data = { id: editingUsuarioId || ('usr_'+Date.now()), nome, perfil, pin };
+  const data = { id: editingUsuarioId || ('usr_'+Date.now()), nome, email, admin, permissoes };
   usuarios = editingUsuarioId ? usuarios.map(u=>u.id===editingUsuarioId?data:u) : [...usuarios, data];
   await storeSet('usuarios_list', usuarios);
   if(currentUser && editingUsuarioId===currentUser.id) currentUser = data;
@@ -10329,8 +10498,8 @@ document.getElementById('btnDeleteUsuario').addEventListener('click', async ()=>
   if(!editingUsuarioId) return;
   if(usuarios.length<=1){ showAlert('Não dá pra excluir o único usuário cadastrado.'); return; }
   const alvo = usuarios.find(u=>u.id===editingUsuarioId);
-  if(alvo.perfil==='admin' && usuarios.filter(u=>u.perfil==='admin').length<=1){ showAlert('Esse é o único Administrador — cadastre outro admin antes de excluir este.'); return; }
-  if(!(await showConfirm('Excluir o usuário "'+alvo.nome+'"?'))) return;
+  if(alvo.admin && usuarios.filter(u=>u.admin).length<=1){ showAlert('Esse é o único Administrador — cadastre outro admin antes de excluir este.'); return; }
+  if(!(await showConfirm('Excluir o usuário "'+alvo.nome+'"? (Isso não apaga a conta de login dela no Firebase — só o cadastro de acesso aqui dentro do app. Pra impedir o login de vez, apague a conta em Authentication no console do Firebase.)'))) return;
   usuarios = usuarios.filter(u=>u.id!==editingUsuarioId);
   await storeSet('usuarios_list', usuarios);
   closeModal('overlayUsuario'); renderUsuarios();
@@ -11016,13 +11185,58 @@ document.getElementById('btnCompareList').addEventListener('click', ()=>{
   `;
 });
 
+// Liga o e-mail que acabou de logar no Firebase Authentication ao usuário certo dentro de `usuarios`
+// (o cadastro que decide os acessos). Três casos:
+//  1) o e-mail já está cadastrado em algum usuário -> usa ele, sem mexer em mais nada.
+//  2) ninguém cadastrado ainda (usuários=[]) -> é o primeiro login de todos: vira Administrador
+//     automaticamente (bootstrap — senão ninguém nunca conseguiria entrar depois de configurar).
+//  3) já existe gente cadastrada só que nenhum e-mail bate -> tenta "reivindicar" um Administrador
+//     antigo sem e-mail (cadastro de antes dessa função existir, pelo perfil fixo antigo) — sem isso,
+//     quem já era admin ficaria trancado pra fora depois dessa atualização.
+// Se nada disso resolver, devolve usuario:null — quem chamou decide o que fazer (bloquear o login).
+async function resolverUsuarioAtual(authEmail){
+  const emailNorm = (authEmail||'').trim().toLowerCase();
+  const existente = usuarios.find(x=>(x.email||'').trim().toLowerCase()===emailNorm);
+  if(existente) return { usuario: existente };
+
+  if(usuarios.length===0){
+    const novo = { id:'usr_'+Date.now(), nome: emailNorm.split('@')[0]||'Administrador', email: emailNorm, admin:true, permissoes:{} };
+    usuarios = [novo];
+    await storeSet('usuarios_list', usuarios);
+    return { usuario: novo };
+  }
+
+  const legadoAdmin = usuarios.find(x=>!x.email && (x.admin || x.perfil==='admin'));
+  if(legadoAdmin){
+    const atualizado = { id: legadoAdmin.id, nome: legadoAdmin.nome, email: emailNorm, admin:true, permissoes:{} };
+    usuarios = usuarios.map(x=>x.id===legadoAdmin.id ? atualizado : x);
+    await storeSet('usuarios_list', usuarios);
+    return { usuario: atualizado };
+  }
+
+  return { usuario: null };
+}
 // Antes o app chamava loadAll() e entrava direto aqui, sem checar login nenhum (fazia sentido
 // quando o dado só existia localmente). Agora, com o Firestore compartilhado, só entra depois que
 // o Firebase confirmar uma sessão válida — onAuthStateChanged dispara sozinho tanto na primeira
 // carga da página quanto depois de um login bem-sucedido.
-function iniciarAppLogado(){
-  loadAll().then(()=>{
-    currentUser = { id:'usr_local', nome:'Usuário', perfil:'admin', pin:'' };
+function iniciarAppLogado(authUser){
+  loadAll().then(async ()=>{
+    if(!HAS_FIRESTORE || !authUser){
+      // Sem Firebase disponível (ver storeGet/storeSet): cai pro modo antigo, sem checar e-mail —
+      // não tem login de verdade nesse modo mesmo, então entra direto como Administrador local.
+      currentUser = { id:'usr_local', nome:'Usuário', email:'', admin:true, permissoes:{} };
+    }else{
+      const resolvido = await resolverUsuarioAtual(authUser.email);
+      if(!resolvido.usuario){
+        document.getElementById('appRoot').style.display='none';
+        document.getElementById('loginGate').style.display='flex';
+        mostrarErroLogin('O e-mail '+authUser.email+' ainda não tem acesso configurado neste app. Peça para o administrador te cadastrar na tela de Usuários.');
+        firebase.auth().signOut();
+        return;
+      }
+      currentUser = resolvido.usuario;
+    }
     manejoRelSelector.restoreFromSaved();
     treinoRelSelector.restoreFromSaved();
     vetRelSelector.restoreFromSaved();
@@ -11036,7 +11250,7 @@ function iniciarAppLogado(){
 if(HAS_FIRESTORE){
   firebase.auth().onAuthStateChanged((user)=>{
     if(user){
-      iniciarAppLogado();
+      iniciarAppLogado(user);
     }else{
       document.getElementById('appRoot').style.display='none';
       document.getElementById('loginGate').style.display='flex';
@@ -11046,7 +11260,7 @@ if(HAS_FIRESTORE){
 }else{
   // Firebase não inicializou (ver storeGet/storeSet) — cai pro modo antigo, sem login, com
   // localStorage isolado nesse aparelho, pra não deixar a pessoa completamente na mão.
-  iniciarAppLogado();
+  iniciarAppLogado(null);
 }
 
 /* ================= DIAGNÓSTICO ================= */
