@@ -614,7 +614,7 @@
       <div class="dash-3col" id="inicioTresColunas">
         <div class="dash-card" id="inicioAgendaCard"></div>
         <div class="dash-card card-btn" id="inicioPlantelCard" title="Abrir Animais"></div>
-        <div class="dash-card card-btn" id="inicioDinheiroCard" title="Abrir Financeiro"></div>
+        <div class="dash-card" id="inicioLocalizacaoCard"></div>
       </div>
 
       <div class="dash-row4" id="inicioLinha4">
@@ -2692,6 +2692,16 @@ function irParaView(view){
   const item = document.querySelector(`.nav-item[data-view="${view}"]`);
   if(item && item.style.display!=='none') item.click();
 }
+// Usado pelo cartão "Por localização" do Início: abre Animais já filtrado por um local específico,
+// limpando os outros filtros pra não ficar uma lista vazia por causa de um filtro antigo esquecido.
+function abrirAnimaisPorLocalizacao(loc){
+  grupoFiltroAtivo = null;
+  viewMode = 'ativos';
+  document.querySelectorAll('#viewModeChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.mode==='ativos'));
+  const hSearch = document.getElementById('hSearch'); if(hSearch) hSearch.value = '';
+  filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), localizacao:new Set([loc]) };
+  irParaView('animais'); // o clique já dispara renderHorses() com o filtro acima já aplicado
+}
 const ATALHOS_NOVO = {
   'a': { view:'animais', action:()=>openHorseNew() },
   'm': { view:'manejos', action:()=>document.getElementById('btnNewManejo').click() },
@@ -4356,6 +4366,7 @@ const DASH_ICONS = {
   bandeira:'<path d="M5.6 3.4V17" stroke-width="1.6" stroke-linecap="round"/><path d="M5.6 4.6h9.6l-2.2 3 2.2 3H5.6" stroke-width="1.6" stroke-linejoin="round"/>',
   go:'<path d="M4 10h11M11 5.5 15.5 10 11 14.5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   lupa:'<circle cx="9" cy="9" r="5.4" stroke-width="1.8"/><path d="M13.1 13.1 17 17" stroke-width="1.8" stroke-linecap="round"/>',
+  local:'<path d="M10 17.5S15.5 12 15.5 8a5.5 5.5 0 1 0-11 0c0 4 5.5 9.5 5.5 9.5Z" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="8" r="1.8" stroke-width="1.6"/>',
 };
 function ico(nome, tam, cor){ return `<svg width="${tam}" height="${tam}" viewBox="0 0 20 20" fill="none" stroke="${cor||'var(--brass)'}" style="flex-shrink:0;" xmlns="http://www.w3.org/2000/svg">${DASH_ICONS[nome]||''}</svg>`; }
 function icoGo(cor){ return `<svg class="go" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="${cor||'var(--brass)'}" xmlns="http://www.w3.org/2000/svg">${DASH_ICONS.go}</svg>`; }
@@ -4378,7 +4389,7 @@ function renderInicio(){
   renderInicioPilares();
   renderInicioAgenda();
   renderInicioPlantel();
-  renderInicioDinheiro();
+  renderInicioLocalizacao();
   renderInicioLinha4();
 }
 
@@ -4605,14 +4616,41 @@ function renderInicioPlantel(){
   if(btnComprados) btnComprados.addEventListener('click', (e)=>{ e.stopPropagation(); abrirListaInicio('comprados'); });
 }
 
-// Card financeiro do Início: desativado a pedido do Gustavo (nada financeiro na tela inicial,
-// nem pra admin). O card fica sempre escondido e a fileira volta a usar as 2 colunas (Agenda +
-// Plantel) que já existiam pra perfis sem acesso a Financeiro — mesmo caminho de layout de sempre,
-// só que agora vale pra todo mundo. Financeiro continua acessível normalmente pelo menu lateral.
-function renderInicioDinheiro(){
-  const host = document.getElementById('inicioDinheiroCard');
+// Terceiro cartão da fileira de cima do Início. O antigo cartão financeiro saiu daqui a pedido do
+// Gustavo (nada financeiro na tela inicial); no lugar entra a contagem de animais ativos por
+// localização — clicar num local abre Animais já filtrado só por ele. Pra quem não tem acesso a
+// Animais, o cartão some e a fileira volta a usar 2 colunas (Agenda + Plantel), mesmo caminho de
+// layout de sempre.
+function renderInicioLocalizacao(){
+  const host = document.getElementById('inicioLocalizacaoCard');
   const tresCol = document.getElementById('inicioTresColunas');
-  host.style.display='none'; tresCol.style.setProperty('--cols-3col','1.6fr 1fr');
+  if(!viewsPermitidas(currentUser).includes('animais')){ host.style.display='none'; tresCol.style.setProperty('--cols-3col','1.6fr 1fr'); return; }
+  host.style.display=''; tresCol.style.setProperty('--cols-3col','1.38fr 1fr 1fr');
+
+  const ativosArr = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
+  const contagem = {};
+  let semLocal = 0;
+  ativosArr.forEach(h=>{
+    const loc = (h.localizacao||'').trim();
+    if(!loc){ semLocal++; return; }
+    contagem[loc] = (contagem[loc]||0)+1;
+  });
+  const locais = Object.entries(contagem).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0],'pt'));
+
+  const corpo = locais.length===0
+    ? `<div class="hint-text" style="padding:4px 2px;">Nenhum animal com localização cadastrada ainda. Adicione a localização no cadastro de cada animal pra ver a contagem aqui.</div>`
+    : `<div style="display:flex;flex-direction:column;">
+        ${locais.slice(0,8).map(([loc,n])=>`
+          <div class="dash-tarefa-box" data-abrirlocal="${loc.replace(/"/g,'&quot;')}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;" title="Abrir Animais filtrado por ${loc}">
+            <span class="dash-tarefa-titulo" style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ico('local',15,'var(--brass)')} ${loc}</span>
+            <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><strong>${n}</strong>${icoGo()}</span>
+          </div>`).join('')}
+      </div>
+      ${locais.length>8 ? `<div class="hint-text" style="margin-top:2px;">+${locais.length-8} outra(s) localização(ões) — veja tudo em Animais.</div>` : ''}
+      ${semLocal>0 ? `<div class="hint-text" style="margin-top:6px;">${semLocal} animal(is) ativo(s) sem localização definida.</div>` : ''}`;
+
+  host.innerHTML = `${dashCardHead('local','Por localização','Animais')}${corpo}`;
+  host.querySelectorAll('[data-abrirlocal]').forEach(el=> el.addEventListener('click', ()=> abrirAnimaisPorLocalizacao(el.dataset.abrirlocal)));
 }
 
 // Quarta linha do Início — "Saúde e nascimentos" (Veterinária), "O que está acabando" (Estoque) e
