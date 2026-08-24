@@ -59,7 +59,11 @@
   .nav-item.active .dot{opacity:1;}
   .nav-soon{font-size:9.5px;color:var(--muted);margin-left:auto;text-transform:uppercase;}
 
-  .main{flex:1;padding:26px 34px;max-width:1560px;}
+  /* min-width:0 é o remendo clássico de flexbox: sem isso, um item com flex:1 nunca encolhe além do
+     conteúdo mais largo que tiver dentro (uma tabela, a árvore de genealogia, texto sem quebra) — e
+     esse conteúdo empurra a página inteira mais larga que a tela, mesmo em paisagem no celular. Essa
+     linha sozinha impede isso em QUALQUER tela, não só na que causou o problema originalmente. */
+  .main{flex:1;min-width:0;padding:26px 34px;max-width:1560px;}
   .view{display:none;} .view.active{display:block;}
 
   /* ---------- CELULAR: menu lateral vira gaveta, layout empilha ---------- */
@@ -136,7 +140,9 @@
     --alert-bg:#F6DADA; --alert-ink:#8E2F32; --alert-border:#F0C9C9; --alert-soft-bg:#FCF3F1; --alert-soft-border:#EDCACA;
     --warn-bg:#F5E7AE; --warn-ink:#8A6D1B; --ok-bg:#DCEDDF; --ok-ink:#3E6B4E; --ok-border:#C7E0CC;
   }
-  .dash-card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--brass);border-radius:6px;box-shadow:0 1px 3px rgba(30,23,16,.06);padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px;}
+  /* min-width:0 evita que um card com texto sem quebra (ex: data "24/08" no fim da linha) empurre a
+     grade de 3 colunas do Início mais larga que a tela — mesmo remendo do .main/.perfil-wrap. */
+  .dash-card{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--brass);border-radius:6px;box-shadow:0 1px 3px rgba(30,23,16,.06);padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px;min-width:0;}
   .dash-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .dash-card-titulo{display:flex;align-items:center;gap:9px;font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:var(--green);}
   .dash-card-titulo svg{flex-shrink:0;}
@@ -354,6 +360,7 @@
   .eye-inline{background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;border-radius:3px;vertical-align:middle;opacity:.65;}
   .eye-inline:hover{opacity:1;background:var(--paper);}
   .perfil-wrap{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+  .perfil-wrap>div{min-width:0;} /* mesmo remendo do .main — sem isso a árvore de genealogia larga empurra a coluna (e a página) mais larga que a tela */
   @media (max-width:900px){ .perfil-wrap{grid-template-columns:1fr;} }
   .perfil-card{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(30,23,16,0.06);}
   .perfil-card-head{background:var(--green);color:#fff;padding:12px 18px;font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;justify-content:space-between;border-bottom:2px solid var(--brass);}
