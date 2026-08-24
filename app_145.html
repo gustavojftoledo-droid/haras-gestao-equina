@@ -9466,6 +9466,11 @@ function parseValorLivre(str){
   const n = Number(normalizado);
   return (isFinite(n) && n>0) ? n : null;
 }
+// Casco e Dente são serviço cobrado (ferrador/dentista) — dinheiro novo saindo do caixa agora.
+// Vacina e Vermífugo usam o custo do produto já consumido do estoque (ver calcularTotalLancamentoManejo
+// → a.valorBase, calculado a partir do estoque em concluirManejo) — esse real já saiu do caixa quando
+// o produto foi COMPRADO, então aqui é só alocação (mostra pra quem foi), nunca uma saída nova.
+const MANEJO_TIPOS_ALOCACAO = new Set(['Vacina','Vermífugo']);
 function lancamentosDerivadosManejos(){
   return manejos.map(m=>{
     const total = calcularTotalLancamentoManejo(m);
@@ -9478,13 +9483,18 @@ function lancamentosDerivadosManejos(){
       data: m.data, tipo: 'saida',
       categoria: CATEGORIA_MANEJO[m.tipo] || 'Ferrageamento',
       descricao: `${m.tipo} — ${qtd} ${pluralAnimal(qtd)}${m.ferrador?(' · '+m.ferrador):''}${detalheMed}`,
-      valor: total, moeda: 'BRL'
+      valor: total, moeda: 'BRL',
+      natureza: MANEJO_TIPOS_ALOCACAO.has(m.tipo) ? 'alocacao' : 'caixa'
     };
   }).filter(Boolean);
 }
+// Compra de verdade entra no caixa não importa como foi lançada — manual ou via importação de nota
+// fiscal (origem 'nota_fiscal'). 'ajuste' fica de fora de propósito: é correção de contagem, não
+// dinheiro saindo do bolso.
+const ORIGENS_COMPRA_ESTOQUE = new Set(['manual','nota_fiscal']);
 function lancamentosDerivadosEstoque(){
   const out = [];
-  estoqueMovimentos.filter(mv=>mv.origem==='manual').forEach(mv=>{
+  estoqueMovimentos.filter(mv=>ORIGENS_COMPRA_ESTOQUE.has(mv.origem)).forEach(mv=>{
     const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
     const qtd = Number(mv.quantidade)||0;
     if(qtd<=0) return;
@@ -9494,11 +9504,11 @@ function lancamentosDerivadosEstoque(){
       // porque reflete o que foi pago naquele dia, não o preço atual do produto. Senão, cai pro preço
       // cadastrado no produto (current price, é a melhor estimativa disponível pra entradas antigas).
       const valorTotal = (mv.valor && Number(mv.valor)>0) ? Number(mv.valor) : (qtd * (custoUnitarioProduto(produto)||0));
-      if(valorTotal>0) out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'saida', categoria:'Compra de Estoque', descricao:desc, valor:valorTotal, moeda:'BRL' });
+      if(valorTotal>0) out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'saida', categoria:'Compra de Estoque', descricao:desc, valor:valorTotal, moeda:'BRL', natureza:'caixa' });
     } else if(mv.tipoMov==='saida' && mv.valor && Number(mv.valor)>0){
       // Saída manual com valor preenchido = você recebeu dinheiro de volta (devolução ao fornecedor,
       // venda de excesso etc.) — vira entrada no Financeiro, não despesa.
-      out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'entrada', categoria:'Devolução de Estoque', descricao:'Devolução: '+desc, valor:Number(mv.valor), moeda:'BRL' });
+      out.push({ id:'auto_mv_'+mv.id, origemId:mv.produtoId, origem:'estoque', data:mv.data, tipo:'entrada', categoria:'Devolução de Estoque', descricao:'Devolução: '+desc, valor:Number(mv.valor), moeda:'BRL', natureza:'caixa' });
     }
   });
   return out;
@@ -9517,28 +9527,31 @@ function lancamentosDerivadosTreinos(){
       id: 'auto_tr_'+t.id, origemId: t.id, origem: 'treinos',
       data: t.data, tipo: 'saida', categoria: 'Treino',
       descricao: `Treino${t.tipo?(' — '+t.tipo):''} — ${qtd} ${pluralAnimal(qtd)}${t.local?(' · '+t.local):''}`,
-      valor: total, moeda: t.cobranca.moeda==='USD' ? 'USD' : 'BRL'
+      valor: total, moeda: t.cobranca.moeda==='USD' ? 'USD' : 'BRL', natureza:'caixa'
     };
   }).filter(Boolean);
 }
-// Visitas Veterinárias com serviços/produtos lançados — mesma lógica de nunca virar registro de
-// verdade em `lancamentos`, sempre calculado a partir da visita (soma dos custos de todos os animais).
+// Visitas Veterinárias: cada visita vira ATÉ DUAS linhas, porque tem duas naturezas diferentes
+// misturadas nos custos dela. Serviço (mão de obra do veterinário) é caixa novo de verdade. Produto
+// usado na visita já tinha saído do caixa quando foi COMPRADO — aqui é só alocação (mostra em quem
+// foi usado), nunca uma segunda saída.
 function lancamentosDerivadosVisitas(){
-  return visitas.filter(v=>(v.custos||[]).length>0).map(v=>{
-    const total = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
-    if(!total || total<=0) return null;
+  const out = [];
+  visitas.filter(v=>(v.custos||[]).length>0).forEach(v=>{
+    const totalServico = (v.custos||[]).filter(c=>c.tipo==='servico').reduce((s,c)=>s+(Number(c.valor)||0),0);
+    const totalProduto = (v.custos||[]).filter(c=>c.tipo==='produto').reduce((s,c)=>s+(Number(c.valor)||0),0);
     const qtdAnimais = new Set((v.custos||[]).map(c=>c.animalId)).size;
-    return {
-      id: 'auto_vs_'+v.id, origemId: v.id, origem: 'visitas',
-      data: v.data, tipo: 'saida', categoria: 'Veterinário / Medicamento',
-      descricao: `Visita veterinária${v.veterinario?(' — '+v.veterinario):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`,
-      valor: total, moeda: 'BRL'
-    };
-  }).filter(Boolean);
+    const sufixo = `${v.veterinario?(' — '+v.veterinario):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`;
+    if(totalServico>0) out.push({ id:'auto_vs_'+v.id+'_serv', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (serviço)${sufixo}`, valor:totalServico, moeda:'BRL', natureza:'caixa' });
+    if(totalProduto>0) out.push({ id:'auto_vs_'+v.id+'_prod', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (produto usado)${sufixo}`, valor:totalProduto, moeda:'BRL', natureza:'alocacao' });
+  });
+  return out;
 }
 // Aplicações (tratamentos) com medicamento — mesma lógica de nunca virar registro de verdade em
 // `lancamentos`, sempre calculada a partir do tratamento. Conta idêntica à usada em
-// custoVeterinariaPorAnimal: custoUnitarioProduto(produto) * quantidade * diasTratamento.
+// custoVeterinariaPorAnimal: custoUnitarioProduto(produto) * quantidade * diasTratamento. O produto
+// aplicado já tinha saído do caixa quando foi comprado — isso aqui é só alocação (Fase 1 vai trocar
+// essa conta por uma derivada direto de estoqueMovimentos, ligada ao consumo de verdade).
 function lancamentosDerivadosTratamentos(){
   return tratamentos.map(t=>{
     const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
@@ -9549,7 +9562,7 @@ function lancamentosDerivadosTratamentos(){
     const qtdAnimais = (t.animais||[]).length;
     return {
       id: 'auto_tt_'+t.id, origemId: t.id, origem: 'tratamentos',
-      data: t.dataInicio, tipo: 'saida', categoria: 'Veterinário / Medicamento',
+      data: t.dataInicio, tipo: 'saida', categoria: 'Veterinário / Medicamento', natureza:'alocacao',
       descricao: `Aplicação${prod?(' — '+prod.nome):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`,
       valor: total, moeda: 'BRL'
     };
@@ -9568,7 +9581,10 @@ function fmtMoeda(valor, moeda){
 // Reais e Dólares nunca são somados juntos num só total — misturaria dinheiro de moedas diferentes
 // sem conversão nenhuma. Cada moeda tem seu total à parte; a linha de US$ só aparece quando existe
 // algum lançamento em dólar no que está sendo mostrado.
-function renderFinanceiroStats(lista){
+function renderFinanceiroStats(listaCompleta){
+  // Alocação nunca entra em Entradas/Saídas/Saldo — é dinheiro que já saiu do caixa antes (na
+  // compra), só mostrando agora pra quem foi usado. Continua na tabela de baixo, só não soma aqui.
+  const lista = listaCompleta.filter(l=>l.natureza!=='alocacao');
   const emBRL = lista.filter(l=>l.moeda!=='USD'), emUSD = lista.filter(l=>l.moeda==='USD');
   const entradaR = emBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saidaR = emBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
@@ -9605,7 +9621,9 @@ function renderPainelMesFinanceiro(){
   const ano = finPainelMesRef.getFullYear(), mes = finPainelMesRef.getMonth();
   const inicioMes = toISODate(new Date(ano, mes, 1));
   const fimMes = toISODate(new Date(ano, mes+1, 0));
-  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes);
+  // Alocação (produto já pago antes, só mostrando em quem foi usado) não entra no resumo do mês —
+  // senão o mesmo real pago na compra apareceria de novo aqui como se fosse gasto novo.
+  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.natureza!=='alocacao');
   const doMesBRL = doMes.filter(l=>l.moeda!=='USD'), doMesUSD = doMes.filter(l=>l.moeda==='USD');
   const totalEntrada = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const totalSaida = doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
@@ -9678,7 +9696,7 @@ function renderFinanceiro(){
     return `<tr>
     <td>${fmtDate(l.data)}</td>
     <td><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
-    <td><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span></td>
+    <td><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}</td>
     <td>${l.categoria||''}</td>
     <td>${l.descricao||''}</td>
     <td style="font-family:'IBM Plex Mono',monospace;">${fmtMoedaFin(l)}</td>
