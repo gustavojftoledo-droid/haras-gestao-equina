@@ -428,6 +428,27 @@
   .login-pin-input{width:100%;font-size:26px;letter-spacing:14px;text-align:center;padding:12px;border:1px solid var(--line);border-radius:6px;margin:14px 0;}
   #userBadge{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);}
   #userBadge .perfil-tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;background:var(--card);border:1px solid var(--line);padding:2px 7px;border-radius:9px;color:var(--green);font-weight:700;}
+
+  /* ---------- Ajustes de rolagem/uso no celular (menu, chips, calendário em paisagem) ---------- */
+
+  /* 1) chips/filtros nunca forçam rolagem horizontal da página */
+  [id$="Chips"]{ flex-wrap: wrap; }
+
+  /* 2) menu lateral (gaveta mobile) rola sozinho quando o conteúdo não cabe */
+  @media (max-width:860px){
+    .sidebar{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  }
+
+  /* 3) paisagem no celular: reduzir alturas fixas pra sobrar espaço pra tabela */
+  @media (max-width:900px) and (orientation:landscape){
+    .cal-day{ min-height:56px; }
+    .stats{ margin-bottom:8px; }
+    .filters{ padding:8px; }
+    .grid-wrap{ max-height:calc(100vh - 180px); }
+  }
+
+  /* rede de segurança: nenhuma rolagem horizontal na página toda */
+  html, body{ overflow-x:hidden; }
 </style>
 </head>
 <body>
