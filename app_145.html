@@ -731,7 +731,7 @@
           <div id="relFichaSelectorHost" style="margin:10px 0 16px;"></div>
           <div class="filters" style="margin-bottom:10px;">
             <div class="f"><label>Custo por Animal — período</label><div id="relCustoPeriodo"></div></div>
-            <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Manejos e Veterinária). Sem período = todo o histórico.</span></div>
+            <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Custo por Animal). Sem período = todo o histórico.</span></div>
           </div>
           <div class="toolbar-row">
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -5450,7 +5450,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
       avisoBaixa = ' (sem baixa no estoque — saldo insuficiente)';
     } else {
       for(const it of itensBaixa){
-        await registrarMovimento(it.produtoId, 'saida', it.quantidade, 'veterinaria', tipo+' aplicada em manejo', data);
+        await registrarMovimento(it.produtoId, 'saida', it.quantidade, 'veterinaria', tipo+' aplicada em manejo', data, undefined, selected);
       }
       renderEstoque();
     }
@@ -7017,10 +7017,14 @@ document.getElementById('btnPrintRelNasc').addEventListener('click', ()=>window.
 
 /* ================= ESTOQUE ================= */
 // Núcleo genérico: qualquer módulo (Dietas, Veterinária, saída manual) consome estoque chamando
-// consumeEstoque(produtoId, quantidade, origem, motivo). NÃO EXISTE ESTOQUE NEGATIVO: se não tiver
-// saldo suficiente, a movimentação de saída é BLOQUEADA por inteiro (nada é gravado, a quantidade não
-// se mexe) e a função retorna {ok:false, suficiente:false, faltando} pro chamador avisar o usuário.
-async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo, dataMov, valor){
+// consumeEstoque(produtoId, quantidade, origem, motivo, dataMov, animais). NÃO EXISTE ESTOQUE NEGATIVO:
+// se não tiver saldo suficiente, a movimentação de saída é BLOQUEADA por inteiro (nada é gravado, a
+// quantidade não se mexe) e a função retorna {ok:false, suficiente:false, faltando} pro chamador avisar
+// o usuário.
+// `animais` (opcional, [{id,nome}]) é quem consumiu essa saída — os 4 lugares que já sabem disso
+// (Manejos de Vacina/Vermífugo, Visitas, Tratamentos, Dietas) passam essa lista; saída manual/ajuste/
+// entrada não têm animal e ficam com [] (custo geral do haras, não custo individual).
+async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo, dataMov, valor, animais){
   const p = estoqueProdutos.find(x=>x.id===produtoId);
   if(!p) return { ok:false, suficiente:false };
   const qtd = Number(quantidade)||0;
@@ -7036,6 +7040,7 @@ async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo
     produtoId, produtoNome: p.nome, produtoTipo: p.tipo, tipoMov, quantidade: qtd, unidade: p.unidade||'',
     origem: origem||'manual', motivo: motivo||'',
     valor: parseValorLivre(valor) || '',
+    animais: (animais||[]).map(a=>({id:a.id, nome:a.nome})),
     obs: ''
   });
   await storeSet('estoque_produtos', estoqueProdutos);
@@ -7078,8 +7083,8 @@ async function excluirMovimento(movId){
   await storeSet('estoque_movimentos', estoqueMovimentos, true);
   return { ok:true };
 }
-async function consumeEstoque(produtoId, quantidade, origem, motivo, dataMov){
-  return registrarMovimento(produtoId, 'saida', quantidade, origem, motivo, dataMov);
+async function consumeEstoque(produtoId, quantidade, origem, motivo, dataMov, animais){
+  return registrarMovimento(produtoId, 'saida', quantidade, origem, motivo, dataMov, undefined, animais);
 }
 // Reajuste: define a quantidade em estoque diretamente pra um novo valor (ex: depois de uma contagem física),
 // sempre com justificativa obrigatória — registra a diferença como movimentação (entrada ou saída) com origem 'ajuste'.
@@ -8331,7 +8336,7 @@ async function executarConsumoDieta(d, dataMov){
   const nAnimais = (d.animais||[]).length;
   for(const it of (d.itens||[])){
     const total = Number(it.quantidade)*nAnimais;
-    await consumeEstoque(it.produtoId, total, 'dieta', 'Dieta: '+d.nome, dataMov);
+    await consumeEstoque(it.produtoId, total, 'dieta', 'Dieta: '+d.nome, dataMov, d.animais);
   }
   return { bloqueado:false };
 }
@@ -8821,7 +8826,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
       } else {
         for(const c of linhasProduto){
           const animalNome = (animaisSel.find(a=>a.id===c.animalId)||{}).nome||'';
-          await registrarMovimento(c.produtoId, 'saida', c.quantidade, 'veterinaria', 'Visita veterinária'+(animalNome?(' — '+animalNome):''), data);
+          await registrarMovimento(c.produtoId, 'saida', c.quantidade, 'veterinaria', 'Visita veterinária'+(animalNome?(' — '+animalNome):''), data, undefined, c.animalId?[{id:c.animalId, nome:animalNome}]:[]);
         }
         renderEstoque();
       }
@@ -9110,9 +9115,9 @@ async function baixarDoseTratamento(t, doseKey){
   const total = Number(t.quantidade)*nAnimais;
   const dataMov = doseKey.split('|')[0];
   const motivoBase = 'Tratamento: '+(t.medicamentoNome||'')+' — '+(t.animais||[]).map(a=>a.nome).join(', ');
-  const r = await consumeEstoque(t.medicamentoId, total, 'veterinaria', motivoBase, dataMov);
+  const r = await consumeEstoque(t.medicamentoId, total, 'veterinaria', motivoBase, dataMov, t.animais);
   for(const u of (t.utensilios||[])){
-    await consumeEstoque(u.produtoId, Number(u.quantidade)*nAnimais, 'veterinaria', motivoBase+' (utensílio: '+(u.produtoNome||'')+')', dataMov);
+    await consumeEstoque(u.produtoId, Number(u.quantidade)*nAnimais, 'veterinaria', motivoBase+' (utensílio: '+(u.produtoNome||'')+')', dataMov, t.animais);
   }
   t.doseConcluidas = [...(t.doseConcluidas||[]), doseKey];
   return r;
@@ -9546,16 +9551,25 @@ function lancamentosDerivadosManejos(){
   return manejos.map(m=>{
     const total = calcularTotalLancamentoManejo(m);
     if(!total || total<=0) return null;
-    const qtd = (m.animais||[]).length;
+    const animaisM = m.animais||[];
+    const qtd = animaisM.length;
     const CATEGORIA_MANEJO = { Dente:'Odontologia', Vacina:'Vacina', 'Vermífugo':'Vermífugo' };
     const detalheMed = m.medicamentoNome ? (' · '+m.medicamentoNome) : '';
+    // Mesma conta de custoManejosPorAnimal (agora unificada aqui): base + extra de cada animal, mais a
+    // parte dele do deslocamento (dividido igual entre todos do lançamento).
+    const deslocPorAnimal = qtd>0 ? (Number(m.deslocamento)||0)/qtd : 0;
+    const rateio = animaisM.map(a=>{
+      const base = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
+      return { animalId: a.id, valor: base + (Number(a.valorExtra)||0) + deslocPorAnimal };
+    });
     return {
       id: 'auto_mj_'+m.id, origemId: m.id, origem: 'manejos',
       data: m.data, tipo: 'saida',
       categoria: CATEGORIA_MANEJO[m.tipo] || 'Ferrageamento',
       descricao: `${m.tipo} — ${qtd} ${pluralAnimal(qtd)}${m.ferrador?(' · '+m.ferrador):''}${detalheMed}`,
       valor: total, moeda: 'BRL',
-      natureza: MANEJO_TIPOS_ALOCACAO.has(m.tipo) ? 'alocacao' : 'caixa'
+      natureza: MANEJO_TIPOS_ALOCACAO.has(m.tipo) ? 'alocacao' : 'caixa',
+      rateio
     };
   }).filter(Boolean);
 }
@@ -9598,7 +9612,8 @@ function lancamentosDerivadosTreinos(){
       id: 'auto_tr_'+t.id, origemId: t.id, origem: 'treinos',
       data: t.data, tipo: 'saida', categoria: 'Treino',
       descricao: `Treino${t.tipo?(' — '+t.tipo):''} — ${qtd} ${pluralAnimal(qtd)}${t.local?(' · '+t.local):''}`,
-      valor: total, moeda: t.cobranca.moeda==='USD' ? 'USD' : 'BRL', natureza:'caixa'
+      valor: total, moeda: t.cobranca.moeda==='USD' ? 'USD' : 'BRL', natureza:'caixa',
+      rateio: (t.animais||[]).map(a=>({animalId:a.id, valor:valorTreinoAnimal(a)}))
     };
   }).filter(Boolean);
 }
@@ -9613,16 +9628,21 @@ function lancamentosDerivadosVisitas(){
     const totalProduto = (v.custos||[]).filter(c=>c.tipo==='produto').reduce((s,c)=>s+(Number(c.valor)||0),0);
     const qtdAnimais = new Set((v.custos||[]).map(c=>c.animalId)).size;
     const sufixo = `${v.veterinario?(' — '+v.veterinario):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`;
-    if(totalServico>0) out.push({ id:'auto_vs_'+v.id+'_serv', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (serviço)${sufixo}`, valor:totalServico, moeda:'BRL', natureza:'caixa' });
-    if(totalProduto>0) out.push({ id:'auto_vs_'+v.id+'_prod', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (produto usado)${sufixo}`, valor:totalProduto, moeda:'BRL', natureza:'alocacao' });
+    if(totalServico>0){
+      const rateioServico = (v.custos||[]).filter(c=>c.tipo==='servico').map(c=>({animalId:c.animalId, valor:Number(c.valor)||0}));
+      out.push({ id:'auto_vs_'+v.id+'_serv', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (serviço)${sufixo}`, valor:totalServico, moeda:'BRL', natureza:'caixa', rateio:rateioServico });
+    }
+    if(totalProduto>0){
+      const rateioProduto = (v.custos||[]).filter(c=>c.tipo==='produto').map(c=>({animalId:c.animalId, valor:Number(c.valor)||0}));
+      out.push({ id:'auto_vs_'+v.id+'_prod', origemId:v.id, origem:'visitas', data:v.data, tipo:'saida', categoria:'Veterinário / Medicamento', descricao:`Visita veterinária (produto usado)${sufixo}`, valor:totalProduto, moeda:'BRL', natureza:'alocacao', rateio:rateioProduto });
+    }
   });
   return out;
 }
 // Aplicações (tratamentos) com medicamento — mesma lógica de nunca virar registro de verdade em
-// `lancamentos`, sempre calculada a partir do tratamento. Conta idêntica à usada em
-// custoVeterinariaPorAnimal: custoUnitarioProduto(produto) * quantidade * diasTratamento. O produto
-// aplicado já tinha saído do caixa quando foi comprado — isso aqui é só alocação (Fase 1 vai trocar
-// essa conta por uma derivada direto de estoqueMovimentos, ligada ao consumo de verdade).
+// `lancamentos`, sempre calculada a partir do tratamento: custoUnitarioProduto(produto) * quantidade *
+// diasTratamento. O produto aplicado já tinha saído do caixa quando foi comprado — isso aqui é só
+// alocação, dividida em partes iguais entre os animais do tratamento (mesma dose por animal).
 function lancamentosDerivadosTratamentos(){
   return tratamentos.map(t=>{
     const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
@@ -9630,14 +9650,61 @@ function lancamentosDerivadosTratamentos(){
     if(!valorUnit) return null;
     const total = valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
     if(!total || total<=0) return null;
-    const qtdAnimais = (t.animais||[]).length;
+    const animaisT = t.animais||[];
+    const qtdAnimais = animaisT.length;
+    const valorPorAnimal = qtdAnimais>0 ? total/qtdAnimais : 0;
     return {
       id: 'auto_tt_'+t.id, origemId: t.id, origem: 'tratamentos',
       data: t.dataInicio, tipo: 'saida', categoria: 'Veterinário / Medicamento', natureza:'alocacao',
       descricao: `Aplicação${prod?(' — '+prod.nome):''} — ${qtdAnimais} ${pluralAnimal(qtdAnimais)}`,
-      valor: total, moeda: 'BRL'
+      valor: total, moeda: 'BRL',
+      rateio: animaisT.map(a=>({animalId:a.id, valor:valorPorAnimal}))
     };
   }).filter(Boolean);
+}
+// Consumo de Dieta (ração) — igual Vacina/Vermífugo/Tratamento: o produto já saiu do caixa quando foi
+// COMPRADO (entrada manual/nota fiscal), então cada consumo é alocação, nunca uma saída nova. Fonte é
+// direto o movimento de estoque (origem 'dieta'), que desde a Fase 1 já sabe quais animais comeram —
+// isso é o que dá pra Dieta, pela primeira vez, um custo por PERÍODO de verdade (antes só existia como
+// estimativa mensal solta, sem nunca aparecer no Financeiro).
+function lancamentosDerivadosDietas(){
+  const out = [];
+  estoqueMovimentos.filter(mv=>mv.origem==='dieta' && mv.tipoMov==='saida').forEach(mv=>{
+    const qtd = Number(mv.quantidade)||0;
+    const animaisMv = mv.animais||[];
+    if(qtd<=0 || animaisMv.length===0) return;
+    const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
+    const valorUnit = custoUnitarioProduto(produto);
+    if(!valorUnit) return; // produto sem preço cadastrado — sem como estimar custo, fica só no histórico do Estoque
+    const total = qtd * valorUnit;
+    if(total<=0) return;
+    const valorPorAnimal = total/animaisMv.length;
+    out.push({
+      id: 'auto_dt_'+mv.id, origemId: mv.produtoId, origem: 'dietas',
+      data: mv.data, tipo: 'saida', categoria: 'Ração', natureza: 'alocacao',
+      descricao: `${mv.motivo||('Dieta: '+(mv.produtoNome||''))} — ${animaisMv.length} ${pluralAnimal(animaisMv.length)}`,
+      valor: total, moeda: 'BRL',
+      rateio: animaisMv.map(a=>({animalId:a.id, valor:valorPorAnimal}))
+    });
+  });
+  return out;
+}
+// Frete de Transporte — hoje é o único custo real (dinheiro saindo do bolso) que não aparecia em lugar
+// nenhum do Financeiro. Só conta quando o transporte já foi de fato REALIZADO (não um planejado ainda
+// não executado) — mesmo gatilho que já move a localização do animal. O valor de cada animal já vem
+// dividido do próprio cadastro de Transporte (a.valorExtra, editável na hora de lançar).
+function lancamentosDerivadosTransporte(){
+  return transportes.filter(t=>t.realizado==='S' && Number(t.valorFrete)>0).map(t=>{
+    const animaisT = t.animais||[];
+    const qtd = animaisT.length;
+    return {
+      id: 'auto_tp_'+t.id, origemId: t.id, origem: 'transportes',
+      data: t.data, tipo: 'saida', categoria: 'Transporte', natureza: 'caixa',
+      descricao: `Transporte — ${t.origem||'—'} → ${t.destino||'—'} — ${qtd} ${pluralAnimal(qtd)}`,
+      valor: Number(t.valorFrete)||0, moeda: 'BRL',
+      rateio: animaisT.map(a=>({animalId:a.id, valor:Number(a.valorExtra)||0}))
+    };
+  });
 }
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
@@ -9668,7 +9735,7 @@ function renderFinanceiroStats(listaCompleta){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações' };
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte' };
 // Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados, Visitas
 // Veterinárias e Aplicações/Tratamentos) — usado tanto na lista filtrável quanto no painel fixo do
 // mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
@@ -9679,7 +9746,9 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosEstoque(),
     ...lancamentosDerivadosTreinos(),
     ...lancamentosDerivadosVisitas(),
-    ...lancamentosDerivadosTratamentos()
+    ...lancamentosDerivadosTratamentos(),
+    ...lancamentosDerivadosDietas(),
+    ...lancamentosDerivadosTransporte()
   ];
 }
 
@@ -9798,6 +9867,12 @@ function renderFinanceiro(){
     } else if(tipoOrigem==='tratamentos'){
       irParaView('veterinaria');
       setTimeout(()=>{ document.getElementById('vtrtab_lista').click(); openTratamentoEdit(id); }, 30);
+    } else if(tipoOrigem==='dietas'){
+      irParaView('estoque');
+      setTimeout(()=>document.querySelector('#view-estoque [data-etab="dietas"]').click(), 30);
+    } else if(tipoOrigem==='transportes'){
+      irParaView('transporte');
+      setTimeout(()=>openTransporteEdit(id), 30);
     }
   }));
 }
@@ -11026,58 +11101,32 @@ function gerarRelatorioFicha4(){
 }
 document.getElementById('btnGerarRel4Ficha').addEventListener('click', gerarRelatorioFicha4);
 // ---- Relatório 3 — Custo por Animal ----
-// Junta Manejos (Casco/Dente) + Veterinária (medicamentos aplicados) num período, mais a Dieta atual
-// como estimativa mensal à parte (Dietas não têm data de início/fim, então não dá pra somar com
-// precisão dentro de um período — melhor mostrar como estimativa contínua do que fingir exatidão).
-function custoManejosPorAnimal(animalId, de, ate){
+// Motor único: uma função só, em cima do extrato já unificado (todosLancamentosFinanceiro), substitui
+// as quatro contas separadas que existiam antes (Manejos, Veterinária, Treinos, Dieta) — cada uma
+// somava do jeito dela, com risco de cada uma ficar certa por um tempo e as outras não. Agora é uma
+// fonte só: qualquer linha (caixa OU alocação) que tenha esse animal no `rateio` conta pro custo dele,
+// não importa de onde veio.
+// Categorias na nomenclatura do Gustavo — Vacina/Vermífugo/Aplicação/Visita entram todas em "Saúde".
+const CATEGORIA_CUSTO_ANIMAL = {
+  'Ferrageamento':'Casco', 'Odontologia':'Dente', 'Vacina':'Saúde', 'Vermífugo':'Saúde',
+  'Veterinário / Medicamento':'Saúde', 'Ração':'Ração', 'Transporte':'Transporte', 'Treino':'Atividades',
+};
+const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Ração','Saúde','Casco','Dente','Transporte','Atividades','Outros'];
+function custoDiretoAnimal(animalId, de, ate){
   let total = 0;
-  manejos.forEach(m=>{
-    if(m.tipo!=='Casco' && m.tipo!=='Dente' && m.tipo!=='Vacina' && m.tipo!=='Vermífugo') return;
-    if(de && m.data<de) return;
-    if(ate && m.data>ate) return;
-    const a = (m.animais||[]).find(x=>x.id===animalId);
-    if(!a) return;
-    const base = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
-    const extra = Number(a.valorExtra)||0;
-    const qtdAnimais = (m.animais||[]).length || 1;
-    total += base + extra + ((Number(m.deslocamento)||0) / qtdAnimais);
+  const porCategoria = {};
+  todosLancamentosFinanceiro().forEach(l=>{
+    if(l.moeda==='USD') return; // R$ e US$ nunca se somam — custo por animal só soma BRL (US$ fica sempre à parte)
+    if(de && l.data<de) return;
+    if(ate && l.data>ate) return;
+    if(!l.rateio || l.rateio.length===0) return;
+    const meuValor = l.rateio.reduce((s,r)=> r.animalId===animalId ? s+(Number(r.valor)||0) : s, 0);
+    if(meuValor<=0) return;
+    total += meuValor;
+    const cat = CATEGORIA_CUSTO_ANIMAL[l.categoria] || 'Outros';
+    porCategoria[cat] = (porCategoria[cat]||0) + meuValor;
   });
-  return total;
-}
-function custoVeterinariaPorAnimal(animalId, de, ate){
-  let total = 0;
-  tratamentos.forEach(t=>{
-    if(de && t.dataInicio<de) return;
-    if(ate && t.dataInicio>ate) return;
-    if(!(t.animais||[]).some(a=>a.id===animalId)) return;
-    const prod = estoqueProdutos.find(p=>p.id===t.medicamentoId);
-    const valorUnit = custoUnitarioProduto(prod);
-    if(!valorUnit) return;
-    total += valorUnit * (Number(t.quantidade)||0) * (Number(t.diasTratamento)||0);
-  });
-  // Serviços e produtos lançados em Visitas Veterinárias, só do animal em questão (cada custo já é
-  // individual por animal, não precisa dividir por ninguém).
-  visitas.forEach(v=>{
-    if(de && v.data<de) return;
-    if(ate && v.data>ate) return;
-    (v.custos||[]).forEach(c=>{ if(c.animalId===animalId) total += Number(c.valor)||0; });
-  });
-  return total;
-}
-// Só soma Treinos Cobrados em Reais — mesma regra do resto deste relatório (é implicitamente BRL, sem
-// distinção de moeda). Um treino cobrado em US$ não some do sistema, só fica de fora desta soma
-// específica (aparece normalmente no Financeiro, na moeda certa).
-function custoTreinosPorAnimal(animalId, de, ate){
-  let total = 0;
-  treinos.forEach(t=>{
-    if(!t.cobranca || t.cobranca.moeda==='USD') return;
-    if(de && t.data<de) return;
-    if(ate && t.data>ate) return;
-    const a = (t.animais||[]).find(x=>x.id===animalId);
-    if(!a) return;
-    total += valorTreinoAnimal(a);
-  });
-  return total;
+  return { total, porCategoria };
 }
 function custoDietaResumo(d){
   let diarioPorAnimal = 0, temItemSemPreco = false;
@@ -11091,11 +11140,6 @@ function custoDietaResumo(d){
   const qtdAnimais = (d.animais||[]).length || 0;
   return { diarioPorAnimal, mensalPorAnimal: diarioPorAnimal*freqMensal, mensalTotal: diarioPorAnimal*freqMensal*qtdAnimais, temItemSemPreco };
 }
-function custoDietaMensalPorAnimal(animalId){
-  let total = 0;
-  dietas.forEach(d=>{ if((d.animais||[]).some(a=>a.id===animalId)) total += custoDietaResumo(d).mensalPorAnimal; });
-  return total;
-}
 const relCustoPeriodo = createDateRangePicker(document.getElementById('relCustoPeriodo'), {});
 function gerarRelatorioFicha3(){
   const lista = fichaSelecionados();
@@ -11104,30 +11148,25 @@ function gerarRelatorioFicha3(){
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const host = document.getElementById('relFichaResult');
   let totalGeral = 0;
+  const totalPorCategoria = {};
   const linhas = lista.map(h=>{
-    const custoManejos = custoManejosPorAnimal(h.id, de, ate);
-    const custoVet = custoVeterinariaPorAnimal(h.id, de, ate);
-    const custoTreinos = custoTreinosPorAnimal(h.id, de, ate);
-    const custoDietaMes = custoDietaMensalPorAnimal(h.id);
-    const totalPeriodo = custoManejos + custoVet + custoTreinos;
-    totalGeral += totalPeriodo;
-    return { h, custoManejos, custoVet, custoTreinos, custoDietaMes, totalPeriodo };
+    const { total, porCategoria } = custoDiretoAnimal(h.id, de, ate);
+    totalGeral += total;
+    CATEGORIAS_CUSTO_ANIMAL_ORDEM.forEach(c=>{ totalPorCategoria[c] = (totalPorCategoria[c]||0) + (porCategoria[c]||0); });
+    return { h, total, porCategoria };
   });
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
-    <div class="subtitle" style="margin-bottom:14px;">Manejos, Veterinária e Treinos Cobrados ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} (Treinos cobrados em US$ não entram nesta soma). A coluna Dieta é uma estimativa mensal da dieta atual do animal — não soma no total do período, porque a dieta não tem data de início/fim registrada.</div>
+    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Ração, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais.</div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Animal</th><th>Manejos</th><th>Veterinária</th><th>Treinos</th><th>Total do período</th><th>Dieta (estimativa/mês)</th></tr></thead>
+      <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${linhas.map(r=>`<tr>
         <td><button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.h.nome||''}</strong></td>
-        <td>${fmtR(r.custoManejos)}</td>
-        <td>${fmtR(r.custoVet)}</td>
-        <td>${fmtR(r.custoTreinos)}</td>
-        <td style="font-weight:600;">${fmtR(r.totalPeriodo)}</td>
-        <td style="color:var(--muted);">${r.custoDietaMes>0?fmtR(r.custoDietaMes):'—'}</td>
+        ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${r.porCategoria[c]>0?fmtR(r.porCategoria[c]):'<span style="color:var(--muted);">—</span>'}</td>`).join('')}
+        <td style="font-weight:600;">${fmtR(r.total)}</td>
       </tr>`).join('')}</tbody>
+      <tfoot><tr style="font-weight:600;border-top:2px solid #333;"><td>Total</td>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${fmtR(totalPorCategoria[c]||0)}</td>`).join('')}<td>${fmtR(totalGeral)}</td></tr></tfoot>
     </table></div>
-    <h2 style="border-top:2px solid #333;margin-top:14px;">TOTAL GERAL DO PERÍODO (Manejos + Veterinária + Treinos): ${fmtR(totalGeral)}</h2>
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
