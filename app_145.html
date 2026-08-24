@@ -450,17 +450,13 @@
   /* rede de segurança: nenhuma rolagem horizontal na página toda */
   html, body{ overflow-x:hidden; }
 
-  /* ---------- Menu em grupos colapsáveis (só no celular) ---------- */
-  .nav-group-head{display:none;}
-  .nav-group-body{display:block;}
-  @media (max-width:860px){
-    .nav-group-head{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--brass-light);cursor:pointer;}
-    .nav-group-head .chev{transition:transform .2s ease;}
-    .nav-group.open .nav-group-head .chev{transform:rotate(90deg);}
-    .nav-group-body{display:none;}
-    .nav-group.open .nav-group-body{display:block;}
-    .nav-group.grp-empty{display:none;}
-  }
+  /* ---------- Menu em grupos colapsáveis (computador e celular) ---------- */
+  .nav-group-head{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--brass-light);cursor:pointer;}
+  .nav-group-head .chev{transition:transform .2s ease;}
+  .nav-group.open .nav-group-head .chev{transform:rotate(90deg);}
+  .nav-group-body{display:none;}
+  .nav-group.open .nav-group-body{display:block;}
+  .nav-group.grp-empty{display:none;}
 
   /* ---------- Barra de abas fixas no rodapé (só no celular) ---------- */
   .mobile-tabbar{display:none;}
@@ -2570,7 +2566,7 @@ function fecharMenuMobile(){ document.querySelector('.sidebar').classList.remove
 document.getElementById('btnMobileMenu').addEventListener('click', abrirMenuMobile);
 document.getElementById('sidebarOverlay').addEventListener('click', fecharMenuMobile);
 
-/* ---------- GRUPOS COLAPSÁVEIS DO MENU (só afeta o celular, via CSS) ---------- */
+/* ---------- GRUPOS COLAPSÁVEIS DO MENU (computador e celular) ---------- */
 document.querySelectorAll('.nav-group-head').forEach(head=>{
   head.addEventListener('click', ()=>{
     const grupo = head.parentElement;
