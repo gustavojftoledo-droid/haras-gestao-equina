@@ -449,6 +449,33 @@
 
   /* rede de segurança: nenhuma rolagem horizontal na página toda */
   html, body{ overflow-x:hidden; }
+
+  /* ---------- Menu em grupos colapsáveis (só no celular) ---------- */
+  .nav-group-head{display:none;}
+  .nav-group-body{display:block;}
+  @media (max-width:860px){
+    .nav-group-head{display:flex;align-items:center;justify-content:space-between;padding:10px 11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--brass-light);cursor:pointer;}
+    .nav-group-head .chev{transition:transform .2s ease;}
+    .nav-group.open .nav-group-head .chev{transform:rotate(90deg);}
+    .nav-group-body{display:none;}
+    .nav-group.open .nav-group-body{display:block;}
+    .nav-group.grp-empty{display:none;}
+  }
+
+  /* ---------- Barra de abas fixas no rodapé (só no celular) ---------- */
+  .mobile-tabbar{display:none;}
+  @media (max-width:860px){
+    #btnMobileMenu{display:none;}
+    .mobile-tabbar{
+      display:flex;position:fixed;left:0;right:0;bottom:0;z-index:115;
+      background:var(--green);border-top:1px solid rgba(237,231,214,0.15);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    .mobile-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 6px;font-size:10px;color:#D9D2BC;cursor:pointer;}
+    .mobile-tab .mt-ic{font-size:17px;line-height:1;}
+    .mobile-tab.active{color:#fff;font-weight:600;}
+    .main{padding-bottom:78px;}
+  }
 </style>
 </head>
 <body>
@@ -484,17 +511,41 @@
     <div class="nav" id="nav">
       <div class="nav-item active" data-view="inicio" title="Atalho: Alt+Shift+I"><span class="dot"></span>Início</div>
       <div class="nav-item" data-view="calendario" title="Atalho: Alt+Shift+C"><span class="dot"></span>Calendário</div>
-      <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
-      <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
-      <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
-      <div class="nav-item" data-view="transporte"><span class="dot"></span>Transporte</div>
-      <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Atividades</div>
-      <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
-      <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
-      <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
-      <div class="nav-item" data-view="funcionarios" title="Atalho: Alt+Shift+P"><span class="dot"></span>Funcionários</div>
-      <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
-      <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
+
+      <div class="nav-group open" data-group="animais-grp">
+        <div class="nav-group-head"><span>Animais</span><span class="chev">›</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
+          <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
+        </div>
+      </div>
+
+      <div class="nav-group" data-group="saude-grp">
+        <div class="nav-group-head"><span>Saúde</span><span class="chev">›</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
+          <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
+          <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
+        </div>
+      </div>
+
+      <div class="nav-group" data-group="operacao-grp">
+        <div class="nav-group-head"><span>Operação</span><span class="chev">›</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" data-view="transporte"><span class="dot"></span>Transporte</div>
+          <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Atividades</div>
+        </div>
+      </div>
+
+      <div class="nav-group" data-group="admin-grp">
+        <div class="nav-group-head"><span>Administração</span><span class="chev">›</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
+          <div class="nav-item" data-view="funcionarios" title="Atalho: Alt+Shift+P"><span class="dot"></span>Funcionários</div>
+          <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
+          <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
+        </div>
+      </div>
     </div>
     <div style="padding:12px 14px;border-top:1px solid rgba(237,231,214,0.12);">
       <div id="userBadge" style="color:#D9D2BC;"></div>
@@ -509,6 +560,13 @@
       <button type="button" id="btnDiagnostico" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-top:6px;">🔍 Diagnóstico</button>
       <input type="file" id="importBackupFile" accept="application/json" style="display:none;">
     </div>
+  </div>
+
+  <div class="mobile-tabbar">
+    <div class="mobile-tab active" data-view="inicio"><span class="mt-ic">🏠</span><span>Início</span></div>
+    <div class="mobile-tab" data-view="animais"><span class="mt-ic">🐴</span><span>Animais</span></div>
+    <div class="mobile-tab" data-view="calendario"><span class="mt-ic">📅</span><span>Agenda</span></div>
+    <div class="mobile-tab" id="mobileTabMais"><span class="mt-ic">☰</span><span>Mais</span></div>
   </div>
 
   <div class="main">
@@ -2511,6 +2569,45 @@ function abrirMenuMobile(){ document.querySelector('.sidebar').classList.add('mo
 function fecharMenuMobile(){ document.querySelector('.sidebar').classList.remove('mobile-open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
 document.getElementById('btnMobileMenu').addEventListener('click', abrirMenuMobile);
 document.getElementById('sidebarOverlay').addEventListener('click', fecharMenuMobile);
+
+/* ---------- GRUPOS COLAPSÁVEIS DO MENU (só afeta o celular, via CSS) ---------- */
+document.querySelectorAll('.nav-group-head').forEach(head=>{
+  head.addEventListener('click', ()=>{
+    const grupo = head.parentElement;
+    const jaAberto = grupo.classList.contains('open');
+    document.querySelectorAll('.nav-group').forEach(g=>g.classList.remove('open'));
+    if(!jaAberto) grupo.classList.add('open');
+  });
+});
+// Esconde por completo (no celular) um grupo cujos itens todos estão ocultos pela permissão do
+// perfil (PERFIL_VIEWS) — sem isso, um perfil sem acesso a nada de "Saúde", por exemplo, ainda
+// veria o cabeçalho "Saúde ›" no menu, só que vazio ao abrir.
+function atualizarGruposVaziosMenu(){
+  document.querySelectorAll('.nav-group').forEach(grupo=>{
+    const itens = grupo.querySelectorAll('.nav-item');
+    const algumVisivel = Array.from(itens).some(i=>i.style.display!=='none');
+    grupo.classList.toggle('grp-empty', itens.length>0 && !algumVisivel);
+  });
+}
+
+/* ---------- BARRA DE ABAS FIXAS (celular) ---------- */
+function syncMobileTabbar(view){
+  document.querySelectorAll('.mobile-tab[data-view]').forEach(t=>t.classList.toggle('active', t.dataset.view===view));
+}
+document.querySelectorAll('.mobile-tab[data-view]').forEach(tab=>{
+  tab.addEventListener('click', ()=> irParaView(tab.dataset.view));
+});
+document.getElementById('mobileTabMais').addEventListener('click', abrirMenuMobile);
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    const grupo = item.closest('.nav-group');
+    if(grupo){
+      document.querySelectorAll('.nav-group').forEach(g=>g.classList.remove('open'));
+      grupo.classList.add('open');
+    }
+    syncMobileTabbar(item.dataset.view);
+  });
+});
 
 /* ================= ATALHOS DE TECLADO ================= */
 // Alt+letra abre direto o cadastro novo daquele módulo, de qualquer tela.
@@ -10149,6 +10246,7 @@ function aplicarPermissoes(){
     const view = item.dataset.view;
     item.style.display = permitidas.includes(view) ? '' : 'none';
   });
+  atualizarGruposVaziosMenu();
   document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${PERFIL_LABEL[currentUser.perfil]||currentUser.perfil}</span> ${currentUser.nome}`;
   const viewAtiva = document.querySelector('.nav-item.active');
   if(!viewAtiva || viewAtiva.style.display==='none'){
