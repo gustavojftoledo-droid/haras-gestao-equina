@@ -569,7 +569,7 @@
       <div id="userBadge" style="color:#D9D2BC;"></div>
       <button type="button" id="btnLogout" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:7px 10px;border-radius:6px;font-size:11.5px;cursor:pointer;margin-top:8px;">🔒 Sair</button>
     </div>
-    <div style="padding:12px 14px 18px;border-top:1px solid rgba(237,231,214,0.12);">
+    <div style="padding:12px 14px 18px;border-top:1px solid rgba(237,231,214,0.12);" id="blocoSegurancaDados">
       <div style="font-size:9.5px;color:var(--brass-light);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Segurança dos dados</div>
       <button type="button" id="btnExportBackup" style="width:100%;text-align:left;background:none;border:1px solid rgba(237,231,214,0.25);color:#D9D2BC;padding:8px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:4px;">⬇ Exportar backup</button>
       <div id="backupPastaStatus" style="font-size:10px;color:var(--brass-light);margin:0 0 6px 2px;"></div>
@@ -1027,6 +1027,7 @@
       <div class="topbar">
         <div><div class="title">Estoque</div><div class="subtitle">Medicamentos, alimentos, ferramentas e arreios</div></div>
         <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
           <button class="btn btn-ghost" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
           <button class="btn" id="btnNewProduto" title="Atalho: Alt+E">+ Novo Produto</button>
         </div>
@@ -1254,7 +1255,8 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-sm no-print" id="btnPerfilNovoManejo">+ Inserir Manejo</button>
-          <button class="btn btn-sm no-print" id="btnPerfilNovaVeterinaria">+ Inserir Veterinária</button>
+          <button class="btn btn-sm no-print" id="btnPerfilNovaVisita">+ Visita Veterinária</button>
+          <button class="btn btn-sm no-print" id="btnPerfilNovoTratamento">+ Tratamento</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilEditar">✎ Editar cadastro</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilImprimir">🖨 Imprimir</button><button class="btn btn-ghost btn-sm no-print" id="btnPdfPerfil">⬇ Baixar PDF</button>
         </div>
@@ -1721,6 +1723,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayTratamento">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="trModalTitle">Nova Aplicação de Medicamento</div><button class="modal-close" data-close="overlayTratamento">✕</button></div>
+    <div id="trSessaoResumo" style="margin-bottom:12px;"></div>
     <div class="form-grid cols3" style="margin-bottom:10px;">
       <div class="field"><label>Medicamento</label><input type="text" id="tr_medicamento" list="dl_medicamentos" placeholder="Digite pra buscar..."></div>
       <div class="field"><label>Quantidade por dose</label><input type="number" step="0.01" id="tr_quantidade" placeholder="Ex: 10"></div>
@@ -1751,7 +1754,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <button type="button" class="btn btn-sm btn-ghost" id="btnAddTratamentoUtensilio" style="margin-bottom:16px;">+ Adicionar utensílio</button>
     <div class="section-label" style="border-top:none;padding-top:0;">Animais</div>
     <div id="tratamentoSelectorHost" style="margin:10px 0 16px;"></div>
-    <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTratamento">Cancelar</button><button type="button" class="btn btn-danger" id="btnDeleteTratamento" style="display:none;">Excluir</button><button type="button" class="btn" id="btnSaveTratamento">Salvar Aplicação <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTratamento">Cancelar</button><button type="button" class="btn btn-danger" id="btnDeleteTratamento" style="display:none;">Excluir</button><button type="button" class="btn btn-ghost" id="btnAddOutroTratamento" title="Salva esse e abre um novo, sem fechar — pra lançar vários tratamentos do mesmo animal em sequência">+ Adicionar outro tratamento</button><button type="button" class="btn" id="btnSaveTratamento">Salvar Aplicação <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
   </div>
 </div>
 
@@ -2031,6 +2034,10 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div id="u_permBlock" style="margin-top:16px;">
         <div class="hint-text" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
         <div class="perm-table-wrap"><div class="perm-table" id="u_permTable"></div></div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:14px;">
+          <input type="checkbox" id="u_permSeguranca" style="width:15px;height:15px;">
+          Acesso a "Segurança dos dados" <span style="font-weight:400;color:var(--muted);">(exportar/importar backup e Diagnóstico — fica escondido de quem não marcar isso)</span>
+        </label>
       </div>
       <div class="field full hint-text" id="u_acessoPreview" style="margin-top:14px;"></div>
       <div class="modal-actions">
@@ -2100,6 +2107,15 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);">
       <button type="button" class="btn btn-ghost btn-sm" id="btnManualMerge">Unificar manualmente (buscar por nome)</button>
     </div>
+  </div>
+</div>
+
+<!-- CONSUMO FORA DO PADRÃO MODAL -->
+<div class="overlay" id="overlayAnomalias">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Consumo Fora do Padrão</div><button class="modal-close" data-close="overlayAnomalias">✕</button></div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">Comparo cada baixa de estoque com o histórico desse mesmo produto — se uma baixa é bem maior que o normal (5x a mediana ou mais), aviso aqui. Pode ser erro de digitação (ex: 100 em vez de 10) ou pode ser real (uma emergência, uma compra grande consumida de vez). Você decide — nada é alterado sozinho.</div>
+    <div id="anomaliasListHost"></div>
   </div>
 </div>
 
@@ -2180,6 +2196,7 @@ let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
+let dismissedAnomaliasEstoque = new Set();
 // Tarefas de manejo (Casco/Dente/Vacina/Vermífugo) previstas no Calendário que o usuário excluiu sem
 // realizar — não é um registro de manejo de verdade (a tarefa é calculada, não salva), então "excluir"
 // só marca essa ocorrência específica (animal+tipo+rótulo+data) como dispensada, sem nenhum efeito
@@ -2317,6 +2334,7 @@ async function loadAll(){
   const rN = await storeGet('nascimentos_list');
   const rAux = await storeGet('aux_lists');
   const rDismissed = await storeGet('dismissed_duplicates');
+  const rDismissedAnomalias = await storeGet('dismissed_anomalias_estoque');
   const rDismissedManejo = await storeGet('dismissed_manejo_tasks');
   const rEP = await storeGet('estoque_produtos');
   const rEM = await storeGet('estoque_movimentos');
@@ -2387,6 +2405,7 @@ async function loadAll(){
   if(!config.categoriasForaRateio) config.categoriasForaRateio = [];
   if(rRS.value && !Array.isArray(rRS.value)) relSelecoes = rRS.value;
   if(Array.isArray(rDismissed.value)) dismissedDuplicates = new Set(rDismissed.value);
+  if(Array.isArray(rDismissedAnomalias.value)) dismissedAnomaliasEstoque = new Set(rDismissedAnomalias.value);
   if(Array.isArray(rDismissedManejo.value)) dismissedManejoTasks = new Set(rDismissedManejo.value);
   if(!rH.ok || !rM.ok || !rT.ok || !rN.ok || !rAux.ok || !rEP.ok || !rEM.ok || !rDT.ok || !rG.ok || !rTR.ok || !rFin.ok){ showLoadWarning(); }
   const savedAux = rAux.value;
@@ -9007,6 +9026,9 @@ function openTratamentoNew(){
   editingTratamentoId = null;
   document.getElementById('trModalTitle').textContent = 'Nova Aplicação de Medicamento';
   document.getElementById('btnDeleteTratamento').style.display = 'none';
+  document.getElementById('btnAddOutroTratamento').style.display = '';
+  tratamentoSessao = [];
+  renderTrSessaoResumo();
   fillTratamentoMedicamentoSelect('');
   document.getElementById('tr_quantidade').value='';
   document.getElementById('tr_meio_sel').value='';
@@ -9030,6 +9052,9 @@ function openTratamentoEdit(id){
   editingTratamentoId = id;
   document.getElementById('trModalTitle').textContent = 'Editar Aplicação';
   document.getElementById('btnDeleteTratamento').style.display = 'inline-block';
+  document.getElementById('btnAddOutroTratamento').style.display = 'none';
+  tratamentoSessao = [];
+  renderTrSessaoResumo();
   fillTratamentoMedicamentoSelect(t.medicamentoNome);
   document.getElementById('tr_quantidade').value = t.quantidade||'';
   document.getElementById('tr_meio_sel').value = t.meioAplicacao||'';
@@ -9055,23 +9080,27 @@ function openTratamentoEdit(id){
   openModal('overlayTratamento');
 }
 document.getElementById('btnNewTratamento').addEventListener('click', openTratamentoNew);
-document.getElementById('btnSaveTratamento').addEventListener('click', async ()=>{
+// Validação + montagem + gravação de UMA aplicação — usada tanto por "Salvar Aplicação" (fecha o
+// modal) quanto por "+ Adicionar outro tratamento" (mantém o modal aberto pra lançar vários
+// tratamentos do mesmo animal em sequência, sem reabrir). Devolve o registro salvo, ou null se
+// alguma validação falhou (o alerta já foi mostrado, não precisa repetir na chamada).
+async function tentarSalvarTratamentoAtual(){
   const medicamentoNomeDigitado = f('tr_medicamento').trim();
-  if(!medicamentoNomeDigitado){ showAlert('Informe o medicamento (cadastre um no Estoque primeiro, se ainda não tiver).'); return; }
+  if(!medicamentoNomeDigitado){ showAlert('Informe o medicamento (cadastre um no Estoque primeiro, se ainda não tiver).'); return null; }
   const prod = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===medicamentoNomeDigitado.toLowerCase());
-  if(!prod){ showAlert('Não achei "'+medicamentoNomeDigitado+'" nos medicamentos do Estoque. Confira a digitação ou cadastre esse produto lá primeiro (tipo Medicamento).'); document.getElementById('tr_medicamento').focus(); return; }
+  if(!prod){ showAlert('Não achei "'+medicamentoNomeDigitado+'" nos medicamentos do Estoque. Confira a digitação ou cadastre esse produto lá primeiro (tipo Medicamento).'); document.getElementById('tr_medicamento').focus(); return null; }
   const medicamentoId = prod.id;
   const quantidade = Number(f('tr_quantidade'));
-  if(!quantidade || quantidade<=0){ showAlert('Informe a quantidade por dose.'); document.getElementById('tr_quantidade').focus(); return; }
+  if(!quantidade || quantidade<=0){ showAlert('Informe a quantidade por dose.'); document.getElementById('tr_quantidade').focus(); return null; }
   const dataInicio = f('tr_dataInicio');
-  if(!dataInicio){ showAlert('Informe a data de início.'); return; }
+  if(!dataInicio){ showAlert('Informe a data de início.'); return null; }
   const diasTratamento = Number(f('tr_dias'));
-  if(!diasTratamento || diasTratamento<1){ showAlert('Informe o número de aplicações.'); document.getElementById('tr_dias').focus(); return; }
+  if(!diasTratamento || diasTratamento<1){ showAlert('Informe o número de aplicações.'); document.getElementById('tr_dias').focus(); return null; }
   const intervaloDias = Number(f('tr_intervalo'))>=1 ? Number(f('tr_intervalo')) : 1;
   const periodos = { 'Manhã':document.getElementById('tr_per_manha').checked, 'Tarde':document.getElementById('tr_per_tarde').checked, 'Noite':document.getElementById('tr_per_noite').checked };
-  if(!periodos['Manhã'] && !periodos['Tarde'] && !periodos['Noite']){ showAlert('Marque ao menos um período de aplicação.'); return; }
+  if(!periodos['Manhã'] && !periodos['Tarde'] && !periodos['Noite']){ showAlert('Marque ao menos um período de aplicação.'); return null; }
   const selected = tratamentoSelector.getSelected();
-  if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
+  if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return null; }
   const utensiliosValidos = tratamentoUtensiliosState.filter(u=>u.produtoId && Number(u.quantidade)>0);
   const utensilios = utensiliosValidos.map(u=>{
     const up = estoqueProdutos.find(p=>p.id===u.produtoId);
@@ -9089,7 +9118,49 @@ document.getElementById('btnSaveTratamento').addEventListener('click', async ()=
   };
   tratamentos = editingTratamentoId ? tratamentos.map(t=>t.id===editingTratamentoId?data:t) : [...tratamentos, data];
   await storeSet('tratamentos_list', tratamentos);
+  return data;
+}
+document.getElementById('btnSaveTratamento').addEventListener('click', async ()=>{
+  const data = await tentarSalvarTratamentoAtual();
+  if(!data) return;
   closeModal('overlayTratamento'); renderTratamentos(); renderInicio();
+});
+// Sessão de múltiplos tratamentos: cada um vira uma linha compacta e some do formulário, que reseta
+// pronto pro próximo — sem fechar o modal. Só faz sentido cadastrando um novo (editar um já existente
+// continua sendo um registro só, o botão fica escondido nesse caso — ver openTratamentoEdit).
+let tratamentoSessao = [];
+function renderTrSessaoResumo(){
+  const host = document.getElementById('trSessaoResumo');
+  if(tratamentoSessao.length===0){ host.innerHTML=''; return; }
+  host.innerHTML = `<div class="hint-text" style="margin-bottom:6px;">Já adicionados nesta sessão (${tratamentoSessao.length}):</div>` +
+    tratamentoSessao.map(t=>{
+      const per = Object.entries(t.periodos||{}).filter(([,v])=>v).map(([k])=>k).join('/');
+      return `<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">💊 <strong>${t.medicamentoNome}</strong> — ${t.quantidade}${t.unidade?(' '+t.unidade):''} · ${per} · ${t.diasTratamento}x a cada ${t.intervaloDias}d</div>`;
+    }).join('');
+}
+document.getElementById('btnAddOutroTratamento').addEventListener('click', async ()=>{
+  const data = await tentarSalvarTratamentoAtual();
+  if(!data) return;
+  tratamentoSessao.push(data);
+  renderTrSessaoResumo();
+  // Reseta só a classificação do tratamento (medicamento/doses/período/utensílios/observação) — os
+  // animais selecionados continuam marcados, já que normalmente é o mesmo animal recebendo vários
+  // tratamentos na mesma visita.
+  editingTratamentoId = null;
+  document.getElementById('btnDeleteTratamento').style.display = 'none';
+  fillTratamentoMedicamentoSelect('');
+  document.getElementById('tr_quantidade').value='';
+  document.getElementById('tr_dias').value='';
+  document.getElementById('tr_intervalo').value='1';
+  tratamentoUtensiliosState = [];
+  renderTratamentoUtensilios();
+  document.getElementById('tr_responsavel').value='';
+  document.getElementById('tr_obs').value='';
+  document.getElementById('tr_per_manha').checked=false;
+  document.getElementById('tr_per_tarde').checked=false;
+  document.getElementById('tr_per_noite').checked=false;
+  atualizarDataTerminoUI();
+  document.getElementById('tr_medicamento').focus();
 });
 document.getElementById('btnDeleteTratamento').addEventListener('click', async ()=>{
   if(!editingTratamentoId || !(await showConfirm('Excluir esta aplicação? O histórico de baixas já feitas no estoque não é desfeito.'))) return;
@@ -9599,12 +9670,20 @@ function gerarRelatorioVeterinaria(){
       const termino = calcDataTermino(t.dataInicio, t.diasTratamento, t.intervaloDias);
       const st = statusTratamento(t);
       const [cls,label] = TRATAMENTO_STATUS_LABEL[st];
+      const doses = gerarDosesTratamento(t);
+      const concluidas = new Set(t.doseConcluidas||[]);
       return `<div class="report-animal-block">
         <div class="report-animal-name">${t.medicamentoNome||'(produto excluído)'} <span class="pill ${cls}" style="font-size:10px;">${label}</span></div>
         <div class="report-row">Animais: ${animaisComOlhoHTML(t.animais)||'—'}</div>
         <div class="report-row" style="font-size:12px;color:var(--muted);">${fmtDate(t.dataInicio)} a ${fmtDate(termino)} · ${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''} · ${t.quantidade}${t.unidade?(' '+t.unidade):''} por dose · Meio: ${t.meioAplicacao||'—'}</div>
         ${t.responsavel?`<div class="report-row" style="font-size:12px;color:var(--muted);">Responsável: ${t.responsavel}</div>`:''}
         ${t.obs?`<div class="report-row" style="font-size:12px;color:var(--muted);">Obs: ${t.obs}</div>`:''}
+        ${doses.length>0?`<div class="report-row" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
+          ${doses.map(ds=>`<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;">
+            <span style="display:inline-block;width:13px;height:13px;border:1.5px solid #333;border-radius:3px;text-align:center;line-height:11px;">${concluidas.has(ds.key)?'✓':''}</span>
+            ${fmtDate(ds.data)} · ${ds.periodo}
+          </span>`).join('')}
+        </div>`:''}
       </div>`;
     }).join('')}
   </div>`;
@@ -11167,6 +11246,9 @@ function aplicarPermissoes(){
   atualizarGruposVaziosMenu();
   aplicarPermissoesBotoesNovo();
   aplicarRestricaoTiposManejoUI();
+  // "Segurança dos dados" (backup/Diagnóstico) some do menu lateral pra quem não tem essa permissão —
+  // fica só pra Administrador por padrão (permissaoDe já devolve tudo liberado pra admin sozinho).
+  document.getElementById('blocoSegurancaDados').style.display = permissaoDe(currentUser,'seguranca').ver ? '' : 'none';
   document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${currentUser.nome}`;
   const viewAtiva = document.querySelector('.nav-item.active');
   if(!viewAtiva || viewAtiva.style.display==='none'){
@@ -11294,6 +11376,9 @@ function lerPermissoesDoForm(){
     // tipo novo for adicionado no futuro); só grava a lista quando é de fato um subconjunto.
     permissoes.manejos.tipos = tipos.length===MANEJO_TIPOS_OPCOES.length ? [] : tipos;
   }
+  // "Segurança dos dados" (backup/Diagnóstico) não é uma tela com Inserir/Editar/Excluir — é só um
+  // bloco do menu lateral que aparece ou não, por isso fica fora da grade e usa só um "ver" solto.
+  permissoes.seguranca = { ver: document.getElementById('u_permSeguranca').checked };
   return { admin:false, permissoes };
 }
 // Aplica no formulário o estado salvo de um usuário (ou o estado "em branco" pra um usuário novo).
@@ -11312,6 +11397,7 @@ function aplicarEstadoPermNoForm(u){
   const linha = document.getElementById('u_manejoTiposRow');
   const manejosVer = admin || !!(u.permissoes && u.permissoes.manejos && u.permissoes.manejos.ver);
   if(linha) linha.style.display = manejosVer ? '' : 'none';
+  document.getElementById('u_permSeguranca').checked = !!(u.permissoes && u.permissoes.seguranca && u.permissoes.seguranca.ver);
 }
 function atualizarAcessoPreview(){
   const { admin, permissoes } = lerPermissoesDoForm();
@@ -11422,7 +11508,7 @@ document.getElementById('btnPerfilNovoManejo').addEventListener('click', ()=>{
     setTimeout(()=> manejoSelector.setSelected([{id:animalId}]), 30);
   }, 30);
 });
-document.getElementById('btnPerfilNovaVeterinaria').addEventListener('click', ()=>{
+document.getElementById('btnPerfilNovaVisita').addEventListener('click', ()=>{
   if(!perfilAnimalId) return;
   const animalId = perfilAnimalId;
   irParaView('veterinaria');
@@ -11430,6 +11516,19 @@ document.getElementById('btnPerfilNovaVeterinaria').addEventListener('click', ()
     document.getElementById('vtrtab_visitas').click();
     document.getElementById('btnNewVisita').click();
     setTimeout(()=> visitaSelector.setSelected([{id:animalId}]), 30);
+  }, 30);
+});
+document.getElementById('btnPerfilNovoTratamento').addEventListener('click', ()=>{
+  if(!perfilAnimalId) return;
+  const animalId = perfilAnimalId;
+  irParaView('veterinaria');
+  setTimeout(()=>{
+    document.getElementById('vtrtab_tratamento').click();
+    document.getElementById('btnNewTratamento').click();
+    setTimeout(()=>{
+      const cb = tratamentoHost.querySelector(`input[type=checkbox][data-id="${animalId}"]`);
+      if(cb && !cb.checked){ cb.checked=true; cb.dispatchEvent(new Event('change')); }
+    }, 30);
   }, 30);
 });
 document.getElementById('btnPerfilImprimir').addEventListener('click', ()=>window.print());
@@ -12415,6 +12514,88 @@ function renderDuplicatesList(){
 document.getElementById('btnFindDuplicates').addEventListener('click', ()=>{
   renderDuplicatesList();
   openModal('overlayDuplicates');
+});
+
+/* ================= CONSUMO FORA DO PADRÃO (ESTOQUE) ================= */
+// Mesma ideia dos Possíveis Duplicados: nada é decidido sozinho, só aviso e você decide. Compara cada
+// baixa de estoque (saída) com a MEDIANA das outras baixas do MESMO produto — pega tanto "100 ml de
+// fenilbutazona" (dose normal é bem menor) quanto "ração muito acima do costume", com a mesma conta,
+// sem precisar de um limite escrito à mão por categoria.
+function computeAnomaliasConsumo(){
+  const porProduto = {};
+  estoqueMovimentos.forEach(m=>{
+    if(m.tipoMov!=='saida') return;
+    (porProduto[m.produtoId] = porProduto[m.produtoId]||[]).push(m);
+  });
+  const anomalias = [];
+  Object.values(porProduto).forEach(movs=>{
+    if(movs.length<4) return; // precisa de histórico mínimo pra ter uma "normalidade" pra comparar com
+    const valores = movs.map(m=>Number(m.quantidade)||0).slice().sort((a,b)=>a-b);
+    const mediana = valores[Math.floor(valores.length/2)];
+    if(mediana<=0) return;
+    movs.forEach(m=>{
+      const q = Number(m.quantidade)||0;
+      if(q < mediana*5 || q <= mediana+1) return; // 2ª condição evita disparar em produtos de mediana quase zero
+      if(dismissedAnomaliasEstoque.has(m.id)) return;
+      anomalias.push({ mov:m, mediana });
+    });
+  });
+  return anomalias.sort((a,b)=> (b.mov.data||'').localeCompare(a.mov.data||''));
+}
+function renderAnomaliasList(){
+  const anomalias = computeAnomaliasConsumo();
+  const host = document.getElementById('anomaliasListHost');
+  if(anomalias.length===0){ host.innerHTML = '<div class="empty">Nenhum consumo fora do padrão encontrado agora. 👍</div>'; return; }
+  host.innerHTML = anomalias.map(({mov:m, mediana})=>`
+    <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div>
+        <span class="pill st-descarte">Muito acima do normal</span>
+        <div style="margin-top:6px;font-size:14px;"><strong>${m.produtoNome||'(produto excluído)'}</strong> — ${fmtDate(m.data)}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Baixou <strong>${m.quantidade}${m.unidade?(' '+m.unidade):''}</strong> — o normal desse produto costuma ser em torno de ${mediana}${m.unidade?(' '+m.unidade):''} por baixa.${m.motivo?(' Motivo registrado: '+m.motivo):''}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button type="button" class="btn btn-sm btn-ghost" data-anomdismiss="${m.id}">Não é erro</button>
+        <button type="button" class="btn btn-sm" data-anomcorrigir="${m.id}">Corrigir quantidade</button>
+      </div>
+    </div>`).join('');
+  host.querySelectorAll('[data-anomdismiss]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      dismissedAnomaliasEstoque.add(btn.dataset.anomdismiss);
+      await storeSet('dismissed_anomalias_estoque', [...dismissedAnomaliasEstoque]);
+      renderAnomaliasList();
+    });
+  });
+  host.querySelectorAll('[data-anomcorrigir]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const m = estoqueMovimentos.find(x=>x.id===btn.dataset.anomcorrigir); if(!m) return;
+      const novoVal = await showPrompt(`Nova quantidade real de "${m.produtoNome}" baixada em ${fmtDate(m.data)}:`, String(m.quantidade));
+      if(!novoVal) return;
+      const nova = Number(novoVal.replace(',','.'));
+      if(!nova || nova<0){ showAlert('Quantidade inválida.'); return; }
+      const antiga = Number(m.quantidade)||0;
+      if(nova===antiga){ return; }
+      const p = estoqueProdutos.find(x=>x.id===m.produtoId);
+      if(p){
+        // Baixa menor do que a registrada = parte do que "saiu" na verdade nunca saiu — devolve a
+        // diferença pro saldo do produto (mesma lógica de registrarAjuste, só que a partir de um
+        // movimento já existente em vez de uma contagem física nova).
+        p.quantidade = (Number(p.quantidade)||0) + (antiga - nova);
+        await storeSet('estoque_produtos', estoqueProdutos);
+      }
+      m.quantidade = nova;
+      m.obs = (m.obs?m.obs+' — ':'') + `Quantidade corrigida de ${antiga}${m.unidade||''} pra ${nova}${m.unidade||''} (alerta de consumo fora do padrão).`;
+      await storeSet('estoque_movimentos', estoqueMovimentos);
+      dismissedAnomaliasEstoque.add(m.id); // já resolvido, não precisa avisar de novo pro mesmo movimento
+      await storeSet('dismissed_anomalias_estoque', [...dismissedAnomaliasEstoque]);
+      showAlert('Quantidade corrigida e estoque ajustado.');
+      renderAnomaliasList();
+      if(typeof renderEstoque==='function') renderEstoque();
+    });
+  });
+}
+document.getElementById('btnAnomaliasConsumo').addEventListener('click', ()=>{
+  renderAnomaliasList();
+  openModal('overlayAnomalias');
 });
 
 const MERGE_FIELDS = [
