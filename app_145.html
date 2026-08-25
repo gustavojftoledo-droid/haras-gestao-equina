@@ -1354,6 +1354,10 @@
       <select id="el_categoria" disabled style="margin-top:6px;width:100%;"></select>
     </div>
     <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkRaca"> Alterar Raça para:</label>
+      <select id="el_raca" disabled style="margin-top:6px;width:100%;"></select>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkStatus"> Alterar Status para:</label>
       <select id="el_status" disabled style="margin-top:6px;width:100%;"></select>
     </div>
@@ -2531,10 +2535,10 @@ document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
 function populateAuxSelects(){
   const fill=(id,list,current)=>{ const el=document.getElementById(id); const cur = current!==undefined?current:el.value;
     el.innerHTML = '<option value="">—</option>' + list.map(v=>`<option value="${v}">${v}</option>`).join(''); el.value=cur||''; };
-  fill('f_status', aux.status); fill('f_pelagem', aux.pelagem); fill('f_categoria', sortCategorias(aux.categoria||[])); fill('f_proprietario', aux.proprietarios);
+  fill('f_status', aux.status||[]); fill('f_pelagem', aux.pelagem||[]); fill('f_categoria', sortCategorias(aux.categoria||[])); fill('f_proprietario', aux.proprietarios||[]);
   fill('f_localizacao', aux.localizacao||[]);
   fill('f_raca', aux.raca||[]);
-  fill('pd_unidade', aux.unidade); fill('pd_tipo_aux', aux.tipoProduto||[]);
+  fill('pd_unidade', aux.unidade||[]); fill('pd_tipo_aux', aux.tipoProduto||[]);
   fill('tr_meio_sel', aux.meioAplicacao||[]);
   fill('pd_nome_sel', [...(aux.nomeProduto||[])].sort((a,b)=>a.localeCompare(b,'pt')));
   fill('pd_classe', aux.classeMedicamento||[]);
@@ -3740,15 +3744,18 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   fillPlain('el_categoria', sortCategorias(aux.categoria||[]));
   fillPlain('el_status', aux.status||[]);
   fillPlain('el_proprietario', aux.proprietarios||[]);
+  fillPlain('el_raca', aux.raca||[]);
   document.getElementById('el_chkLocalizacao').checked = false;
   document.getElementById('el_chkCategoria').checked = false;
   document.getElementById('el_chkStatus').checked = false;
   document.getElementById('el_chkProprietario').checked = false;
+  document.getElementById('el_chkRaca').checked = false;
   document.getElementById('el_chkFreqManejo').checked = false;
   document.getElementById('el_localizacao').disabled = true;
   document.getElementById('el_categoria').disabled = true;
   document.getElementById('el_status').disabled = true;
   document.getElementById('el_proprietario').disabled = true;
+  document.getElementById('el_raca').disabled = true;
   document.getElementById('el_freqManejoTipo').disabled = true;
   document.getElementById('el_freqManejoValor').disabled = true;
   document.getElementById('el_freqManejoValor').value = '';
@@ -3758,6 +3765,7 @@ document.getElementById('el_chkLocalizacao').addEventListener('change', e=>{ doc
 document.getElementById('el_chkCategoria').addEventListener('change', e=>{ document.getElementById('el_categoria').disabled = !e.target.checked; });
 document.getElementById('el_chkStatus').addEventListener('change', e=>{ document.getElementById('el_status').disabled = !e.target.checked; });
 document.getElementById('el_chkProprietario').addEventListener('change', e=>{ document.getElementById('el_proprietario').disabled = !e.target.checked; });
+document.getElementById('el_chkRaca').addEventListener('change', e=>{ document.getElementById('el_raca').disabled = !e.target.checked; });
 document.getElementById('el_chkFreqManejo').addEventListener('change', e=>{
   document.getElementById('el_freqManejoTipo').disabled = !e.target.checked;
   document.getElementById('el_freqManejoValor').disabled = !e.target.checked;
@@ -3767,18 +3775,21 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const alterarCat = document.getElementById('el_chkCategoria').checked;
   const alterarStatus = document.getElementById('el_chkStatus').checked;
   const alterarProp = document.getElementById('el_chkProprietario').checked;
+  const alterarRaca = document.getElementById('el_chkRaca').checked;
   const alterarFreqManejo = document.getElementById('el_chkFreqManejo').checked;
-  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarFreqManejo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
+  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarFreqManejo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
   const novaLoc = document.getElementById('el_localizacao').value;
   const novaCat = document.getElementById('el_categoria').value;
   const novoStatus = document.getElementById('el_status').value;
   const novoProp = document.getElementById('el_proprietario').value;
+  const novaRaca = document.getElementById('el_raca').value;
   const freqManejoTipo = document.getElementById('el_freqManejoTipo').value;
   const freqManejoValor = document.getElementById('el_freqManejoValor').value;
   if(alterarLoc && !novaLoc){ showAlert('Escolha uma Localização.'); return; }
   if(alterarCat && !novaCat){ showAlert('Escolha uma Categoria.'); return; }
   if(alterarStatus && !novoStatus){ showAlert('Escolha um Status.'); return; }
   if(alterarProp && !novoProp){ showAlert('Escolha um Proprietário.'); return; }
+  if(alterarRaca && !novaRaca){ showAlert('Escolha uma Raça.'); return; }
   if(alterarFreqManejo && (freqManejoValor==='' || isNaN(Number(freqManejoValor)) || Number(freqManejoValor)<=0)){ showAlert('Informe um novo valor de frequência válido.'); return; }
   const n = selectedHorseIds.size;
   if(!(await showConfirm(`Aplicar essas alterações a ${n} animal(is) selecionado(s)?`))) return;
@@ -3789,6 +3800,7 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     if(alterarCat) h.categoria = novaCat;
     if(alterarStatus) h.status = novoStatus;
     if(alterarProp) h.proprietario = novoProp;
+    if(alterarRaca) h.raca = novaRaca;
     if(alterarFreqManejo) h[freqCampo] = freqManejoValor;
   });
   await storeSet('horses_list', horses);
@@ -6482,6 +6494,23 @@ document.getElementById('btnVoltarImportAnimais').addEventListener('click', ()=>
 document.getElementById('btnConfirmarImportAnimais').addEventListener('click', async ()=>{
   if(importAnimaisValidos.length===0) return;
   if(!(await showConfirm('Importar '+importAnimaisValidos.length+' animal(is) novo(s) pro cadastro?'))) return;
+  // Raça/Categoria/Pelagem/Localização/Proprietário que vierem na lista mas ainda não existirem nas
+  // listas auxiliares entram sozinhas — senão o valor fica gravado no animal mas invisível nos
+  // dropdowns (cadastro manual, Editar em Lote, filtros) até alguém adicionar na mão pelo "+".
+  let auxMudouImport = false;
+  const garantirAux = (chave, valor)=>{
+    if(!valor) return;
+    if(!aux[chave]) aux[chave]=[];
+    if(!aux[chave].includes(valor)){ aux[chave].push(valor); auxMudouImport = true; }
+  };
+  importAnimaisValidos.forEach(v=>{
+    garantirAux('raca', v.raca);
+    garantirAux('categoria', v.categoria);
+    garantirAux('pelagem', v.pelagem);
+    garantirAux('localizacao', v.localizacao);
+    garantirAux('proprietarios', v.proprietario);
+  });
+  if(auxMudouImport) await storeSet('aux_lists', aux);
   importAnimaisValidos.forEach(v=>{
     if(v.pai) ensureExternalAnimal(v.pai, 'MASCULINO');
     if(v.mae) ensureExternalAnimal(v.mae, 'FEMININO');
@@ -6499,7 +6528,7 @@ document.getElementById('btnConfirmarImportAnimais').addEventListener('click', a
   });
   await storeSet('horses_list', horses);
   closeModal('overlayImportAnimais');
-  refreshDatalists(); renderHorses();
+  refreshDatalists(); populateAuxSelects(); renderHorses();
   showAlert(importAnimaisValidos.length+' animal(is) importado(s) com sucesso — já aparecem no cadastro.');
   importAnimaisValidos = [];
 });
