@@ -907,7 +907,10 @@
     <div class="view" id="view-treinos">
       <div class="topbar">
         <div><div class="title">Treinos</div><div class="subtitle">Sessões de treino e bate-bola</div></div>
-        <button class="btn" id="btnNewTreino" title="Atalho: Alt+T">+ Novo Treino</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
+          <button class="btn" id="btnNewTreino" title="Atalho: Alt+T">+ Novo Treino</button>
+        </div>
       </div>
       <div class="subtabs">
         <span class="chip active" data-ttab="historico" id="ttab_historico">Histórico</span>
@@ -954,7 +957,7 @@
         <div style="display:flex;gap:10px;">
           <button class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
           <button class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
-          <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Nova Cobertura</button>
+          <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Novo Serviço</button>
         </div>
       </div>
       <div class="subtabs">
@@ -1560,6 +1563,33 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
       <div class="modal-actions">
         <div><button type="button" class="btn btn-ghost" id="btnVoltarImportNasc">← Voltar e editar</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportNasc">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportNasc">Confirmar importação</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORTAR TREINOS (relatório em PDF) -->
+<div class="overlay" id="overlayImportTreino">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Importar Treinos (PDF)</div><button class="modal-close" data-close="overlayImportTreino">✕</button></div>
+    <div id="importTreinoStep1">
+      <div class="hint-text" style="margin-bottom:10px;">
+        Escolha o arquivo PDF do relatório de treinos (o programa tenta ler o texto sozinho — confira se as colunas ficaram separadas por TAB antes de Analisar, ajustando à mão se precisar) ou cole o conteúdo manualmente na caixa abaixo, com colunas separadas por TAB, na ordem: <strong>Animal, Data (dd/mm/aaaa), Tipo, Local, Treinador, Observação (opcional)</strong>.<br>
+        Cada linha vira o treino de um animal num dia; linhas com o mesmo Data + Tipo + Local + Treinador viram um único registro com todos esses animais juntos (igual uma sessão de verdade). Entra sem cobrança marcada — se algum desses treinos foi cobrado, edite o registro depois de importar.
+      </div>
+      <div style="margin-bottom:14px;"><input type="file" id="importTreinoArquivo" accept="application/pdf"> <span class="hint-text" id="importTreinoArquivoStatus"></span></div>
+      <textarea id="importTreinoTexto" rows="10" style="width:100%;font-family:monospace;font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="Trovão	03/07/2026	Adestramento	Picadeiro 1	João
+Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
+      <div class="modal-actions">
+        <div></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportTreino">Cancelar</button><button type="button" class="btn" id="btnAnalisarImportTreino">Analisar</button></div>
+      </div>
+    </div>
+    <div id="importTreinoStep2" style="display:none;">
+      <div id="importTreinoResumo"></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn btn-ghost" id="btnVoltarImportTreino">← Voltar e editar</button></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportTreino">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportTreino">Confirmar importação</button></div>
       </div>
     </div>
   </div>
@@ -5882,6 +5912,121 @@ document.getElementById('btnConfirmarImportCasco').addEventListener('click', asy
   importCascoGrupos = [];
 });
 
+/* ========= Importar Treinos (relatório em PDF) =========
+   Mesma ideia do importador de Ferrageamento acima: uma linha por animal por dia, exigindo colunas
+   separadas por TAB (diferente do Ferrageamento, aqui não tem um "modo texto livre" — sem um relatório
+   real do Gustavo pra calibrar contra, não dá pra adivinhar um formato de linha solta com confiança;
+   melhor exigir TAB, que sempre dá pra conseguir colando de uma planilha ou ajustando à mão). Linhas
+   com a mesma Data + Tipo + Local + Treinador viram um único Treino com vários animais — igual uma
+   sessão de verdade, mesmo padrão de agrupamento do Ferrageamento. Sempre entra sem cobrança marcada. */
+function parseImportTreinos(texto){
+  const linhas = texto.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim()!=='');
+  const validos = [], naoEncontrados = [], naoReconhecidos = [];
+  linhas.forEach((linha, i)=>{
+    if(!linha.includes('\t')){ naoReconhecidos.push({linha:i+1, texto:linha, motivo:'Linha sem colunas separadas por TAB'}); return; }
+    const cols = linha.split('\t').map(c=>c.trim());
+    if(cols.length<2){ naoReconhecidos.push({linha:i+1, texto:linha, motivo:'Poucas colunas (esperado: Animal, Data, Tipo, Local, Treinador, Observação)'}); return; }
+    const [animalNome, dataStr, tipoStr, localStr, treinadorStr, ...restoObs] = cols;
+    if(!animalNome){ naoReconhecidos.push({linha:i+1, texto:linha, motivo:'Nome do animal vazio'}); return; }
+    const dm = (dataStr||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!dm){ naoReconhecidos.push({linha:i+1, texto:linha, motivo:'Data "'+(dataStr||'')+'" inválida (use dd/mm/aaaa)'}); return; }
+    const dataISO = dm[3]+'-'+dm[2]+'-'+dm[1];
+    const horse = horses.find(h=>h.nome && h.nome.trim().toLowerCase()===animalNome.toLowerCase());
+    if(!horse){ naoEncontrados.push({linha:i+1, animal:animalNome, texto:linha}); return; }
+    validos.push({
+      animal: animalNome, horseId: horse.id, data: dataISO,
+      tipo: titleCase((tipoStr||'').trim()), local: titleCase((localStr||'').trim()),
+      treinador: titleCase((treinadorStr||'').trim()), obs: restoObs.join(' ').trim()
+    });
+  });
+  return { validos, naoEncontrados, naoReconhecidos };
+}
+function agruparImportTreinos(validos){
+  const grupos = {}; const ordem = [];
+  validos.forEach(v=>{
+    const chave = [v.data, v.tipo, v.local, v.treinador].join('||');
+    if(!grupos[chave]){ grupos[chave] = { data:v.data, tipo:v.tipo, local:v.local, treinador:v.treinador, obs:v.obs||'', animais:[] }; ordem.push(chave); }
+    grupos[chave].animais.push({ id:v.horseId, nome:v.animal, extra:'', valorExtra:'', valorExtra2:'' });
+    if(!grupos[chave].obs && v.obs) grupos[chave].obs = v.obs;
+  });
+  return ordem.map(k=>grupos[k]).sort((a,b)=> a.data.localeCompare(b.data));
+}
+let importTreinoGrupos = [];
+document.getElementById('btnImportTreino').addEventListener('click', ()=>{
+  document.getElementById('importTreinoTexto').value='';
+  document.getElementById('importTreinoArquivo').value='';
+  document.getElementById('importTreinoArquivoStatus').textContent='';
+  document.getElementById('importTreinoStep1').style.display='block';
+  document.getElementById('importTreinoStep2').style.display='none';
+  openModal('overlayImportTreino');
+});
+document.getElementById('importTreinoArquivo').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('importTreinoArquivoStatus');
+  status.textContent = 'Lendo PDF...';
+  try{
+    const texto = await extrairTextoPDF(file);
+    document.getElementById('importTreinoTexto').value = texto;
+    status.textContent = 'PDF lido — confira se as colunas ficaram separadas por TAB (ajuste à mão se precisar) e clique em Analisar.';
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Não consegui ler esse PDF automaticamente (' + err.message + '). Cole o texto manualmente.';
+  }
+});
+document.getElementById('btnAnalisarImportTreino').addEventListener('click', ()=>{
+  const texto = document.getElementById('importTreinoTexto').value;
+  if(!texto.trim()){ showAlert('Cole o conteúdo do relatório antes de analisar.'); return; }
+  const { validos, naoEncontrados, naoReconhecidos } = parseImportTreinos(texto);
+  importTreinoGrupos = agruparImportTreinos(validos);
+  let html = `<div class="hint-text" style="margin-bottom:14px;">
+    <strong>${validos.length}</strong> treino(s) por animal prontos, agrupados em <strong>${importTreinoGrupos.length}</strong> registro(s) de Treino (mesma data/tipo/local/treinador viram um só, com vários animais).<br>
+    ${naoEncontrados.length} cavalo(s) não encontrado(s) no cadastro · ${naoReconhecidos.length} linha(s) com formato não reconhecido.
+  </div>`;
+  if(importTreinoGrupos.length>0){
+    html += `<div class="grid-wrap" style="max-height:280px;overflow:auto;margin-bottom:14px;"><table class="grid">
+      <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Treinador</th><th>Animais</th></tr></thead>
+      <tbody>${importTreinoGrupos.map(g=>`<tr><td>${fmtDate(g.data)}</td><td>${g.tipo||''}</td><td>${g.local||''}</td><td>${g.treinador||''}</td><td>${g.animais.map(a=>a.nome).join(', ')}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  if(naoEncontrados.length>0){
+    html += `<div class="hint-text" style="color:#a33;margin-bottom:8px;"><strong>Cavalos não encontrados</strong> (não foram importados — cadastre-os primeiro se quiser incluir esses treinos):<br>${[...new Set(naoEncontrados.map(n=>n.animal))].join(', ')}</div>`;
+  }
+  if(naoReconhecidos.length>0){
+    html += `<div class="hint-text" style="color:#a33;"><strong>Linhas não reconhecidas</strong> (não foram importadas):<br>${naoReconhecidos.map(n=>'Linha '+n.linha+': '+n.motivo).join('<br>')}</div>`;
+  }
+  document.getElementById('importTreinoResumo').innerHTML = html;
+  document.getElementById('btnConfirmarImportTreino').disabled = importTreinoGrupos.length===0;
+  document.getElementById('btnConfirmarImportTreino').style.opacity = importTreinoGrupos.length===0 ? '0.5' : '1';
+  document.getElementById('importTreinoStep1').style.display='none';
+  document.getElementById('importTreinoStep2').style.display='block';
+});
+document.getElementById('btnVoltarImportTreino').addEventListener('click', ()=>{
+  document.getElementById('importTreinoStep1').style.display='block';
+  document.getElementById('importTreinoStep2').style.display='none';
+});
+document.getElementById('btnConfirmarImportTreino').addEventListener('click', async ()=>{
+  if(importTreinoGrupos.length===0) return;
+  if(!(await showConfirm('Importar '+importTreinoGrupos.length+' registro(s) de Treino? Essa ação pode ser desfeita excluindo os registros manualmente depois, um a um.'))) return;
+  let auxChanged = false;
+  importTreinoGrupos.forEach(g=>{
+    if(g.tipo && !aux.tipotreino.includes(g.tipo)){ aux.tipotreino.push(g.tipo); auxChanged=true; }
+    if(g.local && !aux.localtreino.includes(g.local)){ aux.localtreino.push(g.local); auxChanged=true; }
+    if(g.treinador && !aux.treinador.includes(g.treinador)){ aux.treinador.push(g.treinador); auxChanged=true; }
+    treinos.push({
+      id: 'tr_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      data: g.data, tipo: g.tipo||'', local: g.local||'', treinadores: g.treinador||'',
+      obs: g.obs||'', animais: g.animais
+    });
+  });
+  if(auxChanged){ await storeSet('aux_lists', aux); populateAuxSelects(); refreshDatalists(); }
+  await storeSet('treinos_list', treinos);
+  renderTreinos();
+  closeModal('overlayImportTreino');
+  showAlert(importTreinoGrupos.length+' registro(s) de treino importado(s) com sucesso.');
+  importTreinoGrupos = [];
+});
+
 /* ========= Importar Nascimentos (relatório "Listagem de Nascimentos" em PDF do sistema antigo) =========
    Diferente do importador de Ferrageamento acima (que junta cada linha visual num texto só), aqui as
    colunas Matriz/Pai/Receptora têm largura variável e não dá pra adivinhar onde uma termina e a outra
@@ -7063,11 +7208,34 @@ function renderNascimentos(){
   // ela sai daqui e passa a contar como "Confirmadas (nasceram)" acima.
   const prenhezesConfirmadas = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
   document.getElementById('nascStats').innerHTML = `
-    <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Coberturas registradas</div></div>
-    <div class="stat"><div class="stat-num">${confirmados}</div><div class="stat-label">Confirmadas (nasceram)</div></div>
-    <div class="stat"><div class="stat-num">${naoConfirmados}</div><div class="stat-label">Não confirmadas</div></div>
-    <div class="stat"><div class="stat-num">${taxaPerda}%</div><div class="stat-label">Taxa de perda</div></div>
+    <div class="stat clickable" id="statCardTotalNasc" style="cursor:pointer;" title="Ver todas, sem filtro nenhum"><div class="stat-num">${total}</div><div class="stat-label">Coberturas registradas</div></div>
+    <div class="stat clickable ${conf==='S'?'active':''}" id="statCardConfirmadas" style="cursor:pointer;" title="Ver só as que já nasceram"><div class="stat-num">${confirmados}</div><div class="stat-label">Confirmadas (nasceram)</div></div>
+    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardNaoConfirmadas" style="cursor:pointer;" title="Ver só as que ainda não confirmaram nascimento"><div class="stat-num">${naoConfirmados}</div><div class="stat-label">Não confirmadas</div></div>
+    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardTaxaPerda" style="cursor:pointer;" title="Mesma lista de 'Não confirmadas' — é de onde vem essa taxa"><div class="stat-num">${taxaPerda}%</div><div class="stat-label">Taxa de perda</div></div>
     <div class="stat clickable" id="statCardPrenhezes" style="cursor:pointer;"><div class="stat-num" style="color:${prenhezesConfirmadas.length>0?'var(--green)':'inherit'};">${prenhezesConfirmadas.length}</div><div class="stat-label">Prenhezes confirmadas</div></div>`;
+  // Cada quadro leva direto pro que ele representa — mesmo padrão do Início (contagem por localização
+  // clicável): "Coberturas registradas" limpa os filtros (é o total de verdade, sem filtro nenhum),
+  // "Confirmadas"/"Não confirmadas"/"Taxa de perda" aplicam o filtro de Confirmação já existente na
+  // tela (a Taxa de perda é calculada em cima do mesmo grupo de "Não confirmadas"), e "Prenhezes
+  // confirmadas" continua abrindo a lista dedicada, como já era.
+  document.getElementById('statCardTotalNasc').addEventListener('click', ()=>{
+    document.getElementById('nFiltroConf').value=''; document.getElementById('nFiltroAno').value='';
+    document.getElementById('nFiltroAnoNasc').value=''; document.getElementById('nSearch').value='';
+    renderNascimentos();
+    document.getElementById('nTbody').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+  document.getElementById('statCardConfirmadas').addEventListener('click', ()=>{
+    document.getElementById('nFiltroConf').value='S'; renderNascimentos();
+    document.getElementById('nTbody').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+  document.getElementById('statCardNaoConfirmadas').addEventListener('click', ()=>{
+    document.getElementById('nFiltroConf').value='N'; renderNascimentos();
+    document.getElementById('nTbody').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+  document.getElementById('statCardTaxaPerda').addEventListener('click', ()=>{
+    document.getElementById('nFiltroConf').value='N'; renderNascimentos();
+    document.getElementById('nTbody').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
   document.getElementById('statCardPrenhezes').addEventListener('click', abrirListaPrenhezesConfirmadas);
 
   const tbody=document.getElementById('nTbody');
@@ -7274,12 +7442,23 @@ async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo
     return { ok:false, suficiente:false, produto:p, faltando: (qtd-antes) };
   }
   p.quantidade = tipoMov==='entrada' ? antes+qtd : antes-qtd;
+  // Entrada sem valor explícito (ex: Importar Nota Fiscal, que hoje só lê quantidade/unidade do PDF ou
+  // XML, nunca o preço) tira uma "foto" do preço cadastrado do produto NESTE MOMENTO e grava ela junto
+  // do movimento. Sem isso, o Financeiro calculava o valor de uma compra antiga usando o preço de HOJE
+  // (lancamentosDerivadosEstoque só cai pro preço atual quando o movimento não tem valor próprio) — daí,
+  // se o preço do produto mudasse depois, o gasto de meses já fechados mudava sozinho junto com ele.
+  // Congelando o valor aqui, só entradas registradas DEPOIS de um preço novo passam a usar esse preço.
+  let valorFinal = parseValorLivre(valor) || '';
+  if(tipoMov==='entrada' && !valorFinal){
+    const precoAtual = custoUnitarioProduto(p);
+    if(precoAtual) valorFinal = String(qtd * precoAtual);
+  }
   estoqueMovimentos.push({
     id:'mv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
     data: dataMov || new Date().toISOString().slice(0,10),
     produtoId, produtoNome: p.nome, produtoTipo: p.tipo, tipoMov, quantidade: qtd, unidade: p.unidade||'',
     origem: origem||'manual', motivo: motivo||'',
-    valor: parseValorLivre(valor) || '',
+    valor: valorFinal,
     animais: (animais||[]).map(a=>({id:a.id, nome:a.nome})),
     obs: ''
   });
@@ -10627,7 +10806,7 @@ function descreverAcesso(user){
   return partes.length ? partes.join(', ') : 'Nenhum acesso configurado ainda';
 }
 // Cada botão "+ Novo X" só aparece pra quem tem permissão de "inserir" no módulo dono dele.
-const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
+const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnImportTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
 function aplicarPermissoesBotoesNovo(){
   Object.entries(BOTOES_NOVO_POR_MODULO).forEach(([id,modulo])=>{
     const btn = document.getElementById(id);
