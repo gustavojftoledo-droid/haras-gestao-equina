@@ -589,6 +589,8 @@
 
   <div class="main">
 
+    <button type="button" id="btnVoltarFlutuante" class="no-print" style="display:none;margin-bottom:12px;background:var(--card);border:1px solid var(--line);color:var(--green);border-radius:20px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:var(--shadow);">← Voltar</button>
+
     <div class="view active" id="view-inicio">
       <div class="dash-hero" id="inicioHero">
         <div class="dash-hero-texto">
@@ -2780,6 +2782,48 @@ function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal(b.dataset.close)));
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click', e=>{ if(e.target===o) closeModal(o.id); }));
 
+/* ---------- "← VOLTAR" DE ONDE VOCÊ SAIU ---------- */
+// Botões que pulam de uma tela pra outra por um motivo específico (👁 abrir Ficha do Animal, "Ver
+// origem" no Financeiro, "+ Inserir Manejo/Veterinária/Tratamento" na Ficha, "Por localização" no
+// Início...) chamam guardarPontoDeVolta() antes de navegar — empilha a tela atual e faz o botão
+// flutuante "← Voltar" aparecer na tela de destino, voltando pro lugar exato de onde saiu (em vez de
+// sempre cair num lugar fixo, tipo o antigo "Voltar" da Ficha do Animal que só ia pra Animais).
+// Navegar pelo menu lateral normalmente (sem passar por guardarPontoDeVolta) esvazia a pilha — senão
+// o botão ficaria oferecendo "voltar" pra um lugar que não faz mais sentido.
+let pilhaVoltar = [];
+let preservarPilhaVoltar = false;
+function guardarPontoDeVolta(){
+  const viewEl = document.querySelector('.view.active');
+  if(!viewEl) return;
+  const ponto = { view: viewEl.id };
+  // Ficha do Animal não tem item de menu próprio (só se chega por um 👁) — guarda também QUAL animal
+  // estava aberto, senão "Voltar" pra lá abriria o animal errado se você tiver ido de ficha em ficha.
+  if(viewEl.id==='view-animalPerfil') ponto.animalId = perfilAnimalId;
+  pilhaVoltar.push(ponto);
+  preservarPilhaVoltar = true;
+}
+function atualizarBotaoVoltar(){
+  document.getElementById('btnVoltarFlutuante').style.display = pilhaVoltar.length>0 ? 'inline-block' : 'none';
+}
+function voltarUmPasso(){
+  const anterior = pilhaVoltar.pop();
+  preservarPilhaVoltar = true; // essa navegação (a de volta em si) não deve esvaziar o resto da pilha
+  if(!anterior){
+    irParaView('inicio');
+  } else if(anterior.view==='view-animalPerfil' && anterior.animalId){
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    perfilAnimalId = anterior.animalId;
+    document.getElementById('view-animalPerfil').classList.add('active');
+    renderAnimalPerfil(anterior.animalId);
+    preservarPilhaVoltar = false; // não passou pelo clique de .nav-item — consome a flag aqui (ver abrirPerfilAnimal)
+  } else {
+    irParaView(anterior.view.replace(/^view-/,''));
+  }
+  atualizarBotaoVoltar();
+}
+document.getElementById('btnVoltarFlutuante').addEventListener('click', voltarUmPasso);
+
 /* ---------- NAV ---------- */
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click', ()=>{
@@ -2787,6 +2831,9 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     item.classList.add('active');
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    if(!preservarPilhaVoltar){ pilhaVoltar = []; }
+    preservarPilhaVoltar = false;
+    atualizarBotaoVoltar();
     if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
@@ -2863,6 +2910,7 @@ function irParaView(view){
 // Usado pelo cartão "Por localização" do Início: abre Animais já filtrado por um local específico,
 // limpando os outros filtros pra não ficar uma lista vazia por causa de um filtro antigo esquecido.
 function abrirAnimaisPorLocalizacao(loc){
+  guardarPontoDeVolta();
   grupoFiltroAtivo = null;
   viewMode = 'ativos';
   document.querySelectorAll('#viewModeChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.mode==='ativos'));
@@ -4728,25 +4776,37 @@ function renderInicioAgenda(){
     const d = new Date(hoje); d.setDate(d.getDate()+i);
     const iso = toISODate(d);
     const doDia = (byDate[iso]||[]);
+    // Manejo (Casco, Vacina...) continua agrupado por TIPO, listando os animais — é o formato bom,
+    // dá pra ver de cara "Ferrageamento precisa em 3 animais". Tratamento é o oposto: agrupa por
+    // ANIMAL, listando só os medicamentos — "Estrela: Fenilbutazona, Banamine" numa linha só, em vez
+    // de uma linha poluída por medicamento (era isso que deixava a agenda enorme quando um animal só
+    // tinha vários tratamentos no mesmo dia).
     const porManejo = {};
-    // animalNome vem "Fulano, Beltrano" quando a tarefa cobre mais de um animal (ex: tratamento em
-    // grupo) — espalha em nomes individuais e ignora repetido, senão um animal com vários
-    // tratamentos/manejos do mesmo tipo no mesmo dia aparecia contado (e listado) mais de uma vez.
+    const porAnimalTratamento = {};
     doDia.forEach(t=>{
+      const nomes = (t.animalNome||'').split(',').map(s=>s.trim()).filter(Boolean);
+      if(t.categoria==='tratamento'){
+        const med = t.medicamentoNome || t.label || 'Tratamento';
+        nomes.forEach(nome=>{
+          if(!porAnimalTratamento[nome]) porAnimalTratamento[nome]=[];
+          if(!porAnimalTratamento[nome].includes(med)) porAnimalTratamento[nome].push(med);
+        });
+        return;
+      }
       const key=t.label||t.tipo;
       if(!porManejo[key]) porManejo[key]={tipo:t.tipo, animais:[]};
-      (t.animalNome||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(nome=>{
-        if(!porManejo[key].animais.includes(nome)) porManejo[key].animais.push(nome);
-      });
+      nomes.forEach(nome=>{ if(!porManejo[key].animais.includes(nome)) porManejo[key].animais.push(nome); });
     });
     const grupos = Object.entries(porManejo);
+    const animaisTratamento = Object.entries(porAnimalTratamento);
     const nomeDia = i===0 ? 'Hoje' : (i===1?'Amanhã':NOMES_DIA[d.getDay()]);
     timelineHtml += `<div class="dash-timeline-dia">
       <div class="dash-timeline-data"><div class="nome">${nomeDia}</div><div class="data">${NOMES_DIA[d.getDay()].slice(0,3).toUpperCase()} ${fmtDate(iso).slice(0,5)}</div></div>
       <div class="dash-timeline-trilho"></div>
       <div style="flex:1;">
-        ${grupos.length===0 ? `<div class="dash-tarefa-sub" style="padding:6px 0;">Nenhuma tarefa prevista.</div>` :
-          grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${label} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${info.animais.join(', ')}</div></div>`).join('')}
+        ${(grupos.length===0 && animaisTratamento.length===0) ? `<div class="dash-tarefa-sub" style="padding:6px 0;">Nenhuma tarefa prevista.</div>` : ''}
+        ${grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${label} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${info.animais.join(', ')}</div></div>`).join('')}
+        ${animaisTratamento.map(([nome,meds])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo('Tratamento'),14,'var(--brass)')} ${nome}</div><div class="dash-tarefa-sub">${meds.join(', ')}</div></div>`).join('')}
       </div>
     </div>`;
   }
@@ -4918,7 +4978,9 @@ function renderInicioSaude(host){
   }).join('');
 
   const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
-  const previstos = prenhezes.map(n=>({matriz:n.matriz, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
+  // Quem realmente vai parir é a receptora quando é transferência de embrião (alvoVacinaGestacao já
+  // resolve isso certo pro protocolo de vacina) — a Matriz sozinha só cabe pra prenhez natural.
+  const previstos = prenhezes.map(n=>({nome: alvoVacinaGestacao(n).nome, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
     .filter(p=>p.prevista).sort((a,b)=>(a.prevista>b.prevista?1:-1)).slice(0,2);
 
   host.innerHTML = `
@@ -4930,7 +4992,7 @@ function renderInicioSaude(host){
     </div>
     <div class="dash-footer-2col">
       <div><div class="rotulo">Prenhezes confirmadas</div><div class="valor">${prenhezes.length}</div></div>
-      <div style="flex:1.6;"><div class="rotulo">Partos previstos</div><div style="font-size:12px;color:var(--text-body);">${previstos.length===0?'—':previstos.map(p=>`${p.matriz} ${fmtDate(p.prevista).slice(0,5)}`).join(' · ')}</div></div>
+      <div style="flex:1.6;"><div class="rotulo">Partos previstos</div><div style="font-size:12px;color:var(--text-body);">${previstos.length===0?'—':previstos.map(p=>`${p.nome} ${fmtDate(p.prevista).slice(0,5)}`).join(' · ')}</div></div>
     </div>
   `;
 }
@@ -7260,7 +7322,8 @@ async function marcarItemProtocoloPotro(animalId, itemId, feito){
 // confirmação quanto reconfirmações depois, que podem ter acontecido num dia diferente da última.
 async function confirmarPrenhez(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
-  const data = await showPromptDate('Confirmar prenhez', 'Data da confirmação de prenhez'+(n.matriz?(' de '+n.matriz):'')+':', toISODate(new Date()));
+  const nomeGestante = alvoVacinaGestacao(n).nome;
+  const data = await showPromptDate('Confirmar prenhez', 'Data da confirmação de prenhez'+(nomeGestante?(' de '+nomeGestante):'')+':', toISODate(new Date()));
   if(!data) return; // cancelou
   n.prenhezConfirmada = 'S';
   n.prenhezUltima = data;
@@ -7293,7 +7356,7 @@ function abrirListaPrenhezesConfirmadas(){
     body.innerHTML = lista.map(n=>{
       const dias = n.prenhezUltima ? Math.floor((hojeMs - new Date(n.prenhezUltima+'T00:00:00').getTime())/86400000) : null;
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:10px;">
-        <div><strong>${n.matriz}</strong> <span style="color:var(--muted);font-size:12px;">— última confirmação ${fmtDate(n.prenhezUltima)}${dias!==null?(' ('+dias+' dia(s) atrás)'):''}</span></div>
+        <div><strong>${alvoVacinaGestacao(n).nome}</strong> <span style="color:var(--muted);font-size:12px;">— última confirmação ${fmtDate(n.prenhezUltima)}${dias!==null?(' ('+dias+' dia(s) atrás)'):''}</span></div>
         <div style="white-space:nowrap;display:flex;gap:6px;">
           <button type="button" class="btn btn-sm btn-ghost" data-reconfirmar="${n.id}">🤰 Confirmar de novo</button>
           <button type="button" class="btn btn-sm btn-ghost" data-relpren="${n.id}">📄</button>
@@ -10481,6 +10544,7 @@ function renderFinanceiro(){
 // Vai pra tela/aba/registro de origem de um lançamento derivado — usado tanto no "Ver em X" da lista
 // de Lançamentos quanto no drill-down de Financeiro → Custo por Animal (clicar no valor Direto).
 function navegarParaOrigemFinanceiro(tipoOrigem, id){
+  guardarPontoDeVolta();
   if(tipoOrigem==='manejos'){
     irParaView('manejos');
     setTimeout(()=>openManejoEdit(id), 30);
@@ -11561,6 +11625,7 @@ document.addEventListener('click', e=>{
   if(btn){ e.stopPropagation(); abrirFichaNovaAba(btn.dataset.eyeid); }
 }, true);
 function abrirPerfilAnimal(id){
+  guardarPontoDeVolta(); // cobre todo 👁 do app de uma vez — um hook só, "Voltar" funciona em qualquer um
   perfilAnimalId = id;
   timelineFiltro = 'todos';
   treinosPerfilFiltro = 'todos';
@@ -11568,8 +11633,16 @@ function abrirPerfilAnimal(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animalPerfil').classList.add('active');
   renderAnimalPerfil(id);
+  atualizarBotaoVoltar();
+  // Essa transição não passa pelo clique de .nav-item (a Ficha não tem item de menu), então é aqui
+  // que o "guarda-costas" da pilha precisa ser consumido — senão ele ficaria "true" esperando o
+  // PRÓXIMO clique de menu qualquer, e um clique manual normal deixaria de limpar a pilha por engano.
+  preservarPilhaVoltar = false;
 }
 document.getElementById('btnVoltarPerfil').addEventListener('click', ()=>{
+  // Volta pro lugar exato de onde a ficha foi aberta (pilhaVoltar quase sempre tem algo, já que
+  // abrirPerfilAnimal sempre empilha) — sem pilha (ex: abriu direto por link ?animal=ID), cai em Animais.
+  if(pilhaVoltar.length>0){ voltarUmPasso(); return; }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animais').classList.add('active');
   document.querySelector('.nav-item[data-view="animais"]').classList.add('active');
@@ -11577,9 +11650,12 @@ document.getElementById('btnVoltarPerfil').addEventListener('click', ()=>{
 document.getElementById('btnPerfilEditar').addEventListener('click', ()=>{ if(perfilAnimalId) openHorseEdit(perfilAnimalId); });
 // Atalhos "+ Inserir Manejo" / "+ Inserir Veterinária" na Ficha do Animal — abrem o cadastro normal
 // (mesmo modal de sempre) já com esse animal marcado no seletor, sem precisar buscar ele de novo.
+// guardarPontoDeVolta() antes de sair faz o "← Voltar" flutuante aparecer lá, trazendo de volta pra
+// esta mesma ficha depois.
 document.getElementById('btnPerfilNovoManejo').addEventListener('click', ()=>{
   if(!perfilAnimalId) return;
   const animalId = perfilAnimalId;
+  guardarPontoDeVolta();
   irParaView('manejos');
   setTimeout(()=>{
     document.getElementById('btnNewManejo').click();
@@ -11589,6 +11665,7 @@ document.getElementById('btnPerfilNovoManejo').addEventListener('click', ()=>{
 document.getElementById('btnPerfilNovaVisita').addEventListener('click', ()=>{
   if(!perfilAnimalId) return;
   const animalId = perfilAnimalId;
+  guardarPontoDeVolta();
   irParaView('veterinaria');
   setTimeout(()=>{
     document.getElementById('vtrtab_visitas').click();
@@ -11599,6 +11676,7 @@ document.getElementById('btnPerfilNovaVisita').addEventListener('click', ()=>{
 document.getElementById('btnPerfilNovoTratamento').addEventListener('click', ()=>{
   if(!perfilAnimalId) return;
   const animalId = perfilAnimalId;
+  guardarPontoDeVolta();
   irParaView('veterinaria');
   setTimeout(()=>{
     document.getElementById('vtrtab_tratamento').click();
