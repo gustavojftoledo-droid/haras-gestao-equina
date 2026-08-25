@@ -1218,7 +1218,7 @@
         <div class="grid-wrap"><table class="grid" id="custoAnimalTabela">
           <thead><tr>
             <th class="sortable" data-csort="nome">Animal</th>
-            <th class="sortable" data-csort="direto">Direto</th>
+            <th class="sortable" data-csort="direto" title="Clique no valor de um animal pra ver de onde veio">Direto 🔍</th>
             <th class="sortable" data-csort="geral">Geral rateado</th>
             <th class="sortable" data-csort="total">Total</th>
           </tr></thead>
@@ -2116,6 +2116,14 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-head"><div class="modal-title">Consumo Fora do Padrão</div><button class="modal-close" data-close="overlayAnomalias">✕</button></div>
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">Comparo cada baixa de estoque com o histórico desse mesmo produto — se uma baixa é bem maior que o normal (5x a mediana ou mais), aviso aqui. Pode ser erro de digitação (ex: 100 em vez de 10) ou pode ser real (uma emergência, uma compra grande consumida de vez). Você decide — nada é alterado sozinho.</div>
     <div id="anomaliasListHost"></div>
+  </div>
+</div>
+
+<!-- CUSTO POR ANIMAL - DE ONDE VEIO O CUSTO DIRETO MODAL -->
+<div class="overlay" id="overlayCustoAnimalDetalhe">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="custoAnimalDetalheTitulo">Custo Direto</div><button class="modal-close" data-close="overlayCustoAnimalDetalhe">✕</button></div>
+    <div id="custoAnimalDetalheBody"></div>
   </div>
 </div>
 
@@ -4372,9 +4380,14 @@ function computeCalendarTasks(){
     gerarDosesTratamento(t).forEach(ds=>{
       if(concluidas.has(ds.key) || excluidas.has(ds.key)) return; // já baixada ou excluída da agenda, não aparece mais como pendente
       tratamentoTasks.push({
-        data: ds.data, tipo:'Tratamento', categoria:'tratamento',
-        tratamentoId: t.id, doseKey: ds.key, periodo: ds.periodo,
-        animalId:null, animalNome: (t.animais||[]).map(a=>a.nome).join(', ')+' — '+ds.periodo+' — '+t.medicamentoNome,
+        // label = nome do medicamento — agrupa "A agenda dos próximos dias" do Início por tratamento
+        // específico, em vez de jogar todo mundo numa única categoria "Tratamento" genérica (era isso
+        // que fazia um animal com vários tratamentos no mesmo dia aparecer como "vários animais": o
+        // texto composto animal+período+medicamento virava, sozinho, uma entrada na lista de animais).
+        data: ds.data, tipo:'Tratamento', label: t.medicamentoNome||'Tratamento', categoria:'tratamento',
+        tratamentoId: t.id, doseKey: ds.key, periodo: ds.periodo, medicamentoNome: t.medicamentoNome,
+        animalId: (t.animais&&t.animais.length===1) ? t.animais[0].id : null,
+        animalNome: (t.animais||[]).map(a=>a.nome).join(', '),
         situacao: ds.data < hoje ? 'atrasado' : 'proximo'
       });
     });
@@ -4716,7 +4729,16 @@ function renderInicioAgenda(){
     const iso = toISODate(d);
     const doDia = (byDate[iso]||[]);
     const porManejo = {};
-    doDia.forEach(t=>{ const key=t.label||t.tipo; if(!porManejo[key]) porManejo[key]={tipo:t.tipo, animais:[]}; porManejo[key].animais.push(t.animalNome); });
+    // animalNome vem "Fulano, Beltrano" quando a tarefa cobre mais de um animal (ex: tratamento em
+    // grupo) — espalha em nomes individuais e ignora repetido, senão um animal com vários
+    // tratamentos/manejos do mesmo tipo no mesmo dia aparecia contado (e listado) mais de uma vez.
+    doDia.forEach(t=>{
+      const key=t.label||t.tipo;
+      if(!porManejo[key]) porManejo[key]={tipo:t.tipo, animais:[]};
+      (t.animalNome||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(nome=>{
+        if(!porManejo[key].animais.includes(nome)) porManejo[key].animais.push(nome);
+      });
+    });
     const grupos = Object.entries(porManejo);
     const nomeDia = i===0 ? 'Hoje' : (i===1?'Amanhã':NOMES_DIA[d.getDay()]);
     timelineHtml += `<div class="dash-timeline-dia">
@@ -4883,7 +4905,9 @@ function renderInicioSaude(host){
     </div>`;
   }
 
-  const emCurso = tratamentos.filter(t=>statusTratamento(t)!=='concluido').slice(0,3);
+  // Sem limite de quantidade — o card mostra em torno de 8 linhas de uma vez (altura fixa do
+  // container logo abaixo) e rola pra ver o resto, em vez de cortar tratamentos em andamento de fora.
+  const emCurso = tratamentos.filter(t=>statusTratamento(t)!=='concluido');
   const tratamentosHtml = emCurso.length===0 ? '<div class="hint-text">Nenhum tratamento em curso.</div>' : emCurso.map(t=>{
     const total = gerarDosesTratamento(t).length || 1;
     const feitas = (t.doseConcluidas||[]).length;
@@ -4902,7 +4926,7 @@ function renderInicioSaude(host){
     ${pocoVisita}
     <div>
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
-      ${tratamentosHtml}
+      <div style="max-height:280px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
     <div class="dash-footer-2col">
       <div><div class="rotulo">Prenhezes confirmadas</div><div class="valor">${prenhezes.length}</div></div>
@@ -5167,7 +5191,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div>${ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : t.animalNome}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
+        <div>${ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
         ${ehTratamento
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button><button type="button" class="btn btn-sm btn-danger" data-excluirtratid="${t.tratamentoId}" data-excluirdosekey="${t.doseKey}" title="Remove essa dose da agenda sem baixar estoque nem lançar financeiro">🗑 Excluir</button></div>`
           : ehAtividade
@@ -10450,31 +10474,35 @@ function renderFinanceiro(){
     renderFinanceiro(); renderFuncionarios(); renderInicio();
   }));
   tbody.querySelectorAll('[data-verorigemfin]').forEach(b=>b.addEventListener('click', ()=>{
-    const tipoOrigem = b.dataset.tipoorigemfin, id = b.dataset.idorigemfin;
-    if(tipoOrigem==='manejos'){
-      irParaView('manejos');
-      setTimeout(()=>openManejoEdit(id), 30);
-    } else if(tipoOrigem==='estoque'){
-      irParaView('estoque');
-      setTimeout(()=>document.querySelector('#view-estoque [data-etab="movimentos"]').click(), 30);
-    } else if(tipoOrigem==='treinos'){
-      irParaView('treinos');
-      setTimeout(()=>openTreinoEdit(id), 30);
-    } else if(tipoOrigem==='visitas'){
-      irParaView('veterinaria');
-      setTimeout(()=>{ document.getElementById('vtrtab_visitas').click(); openVisitaEdit(id); }, 30);
-    } else if(tipoOrigem==='tratamentos'){
-      irParaView('veterinaria');
-      setTimeout(()=>{ document.getElementById('vtrtab_lista').click(); openTratamentoEdit(id); }, 30);
-    } else if(tipoOrigem==='dietas'){
-      irParaView('estoque');
-      setTimeout(()=>document.querySelector('#view-estoque [data-etab="dietas"]').click(), 30);
-    } else if(tipoOrigem==='transportes'){
-      irParaView('transporte');
-      setTimeout(()=>openTransporteEdit(id), 30);
-    }
+    navegarParaOrigemFinanceiro(b.dataset.tipoorigemfin, b.dataset.idorigemfin);
   }));
   if(finTabAtiva==='custoanimal') renderCustoPorAnimalTab();
+}
+// Vai pra tela/aba/registro de origem de um lançamento derivado — usado tanto no "Ver em X" da lista
+// de Lançamentos quanto no drill-down de Financeiro → Custo por Animal (clicar no valor Direto).
+function navegarParaOrigemFinanceiro(tipoOrigem, id){
+  if(tipoOrigem==='manejos'){
+    irParaView('manejos');
+    setTimeout(()=>openManejoEdit(id), 30);
+  } else if(tipoOrigem==='estoque'){
+    irParaView('estoque');
+    setTimeout(()=>document.querySelector('#view-estoque [data-etab="movimentos"]').click(), 30);
+  } else if(tipoOrigem==='treinos'){
+    irParaView('treinos');
+    setTimeout(()=>openTreinoEdit(id), 30);
+  } else if(tipoOrigem==='visitas'){
+    irParaView('veterinaria');
+    setTimeout(()=>{ document.getElementById('vtrtab_visitas').click(); openVisitaEdit(id); }, 30);
+  } else if(tipoOrigem==='tratamentos'){
+    irParaView('veterinaria');
+    setTimeout(()=>{ document.getElementById('vtrtab_lista').click(); openTratamentoEdit(id); }, 30);
+  } else if(tipoOrigem==='dietas'){
+    irParaView('estoque');
+    setTimeout(()=>document.querySelector('#view-estoque [data-etab="dietas"]').click(), 30);
+  } else if(tipoOrigem==='transportes'){
+    irParaView('transporte');
+    setTimeout(()=>openTransporteEdit(id), 30);
+  }
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
 // ---- Aba "Custo por Animal" — simulador de rateio dos custos gerais (Fase 3) ----
@@ -10585,12 +10613,62 @@ function renderCustoPorAnimalTab(){
   tbody.innerHTML = linhas.length===0 ? '<tr><td colspan="4" class="empty">Nenhum custo atribuído no período.</td></tr>' : linhas.map(r=>`
     <tr>
       <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
-      <td>${fmtR(r.direto)}</td>
+      <td>${r.direto>0 ? `<button type="button" data-vercustodireto="${r.id}" title="Ver de onde veio esse custo" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.direto)}</button>` : fmtR(r.direto)}</td>
       <td>${fmtR(r.geral)}</td>
       <td style="font-weight:600;">${fmtR(r.total)}</td>
     </tr>`).join('');
+  tbody.querySelectorAll('[data-vercustodireto]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoAnimal(b.dataset.vercustodireto)));
   const avisos = document.getElementById('custoAnimalAvisos');
   avisos.innerHTML = semAnimalAtivo.length===0 ? '' : `<div class="hint-text" style="color:var(--warn-ink);margin-bottom:10px;">⚠ Sobrou custo geral sem nenhum animal ativo pra dividir em: ${semAnimalAtivo.map(s=>MESES_LABEL[Number(s.mes.slice(5,7))-1]+'/'+s.mes.slice(0,4)+' ('+fmtR(s.total)+')').join(', ')}.</div>`;
+}
+// Drill-down do custo Direto: clicou no valor, mostra cada lançamento que entrou nessa soma (com o
+// que coube a ESTE animal quando o lançamento é dividido com outros) e um botão pra ir direto na
+// tela/registro de origem — mesma navegação já usada em Financeiro → Lançamentos → "Ver em X".
+function abrirDetalheCustoAnimal(animalId){
+  const h = horses.find(x=>x.id===animalId); if(!h) return;
+  const { de, ate } = custoAnimalPeriodo.getRange();
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const linhas = todosLancamentosFinanceiro().filter(l=>{
+    if(l.moeda==='USD') return false;
+    if(de && l.data<de) return false;
+    if(ate && l.data>ate) return false;
+    return (l.rateio||[]).some(r=>r.animalId===animalId && Number(r.valor)>0);
+  }).map(l=>({ l, meuValor: l.rateio.reduce((s,r)=> r.animalId===animalId ? s+(Number(r.valor)||0) : s, 0) }))
+    .sort((a,b)=> (b.l.data||'').localeCompare(a.l.data||''));
+
+  document.getElementById('custoAnimalDetalheTitulo').textContent = 'Custo Direto — '+(h.nome||'');
+  const body = document.getElementById('custoAnimalDetalheBody');
+  const periodoTxt = de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico';
+  if(linhas.length===0){
+    body.innerHTML = `<div class="empty">Nenhum lançamento encontrado ${periodoTxt}.</div>`;
+    openModal('overlayCustoAnimalDetalhe');
+    return;
+  }
+  const geralDesteAnimal = simularRateioMensal(de, ate).porAnimal[animalId] || 0;
+  body.innerHTML = `
+    <div class="hint-text" style="margin-bottom:12px;">Lançamentos ${periodoTxt} com ${h.nome} no rateio — clique em "Ver origem" (ou "Editar", pros manuais) pra abrir onde cada um nasceu.${geralDesteAnimal>0 ? (' Além disso, mais '+fmtR(geralDesteAnimal)+' entram como rateio dos custos gerais do haras — não tem uma origem única, é dividido mês a mês entre os animais ativos.') : ''}</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th><th></th></tr></thead>
+      <tbody>${linhas.map(({l,meuValor})=>`<tr>
+        <td>${fmtDate(l.data)}</td>
+        <td>${l.categoria||''}${l.natureza==='alocacao'?' <span class="pill st-outro" style="font-size:10px;">Alocação</span>':''}</td>
+        <td>${l.descricao||''}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(meuValor)}</td>
+        <td style="white-space:nowrap;">${l.origem==='manual'
+          ? `<button type="button" class="btn btn-sm btn-ghost" data-editarcustomanual="${l.id}">Editar</button>`
+          : `<button type="button" class="btn btn-sm btn-ghost" data-vercustoorigem="${l.origem}" data-idcustoorigem="${l.origemId}">Ver origem</button>`}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  body.querySelectorAll('[data-vercustoorigem]').forEach(b=>b.addEventListener('click', ()=>{
+    closeModal('overlayCustoAnimalDetalhe');
+    navegarParaOrigemFinanceiro(b.dataset.vercustoorigem, b.dataset.idcustoorigem);
+  }));
+  body.querySelectorAll('[data-editarcustomanual]').forEach(b=>b.addEventListener('click', ()=>{
+    closeModal('overlayCustoAnimalDetalhe');
+    irParaView('financeiro'); showFinTab('lancamentos');
+    setTimeout(()=>openLancamentoEdit(b.dataset.editarcustomanual), 30);
+  }));
+  openModal('overlayCustoAnimalDetalhe');
 }
 document.querySelectorAll('#custoAnimalTabela th[data-csort]').forEach(th=>{
   th.addEventListener('click', ()=>{
