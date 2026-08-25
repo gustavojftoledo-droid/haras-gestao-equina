@@ -675,6 +675,7 @@
         <div style="display:flex;gap:10px;align-items:center;">
           <button class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
           <button class="btn btn-ghost" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
+          <button class="btn btn-ghost" id="btnImportAnimais">⬆ Importar Animais</button>
           <button class="btn" id="btnNewHorse" title="Atalho: Alt+A">+ Novo Animal</button>
         </div>
       </div>
@@ -1562,6 +1563,29 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
       <div class="modal-actions">
         <div><button type="button" class="btn btn-ghost" id="btnVoltarImportNasc">← Voltar e editar</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportNasc">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportNasc">Confirmar importação</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlayImportAnimais">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Importar Animais</div><button class="modal-close" data-close="overlayImportAnimais">✕</button></div>
+    <div id="importAnimaisStep1">
+      <div class="hint-text" style="margin-bottom:10px;">
+        Cadastra vários animais de uma vez — pra quando você tem uma lista pronta (de uma planilha, ou copiada de outro sistema) em vez de preencher um por um. Cole abaixo, colunas separadas por TAB (do jeito que vem ao copiar direto de uma planilha ou tabela), nesta ordem: <strong>Nome, Sexo (M/F), Data de Nascimento (dd/mm/aaaa), Pelagem, Pai, Mãe, Proprietário, Localização, Categoria</strong>. Pode deixar qualquer coluna em branco, menos Nome e Sexo. Pai/Mãe que ainda não existirem no cadastro entram automaticamente como "Externo", igual já acontece cadastrando um por um.
+      </div>
+      <textarea id="importAnimaisTexto" rows="10" style="width:100%;font-family:monospace;font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:8px;" placeholder="Edna	F	11/02/2026	Zaino	Don Rockero	Ursula	Paulo Toledo	Los Pingos del Taita	Potro"></textarea>
+      <div class="modal-actions">
+        <div></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportAnimais">Cancelar</button><button type="button" class="btn" id="btnAnalisarImportAnimais">Analisar</button></div>
+      </div>
+    </div>
+    <div id="importAnimaisStep2" style="display:none;">
+      <div id="importAnimaisResumo"></div>
+      <div class="modal-actions">
+        <div><button type="button" class="btn btn-ghost" id="btnVoltarImportAnimais">← Voltar e editar</button></div>
+        <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayImportAnimais">Cancelar</button><button type="button" class="btn" id="btnConfirmarImportAnimais">Confirmar importação</button></div>
       </div>
     </div>
   </div>
@@ -6005,6 +6029,95 @@ document.getElementById('btnConfirmarImportNasc').addEventListener('click', asyn
   importNascValidos = [];
 });
 
+// ---- Importar Animais (cadastro em lote, fora do fluxo de Nascimentos) ----
+// Mesmo padrão dos outros importadores por colar (Casco, Nascimentos): TAB separando colunas, uma
+// linha por animal. Só Nome e Sexo são obrigatórios — o resto fica em branco se não vier. Pai/Mãe que
+// ainda não existirem no cadastro entram como "Externo" pelo mesmo ensureExternalAnimal já usado no
+// cadastro manual, então a genealogia liga sozinha do mesmo jeito.
+let importAnimaisValidos = [];
+function parseImportAnimais(texto){
+  const linhas = texto.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim()!=='');
+  const validos = [], jaExistentes = [], invalidos = [];
+  linhas.forEach((linha,i)=>{
+    const cols = linha.split('\t').map(c=>c.trim());
+    const [nomeRaw, sexoRaw, nascRaw, pelagemRaw, paiRaw, maeRaw, propRaw, localRaw, catRaw] = cols;
+    const nome = titleCase((nomeRaw||'').trim());
+    const sexoTxt = (sexoRaw||'').trim().toUpperCase();
+    const sexo = sexoTxt==='M' ? 'MASCULINO' : (sexoTxt==='F' ? 'FEMININO' : '');
+    if(!nome || !sexo){ invalidos.push({linha:i+1, texto:linha, motivo: !nome?'Nome vazio':'Sexo precisa ser M ou F'}); return; }
+    const nascimento = converterDataBR(nascRaw);
+    if((nascRaw||'').trim() && !nascimento){ invalidos.push({linha:i+1, texto:linha, motivo:'Data "'+nascRaw+'" inválida (use dd/mm/aaaa)'}); return; }
+    const jaExiste = horses.find(h=>h.nome && h.nome.toLowerCase()===nome.toLowerCase());
+    if(jaExiste){ jaExistentes.push({linha:i+1, nome}); return; }
+    validos.push({
+      nome, sexo, nascimento,
+      pelagem: titleCase((pelagemRaw||'').trim()), pai: titleCase((paiRaw||'').trim()), mae: titleCase((maeRaw||'').trim()),
+      proprietario: titleCase((propRaw||'').trim()), localizacao: titleCase((localRaw||'').trim()), categoria: titleCase((catRaw||'').trim())
+    });
+  });
+  return { validos, jaExistentes, invalidos };
+}
+document.getElementById('btnImportAnimais').addEventListener('click', ()=>{
+  document.getElementById('importAnimaisTexto').value='';
+  document.getElementById('importAnimaisStep1').style.display='block';
+  document.getElementById('importAnimaisStep2').style.display='none';
+  openModal('overlayImportAnimais');
+});
+document.getElementById('btnAnalisarImportAnimais').addEventListener('click', ()=>{
+  const texto = document.getElementById('importAnimaisTexto').value;
+  if(!texto.trim()){ showAlert('Cole a lista de animais antes de analisar.'); return; }
+  const { validos, jaExistentes, invalidos } = parseImportAnimais(texto);
+  importAnimaisValidos = validos;
+  let html = `<div class="hint-text" style="margin-bottom:14px;">
+    <strong>${validos.length}</strong> animal(is) pronto(s) pra importar.${jaExistentes.length?(' '+jaExistentes.length+' já existente(s) no cadastro (mesmo nome — ignorado, não duplica).'):''}${invalidos.length?(' '+invalidos.length+' linha(s) com problema.'):''}
+  </div>`;
+  if(validos.length>0){
+    html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
+      <thead><tr><th>Nome</th><th>Sexo</th><th>Nascimento</th><th>Pelagem</th><th>Pai</th><th>Mãe</th><th>Proprietário</th><th>Localização</th><th>Categoria</th></tr></thead>
+      <tbody>${validos.map(v=>`<tr><td>${v.nome}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td><td>${v.nascimento?fmtDate(v.nascimento):'—'}</td><td>${v.pelagem||'—'}</td><td>${v.pai||'—'}</td><td>${v.mae||'—'}</td><td>${v.proprietario||'—'}</td><td>${v.localizacao||'—'}</td><td>${v.categoria||'—'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  if(jaExistentes.length>0){
+    html += `<div class="hint-text" style="margin-bottom:8px;"><strong>Já existentes</strong> (não importados de novo): ${jaExistentes.map(j=>j.nome).join(', ')}</div>`;
+  }
+  if(invalidos.length>0){
+    html += `<div class="hint-text" style="color:var(--burgundy);">${invalidos.map(v=>'Linha '+v.linha+': '+v.motivo).join('<br>')}</div>`;
+  }
+  document.getElementById('importAnimaisResumo').innerHTML = html;
+  document.getElementById('btnConfirmarImportAnimais').disabled = validos.length===0;
+  document.getElementById('btnConfirmarImportAnimais').style.opacity = validos.length===0 ? '0.5' : '1';
+  document.getElementById('importAnimaisStep1').style.display='none';
+  document.getElementById('importAnimaisStep2').style.display='block';
+});
+document.getElementById('btnVoltarImportAnimais').addEventListener('click', ()=>{
+  document.getElementById('importAnimaisStep1').style.display='block';
+  document.getElementById('importAnimaisStep2').style.display='none';
+});
+document.getElementById('btnConfirmarImportAnimais').addEventListener('click', async ()=>{
+  if(importAnimaisValidos.length===0) return;
+  if(!(await showConfirm('Importar '+importAnimaisValidos.length+' animal(is) novo(s) pro cadastro?'))) return;
+  importAnimaisValidos.forEach(v=>{
+    if(v.pai) ensureExternalAnimal(v.pai, 'MASCULINO');
+    if(v.mae) ensureExternalAnimal(v.mae, 'FEMININO');
+    const paiH = v.pai ? horses.find(h=>h.nome && h.nome.toLowerCase()===v.pai.toLowerCase()) : null;
+    const maeH = v.mae ? horses.find(h=>h.nome && h.nome.toLowerCase()===v.mae.toLowerCase()) : null;
+    horses.push({
+      id:'h_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), codigo:'', nome:v.nome, apelido:'', sexo:v.sexo,
+      situacao:'P', status:'', nascimento:v.nascimento, falecimento:'', pelagem:v.pelagem, categoria:v.categoria, localizacao:v.localizacao,
+      pai: paiH ? paiH.nome : v.pai, mae: maeH ? maeH.nome : v.mae,
+      avopat: paiH ? paiH.pai : '', avopatmat: paiH ? paiH.mae : '',
+      avomatpat: maeH ? maeH.pai : '', avomat: maeH ? maeH.mae : '',
+      freqcasco:'', freqdente:'', freqvacina:'', freqvermifugo:'', proprietario:v.proprietario, valor:'', comprador:'',
+      doador:false, compra:false, fotoUrl:'', obs:'Importado em lote'
+    });
+  });
+  await storeSet('horses_list', horses);
+  closeModal('overlayImportAnimais');
+  refreshDatalists(); renderHorses();
+  showAlert(importAnimaisValidos.length+' animal(is) importado(s) com sucesso — já aparecem no cadastro.');
+  importAnimaisValidos = [];
+});
+
 /* ================= TRANSPORTE =================
    Registra saídas/deslocamentos: quem foi, de onde pra onde, com quem, por quê, quanto custou de
    frete (dividido automático entre os animais, editável depois) — e, quando marcado como
@@ -10387,7 +10500,7 @@ function descreverAcesso(user){
   return partes.length ? partes.join(', ') : 'Nenhum acesso configurado ainda';
 }
 // Cada botão "+ Novo X" só aparece pra quem tem permissão de "inserir" no módulo dono dele.
-const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
+const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
 function aplicarPermissoesBotoesNovo(){
   Object.entries(BOTOES_NOVO_POR_MODULO).forEach(([id,modulo])=>{
     const btn = document.getElementById(id);
