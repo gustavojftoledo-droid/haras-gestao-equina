@@ -1763,7 +1763,14 @@ Camomila	03/07/2026	Descascado	Ecir Catraca	80	"></textarea>
     <div class="form-grid">
       <div class="field"><label>Matriz (mãe)</label><input type="text" id="n_matriz" list="dl_femeas" required></div>
       <div class="field"><label>Pai</label><input type="text" id="n_pai" list="dl_machos"></div>
-      <div class="field"><label>Receptora (se houver)</label><input type="text" id="n_receptora" list="dl_femeas"></div>
+      <div class="field full">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
+          É transferência de embrião?
+        </label>
+        <div class="hint-text" style="margin-top:4px;">Marcando, a Receptora entra e as vacinas da gestação passam a ser dela, não da Matriz — é ela quem carrega a prenhez.</div>
+      </div>
+      <div class="field" id="n_receptoraWrap" style="display:none;"><label>Receptora</label><input type="text" id="n_receptora" list="dl_femeas"></div>
       <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
       <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
       <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
@@ -2046,8 +2053,23 @@ function showPrompt(msg, placeholder){
     document.getElementById('dialogTitle').textContent='Novo item';
     document.getElementById('dialogMessage').textContent=msg;
     const inp=document.getElementById('dialogInput');
-    inp.style.display='block'; inp.value=''; inp.placeholder=placeholder||'';
+    inp.type='text'; inp.style.display='block'; inp.value=''; inp.placeholder=placeholder||'';
     dialogResolve=resolve; openModal('overlayDialog');
+    setTimeout(()=>inp.focus(), 60);
+  });
+}
+// Mesmo diálogo do showPrompt, só que pedindo uma DATA (calendário nativo do navegador) em vez de
+// texto livre — usado onde a data em si é a decisão (ex: confirmar prenhez numa data diferente de
+// hoje, pra registro retroativo ou reconfirmação). Volta o campo pra texto normal ao fechar, senão o
+// próximo showPrompt() comum herdaria o calendário por engano.
+function showPromptDate(titulo, msg, defaultISO){
+  const inp=document.getElementById('dialogInput');
+  document.getElementById('dialogTitle').textContent=titulo||'Escolha uma data';
+  document.getElementById('dialogMessage').textContent=msg;
+  inp.type='date'; inp.style.display='block'; inp.value=defaultISO||toISODate(new Date());
+  return new Promise(resolve=>{
+    dialogResolve=(val)=>{ inp.type='text'; resolve(val); };
+    openModal('overlayDialog');
     setTimeout(()=>inp.focus(), 60);
   });
 }
@@ -3756,7 +3778,11 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     const nums = horses.map(h=>parseInt(h.codigo,10)).filter(n=>!isNaN(n));
     codigo = String((nums.length ? Math.max(...nums) : 0) + 1).padStart(4,'0');
   }
-  const data={ id: editingHorseId || ('h_'+Date.now()),
+  // Parte de dados que só entram no animal por FORA deste formulário (exames anexados, vídeos,
+  // protocolo de vacinas do potro) — espalha o registro existente ANTES dos campos do formulário, pra
+  // salvar aqui nunca apagar o que já estava lá sem o formulário nem saber que existe.
+  const existenteAnimal = editingHorseId ? horses.find(h=>h.id===editingHorseId) : null;
+  const data={ ...(existenteAnimal||{}), id: editingHorseId || ('h_'+Date.now()),
     codigo, nome:titleCase(f('f_nome')),apelido:titleCase(f('f_apelido')),sexo:f('f_sexo'),situacao:f('f_situacao'),status:titleCase(f('f_status')),
     nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
@@ -4227,11 +4253,12 @@ function computeCalendarTasks(){
   const gestacaoTasks = [];
   nascimentos.forEach(n=>{
     if(n.confirm==='S') return;
+    const alvo = alvoVacinaGestacao(n);
     (n.protocoloVacinas||[]).forEach(item=>{
       if(item.feito) return;
       gestacaoTasks.push({
         data: item.dataAlvo, tipo:'VacinaGestacao', label:'Vacinação (gestação): '+item.nome, categoria:'gestacao',
-        animalId:null, animalNome:n.matriz, nascimentoId:n.id, itemId:item.id,
+        animalId:alvo.animalId, animalNome:alvo.nome, nascimentoId:n.id, itemId:item.id,
         situacao: item.dataAlvo<hoje ? 'atrasado' : 'proximo'
       });
     });
@@ -5428,20 +5455,25 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     selected.forEach(a=>{ a.valorBase = valorDenteAtual; });
   }
   // Vacina/Vermífugo: precisa de um medicamento já cadastrado no Estoque (mesma exigência da Veterinária)
-  // — é ele que define o custo por animal e a baixa no estoque.
-  let medicamento = null, utensiliosValidos = [], medQuantidade = 0;
+  // — é ele que define o custo por animal e a baixa no estoque. Sem o produto cadastrado, não trava mais
+  // de vez: pergunta explicitamente se aplica assim mesmo, sem baixa nenhuma e sem custo nenhum.
+  let medicamento = null, utensiliosValidos = [], medQuantidade = 0, semEstoqueMedicamento = false, nomeMedDigitado = '';
   if(tipo==='Vacina' || tipo==='Vermífugo'){
-    const nomeMed = f('m_medicamento').trim();
-    if(!nomeMed){ showAlert('Informe o medicamento usado (cadastre no Estoque primeiro, se ainda não tiver).'); return; }
-    medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMed.toLowerCase());
-    if(!medicamento){ showAlert('Não achei "'+nomeMed+'" nos medicamentos do Estoque. Confira a digitação ou cadastre esse produto lá primeiro (tipo Medicamento).'); document.getElementById('m_medicamento').focus(); return; }
+    nomeMedDigitado = f('m_medicamento').trim();
+    if(!nomeMedDigitado){ showAlert('Informe o medicamento usado (cadastre no Estoque primeiro, se ainda não tiver).'); return; }
+    medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMedDigitado.toLowerCase());
     medQuantidade = Number(f('m_medQuantidade'));
     if(!medQuantidade || medQuantidade<=0){ showAlert('Informe a quantidade por animal.'); return; }
-    utensiliosValidos = manejoUtensiliosState.filter(u=>u.produtoId && Number(u.quantidade)>0).map(u=>{
-      const up = estoqueProdutos.find(p=>p.id===u.produtoId);
-      return { produtoId:u.produtoId, produtoNome: up?up.nome:'', quantidade:Number(u.quantidade), unidade: up?up.unidade:'' };
-    });
-    const custoUnitMed = custoUnitarioProduto(medicamento)||0;
+    if(!medicamento){
+      if(!(await showConfirm('Não achei "'+nomeMedDigitado+'" cadastrado no Estoque. Confirmar aplicação SEM dar baixa no estoque? Isso não vai gerar custo pro animal nem pro Financeiro.'))) return;
+      semEstoqueMedicamento = true;
+    } else {
+      utensiliosValidos = manejoUtensiliosState.filter(u=>u.produtoId && Number(u.quantidade)>0).map(u=>{
+        const up = estoqueProdutos.find(p=>p.id===u.produtoId);
+        return { produtoId:u.produtoId, produtoNome: up?up.nome:'', quantidade:Number(u.quantidade), unidade: up?up.unidade:'' };
+      });
+    }
+    const custoUnitMed = medicamento ? (custoUnitarioProduto(medicamento)||0) : 0;
     const custoUtensiliosPorAnimal = utensiliosValidos.reduce((s,u)=> s + (custoUnitarioProduto(estoqueProdutos.find(p=>p.id===u.produtoId))||0)*u.quantidade, 0);
     const custoPorAnimal = custoUnitMed*medQuantidade + custoUtensiliosPorAnimal;
     selected.forEach(a=>{ a.valorBase = custoPorAnimal; });
@@ -5460,14 +5492,16 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     registro.valor = valorDente==='' ? null : Number(valorDente);
   }
   if(tipo==='Vacina' || tipo==='Vermífugo'){
-    registro.medicamentoId = medicamento.id; registro.medicamentoNome = medicamento.nome;
+    registro.medicamentoId = medicamento ? medicamento.id : null; registro.medicamentoNome = medicamento ? medicamento.nome : nomeMedDigitado;
     registro.medQuantidade = medQuantidade; registro.utensilios = utensiliosValidos;
     registro.valor = selected.length ? selected[0].valorBase : 0;
   }
   // Baixa automática no estoque (medicamento + utensílios, pela quantidade de animais) — só em lançamento
   // NOVO, pra não dar baixa de novo cada vez que você reabre e salva o mesmo lançamento pra editar outra coisa.
   let avisoBaixa = '';
-  if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo')){
+  if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo') && semEstoqueMedicamento){
+    avisoBaixa = ' (sem baixa no estoque — produto não cadastrado)';
+  } else if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo')){
     const itensBaixa = [{ produtoId: medicamento.id, quantidade: medQuantidade*selected.length }];
     utensiliosValidos.forEach(u=> itensBaixa.push({ produtoId: u.produtoId, quantidade: u.quantidade*selected.length }));
     const faltando = checarEstoqueParaBaixa(itensBaixa);
@@ -6691,12 +6725,20 @@ document.getElementById('n_confirm').addEventListener('change', e=>{
   document.getElementById('n_nomeWrap').style.display = e.target.checked ? 'flex' : 'none';
   document.getElementById('n_sexoWrap').style.display = e.target.checked ? 'flex' : 'none';
 });
+// Receptora só faz sentido junto de transferência de embrião — desmarcando, some e limpa (pra não
+// ficar um nome de receptora esquecido numa cobertura que não é mais TE).
+document.getElementById('n_transferenciaEmbriao').addEventListener('change', e=>{
+  document.getElementById('n_receptoraWrap').style.display = e.target.checked ? 'flex' : 'none';
+  if(!e.target.checked) document.getElementById('n_receptora').value = '';
+});
 document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
   document.getElementById('btnDeleteNasc').style.display = 'none';
   ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
+  document.getElementById('n_transferenciaEmbriao').checked=false;
+  document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_nomeWrap').style.display='none';
   document.getElementById('n_sexoWrap').style.display='none';
   atualizarProvavelNascimentoView();
@@ -6710,6 +6752,8 @@ function openNascEdit(id){
   document.getElementById('n_matriz').value = n.matriz||'';
   document.getElementById('n_pai').value = n.pai||'';
   document.getElementById('n_receptora').value = n.receptora||'';
+  document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
+  document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
   document.getElementById('n_datacob').value = n.datacob||'';
   document.getElementById('n_datanasc').value = n.datanasc||'';
   document.getElementById('n_letra').value = n.letra||'';
@@ -6728,9 +6772,14 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   if(!matrizNome){ showAlert('Informe a matriz.'); return; }
   const confirmado = document.getElementById('n_confirm').checked;
   const paiNome = titleCase(f('n_pai'));
-  const receptoraNome = titleCase(f('n_receptora'));
+  const transferenciaEmbriao = document.getElementById('n_transferenciaEmbriao').checked;
+  const receptoraNome = transferenciaEmbriao ? titleCase(f('n_receptora')) : '';
+  if(transferenciaEmbriao && !receptoraNome){ showAlert('É transferência de embrião — informe a Receptora.'); return; }
   const existente = editingNascId ? nascimentos.find(x=>x.id===editingNascId) : null;
-  const record = { id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome,
+  // Espalha o registro existente antes dos campos do formulário — sem isso, editar qualquer coisa
+  // numa cobertura já confirmada (data, observação...) apagava o protocolo de vacinas da gestação
+  // já gerado (e quais doses já tinham sido marcadas como aplicadas).
+  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao,
     datacob:f('n_datacob'), datanasc:f('n_datanasc'), letra:f('n_letra'), obs:f('n_obs'), confirm: confirmado?'S':'N',
     animalId: existente ? existente.animalId : null,
     prenhezConfirmada: existente ? (existente.prenhezConfirmada||'N') : 'N',
@@ -6819,6 +6868,13 @@ function gerarAgendaVacinasGestacao(n){
   });
   return itens.sort((a,b)=>a.dataAlvo.localeCompare(b.dataAlvo));
 }
+// Quem recebe a vacina da gestação: a Matriz normalmente, MAS a Receptora quando é transferência de
+// embrião — é ela que está de fato prenha e precisa do protocolo, não a doadora genética do embrião.
+function alvoVacinaGestacao(n){
+  const nome = (n.transferenciaEmbriao && n.receptora) ? n.receptora : n.matriz;
+  const h = horses.find(x=>x.nome && x.nome.toLowerCase()===(nome||'').toLowerCase());
+  return { nome, animalId: h ? h.id : null };
+}
 function gerarProtocoloPotro(dataNascimento){
   if(!dataNascimento) return [];
   const itens = [];
@@ -6830,9 +6886,69 @@ function gerarProtocoloPotro(dataNascimento){
   });
   return itens.sort((a,b)=>a.dataAlvo.localeCompare(b.dataAlvo));
 }
+// Aplicar uma vacina de gestação/potro passa a exigir exatamente o mesmo que um Manejo de Vacina
+// normal: qual medicamento, dá baixa no estoque quando tem saldo, gera custo e fica no histórico do
+// animal (linha em Manejos). Sem o produto cadastrado ou sem saldo, pergunta explicitamente se aplica
+// mesmo assim SEM baixar estoque — nesse caso não gera custo nenhum, nem pro animal nem pro Financeiro.
+// Devolve {ok:true} se seguiu adiante (com ou sem baixa) ou {ok:false} se foi cancelado em algum passo
+// — só quando ok:true o item do protocolo deve ser marcado como feito.
+async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem }){
+  if(!animalId && animalNome){
+    ensureExternalAnimal(animalNome, 'FEMININO');
+    const achado = horses.find(x=>x.nome && x.nome.toLowerCase()===animalNome.toLowerCase());
+    if(achado) animalId = achado.id;
+  }
+  const h = horses.find(x=>x.id===animalId);
+  if(!h){ showAlert('Não encontrei "'+(animalNome||'')+'" no cadastro de Animais — corrija o nome (Matriz/Receptora) antes de aplicar.'); return {ok:false}; }
+
+  const nomeMed = await showPrompt('Medicamento aplicado em '+h.nome+' ('+nomeItem+'):', 'Nome do medicamento');
+  if(!nomeMed) return {ok:false};
+  const medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMed.trim().toLowerCase());
+
+  let quantidade = 1;
+  if(medicamento){
+    const qtdTxt = await showPrompt('Quantidade de "'+medicamento.nome+'" usada em '+h.nome+':', 'Ex: 1');
+    if(qtdTxt===null) return {ok:false};
+    quantidade = Number(String(qtdTxt).replace(',','.'))||0;
+    if(quantidade<=0){ showAlert('Informe uma quantidade válida.'); return {ok:false}; }
+  }
+
+  let semBaixa = false;
+  if(!medicamento){
+    if(!(await showConfirm('Não achei "'+nomeMed+'" cadastrado no Estoque. Confirmar aplicação SEM dar baixa no estoque? Isso não vai gerar custo pro animal nem pro Financeiro.'))) return {ok:false};
+    semBaixa = true;
+  } else {
+    const faltando = checarEstoqueParaBaixa([{produtoId:medicamento.id, quantidade}]);
+    if(faltando.length>0){
+      if(!(await showConfirm('Estoque insuficiente de "'+medicamento.nome+'" (falta '+faltando[0].falta+(medicamento.unidade?(' '+medicamento.unidade):'')+'). Confirmar aplicação SEM dar baixa no estoque? Isso não vai gerar custo pro animal nem pro Financeiro.'))) return {ok:false};
+      semBaixa = true;
+    }
+  }
+
+  const data = toISODate(new Date());
+  let valorBase = 0;
+  if(!semBaixa){
+    await registrarMovimento(medicamento.id, 'saida', quantidade, 'veterinaria', 'Vacina — '+nomeItem+' — '+h.nome, data, undefined, [{id:h.id, nome:h.nome}]);
+    valorBase = (custoUnitarioProduto(medicamento)||0) * quantidade;
+  }
+  manejos.push({
+    id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data, tipo:'Vacina',
+    obs: nomeItem+(semBaixa?' (sem baixa no estoque — produto indisponível)':''),
+    medicamentoNome: medicamento ? medicamento.nome : nomeMed, medQuantidade: quantidade,
+    valor: valorBase, animais:[{ id:h.id, nome:h.nome, valorBase }]
+  });
+  await storeSet('manejos_list', manejos);
+  renderManejos();
+  return { ok:true };
+}
 async function marcarItemProtocoloGestacao(nascimentoId, itemId, feito){
   const n = nascimentos.find(x=>x.id===nascimentoId); if(!n || !n.protocoloVacinas) return;
   const item = n.protocoloVacinas.find(i=>i.id===itemId); if(!item) return;
+  if(feito){
+    const alvo = alvoVacinaGestacao(n);
+    const r = await aplicarVacinaProtocolo({ animalId:alvo.animalId, animalNome:alvo.nome, nomeItem:item.nome });
+    if(!r.ok) return; // cancelou em algum passo — não marca como aplicada
+  }
   item.feito = feito; item.dataFeito = feito ? toISODate(new Date()) : null;
   await storeSet('nascimentos_list', nascimentos);
   renderCalendar(); renderInicio();
@@ -6841,19 +6957,26 @@ async function marcarItemProtocoloGestacao(nascimentoId, itemId, feito){
 async function marcarItemProtocoloPotro(animalId, itemId, feito){
   const h = horses.find(x=>x.id===animalId); if(!h || !h.protocoloPotro) return;
   const item = h.protocoloPotro.find(i=>i.id===itemId); if(!item) return;
+  if(feito){
+    const r = await aplicarVacinaProtocolo({ animalId:h.id, animalNome:h.nome, nomeItem:item.nome });
+    if(!r.ok) return;
+  }
   item.feito = feito; item.dataFeito = feito ? toISODate(new Date()) : null;
   await storeSet('horses_list', horses);
   renderCalendar(); renderInicio();
   if(typeof renderProtocoloAgenda==='function') renderProtocoloAgenda();
 }
 
+// Data da confirmação é escolhida na hora (padrão hoje, mas editável) — cobre tanto a primeira
+// confirmação quanto reconfirmações depois, que podem ter acontecido num dia diferente da última.
 async function confirmarPrenhez(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
-  const hoje = new Date().toISOString().slice(0,10);
+  const data = await showPromptDate('Confirmar prenhez', 'Data da confirmação de prenhez'+(n.matriz?(' de '+n.matriz):'')+':', toISODate(new Date()));
+  if(!data) return; // cancelou
   n.prenhezConfirmada = 'S';
-  n.prenhezUltima = hoje;
+  n.prenhezUltima = data;
   if(!n.prenhezHistorico) n.prenhezHistorico = [];
-  n.prenhezHistorico.push(hoje);
+  n.prenhezHistorico.push(data);
   // Gera a agenda de vacinas da gestação — só na primeira vez que essa prenhez é confirmada, pra não
   // apagar marcações de "aplicada" já feitas se você reconfirmar depois.
   let avisoVacinas = '';
@@ -6863,7 +6986,7 @@ async function confirmarPrenhez(id){
   }
   await storeSet('nascimentos_list', nascimentos);
   renderNascimentos();
-  showAlert('Prenhez confirmada em '+fmtDate(hoje)+'.'+avisoVacinas);
+  showAlert('Prenhez confirmada em '+fmtDate(data)+'.'+avisoVacinas);
 }
 
 // Quadro "Prenhezes confirmadas" — lista quem tá confirmada e ainda não teve o nascimento confirmado.
@@ -7018,7 +7141,8 @@ function renderRegrasProtocolo(){
 function renderProtocoloAgenda(){
   const linhas = [];
   nascimentos.filter(n=>n.confirm!=='S').forEach(n=>{
-    (n.protocoloVacinas||[]).forEach(item=>linhas.push({ origem:'gestacao', refId:n.id, animalNome:n.matriz, ...item }));
+    const alvo = alvoVacinaGestacao(n);
+    (n.protocoloVacinas||[]).forEach(item=>linhas.push({ origem:'gestacao', refId:n.id, animalNome:alvo.nome, ...item }));
   });
   horses.forEach(h=>{
     (h.protocoloPotro||[]).forEach(item=>linhas.push({ origem:'potro', refId:h.id, animalNome:h.nome, ...item }));
