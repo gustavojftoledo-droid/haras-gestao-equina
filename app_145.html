@@ -1179,20 +1179,55 @@
         <div><div class="title">Financeiro</div><div class="subtitle">Livro-caixa: entradas e saídas do haras</div></div>
         <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F">+ Novo Lançamento</button>
       </div>
-      <div id="finPainelMes" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
-      <div class="section-label" style="border-top:none;padding-top:0;">Todos os lançamentos</div>
-      <div class="stats" id="finStats"></div>
-      <div class="filters">
-        <div class="f grow"><label>Buscar</label><input type="text" id="finSearch" placeholder="Descrição..."></div>
-        <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
-        <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
-        <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
+      <div class="subtabs">
+        <span class="chip active" data-fintab="lancamentos" id="fintab_lancamentos">Lançamentos</span>
+        <span class="chip" data-fintab="custoanimal" id="fintab_custoanimal">🐴 Custo por Animal</span>
       </div>
-      <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
-      <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Data</th><th>Origem</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
-        <tbody id="finTbody"></tbody>
-      </table></div>
+
+      <div id="finview_lancamentos">
+        <div id="finPainelMes" style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:18px;"></div>
+        <div class="section-label" style="border-top:none;padding-top:0;">Todos os lançamentos</div>
+        <div class="stats" id="finStats"></div>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="finSearch" placeholder="Descrição..."></div>
+          <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
+          <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
+          <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
+        </div>
+        <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
+        <div class="grid-wrap"><table class="grid">
+          <thead><tr><th>Data</th><th>Origem</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+          <tbody id="finTbody"></tbody>
+        </table></div>
+      </div>
+
+      <div id="finview_custoanimal" style="display:none;">
+        <div class="filters">
+          <div class="f"><label>Período</label><div id="custoAnimalPeriodo"></div></div>
+        </div>
+        <div class="hint-text" style="margin:0 0 12px;">Três números por animal: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Ração, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono — luz, manutenção, o que sobrar sem animal marcado) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês.</div>
+        <div class="perfil-card" style="margin-bottom:16px;">
+          <div class="perfil-card-head" id="custoAnimalConfigHead" style="cursor:pointer;">⚙ Categorias fora do rateio geral <span style="font-weight:400;font-size:11.5px;">(investimento, não manutenção — clique pra configurar)</span></div>
+          <div class="perfil-card-body" id="custoAnimalConfigBody" style="display:none;">
+            <div class="hint-text" style="margin-bottom:10px;">Marcadas aqui, essas categorias nunca entram no "pote" geral — ficam de fora do rateio (útil pra Benfeitoria, Compra de Animal e outros gastos que são investimento, não manutenção do dia a dia).</div>
+            <div id="custoAnimalConfigLista"></div>
+          </div>
+        </div>
+        <div id="custoAnimalAvisos"></div>
+        <div class="grid-wrap"><table class="grid" id="custoAnimalTabela">
+          <thead><tr>
+            <th class="sortable" data-csort="nome">Animal</th>
+            <th class="sortable" data-csort="direto">Direto</th>
+            <th class="sortable" data-csort="geral">Geral rateado</th>
+            <th class="sortable" data-csort="total">Total</th>
+          </tr></thead>
+          <tbody id="custoAnimalTbody"></tbody>
+        </table></div>
+        <div class="modal-actions" style="padding:14px 0 0;">
+          <div></div>
+          <div class="modal-actions-right"><button type="button" class="btn btn-ghost" id="btnPdfCustoAnimal">⬇ Baixar PDF</button></div>
+        </div>
+      </div>
     </div>
 
     <!-- FUNCIONARIOS -->
@@ -1275,6 +1310,7 @@
         <div class="field"><label>Proprietário</label><div style="display:flex;gap:6px;"><select id="f_proprietario" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="proprietarios">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="proprietarios" data-selid="f_proprietario" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="proprietarios" data-selid="f_proprietario" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="f_valorMoeda" style="flex:0 0 78px;"><option value="R$">R$</option><option value="US$">US$</option></select><input type="text" id="f_valorNumero" placeholder="0,00" style="flex:1;"></div></div>
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
+        <div class="field" id="f_dataVendaWrap"><label>Data da Venda</label><input type="date" id="f_dataVenda" title="Usada pelo rateio de custos gerais (Financeiro → Custo por Animal) pra parar de contar este animal a partir do mês seguinte."></div>
         <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_compra" style="width:15px;height:15px;margin:0;"> Animal comprado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(entrou no plantel por compra, não nascimento)</span></label></div>
         <div class="field" id="f_doadorWrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_doador" style="width:15px;height:15px;margin:0;"> Doadora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(só fêmeas)</span></label></div>
         <div class="field full"><label>Link da foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cole um link do Google Drive, Imgur, etc — ou escolha uma foto do celular abaixo)</span></label>
@@ -1368,6 +1404,29 @@
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
     <div class="hint-text" id="fin_vozStatus" style="display:none;margin:-6px 0 12px;"></div>
+    <div class="field full" style="margin:-4px 0 12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;">
+        <input type="checkbox" id="fin_temAnimais" style="width:16px;height:16px;"> 🐴 Atribuir a Animal(is) específico(s)
+        <span style="font-weight:400;color:var(--muted);">(opcional — sem isso, conta como custo geral do haras)</span>
+      </label>
+    </div>
+    <div id="finAnimalWrap" style="display:none;margin-bottom:14px;">
+      <div id="finAnimalSelectorHost"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button type="button" class="btn btn-sm btn-ghost" id="btnRatearFin">🔄 Ratear igualmente entre os selecionados</button>
+      </div>
+      <div id="finGestacaoWrap" style="display:none;margin-top:10px;padding:10px;background:var(--card-well);border-radius:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="fin_destinoGestacao" style="width:16px;height:16px;">
+          <span id="fin_destinoGestacaoLabel"></span>
+        </label>
+        <div class="hint-text" style="margin:6px 0 8px;">Fica represado até o potro nascer — não conta pro custo da receptora nem pro custo geral do haras. Quando o potro nascer, esse valor vira custo dele.</div>
+        <select id="fin_destinoCategoria" style="display:none;">
+          <option value="Receptora">Custo de Receptora — hospedar/manter a receptora</option>
+          <option value="Transferência">Custo de Transferência — o procedimento de TE em si</option>
+        </select>
+      </div>
+    </div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteLancamento" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayLancamento">Cancelar</button><button type="button" class="btn" id="btnSaveLancamento">Salvar Lançamento <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -2321,6 +2380,11 @@ async function loadAll(){
     }
     if(protocoloMudou) await storeSet('config', config);
   }
+  // Categorias fora do rateio geral de custos (Financeiro → Custo por Animal) — investimento, não
+  // manutenção (Decisão do Gustavo: benfeitoria e compra de animal ficam de fora do "pote"). Começa
+  // vazia de propósito (nada excluído sem você marcar explicitamente) — configure em Financeiro →
+  // Custo por Animal → "Categorias fora do rateio geral".
+  if(!config.categoriasForaRateio) config.categoriasForaRateio = [];
   if(rRS.value && !Array.isArray(rRS.value)) relSelecoes = rRS.value;
   if(Array.isArray(rDismissed.value)) dismissedDuplicates = new Set(rDismissed.value);
   if(Array.isArray(rDismissedManejo.value)) dismissedManejoTasks = new Set(rDismissedManejo.value);
@@ -3673,6 +3737,14 @@ function atualizarDoadorWrap(){
   if(!ehFemea) document.getElementById('f_doador').checked = false;
 }
 document.getElementById('f_sexo').addEventListener('change', atualizarDoadorWrap);
+// Data da Venda só faz sentido (e só aparece) quando a Situação é "Vendido" — usada pelo rateio de
+// custos gerais do Financeiro pra saber a partir de qual mês parar de contar esse animal.
+function atualizarDataVendaWrap(){
+  const vendido = document.getElementById('f_situacao').value==='V';
+  document.getElementById('f_dataVendaWrap').style.display = vendido ? '' : 'none';
+  if(!vendido) document.getElementById('f_dataVenda').value = '';
+}
+document.getElementById('f_situacao').addEventListener('change', atualizarDataVendaWrap);
 function openHorseNew(){
   editingHorseId=null;
   document.getElementById('hModalTitle').textContent='Novo Animal';
@@ -3681,6 +3753,7 @@ function openHorseNew(){
   populateAuxSelects();
   ['f_avopat','f_avopatmat','f_avomatpat','f_avomat'].forEach(id=>{ const el=document.getElementById(id); el.readOnly=false; el.style.background='#fff'; });
   atualizarDoadorWrap();
+  atualizarDataVendaWrap();
   atualizarFotoPreview();
   openModal('overlayHorse');
 }
@@ -3689,9 +3762,10 @@ function openHorseEdit(id){
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
-  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',fotoUrl:'f_fotoUrl',obs:'f_obs'};
+  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
   populateAuxSelects();
   Object.entries(map).forEach(([k,id2])=>{ document.getElementById(id2).value=h[k]||''; });
+  atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
   // Valor: campo dividido em moeda (R$/US$) + número, pra não depender de digitar o prefixo certinho.
   // O texto salvo continua no mesmo formato de sempre ("R$ 1.000,00" / "US$ 1.000,00"), só a edição ficou guiada.
   const valorTxt = h.valor||'';
@@ -3764,7 +3838,8 @@ function ensureExternalAnimal(nome, sexo, pais){
     situacao:'E', status:'', nascimento:'', falecimento:'', pelagem:'', categoria:'', localizacao:'',
     pai: (pais&&pais.pai)?titleCase(pais.pai):'', mae: (pais&&pais.mae)?titleCase(pais.mae):'',
     avopat:'', avopatmat:'', avomatpat:'', avomat:'', freqcasco:'', freqdente:'', freqvacina:'', freqvermifugo:'',
-    proprietario:'', valor:'', doador:false, obs:'Cadastrado automaticamente como reprodutor externo via genealogia' });
+    proprietario:'', valor:'', doador:false, criadoEm: toISODate(new Date()),
+    obs:'Cadastrado automaticamente como reprodutor externo via genealogia' });
 }
 
 document.getElementById('overlayHorse').addEventListener('keydown', e=>{
@@ -3818,7 +3893,14 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     proprietario:titleCase(f('f_proprietario')),valor: f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '',comprador:titleCase(f('f_comprador')),
-    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
+    dataVenda: f('f_situacao')==='V' ? f('f_dataVenda') : '',
+    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs'),
+    // Data em que o registro passou a existir aqui — usada só pelo rateio de custos gerais (Financeiro
+    // → Custo por Animal) pra saber a partir de qual mês esse animal entra na divisão. Automática,
+    // gravada uma vez só na criação (nunca muda depois); quem já estava cadastrado antes dessa
+    // atualização não tem — pra esses, o rateio conta como sempre ativo, sem tentar adivinhar quando
+    // entraram (ver hint da aba Custo por Animal).
+    criadoEm: existenteAnimal ? existenteAnimal.criadoEm : toISODate(new Date()) };
   // Guarda o estado anterior do animal (antes de sobrescrever) — é assim que a gente sabe se a
   // venda é NOVA (virou "Vendido" agora) e não só uma edição de um animal que já estava vendido.
   const situacaoAnterior = editingHorseId ? (horses.find(h=>h.id===editingHorseId)||{}).situacao : null;
@@ -3844,7 +3926,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
       const pergunta = `${data.nome} foi marcado como Vendido, valor ${fmtMoeda(valorVenda, moedaVenda)}. Lançar essa venda como entrada no Financeiro agora?`;
       if(await showConfirm(pergunta)){
         lancamentos = [...lancamentos, {
-          id: 'fn_'+Date.now(), data: toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
+          id: 'fn_'+Date.now(), data: data.dataVenda || toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
           descricao: `Venda de ${data.nome}`+(data.comprador?(' — comprador: '+data.comprador):''),
           valor: valorVenda, moeda: moedaVenda, origemAnimalId: data.id
         }];
@@ -4947,6 +5029,13 @@ function ultimoSubtipoCasco(animalId){
 }
 async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
+  if(tipo==='Vacina' || tipo==='Vermífugo'){
+    // Mesma exigência de um Manejo normal (medicamento, estoque, baixa ou confirmação explícita sem
+    // baixa) — antes, "concluir" aqui só marcava a tarefa sem tocar em Estoque nem gerar custo nenhum.
+    await aplicarVacinaProtocolo({ animalId:h.id, animalNome:h.nome, nomeItem:tipo, tipoManejo:tipo });
+    renderCalendar(); renderInicio();
+    return;
+  }
   const registro = { id:'mj_'+Date.now(), data: toISODate(new Date()), tipo, obs:'Concluído pelo Calendário', animais:[{id:h.id, nome:h.nome}] };
   if(tipo==='Casco' && subtipoCasco){
     registro.subtipoCasco = subtipoCasco;
@@ -4961,6 +5050,16 @@ async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
 // evita ter que clicar animal por animal quando o dia inteiro precisa do mesmo manejo.
 async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal){
   const hoje = toISODate(new Date());
+  if(tipo==='Vacina' || tipo==='Vermífugo'){
+    // Mesma exigência de sempre, animal por animal (medicamento/quantidade/estoque disponível podem
+    // variar de um bicho pro outro, então não dá pra simplificar num lançamento só).
+    for(const animalId of animalIds){
+      const h = horses.find(x=>x.id===animalId); if(!h) continue;
+      await aplicarVacinaProtocolo({ animalId:h.id, animalNome:h.nome, nomeItem:tipo, tipoManejo:tipo });
+    }
+    renderCalendar(); renderInicio();
+    return;
+  }
   animalIds.forEach(animalId=>{
     const h = horses.find(x=>x.id===animalId); if(!h) return;
     const registro = { id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data: hoje, tipo, obs:'Concluído pelo Calendário (em lote)', animais:[{id:h.id, nome:h.nome}] };
@@ -6290,7 +6389,7 @@ document.getElementById('btnConfirmarImportAnimais').addEventListener('click', a
       avopat: paiH ? paiH.pai : '', avopatmat: paiH ? paiH.mae : '',
       avomatpat: maeH ? maeH.pai : '', avomat: maeH ? maeH.mae : '',
       freqcasco:'', freqdente:'', freqvacina:'', freqvermifugo:'', proprietario:v.proprietario, valor:'', comprador:'',
-      doador:false, compra:false, fotoUrl:'', obs:'Importado em lote'
+      doador:false, compra:false, fotoUrl:'', obs:'Importado em lote', criadoEm: toISODate(new Date())
     });
   });
   await storeSet('horses_list', horses);
@@ -6964,7 +7063,8 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
         avopat: pai ? pai.pai : '', avopatmat: pai ? pai.mae : '',
         avomatpat: mae ? mae.pai : '', avomat: mae ? mae.mae : '',
         freqcasco:'',freqdente:'',freqvacina:'',freqvermifugo:'', proprietario: mae ? mae.proprietario : '', valor:'', obs:'Gerado automaticamente via Nascimentos',
-        protocoloPotro: gerarProtocoloPotro(record.datanasc)
+        protocoloPotro: gerarProtocoloPotro(record.datanasc),
+        criadoEm: record.datanasc || toISODate(new Date()) // nasceu aqui — entra no rateio a partir do mês do nascimento
       };
       horses.push(novoAnimal);
       record.animalId = novoAnimal.id;
@@ -7037,7 +7137,8 @@ function gerarProtocoloPotro(dataNascimento){
 // mesmo assim SEM baixar estoque — nesse caso não gera custo nenhum, nem pro animal nem pro Financeiro.
 // Devolve {ok:true} se seguiu adiante (com ou sem baixa) ou {ok:false} se foi cancelado em algum passo
 // — só quando ok:true o item do protocolo deve ser marcado como feito.
-async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem }){
+async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem, tipoManejo }){
+  tipoManejo = tipoManejo || 'Vacina'; // 'Vacina' ou 'Vermífugo' — mesma exigência pros dois, como pedido
   if(!animalId && animalNome){
     ensureExternalAnimal(animalNome, 'FEMININO');
     const achado = horses.find(x=>x.nome && x.nome.toLowerCase()===animalNome.toLowerCase());
@@ -7073,11 +7174,11 @@ async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem }){
   const data = toISODate(new Date());
   let valorBase = 0;
   if(!semBaixa){
-    await registrarMovimento(medicamento.id, 'saida', quantidade, 'veterinaria', 'Vacina — '+nomeItem+' — '+h.nome, data, undefined, [{id:h.id, nome:h.nome}]);
+    await registrarMovimento(medicamento.id, 'saida', quantidade, 'veterinaria', tipoManejo+' — '+nomeItem+' — '+h.nome, data, undefined, [{id:h.id, nome:h.nome}]);
     valorBase = (custoUnitarioProduto(medicamento)||0) * quantidade;
   }
   manejos.push({
-    id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data, tipo:'Vacina',
+    id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data, tipo:tipoManejo,
     obs: nomeItem+(semBaixa?' (sem baixa no estoque — produto indisponível)':''),
     medicamentoNome: medicamento ? medicamento.nome : nomeMed, medQuantidade: quantidade,
     valor: valorBase, animais:[{ id:h.id, nome:h.nome, valorBase }]
@@ -10294,10 +10395,196 @@ function renderFinanceiro(){
       setTimeout(()=>openTransporteEdit(id), 30);
     }
   }));
+  if(finTabAtiva==='custoanimal') renderCustoPorAnimalTab();
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
+// ---- Aba "Custo por Animal" — simulador de rateio dos custos gerais (Fase 3) ----
+let finTabAtiva = 'lancamentos';
+function showFinTab(tab){
+  finTabAtiva = tab;
+  ['lancamentos','custoanimal'].forEach(t=>{
+    document.getElementById('fintab_'+t).classList.toggle('active', t===tab);
+    document.getElementById('finview_'+t).style.display = (t===tab) ? 'block' : 'none';
+  });
+  if(tab==='custoanimal') renderCustoPorAnimalTab();
+}
+document.getElementById('fintab_lancamentos').addEventListener('click', ()=>showFinTab('lancamentos'));
+document.getElementById('fintab_custoanimal').addEventListener('click', ()=>showFinTab('custoanimal'));
+// Um animal só "existe" pro rateio a partir do mês em que o registro dele passou a existir aqui
+// (criadoEm — automático, só quem foi cadastrado depois desta atualização tem) e para de existir a
+// partir do mês seguinte a uma venda ou falecimento. Externo nunca entra (não é um animal do haras,
+// é só uma referência de genealogia). Quem já estava cadastrado antes (sem criadoEm) conta como
+// sempre ativo desde o início do período simulado — sem isso, entraria certo pro mês corrente mas
+// errado (de menos) pro histórico, então melhor errar sempre incluindo do que excluindo à toa.
+function animalAtivoNoMes(h, mesStr){
+  if(h.situacao==='E') return false;
+  const inicioMes = mesStr+'-01';
+  const [ano, mes] = mesStr.split('-').map(Number);
+  const fimMes = toISODate(new Date(ano, mes, 0));
+  if(h.criadoEm && h.criadoEm > fimMes) return false;
+  if(h.falecimento && h.falecimento < inicioMes) return false;
+  if(h.situacao==='V' && h.dataVenda && h.dataVenda < inicioMes) return false;
+  return true;
+}
+// Junta, mês a mês, todo custo de caixa que sobrou sem nenhum animal marcado — o "pote" geral do
+// haras. Fica de fora: alocação (já foi pra alguém), qualquer linha que já tenha rateio (mesmo que só
+// a título de custo represado de gestação), compras de Estoque (o gasto delas só vira custo de
+// verdade quando consumido — contar aqui de novo na hora da compra dobraria esse mesmo real quando o
+// produto for consumido depois), lançamentos em US$ (rateio só em Reais) e as categorias marcadas
+// como "fora do rateio" (investimento, não manutenção — Benfeitoria, Compra de Animal etc.).
+function poteRateioPorMes(de, ate){
+  const porMes = {};
+  todosLancamentosFinanceiro().forEach(l=>{
+    if(l.tipo!=='saida' || l.natureza==='alocacao') return;
+    if(l.rateio && l.rateio.length>0) return;
+    if(l.origem==='estoque') return;
+    if(l.moeda==='USD') return;
+    if((config.categoriasForaRateio||[]).includes(l.categoria)) return;
+    if(de && l.data<de) return;
+    if(ate && l.data>ate) return;
+    const mes = l.data.slice(0,7);
+    porMes[mes] = (porMes[mes]||0) + (Number(l.valor)||0);
+  });
+  return porMes;
+}
+// Divide o pote de cada mês igualmente entre quem estava ativo NAQUELE mês — um período de vários
+// meses é a soma de vários rateios mensais independentes, nunca um rateio único do total do período.
+function simularRateioMensal(de, ate){
+  const porMes = poteRateioPorMes(de, ate);
+  const porAnimal = {};
+  const semAnimalAtivo = []; // meses em que sobrou pote mas não tinha nenhum animal ativo pra dividir
+  Object.entries(porMes).forEach(([mes, total])=>{
+    const ativos = horses.filter(h=>animalAtivoNoMes(h, mes));
+    if(ativos.length===0){ semAnimalAtivo.push({mes, total}); return; }
+    const porCabeca = total/ativos.length;
+    ativos.forEach(h=>{ porAnimal[h.id] = (porAnimal[h.id]||0) + porCabeca; });
+  });
+  return { porAnimal, semAnimalAtivo, totalGeral: Object.values(porMes).reduce((s,v)=>s+v,0) };
+}
+document.getElementById('custoAnimalConfigHead').addEventListener('click', ()=>{
+  const body = document.getElementById('custoAnimalConfigBody');
+  body.style.display = body.style.display==='none' ? 'block' : 'none';
+  if(body.style.display==='block') renderCustoAnimalConfigLista();
+});
+function renderCustoAnimalConfigLista(){
+  const todasCategorias = [...new Set(todosLancamentosFinanceiro().map(l=>l.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+  const marcadas = new Set(config.categoriasForaRateio||[]);
+  const host = document.getElementById('custoAnimalConfigLista');
+  if(todasCategorias.length===0){ host.innerHTML = '<div class="hint-text">Nenhuma categoria lançada ainda.</div>'; return; }
+  host.innerHTML = todasCategorias.map(c=>`
+    <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px;">
+      <input type="checkbox" data-cfr="${c}" ${marcadas.has(c)?'checked':''} style="width:15px;height:15px;"> ${c}
+    </label>`).join('');
+  host.querySelectorAll('[data-cfr]').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      const cat = cb.dataset.cfr;
+      let lista = config.categoriasForaRateio||[];
+      lista = cb.checked ? [...new Set([...lista, cat])] : lista.filter(c=>c!==cat);
+      config.categoriasForaRateio = lista;
+      await storeSet('config', config);
+      renderCustoPorAnimalTab();
+    });
+  });
+}
+let custoAnimalOrdenacao = { campo:'total', dir:'desc' };
+const custoAnimalPeriodo = createDateRangePicker(document.getElementById('custoAnimalPeriodo'), {onChange: renderCustoPorAnimalTab});
+function renderCustoPorAnimalTab(){
+  const { de, ate } = custoAnimalPeriodo.getRange();
+  const { porAnimal: geralPorAnimal, semAnimalAtivo } = simularRateioMensal(de, ate);
+  const linhas = horses.filter(h=>h.situacao!=='E').map(h=>{
+    const direto = custoDiretoAnimal(h.id, de, ate).total;
+    const geral = geralPorAnimal[h.id] || 0;
+    return { id:h.id, nome:h.nome, direto, geral, total: direto+geral };
+  }).filter(r=>r.direto>0 || r.geral>0);
+  const { campo, dir } = custoAnimalOrdenacao;
+  linhas.sort((a,b)=>{
+    const v = campo==='nome' ? a.nome.localeCompare(b.nome,'pt') : (a[campo]-b[campo]);
+    return dir==='asc' ? v : -v;
+  });
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const tbody = document.getElementById('custoAnimalTbody');
+  tbody.innerHTML = linhas.length===0 ? '<tr><td colspan="4" class="empty">Nenhum custo atribuído no período.</td></tr>' : linhas.map(r=>`
+    <tr>
+      <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
+      <td>${fmtR(r.direto)}</td>
+      <td>${fmtR(r.geral)}</td>
+      <td style="font-weight:600;">${fmtR(r.total)}</td>
+    </tr>`).join('');
+  const avisos = document.getElementById('custoAnimalAvisos');
+  avisos.innerHTML = semAnimalAtivo.length===0 ? '' : `<div class="hint-text" style="color:var(--warn-ink);margin-bottom:10px;">⚠ Sobrou custo geral sem nenhum animal ativo pra dividir em: ${semAnimalAtivo.map(s=>MESES_LABEL[Number(s.mes.slice(5,7))-1]+'/'+s.mes.slice(0,4)+' ('+fmtR(s.total)+')').join(', ')}.</div>`;
+}
+document.querySelectorAll('#custoAnimalTabela th[data-csort]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const campo = th.dataset.csort;
+    if(custoAnimalOrdenacao.campo===campo) custoAnimalOrdenacao.dir = custoAnimalOrdenacao.dir==='asc'?'desc':'asc';
+    else custoAnimalOrdenacao = { campo, dir: campo==='nome'?'asc':'desc' };
+    renderCustoPorAnimalTab();
+  });
+});
+document.getElementById('btnPdfCustoAnimal').addEventListener('click', ()=>{
+  const { de, ate } = custoAnimalPeriodo.getRange();
+  const { porAnimal: geralPorAnimal } = simularRateioMensal(de, ate);
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const linhas = horses.filter(h=>h.situacao!=='E').map(h=>{
+    const direto = custoDiretoAnimal(h.id, de, ate).total;
+    const geral = geralPorAnimal[h.id] || 0;
+    return { nome:h.nome, direto, geral, total: direto+geral };
+  }).filter(r=>r.direto>0 || r.geral>0).sort((a,b)=>b.total-a.total);
+  const totalDireto = linhas.reduce((s,r)=>s+r.direto,0), totalGeralR = linhas.reduce((s,r)=>s+r.geral,0), totalTudo = linhas.reduce((s,r)=>s+r.total,0);
+  const html = `<h1>Custo por Animal</h1>
+    <div class="sub">${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'}</div>
+    <table><thead><tr><th>Animal</th><th class="num">Direto</th><th class="num">Geral rateado</th><th class="num">Total</th></tr></thead>
+    <tbody>${linhas.map(r=>`<tr><td>${r.nome}</td><td class="num">${fmtR(r.direto)}</td><td class="num">${fmtR(r.geral)}</td><td class="num">${fmtR(r.total)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>Total</td><td class="num">${fmtR(totalDireto)}</td><td class="num">${fmtR(totalGeralR)}</td><td class="num">${fmtR(totalTudo)}</td></tr></tfoot>
+    </table>`;
+  abrirPreviaRelatorio(html, 'Custo_por_Animal.pdf', 'Custo por Animal');
+});
 ['finSearch','finFiltroTipo','finFiltroCategoria'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderFinanceiro);
+});
+// Seletor de Animal(is) do Novo Lançamento — opcional, só aparece quando "Atribuir a Animal(is)" está
+// marcado. Reaproveita o mesmo widget/padrão de Manejos e Treino Cobrado (valor por animal + "Ratear").
+const finAnimalSelector = createAnimalSelector(document.getElementById('finAnimalSelectorHost'), {
+  extraValor:true, valorExtraPlaceholder:'R$', valorExtraTitle:'Valor deste animal', onChange: atualizarGestacaoFin
+});
+document.getElementById('fin_temAnimais').addEventListener('change', ()=>{
+  const on = document.getElementById('fin_temAnimais').checked;
+  document.getElementById('finAnimalWrap').style.display = on ? 'block' : 'none';
+  if(on) finAnimalSelector.draw();
+  else resetGestacaoFin();
+});
+document.getElementById('btnRatearFin').addEventListener('click', ()=>{
+  const selected = finAnimalSelector.getSelected();
+  if(selected.length===0){ showAlert('Selecione ao menos um animal antes de ratear.'); return; }
+  const total = Number(f('fin_valor'))||0;
+  if(!total){ showAlert('Informe o valor do lançamento antes de ratear.'); return; }
+  finAnimalSelector.setValorParaTodosSelecionados((total/selected.length).toFixed(2));
+});
+function resetGestacaoFin(){
+  document.getElementById('finGestacaoWrap').style.display = 'none';
+  document.getElementById('fin_destinoGestacao').checked = false;
+  document.getElementById('fin_destinoCategoria').style.display = 'none';
+}
+// Encontra, se existir, a gestação em andamento (prenhez confirmada, nascimento ainda não confirmado)
+// em que esse animal é a Receptora de uma transferência de embrião — só aí faz sentido oferecer represar
+// o custo pro potro em vez de contar pra ela ou pro geral do haras.
+function receptoraAtivaPara(horseId){
+  const h = horses.find(x=>x.id===horseId); if(!h) return null;
+  return nascimentos.find(n=> n.transferenciaEmbriao && n.confirm!=='S' &&
+    n.receptora && n.receptora.toLowerCase()===h.nome.toLowerCase()) || null;
+}
+// Só oferece represar pra gestação quando dá pra apontar sem ambiguidade pra UM animal — com vários
+// selecionados ao mesmo tempo não dá pra saber a quem esse represamento se refere.
+function atualizarGestacaoFin(){
+  const selected = finAnimalSelector.getSelected();
+  if(selected.length!==1){ resetGestacaoFin(); return; }
+  const nasc = receptoraAtivaPara(selected[0].id);
+  if(!nasc){ resetGestacaoFin(); return; }
+  document.getElementById('finGestacaoWrap').style.display = 'block';
+  document.getElementById('fin_destinoGestacaoLabel').textContent = selected[0].nome+' é receptora de uma transferência de embrião em andamento — represar este custo pro potro?';
+}
+document.getElementById('fin_destinoGestacao').addEventListener('change', ()=>{
+  document.getElementById('fin_destinoCategoria').style.display = document.getElementById('fin_destinoGestacao').checked ? 'block' : 'none';
 });
 function openLancamentoNew(){
   editingLancamentoId = null;
@@ -10311,6 +10598,10 @@ function openLancamentoNew(){
   document.getElementById('fin_moeda').value = 'BRL';
   populateAuxSelects();
   document.getElementById('fin_categoria').value = '';
+  document.getElementById('fin_temAnimais').checked = false;
+  document.getElementById('finAnimalWrap').style.display = 'none';
+  finAnimalSelector.reset();
+  resetGestacaoFin();
   openModal('overlayLancamento');
 }
 function openLancamentoEdit(id){
@@ -10326,6 +10617,23 @@ function openLancamentoEdit(id){
   document.getElementById('fin_moeda').value = l.moeda==='USD' ? 'USD' : 'BRL';
   populateAuxSelects();
   document.getElementById('fin_categoria').value = l.categoria||'';
+  const temAnimais = !!(l.rateio && l.rateio.length>0);
+  document.getElementById('fin_temAnimais').checked = temAnimais;
+  document.getElementById('finAnimalWrap').style.display = temAnimais ? 'block' : 'none';
+  if(temAnimais){
+    finAnimalSelector.setSelected(l.rateio.map(r=>({id:r.animalId, valorExtra:r.valor})));
+    const destinoR = l.rateio.find(r=>r.destino);
+    resetGestacaoFin();
+    atualizarGestacaoFin();
+    if(destinoR){
+      document.getElementById('fin_destinoGestacao').checked = true;
+      document.getElementById('fin_destinoCategoria').style.display = 'block';
+      document.getElementById('fin_destinoCategoria').value = l.categoria==='Transferência' ? 'Transferência' : 'Receptora';
+    }
+  } else {
+    finAnimalSelector.reset();
+    resetGestacaoFin();
+  }
   openModal('overlayLancamento');
 }
 // Aberto a partir da aba Funcionários (botão "Lançar custo", ou a confirmação de salário do dia 5 no
@@ -10347,6 +10655,10 @@ function openLancamentoDeFuncionario(func, modo){
   const categoria = ehSalario ? 'Salário' : 'Funcionários';
   if(!aux.finCategoria.includes(categoria)){ aux.finCategoria.push(categoria); storeSet('aux_lists', aux); populateAuxSelects(); }
   document.getElementById('fin_categoria').value = categoria;
+  document.getElementById('fin_temAnimais').checked = false;
+  document.getElementById('finAnimalWrap').style.display = 'none';
+  finAnimalSelector.reset();
+  resetGestacaoFin();
   openModal('overlayLancamento');
 }
 document.getElementById('btnNewLancamento').addEventListener('click', openLancamentoNew);
@@ -10627,13 +10939,31 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
   const origemFuncionarioId = editingLancamentoId
     ? (lancamentos.find(l=>l.id===editingLancamentoId)||{}).origemFuncionarioId
     : (novoLancamentoFuncionarioId || undefined);
-  const categoria = f('fin_categoria');
+  let categoria = f('fin_categoria');
   const moeda = f('fin_moeda')==='USD' ? 'USD' : 'BRL';
+  // Animal(is) — opcional. Quando marcado, esse lançamento entra no custo direto de cada animal
+  // selecionado (Financeiro → Custo por Animal), em vez de só cair no custo geral do haras.
+  let rateio;
+  if(document.getElementById('fin_temAnimais').checked){
+    const selected = finAnimalSelector.getSelected();
+    if(selected.length===0){ showAlert('Marcou "Atribuir a Animal(is)" mas não selecionou nenhum — desmarque a opção ou selecione ao menos um animal.'); return; }
+    // Represar pra gestação (só faz sentido com exatamente 1 animal selecionado, e só quando ele
+    // realmente é receptora de uma transferência em andamento agora — ver atualizarGestacaoFin).
+    const destinoAtivo = (selected.length===1 && document.getElementById('fin_destinoGestacao').checked)
+      ? receptoraAtivaPara(selected[0].id) : null;
+    if(destinoAtivo) categoria = f('fin_destinoCategoria');
+    rateio = selected.map(a=>({
+      animalId: a.id,
+      valor: a.valorExtra || (valor/selected.length),
+      ...(destinoAtivo ? {destino: destinoAtivo.id} : {})
+    }));
+  }
   const registro = {
     id: editingLancamentoId || ('fn_'+Date.now()),
     data, tipo: f('fin_tipo'), categoria, descricao: f('fin_descricao').trim(), valor,
     moeda,
-    origemFuncionarioId
+    origemFuncionarioId,
+    ...(rateio ? {rateio} : {})
   };
   lancamentos = editingLancamentoId ? lancamentos.map(l=>l.id===editingLancamentoId?registro:l) : [...lancamentos, registro];
   await storeSet('financeiro_lancamentos', lancamentos);
@@ -11177,6 +11507,7 @@ function renderAnimalPerfil(id){
         <div class="perfil-fields">
           <div class="perfil-field"><label>Proprietário</label><div class="val">${h.proprietario||'—'}</div></div>
           ${h.situacao==='V'?`<div class="perfil-field"><label>Comprador</label><div class="val">${h.comprador||'—'}</div></div>
+          <div class="perfil-field"><label>Data da venda</label><div class="val">${h.dataVenda?fmtDate(h.dataVenda):'—'}</div></div>
           <div class="perfil-field"><label>Valor da venda</label><div class="val">${h.valor||'—'}</div></div>`:
           (h.valor?`<div class="perfil-field"><label>Valor</label><div class="val">${h.valor}</div></div>`:'')}
         </div>
@@ -11266,6 +11597,7 @@ function renderAnimalPerfil(id){
         <div class="perfil-field" style="margin-top:10px;"><label>Doador</label><div class="val">${h.doador?'Sim':'Não'}</div></div>
       </div>
     </div>
+    ${temPermissao('financeiro','ver') ? blocoCustoAnimalFicha(h) : ''}
   `;
 
   document.getElementById('perfilWrap').innerHTML = `<div>${main}</div><div>${sidebar}</div>`;
@@ -11530,8 +11862,15 @@ document.getElementById('btnGerarRel4Ficha').addEventListener('click', gerarRela
 const CATEGORIA_CUSTO_ANIMAL = {
   'Ferrageamento':'Casco', 'Odontologia':'Dente', 'Vacina':'Saúde', 'Vermífugo':'Saúde',
   'Veterinário / Medicamento':'Saúde', 'Ração':'Ração', 'Transporte':'Transporte', 'Treino':'Atividades',
+  'Receptora':'Receptora', 'Transferência':'Transferência',
 };
-const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Ração','Saúde','Casco','Dente','Transporte','Atividades','Outros'];
+const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Ração','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Outros'];
+// Custo represado: uma linha do rateio pode ter `destino` (id de um registro de Nascimentos) em vez
+// de contar direto pro animal físico que passou pelo procedimento (a receptora) — enquanto o potro não
+// nasce, esse valor fica represado (não conta pra ninguém); depois que nasce e o registro de Nascimentos
+// já sabe o animalId dele, o valor vira custo do potro, na categoria original do lançamento (Ração,
+// Saúde etc. continuam normais — só "Receptora"/"Transferência" são categorias próprias, usadas quando
+// o custo em si É o de hospedar a receptora ou fazer a transferência, não um procedimento qualquer).
 function custoDiretoAnimal(animalId, de, ate){
   let total = 0;
   const porCategoria = {};
@@ -11540,13 +11879,46 @@ function custoDiretoAnimal(animalId, de, ate){
     if(de && l.data<de) return;
     if(ate && l.data>ate) return;
     if(!l.rateio || l.rateio.length===0) return;
-    const meuValor = l.rateio.reduce((s,r)=> r.animalId===animalId ? s+(Number(r.valor)||0) : s, 0);
+    let meuValor = 0;
+    l.rateio.forEach(r=>{
+      if(r.destino){
+        const n = nascimentos.find(x=>x.id===r.destino);
+        if(n && n.animalId===animalId) meuValor += (Number(r.valor)||0);
+        return;
+      }
+      if(r.animalId===animalId) meuValor += (Number(r.valor)||0);
+    });
     if(meuValor<=0) return;
     total += meuValor;
     const cat = CATEGORIA_CUSTO_ANIMAL[l.categoria] || 'Outros';
     porCategoria[cat] = (porCategoria[cat]||0) + meuValor;
   });
   return { total, porCategoria };
+}
+// Card "Custo do Animal" na Ficha — só aparece pra quem tem acesso ao Financeiro (é informação
+// financeira, mesma regra do resto do módulo). Total de sempre + últimos 12 meses + detalhe por
+// categoria, tudo em cima do mesmo motor único (custoDiretoAnimal) — nunca a parte rateada dos
+// custos gerais do haras, que mora só na aba Custo por Animal do Financeiro.
+function blocoCustoAnimalFicha(h){
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const totalSempre = custoDiretoAnimal(h.id, null, null);
+  const hoje = new Date();
+  const de12m = toISODate(new Date(hoje.getFullYear(), hoje.getMonth()-11, 1));
+  const ultimos12 = custoDiretoAnimal(h.id, de12m, null);
+  const categoriasComValor = CATEGORIAS_CUSTO_ANIMAL_ORDEM.filter(c=>totalSempre.porCategoria[c]>0);
+  return `<div class="perfil-card">
+    <div class="perfil-card-head">💰 Custo do Animal</div>
+    <div class="perfil-card-body">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:${categoriasComValor.length?'12px':'0'};">
+        <div><div style="font-family:'Fraunces',serif;font-size:19px;font-weight:600;">${fmtR(totalSempre.total)}</div><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Desde sempre</div></div>
+        <div><div style="font-family:'Fraunces',serif;font-size:19px;font-weight:600;">${fmtR(ultimos12.total)}</div><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Últimos 12 meses</div></div>
+      </div>
+      ${categoriasComValor.length===0 ? '<div class="hint-text">Nenhum custo atribuído diretamente a esse animal ainda.</div>' : categoriasComValor.map(c=>`
+        <div class="perfil-field" style="margin-top:6px;"><label>${c}</label><div class="val">${fmtR(totalSempre.porCategoria[c])}</div></div>
+      `).join('')}
+      <div class="hint-text" style="margin-top:10px;">Só o que já foi atribuído diretamente a esse animal (Ração, Saúde, Casco...). Não inclui a parte dele nos custos gerais do haras rateados entre todos os animais — isso está em Financeiro → Custo por Animal.</div>
+    </div>
+  </div>`;
 }
 function custoDietaResumo(d){
   let diarioPorAnimal = 0, temItemSemPreco = false;
