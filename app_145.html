@@ -562,6 +562,7 @@
           <div class="nav-item" data-view="funcionarios" title="Atalho: Alt+Shift+P"><span class="dot"></span>Funcionários</div>
           <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
           <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
+          <div class="nav-item" data-view="auditoria"><span class="dot"></span>Auditoria</div>
         </div>
       </div>
     </div>
@@ -663,6 +664,34 @@
         <thead><tr><th>Nome</th><th>Tipo</th><th>Acesso</th><th></th></tr></thead>
         <tbody id="usrTbody"></tbody>
       </table></div>
+    </div>
+
+    <!-- AUDITORIA -->
+    <div class="view" id="view-auditoria">
+      <div class="topbar">
+        <div><div class="title">Auditoria</div><div class="subtitle">Tudo que foi incluído, alterado ou excluído — quem fez e quando</div></div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" id="btnAudPDF">📄 Imprimir / PDF</button>
+        </div>
+      </div>
+      <div class="stats" id="audStats"></div>
+      <div class="filters">
+        <input type="text" id="audSearch" placeholder="Buscar por registro, campo ou pessoa...">
+        <select id="audFiltroUsuario"><option value="">Todas as pessoas</option></select>
+        <select id="audFiltroModulo"><option value="">Todas as telas</option></select>
+        <select id="audFiltroAcao">
+          <option value="">Inclusão, alteração e exclusão</option>
+          <option value="inclusao">Só inclusões</option>
+          <option value="edicao">Só alterações</option>
+          <option value="exclusao">Só exclusões</option>
+        </select>
+        <div id="audFiltroPeriodo"></div>
+      </div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Quando</th><th>Quem</th><th>O quê</th><th>Tela</th><th>Registro</th><th>Detalhe da alteração</th></tr></thead>
+        <tbody id="audTbody"></tbody>
+      </table></div>
+      <div class="hint-text" style="margin-top:12px;">O registro começou a partir da atualização que criou esta tela — o que aconteceu antes disso não tem como ser reconstruído. Ficam guardadas cerca das 1.500 ações mais recentes; as mais antigas saem conforme entram novas. O log entra no backup, então exportar de vez em quando guarda o histórico antigo.</div>
     </div>
 
     <!-- ANIMAIS -->
@@ -1312,7 +1341,7 @@
         <div class="field"><label>Freq. Vermífugo (meses)</label><input type="number" id="f_freqvermifugo"></div>
         <div class="section-label">Outros</div>
         <div class="field"><label>Proprietário</label><div style="display:flex;gap:6px;"><select id="f_proprietario" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="proprietarios">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="proprietarios" data-selid="f_proprietario" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="proprietarios" data-selid="f_proprietario" title="Excluir valor selecionado">🗑</button></div></div>
-        <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="f_valorMoeda" style="flex:0 0 78px;"><option value="R$">R$</option><option value="US$">US$</option></select><input type="text" id="f_valorNumero" placeholder="0,00" style="flex:1;"></div></div>
+        <div class="field" id="f_valorField"><label>Valor</label><div style="display:flex;gap:6px;"><select id="f_valorMoeda" style="flex:0 0 78px;"><option value="R$">R$</option><option value="US$">US$</option></select><input type="text" id="f_valorNumero" placeholder="0,00" style="flex:1;"></div></div>
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
         <div class="field" id="f_dataVendaWrap"><label>Data da Venda</label><input type="date" id="f_dataVenda" title="Usada pelo rateio de custos gerais (Financeiro → Custo por Animal) pra parar de contar este animal a partir do mês seguinte."></div>
         <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_compra" style="width:15px;height:15px;margin:0;"> Animal comprado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(entrou no plantel por compra, não nascimento)</span></label></div>
@@ -2208,6 +2237,7 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 /* ---------- STATE ---------- */
 let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[];
+let auditoria=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 let dismissedAnomaliasEstoque = new Set();
@@ -2309,7 +2339,161 @@ async function storeGet(key){
     }
   }
 }
+/* ================= AUDITORIA (quem fez o quê, e quando) =================
+   Em vez de espalhar uma chamada "registre isso no log" em cada um dos ~130 pontos que salvam dados
+   (o que garantiria esquecer alguns e nunca mais lembrar de incluir os novos), o registro é feito num
+   lugar só: aqui dentro do storeSet, que é por onde TUDO passa pra ser gravado. Antes de gravar, a
+   lista nova é comparada com a última versão conhecida (guardada em auditSnapshots, por id) e a
+   diferença vira uma linha do log: incluiu / editou (com quais campos mudaram) / excluiu.
+   Consequência boa: qualquer tela nova que eu criar daqui pra frente já nasce auditada de graça.
+   Limitação honesta: se duas pessoas salvarem no mesmo segundo em aparelhos diferentes, o log é um
+   documento só e a última gravação vence — pode perder uma linha. Pro volume desse haras, não é
+   problema prático. */
+const AUDIT_KEYS = {
+  horses_list:        { modulo:'Animais',     nome: r=>r.nome },
+  manejos_list:       { modulo:'Manejos',     nome: r=>[r.tipo, r.subtipo, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  treinos_list:       { modulo:'Atividades',  nome: r=>[r.tipo, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  nascimentos_list:   { modulo:'Nascimentos', nome: r=>[r.matriz, r.pai&&('x '+r.pai)].filter(Boolean).join(' ') },
+  estoque_produtos:   { modulo:'Estoque',     nome: r=>r.nome },
+  estoque_movimentos: { modulo:'Estoque',     nome: r=>[r.tipoMov==='saida'?'Saída':'Entrada', r.produtoNome, r.quantidade].filter(Boolean).join(' · ') },
+  dietas_list:        { modulo:'Dietas',      nome: r=>r.nome },
+  grupos_list:        { modulo:'Grupos',      nome: r=>r.nome },
+  financeiro_lancamentos:{ modulo:'Financeiro', nome: r=>[r.categoria, r.descricao].filter(Boolean).join(' · ') },
+  tratamentos_list:   { modulo:'Veterinária', nome: r=>['Tratamento', r.medicamentoNome||r.medicamento].filter(Boolean).join(' · ') },
+  visitas_list:       { modulo:'Veterinária', nome: r=>['Visita', r.veterinario, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  funcionarios_list:  { modulo:'Funcionários',nome: r=>r.nome },
+  transportes_list:   { modulo:'Transporte',  nome: r=>[r.origem, r.destino].filter(Boolean).join(' → ') },
+  usuarios_list:      { modulo:'Usuários',    nome: r=>r.nome },
+};
+// O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
+// gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
+// auditoria. Por isso são dois limites: por quantidade de linhas e por tamanho real do texto gravado
+// (uma linha com muitos campos alterados pesa bem mais que uma inclusão simples). Bateu qualquer um
+// dos dois, as linhas mais antigas saem pra dar lugar às novas.
+const AUDIT_LIMITE = 1500;
+const AUDIT_LIMITE_BYTES = 600000;
+const auditSnapshots = {}; // chave -> Map(id -> JSON do registro na última versão gravada)
+let auditPronto = false;   // só começa a registrar depois que loadAll tirou a "foto" inicial
+function auditNomeRegistro(key, registro){
+  try{ return (AUDIT_KEYS[key].nome(registro)||'').toString().trim() || '(sem nome)'; }
+  catch(e){ return '(sem nome)'; }
+}
+function auditTirarFoto(key, lista){
+  if(!AUDIT_KEYS[key] || !Array.isArray(lista)) return;
+  const m = new Map();
+  lista.forEach(r=>{ if(r && r.id!==undefined) m.set(r.id, JSON.stringify(r)); });
+  auditSnapshots[key] = m;
+}
+// Campos que mudam sozinhos ou não dizem nada pra quem lê o log — não viram "alteração".
+const AUDIT_CAMPOS_IGNORADOS = new Set(['id','criadoEm']);
+// Nome interno do campo → como ele aparece na tela, pra o log ser legível por quem não programou isso.
+// Campo fora dessa lista aparece com o nome interno mesmo (melhor isso do que esconder a alteração).
+const AUDIT_CAMPO_LABEL = {
+  nome:'Nome', apelido:'Apelido', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
+  nascimento:'Nascimento', falecimento:'Falecimento', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
+  localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
+  avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
+  comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', obs:'Observações',
+  fotoUrl:'Foto', freqcasco:'Freq. casco', freqdente:'Freq. dente', freqvacina:'Freq. vacina',
+  freqvermifugo:'Freq. vermífugo', data:'Data', tipo:'Tipo', subtipo:'Procedimento', descricao:'Descrição',
+  moeda:'Moeda', quantidade:'Quantidade', animais:'Animais', rateio:'Rateio por animal',
+  medicamentoNome:'Medicamento', veterinario:'Veterinário', origem:'Origem', destino:'Destino',
+  valorFrete:'Frete', realizado:'Realizado', admin:'Administrador', permissoes:'Permissões', email:'E-mail'
+};
+function auditNomeCampo(c){ return AUDIT_CAMPO_LABEL[c] || c; }
+// "Não preenchido" tem três formas no app (campo ausente, null e texto vazio) e um formulário
+// costuma converter uma na outra sem ninguém ter digitado nada. Se antes e depois estão vazios, não
+// houve alteração nenhuma pra registrar — sem isso o log viraria uma parede de "apelido: (vazio) →
+// (vazio)" que esconderia a mudança de verdade.
+function auditVazio(v){ return v===undefined || v===null || v===''; }
+function auditCamposAlterados(antesJson, depois){
+  let antes; try{ antes = JSON.parse(antesJson); }catch(e){ return []; }
+  const campos = new Set([...Object.keys(antes||{}), ...Object.keys(depois||{})]);
+  const mudou = [];
+  campos.forEach(c=>{
+    if(AUDIT_CAMPOS_IGNORADOS.has(c)) return;
+    if(auditVazio(antes[c]) && auditVazio(depois[c])) return;
+    const a = JSON.stringify(antes[c]), b = JSON.stringify(depois[c]);
+    if(a!==b) mudou.push({ campo:c, de: auditResumirValor(antes[c]), para: auditResumirValor(depois[c]) });
+  });
+  return mudou;
+}
+function auditResumirValor(v){
+  if(v===undefined || v===null || v==='') return '(vazio)';
+  if(Array.isArray(v)) return v.length+' item(ns)';
+  if(typeof v==='object') return '(detalhes)';
+  const s = String(v);
+  return s.length>60 ? s.slice(0,60)+'…' : s;
+}
+function auditRegistrar(entradas){
+  if(entradas.length===0) return;
+  const quem = currentUser ? (currentUser.nome||currentUser.email||'—') : 'Antes do login';
+  const quando = new Date().toISOString();
+  entradas.forEach((e,i)=>{
+    auditoria.push({ id:'ad_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7), quando,
+      usuarioId: currentUser?currentUser.id:'', usuario: quem, ...e });
+  });
+  if(auditoria.length>AUDIT_LIMITE) auditoria = auditoria.slice(-AUDIT_LIMITE);
+  // Corta em blocos (e não de linha em linha) pra não serializar o log inteiro dezenas de vezes seguidas.
+  let tentativas = 0;
+  while(auditoria.length>50 && JSON.stringify(auditoria).length>AUDIT_LIMITE_BYTES && tentativas++<40){
+    auditoria = auditoria.slice(Math.ceil(auditoria.length*0.1));
+  }
+}
+// Operações que mexem em centenas de registros de uma vez (importar um backup, padronizar o texto de
+// todo o plantel) encheriam o log com uma linha por animal e empurrariam pra fora todo o histórico
+// real de quem mexeu no quê. Nesses casos o log recebe UMA linha resumindo a operação inteira.
+async function auditComoUmaAcaoSo(modulo, resumo, fn){
+  const estavaPronto = auditPronto;
+  auditPronto = false;
+  try{ return await fn(); }
+  finally{
+    auditPronto = estavaPronto;
+    if(estavaPronto){
+      auditRegistrar([{ acao:'edicao', modulo, registro:resumo, registroId:'', mudancas:[] }]);
+      await storeSet('auditoria_log', auditoria);
+    }
+  }
+}
+// Compara a lista que está sendo gravada com a última "foto" e devolve as linhas de log a criar.
+function auditDiff(key, val){
+  const cfg = AUDIT_KEYS[key];
+  if(!auditPronto || !cfg || !Array.isArray(val)) return [];
+  const antes = auditSnapshots[key];
+  if(!antes) return []; // primeira gravação dessa chave nesta sessão: só tira a foto, sem inventar histórico
+  const entradas = [];
+  const idsAgora = new Set();
+  val.forEach(r=>{
+    if(!r || r.id===undefined) return;
+    idsAgora.add(r.id);
+    const antesJson = antes.get(r.id);
+    if(antesJson===undefined){
+      entradas.push({ acao:'inclusao', modulo:cfg.modulo, registro:auditNomeRegistro(key,r), registroId:r.id, mudancas:[] });
+    } else if(antesJson !== JSON.stringify(r)){
+      const mudancas = auditCamposAlterados(antesJson, r);
+      if(mudancas.length>0) entradas.push({ acao:'edicao', modulo:cfg.modulo, registro:auditNomeRegistro(key,r), registroId:r.id, mudancas: mudancas.slice(0,8) });
+    }
+  });
+  antes.forEach((json,id)=>{
+    if(idsAgora.has(id)) return;
+    let r = {}; try{ r = JSON.parse(json); }catch(e){}
+    entradas.push({ acao:'exclusao', modulo:cfg.modulo, registro:auditNomeRegistro(key,r), registroId:id, mudancas:[] });
+  });
+  return entradas;
+}
 async function storeSet(key,val,userDeleted){
+  // O log em si nunca é auditado (senão gravar o log geraria mais log, pra sempre).
+  if(key!=='auditoria_log' && AUDIT_KEYS[key]){
+    const entradas = auditDiff(key, val);
+    auditTirarFoto(key, val);
+    if(entradas.length>0){
+      auditRegistrar(entradas);
+      // Grava o log em separado, sem travar a gravação do dado em si: se o log falhar, o dado do
+      // usuário ainda vai. Nunca o contrário.
+      storeSet('auditoria_log', auditoria).catch(e=>console.error('auditoria:', e));
+      if(document.getElementById('view-auditoria') && document.getElementById('view-auditoria').classList.contains('active')) setTimeout(renderAuditoria, 0);
+    }
+  }
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
       if(Array.isArray(val) && val.length===0 && !userDeleted){
@@ -2363,11 +2547,21 @@ async function loadAll(){
   const rNFA = await storeGet('nf_aprendizado');
   const rFin = await storeGet('financeiro_lancamentos');
   const rFU = await storeGet('funcionarios_list');
+  const rAD = await storeGet('auditoria_log');
+  auditoria = Array.isArray(rAD.value) ? rAD.value : [];
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
   usuarios = rU.value;
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
   estoqueProdutos = rEP.value; estoqueMovimentos = rEM.value; dietas = rDT.value; grupos = rG.value;
   tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[]; transportes = rTP.value||[];
+  // "Foto" inicial de cada lista auditada, tirada logo depois de carregar — é contra ela que toda
+  // gravação daqui pra frente vai ser comparada pra descobrir o que mudou (ver storeSet/auditDiff).
+  Object.keys(AUDIT_KEYS).forEach(k=>auditTirarFoto(k, ({
+    horses_list:horses, manejos_list:manejos, treinos_list:treinos, nascimentos_list:nascimentos,
+    estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
+    grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
+    visitas_list:visitas, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
+  })[k]));
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
   // Migração: versão antiga de valoresCasco tinha só 4 categorias (com "Ferrado mão casq. pé").
   // Essa nomenclatura foi substituída pelas 5 categorias novas (Casqueado mãos/completo/pés, Ferrado mãos/completo).
@@ -2526,6 +2720,10 @@ async function loadAll(){
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
+  // Só a partir daqui o log de auditoria passa a registrar. As migrações e o consumo automático que
+  // rodam acima são do próprio sistema, não de uma pessoa — encheriam o log de "alterou 725 animais"
+  // toda vez que alguém abrisse o app.
+  auditPronto = true;
 }
 document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
   document.getElementById('loadWarning').style.display='none';
@@ -2838,7 +3036,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     if(!preservarPilhaVoltar){ pilhaVoltar = []; }
     preservarPilhaVoltar = false;
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -2850,6 +3048,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios') renderUsuarios();
+      if(view==='auditoria') renderAuditoria();
     }else{
       document.getElementById('view-other').classList.add('active');
       document.getElementById('otherTitle').textContent = item.textContent.trim().replace('em breve','');
@@ -3569,9 +3768,11 @@ document.getElementById('btnNormalizeCasing').addEventListener('click', async ()
   });
   treinos = treinos.map(t=> ({...t, tipo: t.tipo?titleCase(t.tipo):t.tipo, local: t.local?titleCase(t.local):t.local}));
   ['status','pelagem','categoria','proprietarios'].forEach(k=>{ if(aux[k]) aux[k] = [...new Set(aux[k].map(titleCase))]; });
-  await storeSet('horses_list', horses);
-  await storeSet('treinos_list', treinos);
-  await storeSet('aux_lists', aux);
+  await auditComoUmaAcaoSo('Animais', `Padronizou os textos de ${horses.length} animais e ${treinos.length} treinos`, async ()=>{
+    await storeSet('horses_list', horses);
+    await storeSet('treinos_list', treinos);
+    await storeSet('aux_lists', aux);
+  });
   refreshDatalists(); populateAuxSelects(); renderHorses(); renderTreinos();
   showAlert('Textos padronizados em '+horses.length+' animais e '+treinos.length+' treinos.');
 });
@@ -3657,7 +3858,7 @@ function renderHorses(){
     if(th.dataset.sort===sortColumn){ th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${sortDir==='asc'?'▲':'▼'}</span>`); }
   });
   let statsHtml = `<div class="stat"><div class="stat-num">${baseList.length}</div><div class="stat-label">${{ativos:'Total ativos',todos:'Total (todos próprios)',vendidos:'Total vendidos',falecidos:'Total falecidos',externos:'Total externos'}[viewMode]||'Total no plantel'}</div></div>`;
-  if(viewMode==='vendidos'){
+  if(viewMode==='vendidos' && podeVerValoresAnimais()){
     const parseValor = (v)=>{ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : 0; };
     const totalBRL = baseList.filter(h=>(h.valor||'').startsWith('R$')).reduce((s,h)=>s+parseValor(h.valor),0);
     const totalUSD = baseList.filter(h=>(h.valor||'').startsWith('US$')).reduce((s,h)=>s+parseValor(h.valor),0);
@@ -3666,6 +3867,8 @@ function renderHorses(){
       <div class="stat"><div class="stat-num">R$ ${totalBRL.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="stat-label">Total vendido em Reais</div></div>
       <div class="stat"><div class="stat-num">US$ ${totalUSD.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div><div class="stat-label">Total vendido em Dólares</div></div>
       <div class="stat"><div class="stat-num">${semValor}</div><div class="stat-label">Sem valor registrado</div></div>`;
+  } else if(viewMode==='vendidos'){
+    statsHtml += `<div class="stat"><div class="stat-num">${baseList.filter(h=>h.comprador).length}</div><div class="stat-label">Com comprador registrado</div></div>`;
   } else {
     statsHtml += `
       <div class="stat"><div class="stat-num">${baseList.filter(h=>h.sexo==='MASCULINO').length}</div><div class="stat-label">Machos</div></div>
@@ -3687,7 +3890,7 @@ function renderHorses(){
       <td>${h.pai||''}</td><td>${h.mae||''}</td><td>${h.pelagem||''}</td><td>${h.raca||''}</td><td>${h.categoria||''}</td>
       <td><span class="pill st-outro">${h.status||'—'}</span></td>
       <td>${h.proprietario||''}</td>
-      <td>${h.comprador||''}${h.valor?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
+      <td>${h.comprador||''}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click', ()=>openHorseEdit(tr.dataset.id)));
@@ -3716,6 +3919,7 @@ function parseValorNum(v){ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m 
 
 function renderValorSelecaoBar(list){
   const bar = document.getElementById('valorSelecaoBar');
+  if(!podeVerValoresAnimais()){ bar.style.display='none'; renderEditLoteBar(); return; }
   const selected = list.filter(h=>selectedHorseIds.has(h.id));
   const base = selected.length>0 ? selected : list;
   const totalBRL = base.filter(h=>(h.valor||'').startsWith('R$')).reduce((s,h)=>s+parseValorNum(h.valor),0);
@@ -3838,6 +4042,7 @@ function openHorseNew(){
   document.getElementById('btnDeleteHorse').style.display='none';
   document.getElementById('horseForm').reset();
   populateAuxSelects();
+  document.getElementById('f_valorField').style.display = podeVerValoresAnimais() ? '' : 'none';
   ['f_avopat','f_avopatmat','f_avomatpat','f_avomat'].forEach(id=>{ const el=document.getElementById(id); el.readOnly=false; el.style.background='#fff'; });
   atualizarDoadorWrap();
   atualizarDataVendaWrap();
@@ -3855,7 +4060,11 @@ function openHorseEdit(id){
   atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
   // Valor: campo dividido em moeda (R$/US$) + número, pra não depender de digitar o prefixo certinho.
   // O texto salvo continua no mesmo formato de sempre ("R$ 1.000,00" / "US$ 1.000,00"), só a edição ficou guiada.
-  const valorTxt = h.valor||'';
+  // Pra quem não pode ver valores o campo some da tela e nem chega a ser preenchido (o valor gravado é
+  // preservado na hora de salvar — ver o handler do horseForm).
+  const podeValor = podeVerValoresAnimais();
+  document.getElementById('f_valorField').style.display = podeValor ? '' : 'none';
+  const valorTxt = podeValor ? (h.valor||'') : '';
   document.getElementById('f_valorMoeda').value = valorTxt.trim().startsWith('US$') ? 'US$' : 'R$';
   document.getElementById('f_valorNumero').value = valorTxt.replace(/^\s*(R\$|US\$)\s*/,'').trim();
   document.getElementById('f_doador').checked = !!h.doador;
@@ -3979,7 +4188,9 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
-    proprietario:titleCase(f('f_proprietario')),valor: f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '',comprador:titleCase(f('f_comprador')),
+    // Quem não pode ver valores também não pode apagá-los sem querer: pra essas pessoas o campo nem
+    // existe na tela, e o valor que já estava gravado é mantido exatamente como estava.
+    proprietario:titleCase(f('f_proprietario')),valor: podeVerValoresAnimais() ? (f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '') : ((existenteAnimal&&existenteAnimal.valor)||''),comprador:titleCase(f('f_comprador')),
     dataVenda: f('f_situacao')==='V' ? f('f_dataVenda') : '',
     doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs'),
     // Data em que o registro passou a existir aqui — usada só pelo rateio de custos gerais (Financeiro
@@ -4001,26 +4212,17 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   await storeSet('horses_list', horses);
   closeModal('overlayHorse'); refreshDatalists(); renderHorses();
   if(perfilAnimalId===data.id && document.getElementById('view-animalPerfil').classList.contains('active')) renderAnimalPerfil(data.id);
-  // Virou "Vendido" agora (não estava antes) e tem um valor legível? Oferece lançar a entrada no
-  // Financeiro na hora, sem precisar digitar tudo de novo lá — só pergunta, nunca lança sozinho.
+  // Virou "Vendido" agora (não estava antes)? A entrada no Financeiro é automática — lancamentosDerivadosVendas()
+  // lê o cadastro do animal direto, então não tem nada pra criar nem pra confirmar aqui. Só avisa,
+  // porque é uma consequência que não fica óbvia sozinha.
   if(data.situacao==='V' && situacaoAnterior!=='V'){
     const valorVenda = parseValorLivre(data.valor);
+    renderFinanceiro();
     if(valorVenda){
-      // O campo Valor do animal é texto livre, com "R$" ou "US$" na frente. O Financeiro agora entende
-      // as duas moedas de verdade — então o lançamento preserva a mesma moeda do cadastro, sem tentar
-      // converter (a cotação varia e o sistema não sabe qual usar na hora).
       const moedaVenda = /us\$|u\$s|usd|d[oó]lar/i.test(data.valor||'') ? 'USD' : 'BRL';
-      const pergunta = `${data.nome} foi marcado como Vendido, valor ${fmtMoeda(valorVenda, moedaVenda)}. Lançar essa venda como entrada no Financeiro agora?`;
-      if(await showConfirm(pergunta)){
-        lancamentos = [...lancamentos, {
-          id: 'fn_'+Date.now(), data: data.dataVenda || toISODate(new Date()), tipo:'entrada', categoria:'Venda de Animal',
-          descricao: `Venda de ${data.nome}`+(data.comprador?(' — comprador: '+data.comprador):''),
-          valor: valorVenda, moeda: moedaVenda, origemAnimalId: data.id
-        }];
-        await storeSet('financeiro_lancamentos', lancamentos);
-        renderFinanceiro();
-        showAlert('Lançado no Financeiro: entrada de '+fmtMoeda(valorVenda, moedaVenda)+' — Venda de Animal.');
-      }
+      showAlert(`Venda registrada. A entrada de ${fmtMoeda(valorVenda, moedaVenda)} já aparece no Financeiro (categoria "Venda de Animal") — e acompanha o cadastro: se você mudar o valor ou a moeda aqui, o Financeiro muda junto.`);
+    } else {
+      showAlert(`${data.nome} está marcado como Vendido, mas sem Valor preenchido — por isso a venda ainda não aparece no Financeiro. Preencha o Valor no cadastro pra ela entrar como entrada.`);
     }
   }
 });
@@ -10421,6 +10623,32 @@ function lancamentosDerivadosTransporte(){
     };
   });
 }
+// Venda de animal — entrada de dinheiro derivada DIRETO do cadastro do animal (Situação "Vendido" +
+// um Valor preenchido), igual Manejos/Treinos/Transporte já faziam. Antes disso, a venda só virava
+// lançamento no instante em que o animal era marcado como Vendido, e só se a pessoa clicasse "sim"
+// numa pergunta — quem já estava cadastrado como Vendido antes nunca entrou no Financeiro, e mudar o
+// valor (ou a moeda) no cadastro depois não mexia no lançamento já criado, que ficava eternamente
+// desatualizado. Sendo derivado, o Financeiro passa a ser sempre o espelho do cadastro: mudou lá,
+// mudou aqui na hora.
+function vendaLancamentoDoAnimal(h){
+  const valorVenda = parseValorLivre(h.valor);
+  if(!valorVenda) return null;
+  const moeda = /us\$|u\$s|usd|d[oó]lar/i.test(h.valor||'') ? 'USD' : 'BRL';
+  return {
+    id: 'auto_vd_'+h.id, origemId: h.id, origem: 'animais',
+    data: h.dataVenda || h.criadoEm || '', tipo: 'entrada', categoria: 'Venda de Animal', natureza: 'caixa',
+    descricao: `Venda de ${h.nome||'animal sem nome'}`+(h.comprador?(' — comprador: '+h.comprador):'')+(h.dataVenda?'':' · sem data da venda preenchida no cadastro'),
+    valor: valorVenda, moeda, origemAnimalId: h.id
+  };
+}
+function lancamentosDerivadosVendas(){
+  // Um animal que já tem um lançamento manual de venda ligado a ele (criado pela versão antiga, que
+  // perguntava "lançar essa venda agora?") não gera um segundo aqui — senão a mesma venda contaria
+  // duas vezes. Esses manuais antigos são atualizados na hora da exibição, em todosLancamentosFinanceiro.
+  const jaLancadosManualmente = new Set(lancamentos.filter(l=>l.origemAnimalId).map(l=>l.origemAnimalId));
+  return horses.filter(h=>h.situacao==='V' && !jaLancadosManualmente.has(h.id))
+    .map(vendaLancamentoDoAnimal).filter(Boolean);
+}
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
 function fmtMoedaFin(l){
@@ -10450,20 +10678,32 @@ function renderFinanceiroStats(listaCompleta){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte' };
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte', animais:'Animais' };
 // Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados, Visitas
 // Veterinárias e Aplicações/Tratamentos) — usado tanto na lista filtrável quanto no painel fixo do
 // mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
 function todosLancamentosFinanceiro(){
   return [
-    ...lancamentos.map(l=>({...l, origem:'manual'})),
+    ...lancamentos.map(l=>{
+      // Lançamento de venda criado pela versão antiga (ligado a um animal por origemAnimalId): em vez
+      // de mostrar o valor congelado de quando foi criado, mostra sempre o que está no cadastro do
+      // animal HOJE — inclusive a moeda. O registro salvo não é alterado; só a exibição acompanha o
+      // cadastro, que é a fonte da verdade de uma venda.
+      if(l.origemAnimalId){
+        const h = horses.find(x=>x.id===l.origemAnimalId);
+        const atualizado = h && h.situacao==='V' ? vendaLancamentoDoAnimal(h) : null;
+        if(atualizado) return {...atualizado, id:l.id};
+      }
+      return {...l, origem:'manual'};
+    }),
     ...lancamentosDerivadosManejos(),
     ...lancamentosDerivadosEstoque(),
     ...lancamentosDerivadosTreinos(),
     ...lancamentosDerivadosVisitas(),
     ...lancamentosDerivadosTratamentos(),
     ...lancamentosDerivadosDietas(),
-    ...lancamentosDerivadosTransporte()
+    ...lancamentosDerivadosTransporte(),
+    ...lancamentosDerivadosVendas()
   ];
 }
 
@@ -10595,6 +10835,11 @@ function navegarParaOrigemFinanceiro(tipoOrigem, id){
   } else if(tipoOrigem==='transportes'){
     irParaView('transporte');
     setTimeout(()=>openTransporteEdit(id), 30);
+  } else if(tipoOrigem==='animais'){
+    // Venda de animal: o valor mora no cadastro do animal, então "Ver em Animais" abre justamente a
+    // tela onde ele é editável (mudar ali muda o lançamento aqui na mesma hora).
+    irParaView('animais');
+    setTimeout(()=>openHorseEdit(id), 30);
   }
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
@@ -11189,6 +11434,11 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
   const origemFuncionarioId = editingLancamentoId
     ? (lancamentos.find(l=>l.id===editingLancamentoId)||{}).origemFuncionarioId
     : (novoLancamentoFuncionarioId || undefined);
+  // Mesmo caso pro vínculo com um animal vendido (lançamentos antigos de venda) — sem isso, editar o
+  // lançamento quebraria o elo com o animal e a venda passaria a contar duas vezes.
+  const origemAnimalId = editingLancamentoId
+    ? (lancamentos.find(l=>l.id===editingLancamentoId)||{}).origemAnimalId
+    : undefined;
   let categoria = f('fin_categoria');
   const moeda = f('fin_moeda')==='USD' ? 'USD' : 'BRL';
   // Animal(is) — opcional. Quando marcado, esse lançamento entra no custo direto de cada animal
@@ -11213,6 +11463,7 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
     data, tipo: f('fin_tipo'), categoria, descricao: f('fin_descricao').trim(), valor,
     moeda,
     origemFuncionarioId,
+    ...(origemAnimalId ? {origemAnimalId} : {}),
     ...(rateio ? {rateio} : {})
   };
   lancamentos = editingLancamentoId ? lancamentos.map(l=>l.id===editingLancamentoId?registro:l) : [...lancamentos, registro];
@@ -11358,9 +11609,19 @@ function permissaoDe(user, modulo){
 function temPermissao(modulo, acao){
   return permissaoDe(currentUser, modulo)[acao]===true;
 }
+// Valor de compra/venda dos animais é informação sensível — nem todo mundo que precisa mexer no
+// cadastro (tratador, ferrador, veterinário) deve enxergar quanto cada cavalo custa ou custou. Quem
+// não for Administrador não vê valor nenhum na aba Animais: nem na coluna da lista, nem nos totais
+// por moeda, nem na soma da seleção, nem na Ficha do Animal, e o campo some do formulário de cadastro
+// (some mesmo, não fica só desabilitado — e ao salvar, o valor que já estava lá é preservado).
+function podeVerValoresAnimais(){
+  return !!(currentUser && currentUser.admin);
+}
+// Auditoria fica de fora da grade de permissões de propósito: é a tela que fiscaliza todas as outras,
+// então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
   if(!user) return [];
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'auditoria'];
   return ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
 }
 // Pra Manejos, além de liberar a tela, dá pra restringir A QUAIS TIPOS o usuário tem acesso — o caso
@@ -11473,6 +11734,65 @@ function entrarNoApp(){
 }
 document.getElementById('btnLogout').addEventListener('click', ()=>{
   if(HAS_FIRESTORE) firebase.auth().signOut();
+});
+
+/* ---- Auditoria (só Administrador) ---- */
+const AUDIT_ACAO_LABEL = { inclusao:'Incluiu', edicao:'Alterou', exclusao:'Excluiu' };
+const AUDIT_ACAO_PILL  = { inclusao:'st-ativo', edicao:'st-warn', exclusao:'st-descarte' };
+const audFiltroPeriodo = createDateRangePicker(document.getElementById('audFiltroPeriodo'), {onChange: ()=>renderAuditoria()});
+function fmtDataHora(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return '—';
+  return fmtDate(toISODate(d))+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function descreverMudancas(e){
+  if(e.acao!=='edicao' || !e.mudancas || e.mudancas.length===0) return '<span style="color:var(--muted);">—</span>';
+  return e.mudancas.map(m=>`<div style="font-size:11.5px;"><strong>${auditNomeCampo(m.campo)}</strong>: <span style="color:var(--muted);">${m.de}</span> → ${m.para}</div>`).join('');
+}
+function renderAuditoria(){
+  populateSelectFilter('audFiltroUsuario', auditoria.map(e=>e.usuario));
+  populateSelectFilter('audFiltroModulo', auditoria.map(e=>e.modulo));
+  const termo = (document.getElementById('audSearch').value||'').toLowerCase();
+  const usuario = document.getElementById('audFiltroUsuario').value;
+  const modulo = document.getElementById('audFiltroModulo').value;
+  const acao = document.getElementById('audFiltroAcao').value;
+  const { de, ate } = audFiltroPeriodo.getRange();
+  const filtrada = auditoria.filter(e=>{
+    const dia = (e.quando||'').slice(0,10);
+    const textoBusca = [e.registro, e.usuario, e.modulo, ...(e.mudancas||[]).map(m=>m.campo+' '+auditNomeCampo(m.campo)+' '+m.de+' '+m.para)].join(' ').toLowerCase();
+    return (!termo || textoBusca.includes(termo))
+      && (!usuario || e.usuario===usuario)
+      && (!modulo || e.modulo===modulo)
+      && (!acao || e.acao===acao)
+      && (!de || dia>=de) && (!ate || dia<=ate);
+  }).sort((a,b)=> (b.quando||'').localeCompare(a.quando||''));
+  const conta = t => filtrada.filter(e=>e.acao===t).length;
+  document.getElementById('audStats').innerHTML = `
+    <div class="stat"><div class="stat-num">${filtrada.length}</div><div class="stat-label">Ações listadas</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--ok);">${conta('inclusao')}</div><div class="stat-label">Inclusões</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--brass);">${conta('edicao')}</div><div class="stat-label">Alterações</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${conta('exclusao')}</div><div class="stat-label">Exclusões</div></div>`;
+  const tbody = document.getElementById('audTbody');
+  if(filtrada.length===0){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">${auditoria.length===0?'Nada registrado ainda — a partir de agora, toda inclusão, alteração e exclusão aparece aqui.':'Nenhuma ação encontrada com esses filtros.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtrada.map(e=>`<tr>
+    <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12px;">${fmtDataHora(e.quando)}</td>
+    <td>${e.usuario||'—'}</td>
+    <td><span class="pill ${AUDIT_ACAO_PILL[e.acao]||'st-outro'}">${AUDIT_ACAO_LABEL[e.acao]||e.acao}</span></td>
+    <td>${e.modulo||''}</td>
+    <td>${e.registro||''}</td>
+    <td>${descreverMudancas(e)}</td>
+  </tr>`).join('');
+}
+['audSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderAuditoria));
+['audFiltroUsuario','audFiltroModulo','audFiltroAcao'].forEach(id=>document.getElementById(id).addEventListener('change', renderAuditoria));
+document.getElementById('btnAudPDF').addEventListener('click', ()=>{
+  const html = `<h2 style="font-family:'Fraunces',serif;">Auditoria — ${document.getElementById('audStats').textContent.trim().split(/\s{2,}/)[0]||''} ações</h2>`
+    + document.querySelector('#view-auditoria .grid-wrap').innerHTML;
+  baixarRelatorioManejoPDF(html, 'auditoria');
 });
 
 /* ---- Usuários (CRUD, só visível pra Admin) ---- */
@@ -11792,8 +12112,8 @@ function renderAnimalPerfil(id){
           <div class="perfil-field"><label>Proprietário</label><div class="val">${h.proprietario||'—'}</div></div>
           ${h.situacao==='V'?`<div class="perfil-field"><label>Comprador</label><div class="val">${h.comprador||'—'}</div></div>
           <div class="perfil-field"><label>Data da venda</label><div class="val">${h.dataVenda?fmtDate(h.dataVenda):'—'}</div></div>
-          <div class="perfil-field"><label>Valor da venda</label><div class="val">${h.valor||'—'}</div></div>`:
-          (h.valor?`<div class="perfil-field"><label>Valor</label><div class="val">${h.valor}</div></div>`:'')}
+          ${podeVerValoresAnimais()?`<div class="perfil-field"><label>Valor da venda</label><div class="val">${h.valor||'—'}</div></div>`:''}`:
+          ((h.valor && podeVerValoresAnimais())?`<div class="perfil-field"><label>Valor</label><div class="val">${h.valor}</div></div>`:'')}
         </div>
 
         ${h.obs?`<div class="perfil-subsection">Observações</div><div class="perfil-fields full"><div class="perfil-field"><div class="val">${h.obs}</div></div></div>`:''}
@@ -11877,8 +12197,8 @@ function renderAnimalPerfil(id){
     <div class="perfil-card">
       <div class="perfil-card-head">💰 Estado do Animal</div>
       <div class="perfil-card-body">
-        <div class="perfil-field"><label>Valor cadastrado</label><div class="val">${h.valor||'—'}</div></div>
-        <div class="perfil-field" style="margin-top:10px;"><label>Doador</label><div class="val">${h.doador?'Sim':'Não'}</div></div>
+        ${podeVerValoresAnimais()?`<div class="perfil-field"><label>Valor cadastrado</label><div class="val">${h.valor||'—'}</div></div>`:''}
+        <div class="perfil-field" style="${podeVerValoresAnimais()?'margin-top:10px;':''}"><label>Doador</label><div class="val">${h.doador?'Sim':'Não'}</div></div>
       </div>
     </div>
     ${temPermissao('financeiro','ver') ? blocoCustoAnimalFicha(h) : ''}
@@ -12531,7 +12851,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
   atualizarBackupPastaStatus();
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, auditoria, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -12612,12 +12932,14 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       });
     }
     if(backup.config && typeof backup.config.gestacaoDias==='number'){ config.gestacaoDias = backup.config.gestacaoDias; }
-    await storeSet('horses_list', horses); await storeSet('manejos_list', manejos);
-    await storeSet('treinos_list', treinos); await storeSet('nascimentos_list', nascimentos); await storeSet('aux_lists', aux);
-    await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
-    await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
-    await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
-    await storeSet('transportes_list', transportes);
+    await auditComoUmaAcaoSo('Backup', `Importou um backup (${newHorses.length} animais adicionados)`, async ()=>{
+      await storeSet('horses_list', horses); await storeSet('manejos_list', manejos);
+      await storeSet('treinos_list', treinos); await storeSet('nascimentos_list', nascimentos); await storeSet('aux_lists', aux);
+      await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
+      await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
+      await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
+      await storeSet('transportes_list', transportes);
+    });
     refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
   }catch(err){ showAlert('Não foi possível ler esse arquivo de backup.'); }
