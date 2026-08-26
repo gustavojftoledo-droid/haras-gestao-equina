@@ -4220,7 +4220,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     const valorVenda = parseValorLivre(data.valor);
     if(valorVenda){
       const moedaVenda = /us\$|u\$s|usd|d[oó]lar/i.test(data.valor||'') ? 'USD' : 'BRL';
-      showAlert(`Venda registrada. A entrada de ${fmtMoeda(valorVenda, moedaVenda)} já aparece no Financeiro (categoria "Venda de Animal") — e acompanha o cadastro: se você mudar o valor ou a moeda aqui, o Financeiro muda junto.`);
+      showAlert(`Venda registrada. A entrada de ${fmtMoeda(valorVenda, moedaVenda)} já aparece no Financeiro (categoria "Venda de Animal") e acompanha este cadastro — mudou o valor, a moeda ou a Data da Venda aqui, o Financeiro muda junto. Não lance essa mesma venda manualmente lá também, pra não ficar um lançamento parado sem acompanhar mudanças futuras.`);
     } else {
       showAlert(`${data.nome} está marcado como Vendido, mas sem Valor preenchido — por isso a venda ainda não aparece no Financeiro. Preencha o Valor no cadastro pra ela entrar como entrada.`);
     }
@@ -10716,18 +10716,16 @@ const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque'
 // mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
 function todosLancamentosFinanceiro(){
   return [
-    ...lancamentos.map(l=>{
-      // Lançamento de venda criado pela versão antiga (ligado a um animal por origemAnimalId): em vez
-      // de mostrar o valor congelado de quando foi criado, mostra sempre o que está no cadastro do
-      // animal HOJE — inclusive a moeda. O registro salvo não é alterado; só a exibição acompanha o
-      // cadastro, que é a fonte da verdade de uma venda.
-      if(l.origemAnimalId){
-        const h = horses.find(x=>x.id===l.origemAnimalId);
-        const atualizado = h && h.situacao==='V' ? vendaLancamentoDoAnimal(h) : null;
-        if(atualizado) return {...atualizado, id:l.id};
-      }
-      return {...l, origem:'manual'};
-    }),
+    // Todo lançamento em `lancamentos` (inclusive um antigo com origemAnimalId, criado por uma tela que
+    // já não existe mais) é editável de verdade pelo próprio Editar/Excluir da lista — o que está
+    // gravado AQUI é sempre o que aparece, nunca é recalculado nem sobrescrito por outra tela. Uma
+    // versão anterior fazia o lançamento ligado a um animal (origemAnimalId) sempre "puxar" data/valor
+    // do cadastro do animal na hora de exibir — na prática isso descartava silenciosamente qualquer
+    // edição feita direto no lançamento (editava a data, salvava, e no próximo redesenho voltava pro
+    // que estivesse no cadastro do animal, que podia estar vazio ou desatualizado). origemAnimalId
+    // continua existindo só pra uma coisa: em lancamentosDerivadosVendas() abaixo, evitar criar um
+    // SEGUNDO lançamento automático pra uma venda que já tem este aqui.
+    ...lancamentos.map(l=>({...l, origem:'manual'})),
     ...lancamentosDerivadosManejos(),
     ...lancamentosDerivadosEstoque(),
     ...lancamentosDerivadosTreinos(),
