@@ -2257,6 +2257,13 @@ let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProd
 let novoLancamentoFuncionarioId = null;
 let config = { gestacaoDias: 340, valoresCasco: { 'Casqueado mãos': 40, 'Casqueado completo': 80, 'Casqueado pés': 40, 'Ferrado mãos': 140, 'Ferrado completo': 200, 'Ferrado pés': 140 }, deslocamentoFerrador: 0, freqVacinas: {} }; // tempo médio de gestação da égua (~11 meses); ajustável em Nascimentos → "Tempo de gestação". valoresCasco/deslocamentoFerrador: valores de referência do ferrageamento, ajustáveis em Manejos → "⚙ Editar valores de referência"
 let aux = { status:[], pelagem:[], categoria:[], proprietarios:[], unidade:[], tipotreino:[], localtreino:[], treinador:[], tipoProduto:[], nomeProduto:[] };
+// Exames anexados (arquivo em base64) moraram DENTRO de cada animal em horses_list por um tempo — mas
+// horses_list é UM documento só, compartilhado por TODOS os animais, e o Firestore tem um teto de 1 MB
+// por documento. Um único exame de poucos MB já estourava esse teto, e a partir daí NENHUM animal
+// conseguia mais salvar nada (nem os que nunca tiveram exame nenhum) — o "Aviso: não consegui salvar
+// agora" que aparecia era exatamente isso. Agora cada animal tem seus exames guardados à parte, num
+// documento próprio (exames_animais), pra um anexo grande nunca mais travar o cadastro de ninguém.
+let examesPorAnimal = {};
 let dietaItensState = [];
 let dietaDiasSemanaState = [true,true,true,true,true,true,true]; // índice 0=Domingo...6=Sábado (igual Date.getDay())
 const DIAS_SEMANA_LABEL = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -2411,8 +2418,10 @@ function fundirUniaoDeLista(val, doBanco){
 // categoriasForaRateio...; aux_lists: cada categoria é sua própria listinha) — funde por CHAVE, do
 // mesmo jeito que a lista de entidades funde por id: só sobrescreve a chave que esta aba realmente
 // mudou (comparando com o que ela sabia antes), preservando as chaves que outra sessão mudou.
-const OBJETO_POR_CHAVE_KEYS = new Set(['config','aux_lists']);
-let configSnapshot = null, auxSnapshot = null; // clone da última leitura/gravação bem-sucedida desta aba
+// exames_animais entra no mesmo grupo — cada chave de topo é um animalId, então o mesmo "funde só a
+// chave que mudou" vale (um exame novo no Animal X nunca ameaça o que o Animal Y tinha).
+const OBJETO_POR_CHAVE_KEYS = new Set(['config','aux_lists','exames_animais']);
+let configSnapshot = null, auxSnapshot = null, examesSnapshot = null; // clone da última leitura/gravação bem-sucedida desta aba
 function fundirObjetoPorChave(minhaBaseAnteriorObj, val, doBanco){
   const atual = (doBanco && typeof doBanco==='object' && !Array.isArray(doBanco)) ? {...doBanco} : {};
   const base = minhaBaseAnteriorObj || {};
@@ -2442,6 +2451,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'usuarios_list': usuarios = val; break;
     case 'config': config = val; break;
     case 'aux_lists': aux = val; break;
+    case 'exames_animais': examesPorAnimal = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -2605,11 +2615,13 @@ async function storeSet(key,val,userDeleted){
     val = fundirUniaoDeLista(val, doBanco);
     atualizarGlobalPosFusao(key, val);
   } else if(OBJETO_POR_CHAVE_KEYS.has(key)){
-    const minhaBaseAnterior = key==='config' ? configSnapshot : auxSnapshot;
+    const minhaBaseAnterior = key==='config' ? configSnapshot : key==='aux_lists' ? auxSnapshot : examesSnapshot;
     const releitura = await storeGet(key);
     const doBanco = releitura.ok ? releitura.value : val;
     val = fundirObjetoPorChave(minhaBaseAnterior, val, doBanco);
-    if(key==='config') configSnapshot = JSON.parse(JSON.stringify(val)); else auxSnapshot = JSON.parse(JSON.stringify(val));
+    if(key==='config') configSnapshot = JSON.parse(JSON.stringify(val));
+    else if(key==='aux_lists') auxSnapshot = JSON.parse(JSON.stringify(val));
+    else examesSnapshot = JSON.parse(JSON.stringify(val));
     atualizarGlobalPosFusao(key, val);
   }
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
@@ -2620,7 +2632,15 @@ async function storeSet(key,val,userDeleted){
       }
       await db.collection(FIRESTORE_COLLECTION).doc(key).set({ value: val, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
       return true;
-    }catch(e){ console.error('Firestore set failed for', key, e); showAlert('Aviso: não consegui salvar agora. Verifique sua conexão e tente de novo.'); return false; }
+    }catch(e){
+      console.error('Firestore set failed for', key, e);
+      // Mostra o motivo real (não só "verifique sua conexão") — se for de novo um documento grande
+      // demais (código 'resource-exhausted' ou mensagem citando tamanho), fica claro na hora, em vez
+      // de parecer um problema de internet. Ajuda a diagnosticar sem precisar abrir o console.
+      const motivo = e && e.code ? ` (${e.code}${e.message?': '+e.message:''})` : '';
+      showAlert('Aviso: não consegui salvar agora'+motivo+'. Verifique sua conexão e tente de novo — se continuar acontecendo, me avise com essa mensagem.');
+      return false;
+    }
   }
   if(!HAS_CLOUD_STORAGE){
     try{
@@ -2666,9 +2686,12 @@ async function loadAll(){
   const rFin = await storeGet('financeiro_lancamentos');
   const rFU = await storeGet('funcionarios_list');
   const rAD = await storeGet('auditoria_log');
+  const rEx = await storeGet('exames_animais');
   auditoria = Array.isArray(rAD.value) ? rAD.value : [];
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
   usuarios = rU.value;
+  examesPorAnimal = (rEx.value && typeof rEx.value==='object' && !Array.isArray(rEx.value)) ? rEx.value : {};
+  examesSnapshot = JSON.parse(JSON.stringify(examesPorAnimal));
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
   estoqueProdutos = rEP.value; estoqueMovimentos = rEM.value; dietas = rDT.value; grupos = rG.value;
   tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[]; transportes = rTP.value||[];
@@ -2680,6 +2703,25 @@ async function loadAll(){
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
   })[k]));
+  // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
+  // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
+  // de QUALQUER animal, não só do que tinha o exame. Se algum animal ainda tiver .exames embutido
+  // (versão antiga), move pra examesPorAnimal e tira do cadastro do animal, de uma vez só. Roda DEPOIS
+  // da "foto" acima, pra o diff da Auditoria enxergar certinho só os animais que realmente mudaram.
+  {
+    let migrouExame = false;
+    horses = horses.map(h=>{
+      if(!h.exames || h.exames.length===0) return h;
+      migrouExame = true;
+      examesPorAnimal[h.id] = [...(examesPorAnimal[h.id]||[]), ...h.exames];
+      const { exames, ...semExames } = h;
+      return semExames;
+    });
+    if(migrouExame){
+      await storeSet('horses_list', horses);
+      await storeSet('exames_animais', examesPorAnimal);
+    }
+  }
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
   // "Foto" da config recém-carregada — usada pela fusão automática do storeSet (ver bloco "FUSÃO
   // AUTOMÁTICA..." acima) pra saber quais chaves de config esta aba de fato mudou depois daqui.
@@ -5097,7 +5139,7 @@ function renderInicioPilares(){
   if(acessos.includes('veterinaria')){
     const emCurso = tratamentos.filter(t=> statusTratamento(t)!=='concluido').length;
     const seteDiasAtras = toISODate(new Date(Date.now()-7*86400000));
-    let examesNovos = 0; horses.forEach(h=> (h.exames||[]).forEach(e=>{ if((e.dataUpload||'')>=seteDiasAtras) examesNovos++; }));
+    let examesNovos = 0; Object.values(examesPorAnimal).forEach(lista=> (lista||[]).forEach(e=>{ if((e.dataUpload||'')>=seteDiasAtras) examesNovos++; }));
     const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S').length;
     const ultimaVisita = visitas.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||''))[0];
     pilares.push({ view:'veterinaria', icone:'coracao', rotulo:'Saúde', numero:emCurso, legenda:'tratamento(s) em curso',
@@ -12371,7 +12413,7 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body" style="padding:4px 0;">
         <div class="stat-list-row ${competicoesDoAnimal.length?'clicavel':''}" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
         <div class="stat-list-row clicavel" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
-        <div class="stat-list-row clicavel" data-statclick="exames"><span>Exames</span><strong>${(h.exames||[]).length}</strong></div>
+        <div class="stat-list-row clicavel" data-statclick="exames"><span>Exames</span><strong>${(examesPorAnimal[h.id]||[]).length}</strong></div>
         <div class="stat-list-row ${irmaosMaternos.length?'clicavel':''}" data-statclick="irmaosMaternos"><span>Irmãos maternos</span><strong>${irmaosMaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosPaternos.length?'clicavel':''}" data-statclick="irmaosPaternos"><span>Irmãos paternos</span><strong>${irmaosPaternos.length}</strong></div>
         <div class="stat-list-row ${irmaosProprios.length?'clicavel':''}" data-statclick="irmaosProprios"><span>Irmãos próprios <span style="color:var(--muted);font-weight:400;">(pai e mãe)</span></span><strong>${irmaosProprios.length}</strong></div>
@@ -12397,7 +12439,7 @@ function renderAnimalPerfil(id){
     <div class="perfil-card" id="perfilExamesCard">
       <div class="perfil-card-head">📎 Exames</div>
       <div class="perfil-card-body">
-        <div id="perfilExamesLista">${(h.exames||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (h.exames||[]).map((e,i)=>`
+        <div id="perfilExamesLista">${(examesPorAnimal[h.id]||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (examesPorAnimal[h.id]||[]).map((e,i)=>`
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
             <a href="${e.dataUrl}" target="_blank" rel="noopener" download="${e.nome}" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">📄 ${e.nome}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
@@ -12406,7 +12448,7 @@ function renderAnimalPerfil(id){
           <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
           <button type="button" class="btn btn-sm" id="btnAddExamePerfil">+ Anexar</button>
         </div>
-        <div class="hint-text" style="margin-top:6px;">Arquivo fica salvo dentro do sistema, vinculado só a esse animal. Pra não pesar o navegador, anexe arquivos de até 3 MB (comprima o PDF/foto se precisar).</div>
+        <div class="hint-text" style="margin-top:6px;">Arquivo fica salvo num cadastro próprio de exames, separado do resto do cadastro do animal — anexe até 1 MB por arquivo (comprima o PDF/foto se precisar).</div>
       </div>
     </div>
 
@@ -12462,14 +12504,20 @@ function renderAnimalPerfil(id){
     const inp = document.getElementById('perfilNovoExame');
     const file = inp.files[0];
     if(!file){ showAlert('Escolha um arquivo primeiro.'); return; }
-    const LIMITE_EXAME = 3*1024*1024; // 3 MB — acima disso arrisca estourar o armazenamento do navegador (localStorage costuma ter só 5-10 MB no total, pra tudo)
-    if(file.size > LIMITE_EXAME){ showAlert('Arquivo muito grande ('+(file.size/1024/1024).toFixed(1)+' MB). Pra não sobrecarregar o armazenamento do navegador, anexe arquivos de até 3 MB — comprima o PDF/foto se precisar.'); return; }
+    // Todos os exames de TODOS os animais moram juntos num documento só (exames_animais, separado do
+    // cadastro do animal — ver comentário na declaração de examesPorAnimal), e esse documento tem um
+    // teto de 1 MB. O limite por arquivo é bem mais apertado que os 3 MB de antes (que fazia sentido só
+    // quando isso ficava dentro do cadastro de CADA animal) — precisa caber junto com os exames de
+    // todo mundo no mesmo espaço.
+    const LIMITE_EXAME = 400*1024; // 400 KB por arquivo (vira uns 550 KB depois de convertido)
+    if(file.size > LIMITE_EXAME){ showAlert('Arquivo muito grande ('+(file.size/1024/1024).toFixed(2)+' MB). Pra caber junto com os exames dos outros animais no mesmo espaço, anexe arquivos de até 400 KB — comprima o PDF/foto se precisar.'); return; }
+    if(JSON.stringify(examesPorAnimal).length > 850*1024){ showAlert('O espaço de exames está quase cheio (é compartilhado entre todos os animais). Antes de anexar mais, remova algum exame antigo que não precise mais.'); return; }
     const reader = new FileReader();
     reader.onload = async ()=>{
-      if(!h.exames) h.exames = [];
-      h.exames.push({ id:'ex_'+Date.now(), nome:file.name, tipo:file.type||'', tamanho:file.size, dataUpload: toISODate(new Date()), dataUrl: reader.result });
-      const ok = await storeSet('horses_list', horses);
-      if(!ok){ h.exames.pop(); return; } // storeSet já mostra o aviso (ex: cota do navegador estourada) — desfaz se não salvou
+      const novoExame = { id:'ex_'+Date.now(), nome:file.name, tipo:file.type||'', tamanho:file.size, dataUpload: toISODate(new Date()), dataUrl: reader.result };
+      examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), novoExame] };
+      const ok = await storeSet('exames_animais', examesPorAnimal);
+      if(!ok) return; // storeSet já mostra o aviso
       inp.value = '';
       renderAnimalPerfil(h.id);
     };
@@ -12479,8 +12527,9 @@ function renderAnimalPerfil(id){
   document.querySelectorAll('[data-delexame]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Remover esse exame? Não pode ser desfeito.'))) return;
-      h.exames.splice(Number(btn.dataset.delexame),1);
-      await storeSet('horses_list', horses);
+      const listaSemEsse = (examesPorAnimal[h.id]||[]).filter((_,i)=> i!==Number(btn.dataset.delexame));
+      examesPorAnimal = { ...examesPorAnimal, [h.id]: listaSemEsse };
+      await storeSet('exames_animais', examesPorAnimal);
       renderAnimalPerfil(h.id);
     });
   });
