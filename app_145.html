@@ -4210,14 +4210,14 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   ensureExternalAnimal(data.avopat,'MASCULINO'); ensureExternalAnimal(data.avopatmat,'FEMININO');
   ensureExternalAnimal(data.avomatpat,'MASCULINO'); ensureExternalAnimal(data.avomat,'FEMININO');
   await storeSet('horses_list', horses);
-  closeModal('overlayHorse'); refreshDatalists(); renderHorses();
+  closeModal('overlayHorse'); refreshDatalists();
+  atualizarTelasQueDependemDeAnimais();
   if(perfilAnimalId===data.id && document.getElementById('view-animalPerfil').classList.contains('active')) renderAnimalPerfil(data.id);
   // Virou "Vendido" agora (não estava antes)? A entrada no Financeiro é automática — lancamentosDerivadosVendas()
   // lê o cadastro do animal direto, então não tem nada pra criar nem pra confirmar aqui. Só avisa,
   // porque é uma consequência que não fica óbvia sozinha.
   if(data.situacao==='V' && situacaoAnterior!=='V'){
     const valorVenda = parseValorLivre(data.valor);
-    renderFinanceiro();
     if(valorVenda){
       const moedaVenda = /us\$|u\$s|usd|d[oó]lar/i.test(data.valor||'') ? 'USD' : 'BRL';
       showAlert(`Venda registrada. A entrada de ${fmtMoeda(valorVenda, moedaVenda)} já aparece no Financeiro (categoria "Venda de Animal") — e acompanha o cadastro: se você mudar o valor ou a moeda aqui, o Financeiro muda junto.`);
@@ -4230,10 +4230,23 @@ document.getElementById('btnDeleteHorse').addEventListener('click', async ()=>{
   if(!editingHorseId || !(await showConfirm('Excluir este animal do cadastro?'))) return;
   horses = horses.filter(h=>h.id!==editingHorseId);
   await storeSet('horses_list', horses, true);
-  closeModal('overlayHorse'); refreshDatalists(); renderHorses();
+  closeModal('overlayHorse'); refreshDatalists();
+  atualizarTelasQueDependemDeAnimais();
   if(perfilAnimalId===editingHorseId) document.getElementById('btnVoltarPerfil').click();
 });
 function f(id){ return document.getElementById(id).value; }
+// Mexer no cadastro de um animal não muda só a lista de Animais: a venda dele é uma entrada no
+// Financeiro, as frequências dele viram tarefas no Calendário e no Início, e a localização entra na
+// contagem por local. Antes, salvar um animal só redesenhava a lista — quem estivesse com o
+// Financeiro aberto continuava vendo o valor e a data ANTIGOS da venda, e parecia que a alteração não
+// tinha pegado (o dado estava certo, a tela é que era velha). Todo ponto que altera ou apaga animal
+// chama isto, pra não depender de alguém lembrar de atualizar cada tela uma por uma.
+function atualizarTelasQueDependemDeAnimais(){
+  renderHorses();
+  renderFinanceiro();
+  renderInicio();
+  if(document.getElementById('view-calendario').classList.contains('active')) renderCalendar();
+}
 
 /* ================= MANEJOS ================= */
 const manejoSelecionados = new Set();
@@ -10635,19 +10648,38 @@ function vendaLancamentoDoAnimal(h){
   if(!valorVenda) return null;
   const moeda = /us\$|u\$s|usd|d[oó]lar/i.test(h.valor||'') ? 'USD' : 'BRL';
   return {
+    // Sem Data da Venda no cadastro, o lançamento fica SEM data (nunca inventa uma — usar a data em
+    // que o animal foi cadastrado, por exemplo, mostraria uma data de venda que não é real).
     id: 'auto_vd_'+h.id, origemId: h.id, origem: 'animais',
-    data: h.dataVenda || h.criadoEm || '', tipo: 'entrada', categoria: 'Venda de Animal', natureza: 'caixa',
+    data: h.dataVenda || '', tipo: 'entrada', categoria: 'Venda de Animal', natureza: 'caixa',
     descricao: `Venda de ${h.nome||'animal sem nome'}`+(h.comprador?(' — comprador: '+h.comprador):'')+(h.dataVenda?'':' · sem data da venda preenchida no cadastro'),
     valor: valorVenda, moeda, origemAnimalId: h.id
   };
 }
+// Nome usado só pra RECONHECER se uma venda já foi lançada (não é exibido) — minúsculo e sem espaço
+// duplicado, pra "Estrela" e " estrela " contarem como o mesmo animal.
+function normNomeVenda(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function lancamentosDerivadosVendas(){
-  // Um animal que já tem um lançamento manual de venda ligado a ele (criado pela versão antiga, que
-  // perguntava "lançar essa venda agora?") não gera um segundo aqui — senão a mesma venda contaria
-  // duas vezes. Esses manuais antigos são atualizados na hora da exibição, em todosLancamentosFinanceiro.
-  const jaLancadosManualmente = new Set(lancamentos.filter(l=>l.origemAnimalId).map(l=>l.origemAnimalId));
-  return horses.filter(h=>h.situacao==='V' && !jaLancadosManualmente.has(h.id))
-    .map(vendaLancamentoDoAnimal).filter(Boolean);
+  // Nem toda venda lançada tem o vínculo `origemAnimalId` — só os poucos criados pela tela antiga que
+  // perguntava "lançar essa venda agora?" tinham isso. A prática de sempre foi digitar a venda direto
+  // no Financeiro à mão (categoria "Venda de Animal", descrição livre) — SEM nenhum vínculo com o
+  // animal. Contar só pelo `origemAnimalId` deixava passar essas e gerava um SEGUNDO lançamento pro
+  // mesmo dinheiro (achado direto num caso real: R$ 33.000 de 3 vendas contados em dobro).
+  // Por isso, além do vínculo, qualquer lançamento manual de categoria "Venda de Animal" cujo
+  // rateio aponte pro animal, OU cuja descrição comece com "Venda de <nome do animal>" (o padrão que
+  // esse texto sempre seguiu, gerado por este mesmo sistema ou digitado à mão do mesmo jeito) também
+  // conta como "essa venda já está lançada" — não é preciso ter usado a tela de venda pra isso valer.
+  const porId = new Set(lancamentos.filter(l=>l.origemAnimalId).map(l=>l.origemAnimalId));
+  const porRateio = new Set();
+  const porNome = new Set();
+  lancamentos.filter(l=>l.categoria==='Venda de Animal').forEach(l=>{
+    (l.rateio||[]).forEach(r=>porRateio.add(r.animalId));
+    const m = (l.descricao||'').match(/^venda de\s+(.+?)(?:\s+—|$)/i);
+    if(m) porNome.add(normNomeVenda(m[1]));
+  });
+  return horses.filter(h=> h.situacao==='V'
+      && !porId.has(h.id) && !porRateio.has(h.id) && !porNome.has(normNomeVenda(h.nome))
+    ).map(vendaLancamentoDoAnimal).filter(Boolean);
 }
 // Formata um lançamento com o símbolo certo (R$ ou US$) — usado em toda exibição do Financeiro, pra
 // nunca mostrar um valor em dólar como se fosse Reais (ou o contrário).
@@ -10779,7 +10811,10 @@ function renderFinanceiro(){
     (!termo || (l.descricao||'').toLowerCase().includes(termo)) &&
     (!tipo || l.tipo===tipo) &&
     (!categoria || l.categoria===categoria) &&
-    (!de || l.data>=de) && (!ate || l.data<=ate)
+    // Um lançamento sem data (venda sem "Data da Venda" no cadastro, por exemplo) nunca é excluído
+    // por um filtro de período — senão o dinheiro dele sumiria da tela sem nenhum aviso só por faltar
+    // preencher uma data. Fica sempre visível até a data ser preenchida.
+    (!de || !l.data || l.data>=de) && (!ate || !l.data || l.data<=ate)
   ).sort((a,b)=> b.data.localeCompare(a.data));
   renderFinanceiroStats(filtered);
   const tbody = document.getElementById('finTbody');
