@@ -4202,7 +4202,16 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   // Guarda o estado anterior do animal (antes de sobrescrever) — é assim que a gente sabe se a
   // venda é NOVA (virou "Vendido" agora) e não só uma edição de um animal que já estava vendido.
   const situacaoAnterior = editingHorseId ? (horses.find(h=>h.id===editingHorseId)||{}).situacao : null;
-  horses = editingHorseId ? horses.map(h=>h.id===editingHorseId?data:h) : [...horses, data];
+  // Relê a versão mais recente do banco AGORA, antes de gravar — pode ter mudado em outro aparelho ou
+  // aba enquanto este formulário estava aberto (o app sincroniza entre dispositivos). Cada gravação
+  // regrava a lista de animais INTEIRA, não campo a campo — então montar o array novo em cima do que
+  // esta aba tinha em memória (potencialmente velho) apagaria qualquer edição feita em QUALQUER OUTRO
+  // animal nesse meio-tempo, incluindo a de outra pessoa. Essa é a causa raiz real de uma edição
+  // "sumir" depois de um tempo: não é o campo que falha, é outra sessão sobrescrevendo a lista inteira
+  // de volta pra uma cópia antiga. Só usa o que está em memória como último recurso, se a releitura falhar.
+  const releitura = await storeGet('horses_list');
+  const baseAtual = (releitura.ok && Array.isArray(releitura.value) && releitura.value.length>0) ? releitura.value : horses;
+  horses = editingHorseId ? baseAtual.map(h=>h.id===editingHorseId?data:h) : [...baseAtual, data];
   // Genealogia: pai/mãe que ainda não existem entram como externos, já linkados aos avós informados aqui.
   // Os avós também entram como externos (sem pais conhecidos, por enquanto).
   ensureExternalAnimal(data.pai,'MASCULINO',{pai:data.avopat, mae:data.avopatmat});
@@ -4228,7 +4237,11 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
 });
 document.getElementById('btnDeleteHorse').addEventListener('click', async ()=>{
   if(!editingHorseId || !(await showConfirm('Excluir este animal do cadastro?'))) return;
-  horses = horses.filter(h=>h.id!==editingHorseId);
+  // Mesmo cuidado do salvamento normal: relê antes de gravar, pra não apagar edição feita em outro
+  // animal por outra sessão nesse meio-tempo.
+  const releitura = await storeGet('horses_list');
+  const baseAtual = (releitura.ok && Array.isArray(releitura.value) && releitura.value.length>0) ? releitura.value : horses;
+  horses = baseAtual.filter(h=>h.id!==editingHorseId);
   await storeSet('horses_list', horses, true);
   closeModal('overlayHorse'); refreshDatalists();
   atualizarTelasQueDependemDeAnimais();
