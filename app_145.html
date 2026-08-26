@@ -9394,7 +9394,12 @@ async function executarConsumoDieta(d, dataMov){
   const nAnimais = (d.animais||[]).length;
   for(const it of (d.itens||[])){
     const total = Number(it.quantidade)*nAnimais;
-    await consumeEstoque(it.produtoId, total, 'dieta', 'Dieta: '+d.nome, dataMov, d.animais);
+    // Um lançamento por item (alimento + horário) da receita, não um por dieta — uma dieta com Feno e
+    // Ração de manhã E de tarde vira 4 baixas nesse mesmo dia, cada uma com seu próprio valor (produto
+    // e quantidade diferentes). Isso é esperado, mas sem dizer QUAL item é cada linha, parecia
+    // duplicidade no Financeiro (mesma dieta, mesmo dia, valores diferentes). Agora o motivo identifica
+    // o item, então cada linha se explica sozinha.
+    await consumeEstoque(it.produtoId, total, 'dieta', `Dieta: ${d.nome} — ${it.produtoNome||'?'} (${it.horario||'—'})`, dataMov, d.animais);
   }
   return { bloqueado:false };
 }
@@ -9423,12 +9428,19 @@ async function reivindicarConsumoAutoDeHoje(dietaId, hoje){
       });
     }catch(e){ console.error('reivindicarConsumoAutoDeHoje: transação falhou, seguindo com releitura simples —', e); }
   }
-  // Sem Firestore (ou a transação deu erro): melhor esforço — relê antes de checar, reduz a janela
-  // mesmo sem eliminar de vez (não tem como ter uma transação de verdade sem um banco que suporte).
+  // Sem Firestore (ou a transação deu erro): melhor esforço — relê, e se ainda não foi feito hoje, MARCA
+  // E GRAVA aqui mesmo antes de devolver. Sem gravar a marca aqui, a dieta nunca ficava "feita hoje" e
+  // reprocessava pra sempre — todo carregamento rodava de novo, mesmo dentro da MESMA sessão (achado
+  // testando: chamar duas vezes seguidas duplicava tudo, porque nada tinha sido marcado na primeira).
+  // Não é tão à prova de falhas quanto a transação (duas sessões podem colidir no meio do caminho), mas
+  // fecha o buraco de "reprocessa sempre" que existia antes.
   const releitura = await storeGet('dietas_list');
   const lista = (releitura.ok && Array.isArray(releitura.value) && releitura.value.length>0) ? releitura.value : dietas;
   const atual = lista.find(x=>x.id===dietaId);
-  return { jaReivindicado: !!(atual && atual.ultimoConsumoAuto===hoje), listaAtual: lista };
+  if(atual && atual.ultimoConsumoAuto===hoje) return { jaReivindicado:true, listaAtual:lista };
+  const novaLista = lista.map(x=> x.id===dietaId ? {...x, ultimoConsumoAuto:hoje} : x);
+  await storeSet('dietas_list', novaLista);
+  return { jaReivindicado:false, listaAtual:novaLista };
 }
 async function registrarConsumoDieta(id){
   const d = dietas.find(x=>x.id===id); if(!d) return;
