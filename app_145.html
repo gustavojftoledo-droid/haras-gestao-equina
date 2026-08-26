@@ -2372,6 +2372,81 @@ const AUDIT_KEYS = {
 // dos dois, as linhas mais antigas saem pra dar lugar às novas.
 const AUDIT_LIMITE = 1500;
 const AUDIT_LIMITE_BYTES = 600000;
+
+/* ================= FUSÃO AUTOMÁTICA DE GRAVAÇÕES CONCORRENTES =================
+   Até aqui, TODA gravação sobrescrevia a lista/objeto INTEIRO com o que esta aba tinha em memória. Se
+   outra sessão (celular, outra aba) tivesse mudado QUALQUER OUTRA coisa nesse meio-tempo — mesmo um
+   registro totalmente diferente do que esta aba estava mexendo — essa mudança sumia sem aviso nenhum.
+   Já corrigi isso à mão em alguns pontos (Animais, Dietas); agora fica centralizado aqui dentro do
+   storeSet, protegendo TUDO de uma vez — inclusive telas que eu ainda vou escrever no futuro.
+
+   A ideia: pra cada gravação, comparo o que esta aba está tentando gravar (val) contra o que ela sabia
+   por último (uma "foto" tirada logo após a última leitura/gravação bem-sucedida DELA) — isso revela
+   exatamente O QUE ela de fato mudou agora. Relê o banco na hora e aplica só ESSA mudança em cima da
+   versão mais atual — preservando qualquer coisa que outra sessão tenha mudado em QUALQUER outro
+   registro/campo nesse meio-tempo. Onde tem "empate" (mesmo registro mudado nos dois lugares ao mesmo
+   tempo), quem grava por último vence NAQUELE registro — não tem como evitar isso sem travar a edição
+   de todo mundo por um campo só; o que importa é que não afeta mais NENHUM outro registro. */
+
+// Listas de registros com id (Animais, Manejos, Financeiro...) — reaproveita o mapa que a Auditoria já
+// mantém, e o mesmo "antes" que ela já guarda em auditSnapshots.
+function fundirListaDeEntidades(minhaBaseAnteriorMap, val, doBanco){
+  const valMap = new Map((Array.isArray(val)?val:[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
+  const bancoMap = new Map((Array.isArray(doBanco)?doBanco:[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
+  const resultado = new Map(bancoMap); // parte do banco AGORA — respeita o que outra sessão já gravou
+  valMap.forEach((item,id)=>{
+    const antesJson = minhaBaseAnteriorMap ? minhaBaseAnteriorMap.get(id) : undefined;
+    if(antesJson===undefined || antesJson!==JSON.stringify(item)) resultado.set(id, item); // eu criei/editei este agora
+  });
+  if(minhaBaseAnteriorMap) minhaBaseAnteriorMap.forEach((json,id)=>{ if(!valMap.has(id)) resultado.delete(id); }); // eu excluí este agora
+  return [...resultado.values()];
+}
+// Listas simples de marcação (Set virou array pra salvar) — "dispensei isso" só soma, nunca conflita
+// de verdade entre duas sessões, então a fusão certa é sempre a união dos dois lados.
+const UNION_SET_KEYS = new Set(['dismissed_manejo_tasks','dismissed_duplicates','dismissed_anomalias_estoque']);
+function fundirUniaoDeLista(val, doBanco){
+  return [...new Set([...(Array.isArray(doBanco)?doBanco:[]), ...(Array.isArray(val)?val:[])])];
+}
+// Objetos onde cada chave de topo é independente (config: valoresCasco, freqFerrageamento,
+// categoriasForaRateio...; aux_lists: cada categoria é sua própria listinha) — funde por CHAVE, do
+// mesmo jeito que a lista de entidades funde por id: só sobrescreve a chave que esta aba realmente
+// mudou (comparando com o que ela sabia antes), preservando as chaves que outra sessão mudou.
+const OBJETO_POR_CHAVE_KEYS = new Set(['config','aux_lists']);
+let configSnapshot = null, auxSnapshot = null; // clone da última leitura/gravação bem-sucedida desta aba
+function fundirObjetoPorChave(minhaBaseAnteriorObj, val, doBanco){
+  const atual = (doBanco && typeof doBanco==='object' && !Array.isArray(doBanco)) ? {...doBanco} : {};
+  const base = minhaBaseAnteriorObj || {};
+  Object.keys(val||{}).forEach(k=>{
+    if(JSON.stringify(base[k]) !== JSON.stringify(val[k])) atual[k] = val[k]; // só as chaves que esta aba mudou agora
+  });
+  return atual;
+}
+// Depois de fundir, a variável global correspondente (horses, manejos, config...) precisa refletir o
+// resultado FINAL — não o que essa aba tinha antes de fundir — senão o próprio código que acabou de
+// chamar storeSet continuaria enxergando dados desatualizados até a próxima leitura.
+function atualizarGlobalPosFusao(key, val){
+  switch(key){
+    case 'horses_list': horses = val; break;
+    case 'manejos_list': manejos = val; break;
+    case 'treinos_list': treinos = val; break;
+    case 'nascimentos_list': nascimentos = val; break;
+    case 'estoque_produtos': estoqueProdutos = val; break;
+    case 'estoque_movimentos': estoqueMovimentos = val; break;
+    case 'dietas_list': dietas = val; break;
+    case 'grupos_list': grupos = val; break;
+    case 'financeiro_lancamentos': lancamentos = val; break;
+    case 'tratamentos_list': tratamentos = val; break;
+    case 'visitas_list': visitas = val; break;
+    case 'funcionarios_list': funcionarios = val; break;
+    case 'transportes_list': transportes = val; break;
+    case 'usuarios_list': usuarios = val; break;
+    case 'config': config = val; break;
+    case 'aux_lists': aux = val; break;
+    case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
+    case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
+    case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
+  }
+}
 const auditSnapshots = {}; // chave -> Map(id -> JSON do registro na última versão gravada)
 let auditPronto = false;   // só começa a registrar depois que loadAll tirou a "foto" inicial
 function auditNomeRegistro(key, registro){
@@ -2481,10 +2556,41 @@ function auditDiff(key, val){
   });
   return entradas;
 }
+// Corta a lista de auditoria pros mesmos limites de auditRegistrar (linhas + bytes) — usado depois de
+// FUNDIR o log de duas sessões, que pode passar do teto mesmo que nenhuma das duas sozinha passasse.
+function apararAuditoria(lista){
+  let out = [...lista].sort((a,b)=> (a.quando||'').localeCompare(b.quando||''));
+  if(out.length>AUDIT_LIMITE) out = out.slice(-AUDIT_LIMITE);
+  let tentativas = 0;
+  while(out.length>50 && JSON.stringify(out).length>AUDIT_LIMITE_BYTES && tentativas++<40){
+    out = out.slice(Math.ceil(out.length*0.1));
+  }
+  return out;
+}
 async function storeSet(key,val,userDeleted){
-  // O log em si nunca é auditado (senão gravar o log geraria mais log, pra sempre).
-  if(key!=='auditoria_log' && AUDIT_KEYS[key]){
+  if(key==='auditoria_log'){
+    // O próprio log de auditoria também é só-soma (nunca edita/exclui uma linha já gravada) — funde
+    // como união (ver fundirListaDeEntidades sem "base anterior": tudo em val conta como novo, nada é
+    // tratado como exclusão) pra duas sessões registrando ações ao mesmo tempo não apagarem uma a
+    // linha da outra, e reaplica o corte de tamanho depois de juntar as duas.
+    const releitura = await storeGet(key);
+    const doBanco = releitura.ok ? releitura.value : val;
+    val = apararAuditoria(fundirListaDeEntidades(undefined, val, doBanco));
+    auditoria = val;
+  } else if(AUDIT_KEYS[key]){
+    // Audita o que ESTA aba realmente mudou nesta gravação — sempre ANTES de fundir com o banco, pra
+    // nunca atribuir a esta pessoa uma mudança que na verdade veio de outra sessão.
     const entradas = auditDiff(key, val);
+    // Funde com a versão mais recente do banco (ver bloco "FUSÃO AUTOMÁTICA..." acima): pega só o que
+    // ESTA aba de fato criou/editou/excluiu agora e aplica em cima do que está no banco neste
+    // instante, preservando qualquer mudança feita em OUTRO registro por outra sessão nesse meio-tempo.
+    if(Array.isArray(val)){
+      const minhaBaseAnterior = auditSnapshots[key];
+      const releitura = await storeGet(key);
+      const doBanco = releitura.ok ? releitura.value : val;
+      val = fundirListaDeEntidades(minhaBaseAnterior, val, doBanco);
+      atualizarGlobalPosFusao(key, val);
+    }
     auditTirarFoto(key, val);
     if(entradas.length>0){
       auditRegistrar(entradas);
@@ -2493,6 +2599,18 @@ async function storeSet(key,val,userDeleted){
       storeSet('auditoria_log', auditoria).catch(e=>console.error('auditoria:', e));
       if(document.getElementById('view-auditoria') && document.getElementById('view-auditoria').classList.contains('active')) setTimeout(renderAuditoria, 0);
     }
+  } else if(UNION_SET_KEYS.has(key)){
+    const releitura = await storeGet(key);
+    const doBanco = releitura.ok ? releitura.value : val;
+    val = fundirUniaoDeLista(val, doBanco);
+    atualizarGlobalPosFusao(key, val);
+  } else if(OBJETO_POR_CHAVE_KEYS.has(key)){
+    const minhaBaseAnterior = key==='config' ? configSnapshot : auxSnapshot;
+    const releitura = await storeGet(key);
+    const doBanco = releitura.ok ? releitura.value : val;
+    val = fundirObjetoPorChave(minhaBaseAnterior, val, doBanco);
+    if(key==='config') configSnapshot = JSON.parse(JSON.stringify(val)); else auxSnapshot = JSON.parse(JSON.stringify(val));
+    atualizarGlobalPosFusao(key, val);
   }
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
@@ -2563,6 +2681,9 @@ async function loadAll(){
     visitas_list:visitas, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
   })[k]));
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
+  // "Foto" da config recém-carregada — usada pela fusão automática do storeSet (ver bloco "FUSÃO
+  // AUTOMÁTICA..." acima) pra saber quais chaves de config esta aba de fato mudou depois daqui.
+  configSnapshot = JSON.parse(JSON.stringify(config));
   // Migração: versão antiga de valoresCasco tinha só 4 categorias (com "Ferrado mão casq. pé").
   // Essa nomenclatura foi substituída pelas 5 categorias novas (Casqueado mãos/completo/pés, Ferrado mãos/completo).
   // Se faltar alguma categoria nova, preenche com o valor padrão sem apagar o que já tinha sido customizado.
@@ -2620,6 +2741,8 @@ async function loadAll(){
   if(savedAux && !Array.isArray(savedAux)){
     aux = savedAux;
     if(!aux.unidade) aux.unidade = [];
+    // Idem pra aux_lists — a foto é tirada aqui, antes das migrações abaixo mexerem em cada categoria.
+    auxSnapshot = JSON.parse(JSON.stringify(aux));
     const oldDefaults = { status:['Ativo','Descarte'], pelagem:['Castanho','Alazão','Baio','Tordilho'], categoria:['Potro','1° Ano','2° Ano','3° Ano','4° Ano','5° Ano','Doma','Garanhão','Matriz','Receptora','Lida'] };
     let changed=false;
     Object.keys(oldDefaults).forEach(k=>{ if(JSON.stringify(aux[k])===JSON.stringify(oldDefaults[k])){ aux[k]=[]; changed=true; } });
