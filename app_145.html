@@ -3998,14 +3998,21 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const n = selectedHorseIds.size;
   if(!(await showConfirm(`Aplicar essas alterações a ${n} animal(is) selecionado(s)?`))) return;
   const freqCampo = FREQ_FIELD[freqManejoTipo];
-  horses.forEach(h=>{
-    if(!selectedHorseIds.has(h.id)) return;
-    if(alterarLoc) h.localizacao = novaLoc;
-    if(alterarCat) h.categoria = novaCat;
-    if(alterarStatus) h.status = novoStatus;
-    if(alterarProp) h.proprietario = novoProp;
-    if(alterarRaca) h.raca = novaRaca;
-    if(alterarFreqManejo) h[freqCampo] = freqManejoValor;
+  // Relê antes de aplicar — a seleção pode ter ficado alguns minutos aberta na tela, tempo de sobra
+  // pra outra sessão ter mudado algo em qualquer animal nesse meio-tempo (mesmo protocolo do
+  // salvamento individual, ver comentário lá no horseForm).
+  const releituraLote = await storeGet('horses_list');
+  const baseLote = (releituraLote.ok && Array.isArray(releituraLote.value) && releituraLote.value.length>0) ? releituraLote.value : horses;
+  horses = baseLote.map(h=>{
+    if(!selectedHorseIds.has(h.id)) return h;
+    const nh = {...h};
+    if(alterarLoc) nh.localizacao = novaLoc;
+    if(alterarCat) nh.categoria = novaCat;
+    if(alterarStatus) nh.status = novoStatus;
+    if(alterarProp) nh.proprietario = novoProp;
+    if(alterarRaca) nh.raca = novaRaca;
+    if(alterarFreqManejo) nh[freqCampo] = freqManejoValor;
+    return nh;
   });
   await storeSet('horses_list', horses);
   closeModal('overlayEditLote');
@@ -9224,6 +9231,37 @@ async function executarConsumoDieta(d, dataMov){
   return { bloqueado:false };
 }
 
+// Reivindica "hoje já processei essa dieta" de forma ATÔMICA — usando transação do Firestore quando
+// disponível, pra duas sessões (celular + computador, ou duas abas) NUNCA conseguirem as duas achar
+// que ainda não rodaram e dar baixa dobrada na mesma dieta no mesmo dia. Achado direto de um caso
+// real: dietas de "Animais mestre"/"B. Animais cochieira parado" com o mesmo item consumido mais de
+// uma vez no mesmo dia — a checagem antiga (`d.ultimoConsumoAuto!==hoje`) só olhava o que já estava
+// em memória nesta aba, sem reler o banco, então duas sessões abrindo o app perto uma da outra viam
+// as duas "ainda não rodou hoje" e as duas processavam. Uma transação garante que só uma delas
+// consegue de fato marcar o dia — a outra, mesmo tentando ao mesmo tempo, vê a marca já feita.
+async function reivindicarConsumoAutoDeHoje(dietaId, hoje){
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
+    try{
+      return await db.runTransaction(async (tx)=>{
+        const ref = db.collection(FIRESTORE_COLLECTION).doc('dietas_list');
+        const snap = await tx.get(ref);
+        const lista = (snap.exists && Array.isArray(snap.data().value)) ? snap.data().value : dietas;
+        const idx = lista.findIndex(x=>x.id===dietaId);
+        if(idx<0) return { jaReivindicado:false, listaAtual:lista };
+        if(lista[idx].ultimoConsumoAuto===hoje) return { jaReivindicado:true, listaAtual:lista }; // outra sessão já pegou esta
+        const novaLista = lista.map((x,i)=> i===idx ? {...x, ultimoConsumoAuto:hoje} : x);
+        tx.set(ref, { value:novaLista, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+        return { jaReivindicado:false, listaAtual:novaLista };
+      });
+    }catch(e){ console.error('reivindicarConsumoAutoDeHoje: transação falhou, seguindo com releitura simples —', e); }
+  }
+  // Sem Firestore (ou a transação deu erro): melhor esforço — relê antes de checar, reduz a janela
+  // mesmo sem eliminar de vez (não tem como ter uma transação de verdade sem um banco que suporte).
+  const releitura = await storeGet('dietas_list');
+  const lista = (releitura.ok && Array.isArray(releitura.value) && releitura.value.length>0) ? releitura.value : dietas;
+  const atual = lista.find(x=>x.id===dietaId);
+  return { jaReivindicado: !!(atual && atual.ultimoConsumoAuto===hoje), listaAtual: lista };
+}
 async function registrarConsumoDieta(id){
   const d = dietas.find(x=>x.id===id); if(!d) return;
   const nAnimais = (d.animais||[]).length;
@@ -9231,16 +9269,29 @@ async function registrarConsumoDieta(id){
   const hoje = new Date().toISOString().slice(0,10);
   if(d.modoConsumo==='automatico' && d.ultimoConsumoAuto===hoje){
     if(!(await showConfirm(`Essa dieta já registrou consumo automático hoje. Registrar de novo (vai dar baixa em dobro)?`))) return;
-  } else {
-    if(!(await showConfirm(`Registrar consumo de hoje da dieta "${d.nome}" para ${nAnimais} animal(is)? Isso vai dar baixa nos alimentos no estoque.`))) return;
+    // Confirmou mesmo sabendo do risco — dobra intencional, não passa pela reivindicação (que bloquearia).
+    const result = await executarConsumoDieta(d, hoje);
+    if(result.bloqueado){ showAlert('Não é possível concluir — falta estoque de:\n\n'+result.faltando.join('\n')+'\n\nRegistre uma entrada no Estoque e tente de novo.'); return; }
+    renderEstoque(); renderDietas();
+    showAlert('Consumo da dieta registrado com sucesso.');
+    return;
+  }
+  if(!(await showConfirm(`Registrar consumo de hoje da dieta "${d.nome}" para ${nAnimais} animal(is)? Isso vai dar baixa nos alimentos no estoque.`))) return;
+  const reivindicacao = await reivindicarConsumoAutoDeHoje(d.id, hoje);
+  dietas = reivindicacao.listaAtual;
+  if(reivindicacao.jaReivindicado){
+    showAlert('Essa dieta já teve o consumo de hoje registrado (pelo automático ou por outra sessão) enquanto esta tela estava aberta — não dei baixa de novo.');
+    renderDietas();
+    return;
   }
   const result = await executarConsumoDieta(d, hoje);
   if(result.bloqueado){
+    // Não conseguiu consumir — desfaz a reivindicação pra poder tentar de novo depois de repor.
+    dietas = dietas.map(x=> x.id===d.id ? {...x, ultimoConsumoAuto:null} : x);
+    await storeSet('dietas_list', dietas);
     showAlert('Não é possível concluir — falta estoque de:\n\n'+result.faltando.join('\n')+'\n\nRegistre uma entrada no Estoque e tente de novo.');
     return;
   }
-  dietas = dietas.map(x=> x.id===d.id ? {...x, ultimoConsumoAuto:hoje} : x);
-  await storeSet('dietas_list', dietas);
   renderEstoque(); renderDietas();
   showAlert('Consumo da dieta registrado com sucesso.');
 }
@@ -9251,6 +9302,9 @@ async function registrarConsumoDieta(id){
 async function processarConsumoAutomatico(){
   const hoje = new Date().toISOString().slice(0,10);
   const diaSemana = new Date().getDay();
+  // Relê antes de decidir o que já roda hoje — outra sessão pode ter processado segundos atrás.
+  const releitura = await storeGet('dietas_list');
+  if(releitura.ok && Array.isArray(releitura.value) && releitura.value.length>0) dietas = releitura.value;
   const pendentes = dietas.filter(d=>
     d.modoConsumo==='automatico' &&
     (d.animais||[]).length>0 &&
@@ -9260,17 +9314,22 @@ async function processarConsumoAutomatico(){
   if(pendentes.length===0) return;
   const relatorioTxt = [];
   for(const d of pendentes){
+    // Reivindica ESTA dieta atomicamente antes de consumir — se outra sessão já reivindicou (rodou
+    // ela agora ou minutos atrás), pula sem duplicar.
+    const reivindicacao = await reivindicarConsumoAutoDeHoje(d.id, hoje);
+    dietas = reivindicacao.listaAtual;
+    if(reivindicacao.jaReivindicado) continue; // outra sessão já processou — nem entra no relatório, é silencioso por design
     const result = await executarConsumoDieta(d, hoje);
     if(result.bloqueado){
       relatorioTxt.push('• '+d.nome+' — BLOQUEADO, falta estoque de: '+result.faltando.join('; '));
+      dietas = dietas.map(x=> x.id===d.id ? {...x, ultimoConsumoAuto:null} : x);
+      await storeSet('dietas_list', dietas);
       continue;
     }
-    dietas = dietas.map(x=> x.id===d.id ? {...x, ultimoConsumoAuto:hoje} : x);
     relatorioTxt.push('• '+d.nome+' — ok');
   }
-  await storeSet('dietas_list', dietas);
   renderEstoque(); renderDietas();
-  showAlert('Consumo automático de hoje registrado:\n\n'+relatorioTxt.join('\n'));
+  if(relatorioTxt.length) showAlert('Consumo automático de hoje registrado:\n\n'+relatorioTxt.join('\n'));
 }
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
