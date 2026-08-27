@@ -1552,6 +1552,7 @@
 <div class="overlay" id="overlayTransporte">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="tpModalTitle">Novo Transporte</div><button class="modal-close" data-close="overlayTransporte">✕</button></div>
+    <div id="tpSessaoResumo" style="margin-bottom:12px;"></div>
     <div class="form-grid cols3" style="margin-bottom:16px;">
       <div class="field"><label>Data Saída</label><input type="date" id="tp_data" required></div>
       <div class="field"><label>Origem</label><select id="tp_origem_sel"></select></div>
@@ -1568,7 +1569,7 @@
     <div id="transporteSelectorHost"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteTransporte" style="display:none;">🗑 Excluir</button></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTransporte">Cancelar</button><button type="button" class="btn" id="btnSaveTransporte">Salvar Transporte <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTransporte">Cancelar</button><button type="button" class="btn btn-ghost" id="btnAddOutroTransporte" title="Salva esse e abre um novo, sem fechar — pra lançar ida, volta e mais paradas de uma vez">+ Adicionar outro transporte</button><button type="button" class="btn" id="btnSaveTransporte">Salvar Transporte <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -7057,6 +7058,9 @@ document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   editingTransporteId = null;
   document.getElementById('tpModalTitle').textContent = 'Novo Transporte';
   document.getElementById('btnDeleteTransporte').style.display = 'none';
+  document.getElementById('btnAddOutroTransporte').style.display = '';
+  transporteSessao = [];
+  renderTpSessaoResumo();
   document.getElementById('tp_data').value = toISODate(new Date());
   populateAuxSelects();
   document.getElementById('tp_origem_sel').value = '';
@@ -7076,6 +7080,11 @@ function openTransporteEdit(id){
   editingTransporteId = id;
   document.getElementById('tpModalTitle').textContent = 'Editar Transporte';
   document.getElementById('btnDeleteTransporte').style.display = 'inline-block';
+  // Editar um transporte já existente é sempre UM registro — "Adicionar outro" cria um registro NOVO
+  // à parte, então não faz sentido aqui (mesmo padrão do Tratamento — ver openTratamentoEdit).
+  document.getElementById('btnAddOutroTransporte').style.display = 'none';
+  transporteSessao = [];
+  renderTpSessaoResumo();
   populateAuxSelects();
   document.getElementById('tp_data').value = t.data||'';
   document.getElementById('tp_origem_sel').value = t.origem||'';
@@ -7090,15 +7099,19 @@ function openTransporteEdit(id){
   atualizarValorTotalTransporte();
   openModal('overlayTransporte');
 }
-document.getElementById('btnSaveTransporte').addEventListener('click', async ()=>{
+// Validação + montagem + gravação de UM transporte — usado tanto por "Salvar Transporte" (fecha o
+// modal) quanto por "+ Adicionar outro transporte" (mantém o modal aberto pra lançar ida, volta e
+// mais paradas em sequência, sem reabrir). Devolve o registro salvo, ou null se alguma validação
+// falhou (o alerta já foi mostrado, não precisa repetir na chamada).
+async function tentarSalvarTransporteAtual(){
   const data = document.getElementById('tp_data').value;
-  if(!data){ showAlert('Informe a data de saída.'); return; }
+  if(!data){ showAlert('Informe a data de saída.'); return null; }
   const selected = transporteSelector.getSelected();
-  if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
+  if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return null; }
   const registroAnterior = editingTransporteId ? transportes.find(x=>x.id===editingTransporteId) : null;
   const jaEstavaRealizado = !!(registroAnterior && registroAnterior.realizado==='S');
   const registro = {
-    id: editingTransporteId || ('tp_'+Date.now()),
+    id: editingTransporteId || ('tp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
     data,
     origem: document.getElementById('tp_origem_sel').value,
     destino: document.getElementById('tp_destino_sel').value,
@@ -7115,9 +7128,47 @@ document.getElementById('btnSaveTransporte').addEventListener('click', async ()=
     countLoc = await aplicarLocalizacaoTransporte(registro);
   }
   await storeSet('transportes_list', transportes);
+  return { registro, countLoc };
+}
+document.getElementById('btnSaveTransporte').addEventListener('click', async ()=>{
+  const r = await tentarSalvarTransporteAtual();
+  if(!r) return;
   closeModal('overlayTransporte');
   renderTransportes(); renderHorses();
-  showAlert('Transporte salvo.'+(countLoc>0?(' Localização atualizada em '+countLoc+' animal(is).'):''));
+  showAlert('Transporte salvo.'+(r.countLoc>0?(' Localização atualizada em '+r.countLoc+' animal(is).'):''));
+});
+// Sessão de múltiplos transportes: cada um vira uma linha compacta e some do formulário, que reseta
+// pronto pro próximo — sem fechar o modal. Origem/Destino já chegam sugeridos invertidos (quem saiu
+// pra lá, na próxima perna sai de lá) e o valor do frete zera, pra dividir de novo só entre quem for
+// marcado agora — exatamente o caso de ida e volta com animais diferentes, mas serve pra quantas
+// pernas precisar (ida, volta, mais uma parada...). Só aparece cadastrando novo (ver openTransporteEdit).
+let transporteSessao = [];
+function renderTpSessaoResumo(){
+  const host = document.getElementById('tpSessaoResumo');
+  if(transporteSessao.length===0){ host.innerHTML=''; return; }
+  host.innerHTML = `<div class="hint-text" style="margin-bottom:6px;">Já adicionados nesta sessão (${transporteSessao.length}):</div>` +
+    transporteSessao.map(t=>`<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">🚚 <strong>${t.origem||'—'} → ${t.destino||'—'}</strong> — ${fmtDate(t.data)} · ${t.animais.length} animal(is)${t.valorFrete?(' · '+fmtMoeda(t.valorFrete,'BRL')):''}</div>`).join('');
+}
+document.getElementById('btnAddOutroTransporte').addEventListener('click', async ()=>{
+  const r = await tentarSalvarTransporteAtual();
+  if(!r) return;
+  transporteSessao.push(r.registro);
+  renderTpSessaoResumo();
+  editingTransporteId = null;
+  document.getElementById('btnDeleteTransporte').style.display = 'none';
+  // Sugere a perna seguinte invertida (quem era Origem vira Destino e vice-versa) — cobre o caso mais
+  // comum (ida e volta) sem travar quem precisar de outra combinação, tudo continua editável.
+  const origemAnterior = document.getElementById('tp_origem_sel').value, destinoAnterior = document.getElementById('tp_destino_sel').value;
+  document.getElementById('tp_origem_sel').value = destinoAnterior;
+  document.getElementById('tp_destino_sel').value = origemAnterior;
+  document.getElementById('tp_motivo').value = '';
+  document.getElementById('tp_valorFrete').value = '';
+  document.getElementById('tp_realizado').checked = false;
+  transporteSelector.reset(); // quem volta não é necessariamente quem foi — seleção começa vazia de novo
+  transporteUltimaContagemAnimais = -1;
+  atualizarValorTotalTransporte();
+  renderTransportes(); renderHorses(); // a lista por trás já reflete o que acabou de ser salvo
+  document.getElementById('tp_data').focus();
 });
 document.getElementById('btnDeleteTransporte').addEventListener('click', async ()=>{
   if(!editingTransporteId) return;
