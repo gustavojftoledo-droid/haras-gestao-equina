@@ -10725,7 +10725,13 @@ function showRelatoriosTab(tab){
     document.getElementById('rtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('rview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
-  if(tab==='fichas' && relFichaSelector) relFichaSelector.draw();
+  if(tab==='fichas' && relFichaSelector){
+    // Animal(is) já marcado(s) na Lista (o checkbox de cada linha) vêm prontos pro relatório, sem
+    // precisar marcar tudo de novo aqui. Sem nada marcado lá, mantém a última seleção que já estava
+    // (a de sempre, restaurada no carregamento — ver restoreFromSaved).
+    if(selectedHorseIds.size>0) relFichaSelector.setSelected([...selectedHorseIds].map(id=>({id})));
+    else relFichaSelector.draw();
+  }
   if(tab==='lista') renderRelatorios();
 }
 document.getElementById('rtab_fichas').addEventListener('click', ()=>showRelatoriosTab('fichas'));
