@@ -1059,6 +1059,7 @@
         <div><div class="title">Estoque</div><div class="subtitle">Medicamentos, alimentos, ferramentas e arreios</div></div>
         <div style="display:flex;gap:10px;">
           <button class="btn btn-ghost" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
+          <button class="btn btn-danger" id="btnVinculosQuebrados" style="display:none;" title="Dieta ou Tratamento apontando pra um produto que foi excluído do Estoque">🔗 Vínculos quebrados</button>
           <button class="btn btn-ghost" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
           <button class="btn" id="btnNewProduto" title="Atalho: Alt+E">+ Novo Produto</button>
         </div>
@@ -1184,6 +1185,11 @@
           <button type="button" class="btn btn-sm btn-danger" id="btnTratDelSel" style="display:none;">🗑 Excluir selecionados</button>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <span class="chip active" data-trstatus="ativo" id="trstat_ativo">Em andamento</span>
+          <span class="chip" data-trstatus="concluido" id="trstat_concluido">Histórico (concluídos)</span>
+          <span class="chip" data-trstatus="" id="trstat_todos">Todos</span>
+        </div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th>Animais</th><th>Período</th><th>Meio</th><th>Status</th><th></th></tr></thead>
           <tbody id="trTbody"></tbody>
@@ -2146,6 +2152,14 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 </div>
 
 <!-- CONSUMO FORA DO PADRÃO MODAL -->
+<div class="overlay" id="overlayVinculosQuebrados">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Vínculos quebrados</div><button class="modal-close" data-close="overlayVinculosQuebrados">✕</button></div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">Um produto foi excluído do Estoque, mas ainda tem Dieta ou Tratamento pendente contando com ele — sem corrigir, essa dieta/tratamento nunca mais consegue dar baixa (não tem como "repor estoque" de um produto que não existe mais). Escolha um produto atual pra substituir cada um abaixo.</div>
+    <div id="vinculosQuebradosHost"></div>
+  </div>
+</div>
+
 <div class="overlay" id="overlayAnomalias">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title">Consumo Fora do Padrão</div><button class="modal-close" data-close="overlayAnomalias">✕</button></div>
@@ -8009,12 +8023,50 @@ document.getElementById('btnSalvarRegraProtocolo').addEventListener('click', asy
   if(valores.length===0){ showAlert('Informe ao menos um número em "Em quais momentos" (ex: 5, 7, 9).'); return; }
   const chaveConfig = editingRegraGrupo==='gestacao' ? 'protocoloVacinasGestacao' : 'protocoloVacinasPotro';
   if(!config[chaveConfig]) config[chaveConfig] = [];
+  const regraAntiga = editingRegraId ? config[chaveConfig].find(r=>r.id===editingRegraId) : null;
+  const nomeMudou = !!(regraAntiga && regraAntiga.nome!==nome);
   const dados = { id: editingRegraId || ('pv_'+Date.now()), nome, regra: f('rp_regra'), valores };
   config[chaveConfig] = editingRegraId ? config[chaveConfig].map(r=>r.id===editingRegraId?dados:r) : [...config[chaveConfig], dados];
   await storeSet('config', config);
+
+  // O nome de cada item da agenda (de uma égua prenha ou de um potro) é uma FOTO tirada na hora em que
+  // o protocolo foi gerado — sem isso, renomear a vacina aqui só valia pra próxima confirmação, e quem
+  // já tinha a agenda pronta ficava pra sempre com o nome antigo. Atualiza pelo regraId em todo mundo
+  // que já tem — só o nome mostrado, as datas já calculadas não mudam (a regra pode ter mudado de
+  // frequência também, mas recalcular data é decisão separada, pelo botão "Recalcular").
+  let quantosAtualizados = 0;
+  if(nomeMudou){
+    if(chaveConfig==='protocoloVacinasGestacao'){
+      nascimentos = nascimentos.map(n=>{
+        if(!n.protocoloVacinas) return n;
+        let mudou = false;
+        const itens = n.protocoloVacinas.map(it=>{
+          if(it.regraId===editingRegraId && it.nome!==nome){ mudou=true; quantosAtualizados++; return {...it, nome}; }
+          return it;
+        });
+        return mudou ? {...n, protocoloVacinas:itens} : n;
+      });
+      await storeSet('nascimentos_list', nascimentos);
+    } else {
+      horses = horses.map(h=>{
+        if(!h.protocoloPotro) return h;
+        let mudou = false;
+        const itens = h.protocoloPotro.map(it=>{
+          if(it.regraId===editingRegraId && it.nome!==nome){ mudou=true; quantosAtualizados++; return {...it, nome}; }
+          return it;
+        });
+        return mudou ? {...h, protocoloPotro:itens} : h;
+      });
+      await storeSet('horses_list', horses);
+    }
+  }
+
   closeModal('overlayRegraProtocolo');
   renderRegrasProtocolo();
-  showAlert('Protocolo atualizado. Isso vale pras próximas confirmações de prenhez/nascimento — os já confirmados mantêm a agenda que já foi gerada (edite pelo botão "Recalcular" se precisar, ou ajuste direto na tela de Protocolo de Vacinas).');
+  if(typeof renderProtocoloAgenda==='function') renderProtocoloAgenda();
+  renderCalendar(); renderInicio();
+  const avisoPropagacao = quantosAtualizados>0 ? ` O novo nome já foi atualizado em ${quantosAtualizados} agenda(s) já geradas.` : '';
+  showAlert('Protocolo atualizado.'+avisoPropagacao+' Isso vale pras próximas confirmações de prenhez/nascimento também — as DATAS já calculadas não mudam sozinhas (edite pelo botão "Recalcular" se precisar mudar quando cada dose cai).');
 });
 document.getElementById('btnDeleteRegraProtocolo').addEventListener('click', async ()=>{
   if(!editingRegraId || !(await showConfirm('Excluir essa vacina do protocolo? Datas já agendadas pra prenhezes/potros em andamento não são apagadas — só deixa de valer pra novas confirmações.'))) return;
@@ -8249,6 +8301,7 @@ document.getElementById('btnColunasEstoque').addEventListener('click', ()=>{
 });
 
 function renderEstoque(){
+  atualizarBadgeVinculosQuebrados();
   const term=(document.getElementById('eSearch').value||'').toLowerCase();
   const soMinimo = document.getElementById('eSoMinimo').value;
   let list = estoqueProdutos.filter(p=>{
@@ -8397,7 +8450,11 @@ function renderEEditLoteBar(){
 document.getElementById('btnExcluirProdutosLote').addEventListener('click', async ()=>{
   const n = selectedProdutoIds.size;
   if(n===0) return;
-  if(!(await showConfirm(`Excluir ${n} produto(s) do estoque? Movimentações já registradas não serão apagadas, só o cadastro dos produtos.`))) return;
+  const dependentes = [...new Set([...selectedProdutoIds].flatMap(id=>quemDependeDoProduto(id)))];
+  const aviso = dependentes.length===0
+    ? `Excluir ${n} produto(s) do estoque? Movimentações já registradas não serão apagadas, só o cadastro dos produtos.`
+    : `Excluir ${n} produto(s) do estoque? Alguns ainda estão em uso em:\n\n${dependentes.join('\n')}\n\nExcluindo, essas dietas/tratamentos travam até você corrigir o vínculo (Estoque → 🔗 Vínculos quebrados). Excluir mesmo assim?`;
+  if(!(await showConfirm(aviso))) return;
   estoqueProdutos = estoqueProdutos.filter(p=>!selectedProdutoIds.has(p.id));
   await storeSet('estoque_produtos', estoqueProdutos, true);
   selectedProdutoIds.clear();
@@ -8649,7 +8706,14 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
   closeModal('overlayProduto'); renderEstoque();
 });
 document.getElementById('btnDeleteProduto').addEventListener('click', async ()=>{
-  if(!editingProdutoId || !(await showConfirm('Excluir este produto do estoque? Movimentações já registradas não serão apagadas.'))) return;
+  if(!editingProdutoId) return;
+  // Excluir um produto que uma Dieta/Tratamento pendente ainda usa trava essa dieta/tratamento PRA
+  // SEMPRE (não tem como repor estoque de um produto que não existe mais) — avisa antes, não depois.
+  const dependentes = quemDependeDoProduto(editingProdutoId);
+  const aviso = dependentes.length===0
+    ? 'Excluir este produto do estoque? Movimentações já registradas não serão apagadas.'
+    : `Esse produto ainda está em uso em:\n\n${dependentes.join('\n')}\n\nExcluindo, essas dietas/tratamentos travam até você corrigir o vínculo (Estoque → 🔗 Vínculos quebrados). Excluir mesmo assim?`;
+  if(!(await showConfirm(aviso))) return;
   estoqueProdutos = estoqueProdutos.filter(p=>p.id!==editingProdutoId);
   await storeSet('estoque_produtos', estoqueProdutos, true);
   closeModal('overlayProduto'); renderEstoque();
@@ -9381,7 +9445,7 @@ function verificarEstoqueDieta(d){
   (d.itens||[]).forEach(it=>{
     const total = Number(it.quantidade)*nAnimais;
     const p = estoqueProdutos.find(x=>x.id===it.produtoId);
-    if(!p) faltando.push((it.produtoNome||'produto')+' (produto excluído do Estoque)');
+    if(!p) faltando.push((it.produtoNome||'produto')+' (vínculo quebrado com o Estoque — corrija em Estoque → 🔗 Vínculos quebrados)');
     else if((Number(p.quantidade)||0) < total) faltando.push(p.nome+' (precisa de '+total+(p.unidade?(' '+p.unidade):'')+', tem '+(Number(p.quantidade)||0)+(p.unidade?(' '+p.unidade):'')+')');
   });
   return faltando.length===0 ? {ok:true} : {ok:false, faltando};
@@ -10091,12 +10155,33 @@ function gerarRelatorioVisitasFiltro(){
 document.getElementById('btnRelVisitasFiltro').addEventListener('click', gerarRelatorioVisitasFiltro);
 
 const tratSelecionados = new Set();
+// 'ativo' (padrão) = em andamento ou atrasado, some da vista quem já terminou — deixa a lista do dia a
+// dia enxuta, sem precisar rolar por tratamentos que já acabaram há semanas pra achar o de hoje.
+// 'concluido' = só o histórico. '' = tudo junto.
+let tratamentoFiltroStatus = 'ativo';
+document.querySelectorAll('[data-trstatus]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-trstatus]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    tratamentoFiltroStatus = chip.dataset.trstatus;
+    renderTratamentos();
+  });
+});
 function renderTratamentos(){
   const tbody = document.getElementById('trTbody');
   const idsExistentes = new Set(tratamentos.map(t=>t.id));
   [...tratSelecionados].forEach(id=>{ if(!idsExistentes.has(id)) tratSelecionados.delete(id); });
-  if(tratamentos.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Nenhuma aplicação cadastrada.</td></tr>`; updateTratSelUI(); return; }
-  tbody.innerHTML = tratamentos.map(t=>{
+  const filtrados = tratamentos.filter(t=>{
+    if(!tratamentoFiltroStatus) return true;
+    const st = statusTratamento(t);
+    return tratamentoFiltroStatus==='ativo' ? st!=='concluido' : st===tratamentoFiltroStatus;
+  });
+  if(filtrados.length===0){
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${tratamentos.length===0 ? 'Nenhuma aplicação cadastrada.' : (tratamentoFiltroStatus==='ativo' ? 'Nenhum tratamento em andamento — os concluídos ficam em "Histórico".' : 'Nenhum tratamento concluído ainda.')}</td></tr>`;
+    updateTratSelUI();
+    return;
+  }
+  tbody.innerHTML = filtrados.map(t=>{
     const periodosTxt = PERIODOS_TRATAMENTO.filter(p=>t.periodos&&t.periodos[p]).join(', ');
     const termino = calcDataTermino(t.dataInicio, t.diasTratamento, t.intervaloDias);
     const st = statusTratamento(t);
@@ -10281,15 +10366,111 @@ function verificarEstoqueTratamento(t){
   const nAnimais = (t.animais||[]).length;
   const faltando = [];
   const med = estoqueProdutos.find(p=>p.id===t.medicamentoId);
-  if(!med) faltando.push((t.medicamentoNome||'medicamento')+' (produto excluído do Estoque)');
+  if(!med) faltando.push((t.medicamentoNome||'medicamento')+' (vínculo quebrado com o Estoque — corrija em Estoque → 🔗 Vínculos quebrados)');
   else if((Number(med.quantidade)||0) < Number(t.quantidade)*nAnimais) faltando.push(med.nome+' (precisa de '+(Number(t.quantidade)*nAnimais)+(med.unidade?(' '+med.unidade):'')+', tem '+(Number(med.quantidade)||0)+(med.unidade?(' '+med.unidade):'')+')');
   (t.utensilios||[]).forEach(u=>{
     const up = estoqueProdutos.find(p=>p.id===u.produtoId);
     const necessario = Number(u.quantidade)*nAnimais;
-    if(!up) faltando.push((u.produtoNome||'utensílio')+' (produto excluído do Estoque)');
+    if(!up) faltando.push((u.produtoNome||'utensílio')+' (vínculo quebrado com o Estoque — corrija em Estoque → 🔗 Vínculos quebrados)');
     else if((Number(up.quantidade)||0) < necessario) faltando.push(up.nome+' (precisa de '+necessario+(up.unidade?(' '+up.unidade):'')+', tem '+(Number(up.quantidade)||0)+(up.unidade?(' '+up.unidade):'')+')');
   });
   return faltando.length===0 ? {ok:true} : {ok:false, faltando};
+}
+// ===== Vínculos quebrados: Tratamento/Dieta apontando pra um produto que foi excluído do Estoque =====
+// Sem isso, um produto excluído travava a dieta/tratamento PRA SEMPRE — "registre uma entrada no
+// Estoque" é conselho impossível de seguir pra um produto que não existe mais pra receber entrada
+// nenhuma. Acha cada vínculo quebrado e deixa reatribuir pra um produto atual (pode ser um recriado
+// com o mesmo nome, ou outro qualquer).
+function listarVinculosQuebrados(){
+  const idsValidos = new Set(estoqueProdutos.map(p=>p.id));
+  const quebrados = [];
+  tratamentos.forEach(t=>{
+    if(statusTratamento(t)==='concluido') return; // já terminou — não precisa mais dar baixa nenhuma
+    if(t.medicamentoId && !idsValidos.has(t.medicamentoId)){
+      quebrados.push({ tipo:'tratamento', registroId:t.id, campo:'medicamentoId', nomeRegistro:'Tratamento: '+(t.medicamentoNome||''), produtoNomeAntigo:t.medicamentoNome||'' });
+    }
+    (t.utensilios||[]).forEach((u,idx)=>{
+      if(u.produtoId && !idsValidos.has(u.produtoId)){
+        quebrados.push({ tipo:'tratamento', registroId:t.id, campo:'utensilio', idx, nomeRegistro:'Tratamento: '+(t.medicamentoNome||'')+' (utensílio)', produtoNomeAntigo:u.produtoNome||'' });
+      }
+    });
+  });
+  dietas.forEach(d=>{
+    (d.itens||[]).forEach((it,idx)=>{
+      if(it.produtoId && !idsValidos.has(it.produtoId)){
+        quebrados.push({ tipo:'dieta', registroId:d.id, campo:'item', idx, nomeRegistro:'Dieta: '+(d.nome||''), produtoNomeAntigo:it.produtoNome||'' });
+      }
+    });
+  });
+  return quebrados;
+}
+async function corrigirVinculoQuebrado(item, novoProdutoId){
+  const novoProduto = estoqueProdutos.find(p=>p.id===novoProdutoId);
+  if(!novoProduto) return;
+  if(item.tipo==='tratamento'){
+    tratamentos = tratamentos.map(t=>{
+      if(t.id!==item.registroId) return t;
+      const novo = {...t};
+      if(item.campo==='medicamentoId'){ novo.medicamentoId = novoProdutoId; novo.medicamentoNome = novoProduto.nome; }
+      else if(item.campo==='utensilio') novo.utensilios = (novo.utensilios||[]).map((u,i)=> i===item.idx ? {...u, produtoId:novoProdutoId, produtoNome:novoProduto.nome} : u);
+      return novo;
+    });
+    await storeSet('tratamentos_list', tratamentos);
+  } else if(item.tipo==='dieta'){
+    dietas = dietas.map(d=>{
+      if(d.id!==item.registroId) return d;
+      return { ...d, itens: (d.itens||[]).map((it,i)=> i===item.idx ? {...it, produtoId:novoProdutoId, produtoNome:novoProduto.nome, unidade:novoProduto.unidade||it.unidade} : it) };
+    });
+    await storeSet('dietas_list', dietas);
+  }
+}
+// Lista (pra avisar antes de excluir) o que ainda depende de um produto — mesma checagem de
+// listarVinculosQuebrados, só que ANTES do produto sumir, pra avisar em vez de travar depois.
+function quemDependeDoProduto(produtoId){
+  const nomes = [];
+  tratamentos.forEach(t=>{
+    if(statusTratamento(t)==='concluido') return;
+    if(t.medicamentoId===produtoId) nomes.push('Tratamento: '+(t.medicamentoNome||''));
+    if((t.utensilios||[]).some(u=>u.produtoId===produtoId)) nomes.push('Tratamento: '+(t.medicamentoNome||'')+' (utensílio)');
+  });
+  dietas.forEach(d=>{ if((d.itens||[]).some(it=>it.produtoId===produtoId)) nomes.push('Dieta: '+(d.nome||'')); });
+  return [...new Set(nomes)];
+}
+function atualizarBadgeVinculosQuebrados(){
+  const btn = document.getElementById('btnVinculosQuebrados'); if(!btn) return;
+  const n = listarVinculosQuebrados().length;
+  btn.style.display = n>0 ? 'inline-block' : 'none';
+  btn.textContent = `🔗 Vínculos quebrados (${n})`;
+}
+function renderVinculosQuebrados(){
+  const lista = listarVinculosQuebrados();
+  const host = document.getElementById('vinculosQuebradosHost');
+  if(lista.length===0){ host.innerHTML = '<div class="hint-text">Nenhum vínculo quebrado — tudo certo.</div>'; return; }
+  host.innerHTML = lista.map((item,i)=>{
+    const matchPorNome = estoqueProdutos.find(p=>p.nome.toLowerCase()===item.produtoNomeAntigo.toLowerCase());
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+      <div style="flex:1;min-width:220px;">
+        <div style="font-weight:600;">${item.nomeRegistro}</div>
+        <div style="font-size:12px;color:var(--muted);">Produto excluído: <strong>${item.produtoNomeAntigo||'(sem nome)'}</strong></div>
+      </div>
+      <select data-vinculoidx="${i}" style="flex:1;min-width:180px;">
+        <option value="">Escolher produto atual...</option>
+        ${estoqueProdutos.map(p=>`<option value="${p.id}" ${matchPorNome&&matchPorNome.id===p.id?'selected':''}>${p.nome}</option>`).join('')}
+      </select>
+      <button type="button" class="btn btn-sm" data-vinculoaplicar="${i}">Corrigir</button>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-vinculoaplicar]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = Number(btn.dataset.vinculoaplicar);
+      const select = host.querySelector(`[data-vinculoidx="${idx}"]`);
+      if(!select.value){ showAlert('Escolha um produto primeiro.'); return; }
+      await corrigirVinculoQuebrado(lista[idx], select.value);
+      renderVinculosQuebrados();
+      renderEstoque(); renderTratamentos(); if(typeof renderDietas==='function') renderDietas();
+      atualizarBadgeVinculosQuebrados();
+    });
+  });
 }
 // Núcleo que dá baixa de fato no estoque pra uma dose (usado pelo check manual no Calendário e pelo modo automático)
 async function baixarDoseTratamento(t, doseKey){
@@ -13395,6 +13576,10 @@ function renderAnomaliasList(){
 document.getElementById('btnAnomaliasConsumo').addEventListener('click', ()=>{
   renderAnomaliasList();
   openModal('overlayAnomalias');
+});
+document.getElementById('btnVinculosQuebrados').addEventListener('click', ()=>{
+  renderVinculosQuebrados();
+  openModal('overlayVinculosQuebrados');
 });
 
 const MERGE_FIELDS = [
