@@ -4840,7 +4840,17 @@ let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
 const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰' };
 const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário' };
-function toISODate(d){ return d.toISOString().slice(0,10); }
+// Data no fuso LOCAL do aparelho, no formato AAAA-MM-DD — nunca use .toISOString() aqui: ela sempre
+// devolve o horário em UTC, e pra quem está no Brasil (UTC-3) isso faz o app achar que já é o dia
+// seguinte a partir das 21h de toda noite (a partir das 20h no horário de verão, quando existia).
+// Usado em ~50 lugares pra "hoje" — errar isso empurra tarefas, consumo de dieta, data de cadastro
+// etc. pra amanhã horas antes da meia-noite de verdade.
+function toISODate(d){
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth()+1).padStart(2,'0');
+  const dia = String(d.getDate()).padStart(2,'0');
+  return `${ano}-${mes}-${dia}`;
+}
 function computeCalendarTasks(){
   // dismissedManejoTasks já é filtrado dentro de computeProgramacao() (na fonte) — aqui só mapeia pro
   // formato do Calendário, sem precisar filtrar de novo.
@@ -7496,7 +7506,7 @@ function calcProvavelNascimento(datacob){
   const d = new Date(datacob+'T00:00:00');
   if(isNaN(d)) return '';
   d.setDate(d.getDate() + (Number(config.gestacaoDias)||0));
-  return d.toISOString().slice(0,10);
+  return toISODate(d);
 }
 function atualizarProvavelNascimentoView(){
   const prov = calcProvavelNascimento(document.getElementById('n_datacob').value);
@@ -8146,7 +8156,7 @@ async function registrarMovimento(produtoId, tipoMov, quantidade, origem, motivo
   }
   estoqueMovimentos.push({
     id:'mv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
-    data: dataMov || new Date().toISOString().slice(0,10),
+    data: dataMov || toISODate(new Date()),
     produtoId, produtoNome: p.nome, produtoTipo: p.tipo, tipoMov, quantidade: qtd, unidade: p.unidade||'',
     origem: origem||'manual', motivo: motivo||'',
     valor: valorFinal,
@@ -8207,7 +8217,7 @@ async function registrarAjuste(produtoId, novaQuantidade, motivo, dataMov){
   p.quantidade = nova;
   estoqueMovimentos.push({
     id:'mv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
-    data: dataMov || new Date().toISOString().slice(0,10),
+    data: dataMov || toISODate(new Date()),
     produtoId, produtoNome: p.nome, produtoTipo: p.tipo, tipoMov: delta>=0?'entrada':'saida', quantidade: Math.abs(delta), unidade: p.unidade||'',
     origem: 'ajuste', motivo: motivo, obs: `Reajuste de estoque: ${antes} → ${nova}`
   });
@@ -8502,7 +8512,7 @@ document.getElementById('btnPedidoGerar').addEventListener('click', ()=>{
   if(comQtd.length===0){ showAlert('Informe a quantidade de ao menos um produto pra gerar o pedido.'); return; }
   const obsGeral = document.getElementById('pedidoObsGeral').value.trim();
   const htmlConteudo = `<h1>Pedido de Compra</h1>
-    <div class="sub">Gerado em ${fmtDate(new Date().toISOString().slice(0,10))} · ${comQtd.length} item(ns)</div>
+    <div class="sub">Gerado em ${fmtDate(toISODate(new Date()))} · ${comQtd.length} item(ns)</div>
     <table><thead><tr><th>Produto</th><th>Quantidade</th><th>Observação</th></tr></thead>
     <tbody>${comQtd.map(it=>`<tr><td>${it.nome||''}</td><td>${it.quantidade} unidade(s)</td><td>${it.obs||''}</td></tr>`).join('')}</tbody>
     </table>
@@ -8568,7 +8578,7 @@ function openProdutoNew(){
   document.getElementById('pd_nome_sel').value = '';
   document.getElementById('pd_classe').value = '';
   document.getElementById('pd_alertaModo').value = 'fixo';
-  document.getElementById('pd_dataCadastroView').value = fmtDate(new Date().toISOString().slice(0,10))+' (hoje)';
+  document.getElementById('pd_dataCadastroView').value = fmtDate(toISODate(new Date()))+' (hoje)';
   document.getElementById('pd_valorPorPacote').value = 'nao';
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
@@ -8698,7 +8708,7 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     minimo: f('pd_minimo')===''?'':Number(f('pd_minimo')),
     valor: f('pd_valor'), valorPorPacote: f('pd_valorPorPacote')==='sim',
     validade: f('pd_validade'), obs: f('pd_obs'),
-    dataCadastro: jaExistia ? jaExistia.dataCadastro : new Date().toISOString().slice(0,10)
+    dataCadastro: jaExistia ? jaExistia.dataCadastro : toISODate(new Date())
   };
   estoqueProdutos = editingProdutoId ? estoqueProdutos.map(p=>p.id===editingProdutoId?data:p) : [...estoqueProdutos, data];
   await storeSet('estoque_produtos', estoqueProdutos);
@@ -9163,7 +9173,7 @@ document.getElementById('btnConfirmarImportNota').addEventListener('click', asyn
     } else if(cand.acao==='ajustar'){
       // Vindo de um Inventário/contagem: define o estoque nesse valor exato (não soma) — mesmo mecanismo
       // do reajuste manual, com justificativa automática indicando a origem.
-      await registrarAjuste(cand.matchProdutoId, qtd, 'Importação de inventário', new Date().toISOString().slice(0,10));
+      await registrarAjuste(cand.matchProdutoId, qtd, 'Importação de inventário', toISODate(new Date()));
       if(cand.descNormalizada && nfAprendizado[cand.descNormalizada]!==cand.matchProdutoId){
         nfAprendizado[cand.descNormalizada] = cand.matchProdutoId;
         aprendizadoChanged = true;
@@ -9178,7 +9188,7 @@ document.getElementById('btnConfirmarImportNota').addEventListener('click', asyn
         valor: '', validade: '',
         obs: cand.armazenamento ? ('Armazenamento: '+cand.armazenamento) : '',
         armazenamento: cand.armazenamento||'',
-        dataCadastro: new Date().toISOString().slice(0,10)
+        dataCadastro: toISODate(new Date())
       };
       estoqueProdutos.push(novoProduto);
       if(!aux.tipoProduto.includes(novoProduto.tipo)){ aux.tipoProduto.push(novoProduto.tipo); auxChanged=true; }
@@ -9198,12 +9208,12 @@ document.getElementById('btnConfirmarImportNota').addEventListener('click', asyn
 
 function parseDataMov(str){
   // aceita DD/MM/AAAA ou AAAA-MM-DD; vazio = hoje
-  if(!str || !str.trim()) return new Date().toISOString().slice(0,10);
+  if(!str || !str.trim()) return toISODate(new Date());
   const s = str.trim();
   if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  return new Date().toISOString().slice(0,10);
+  return toISODate(new Date());
 }
 document.getElementById('btnEntradaProduto').addEventListener('click', async ()=>{
   if(!editingProdutoId) return;
@@ -9411,7 +9421,7 @@ function renderDietas(){
   tbody.innerHTML = dietas.map(d=>{
     const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
     const nAnimais = (d.animais||[]).length;
-    const hoje = new Date().toISOString().slice(0,10);
+    const hoje = toISODate(new Date());
     const modoTxt = d.modoConsumo==='automatico'
       ? `<span class="pill st-outro" title="Dias: ${(d.diasSemana||[]).map((v,i)=>v?DIAS_SEMANA_LABEL[i]:null).filter(Boolean).join(', ')}">⚙ Automático</span>${d.ultimoConsumoAuto===hoje?' <span style="color:var(--ok);font-size:11px;">✓ já registrado hoje</span>':''}`
       : '<span class="pill st-outro">Manual</span>';
@@ -9510,7 +9520,7 @@ async function registrarConsumoDieta(id){
   const d = dietas.find(x=>x.id===id); if(!d) return;
   const nAnimais = (d.animais||[]).length;
   if(nAnimais===0){ showAlert('Essa dieta ainda não tem animais vinculados — clique em "🐴 Animais" primeiro.'); return; }
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = toISODate(new Date());
   if(d.modoConsumo==='automatico' && d.ultimoConsumoAuto===hoje){
     if(!(await showConfirm(`Essa dieta já registrou consumo automático hoje. Registrar de novo (vai dar baixa em dobro)?`))) return;
     // Confirmou mesmo sabendo do risco — dobra intencional, não passa pela reivindicação (que bloquearia).
@@ -9544,7 +9554,7 @@ async function registrarConsumoDieta(id){
 // registraram consumo hoje e cujo dia da semana está marcado. Silencioso quando não há nada a fazer.
 // Dietas bloqueadas por falta de estoque NÃO marcam ultimoConsumoAuto, pra tentar de novo depois que repor.
 async function processarConsumoAutomatico(){
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = toISODate(new Date());
   const diaSemana = new Date().getDay();
   // Relê antes de decidir o que já roda hoje — outra sessão pode ter processado segundos atrás.
   const releitura = await storeGet('dietas_list');
@@ -9999,7 +10009,7 @@ document.getElementById('btnAddVisitaDoc').addEventListener('click', ()=>{
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
   editingVisitaId = null;
   document.getElementById('vsModalTitle').textContent = 'Nova Visita';
-  document.getElementById('vs_data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('vs_data').value = toISODate(new Date());
   document.getElementById('vs_veterinario_sel').value = '';
   document.getElementById('vs_obsGeral').value = '';
   document.getElementById('btnDeleteVisita').style.display = 'none';
@@ -12225,7 +12235,9 @@ function renderAuditoria(){
   const acao = document.getElementById('audFiltroAcao').value;
   const { de, ate } = audFiltroPeriodo.getRange();
   const filtrada = auditoria.filter(e=>{
-    const dia = (e.quando||'').slice(0,10);
+    // Extrai o dia LOCAL do timestamp (que é guardado em UTC) — nunca .slice(0,10) direto nele, senão
+    // uma ação feita à noite (Brasil) cai no filtro do dia seguinte, já virado em UTC.
+    const dia = e.quando ? toISODate(new Date(e.quando)) : '';
     const textoBusca = [e.registro, e.usuario, e.modulo, ...(e.mudancas||[]).map(m=>m.campo+' '+auditNomeCampo(m.campo)+' '+m.de+' '+m.para)].join(' ').toLowerCase();
     return (!termo || textoBusca.includes(termo))
       && (!usuario || e.usuario===usuario)
@@ -12655,7 +12667,7 @@ function renderAnimalPerfil(id){
           tarefas.map(t=>`
             <div class="tarefa-row">
               <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
-              <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(t.proxima.toISOString().slice(0,10))):''}</div>
+              <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(toISODate(t.proxima))):''}</div>
             </div>`).join('')}
       </div>
     </div>
@@ -13098,7 +13110,7 @@ document.getElementById('btnExportListaNomes').addEventListener('click', ()=>{
   const blob = new Blob([text], {type:'text/plain'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'lista_animais_'+new Date().toISOString().slice(0,10)+'.txt';
+  a.href = url; a.download = 'lista_animais_'+toISODate(new Date())+'.txt';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
