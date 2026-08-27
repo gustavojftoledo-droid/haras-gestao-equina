@@ -4841,12 +4841,16 @@ function computeProgramacao(dataReferencia){
     {
       const registrosCasco = manejos.filter(m=> m.tipo==='Casco' && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
       const ultimoCasco = registrosCasco[0];
-      const freq = ultimoCasco ? (freqDinamicaCasco(ultimoCasco.subtipoCasco) || h.freqcasco) : h.freqcasco;
+      // Subtipo POR ANIMAL (cada linha da lista `animais` pode ter o seu) — cai pro subtipo do
+      // registro só se a linha não tiver. Assim um lançamento em lote com procedimentos diferentes
+      // recalcula a próxima data certa pra cada animal.
+      const subCascoAnimal = ultimoCasco ? (((ultimoCasco.animais||[]).find(a=>a.id===h.id)||{}).tipo || ultimoCasco.subtipoCasco) : null;
+      const freq = ultimoCasco ? (freqDinamicaCasco(subCascoAnimal) || h.freqcasco) : h.freqcasco;
       if(freq){
         const ultima = ultimoCasco ? ultimoCasco.data : null;
         let proxima = null, situacao = 'nunca';
         if(ultima){ proxima = addToDate(ultima, freq, 'dias'); situacao = situacaoPara(proxima); }
-        rows.push({ animal:h.nome, animalId:h.id, tipo:'Casco', label: labelCasco(ultimoCasco&&ultimoCasco.subtipoCasco), freq: freq+' dias', ultima, proxima, situacao });
+        rows.push({ animal:h.nome, animalId:h.id, tipo:'Casco', label: labelCasco(subCascoAnimal), freq: freq+' dias', ultima, proxima, situacao });
       }
     }
     tiposSimples.forEach(tipo=>{
@@ -5611,7 +5615,9 @@ function renderCalWeekHtml(byDate, nDias){
 // o mesmo procedimento como padrão ao concluir a próxima tarefa de Casco pelo Calendário (Fase 4).
 function ultimoSubtipoCasco(animalId){
   const regs = manejos.filter(m=>m.tipo==='Casco' && (m.animais||[]).some(a=>a.id===animalId)).sort((a,b)=>b.data.localeCompare(a.data));
-  return regs[0] ? (regs[0].subtipoCasco||'') : '';
+  if(!regs[0]) return '';
+  const linha = (regs[0].animais||[]).find(a=>a.id===animalId);
+  return (linha && linha.tipo) || regs[0].subtipoCasco || '';
 }
 async function concluirTarefaManejo(animalId, tipo, subtipoCasco, dataConclusao){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
@@ -5646,17 +5652,31 @@ async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal, da
     renderCalendar(); renderInicio();
     return;
   }
+  // UM único registro com todos os animais (igual o "Salvar Lançamento" manual da tela de Manejos) —
+  // antes saía um manejo separado por animal, o que enchia o Histórico e o Relatório Financeiro de
+  // blocos repetidos. Cada animal ainda leva seu próprio subtipo/valor de Casco na lista `animais`.
+  const animaisReg = [];
   animalIds.forEach(animalId=>{
     const h = horses.find(x=>x.id===animalId); if(!h) return;
-    const registro = { id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data: hoje, tipo, obs:'Concluído pelo Calendário (em lote)', animais:[{id:h.id, nome:h.nome}] };
+    const linha = { id:h.id, nome:h.nome };
     const subtipoCasco = subtiposPorAnimal && subtiposPorAnimal[animalId];
     if(tipo==='Casco' && subtipoCasco){
-      registro.subtipoCasco = subtipoCasco;
-      registro.animais[0].tipo = subtipoCasco;
-      registro.animais[0].valorBase = valorBaseParaTipo(subtipoCasco);
+      linha.tipo = subtipoCasco;
+      linha.valorBase = valorBaseParaTipo(subtipoCasco);
     }
-    manejos.push(registro);
+    animaisReg.push(linha);
   });
+  if(animaisReg.length===0) return;
+  const registro = { id:'mj_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), data: hoje, tipo, obs:'Concluído pelo Calendário (em lote)', animais: animaisReg };
+  if(tipo==='Casco'){
+    // subtipo do registro = o mais comum entre os animais (usado só como rótulo do bloco no relatório;
+    // o recálculo da próxima data lê o subtipo POR ANIMAL — ver computeProgramacao/ultimoSubtipoCasco).
+    const cont = {};
+    animaisReg.forEach(a=>{ if(a.tipo) cont[a.tipo] = (cont[a.tipo]||0)+1; });
+    const maisComum = Object.entries(cont).sort((x,y)=>y[1]-x[1])[0];
+    if(maisComum) registro.subtipoCasco = maisComum[0];
+  }
+  manejos.push(registro);
   await storeSet('manejos_list', manejos);
   renderManejos(); renderCalendar(); renderInicio();
 }
