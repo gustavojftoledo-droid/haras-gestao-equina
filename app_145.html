@@ -1102,6 +1102,7 @@
           <div class="subtitle" style="margin:0;">Horário, alimento e quantidade (por animal) de cada dieta</div>
           <button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button>
         </div>
+        <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr><th>Dieta</th><th>Animais</th><th>Itens</th><th>Custo estimado/mês</th><th>Observações</th><th></th></tr></thead>
           <tbody id="dtTbody"></tbody>
@@ -1361,7 +1362,7 @@
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
         <div class="field" id="f_dataVendaWrap"><label>Data da Venda</label><input type="date" id="f_dataVenda" title="Usada pelo rateio de custos gerais (Financeiro → Custo por Animal) pra parar de contar este animal a partir do mês seguinte."></div>
         <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_compra" style="width:15px;height:15px;margin:0;"> Animal comprado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(entrou no plantel por compra, não nascimento)</span></label></div>
-        <div class="field" id="f_doadorWrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_doador" style="width:15px;height:15px;margin:0;"> Doadora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(só fêmeas)</span></label></div>
+        <div class="field" id="f_doadorWrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_doador" style="width:15px;height:15px;margin:0;"> Doadora de embriões <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(só fêmeas)</span></label></div>
         <div class="field full"><label>Link da foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cole um link do Google Drive, Imgur, etc — ou escolha uma foto do celular abaixo)</span></label>
           <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
             <input type="text" id="f_fotoUrl" placeholder="https://..." style="flex:1;min-width:220px;">
@@ -3309,7 +3310,7 @@ function abrirAnimaisPorLocalizacao(loc){
   viewMode = 'ativos';
   document.querySelectorAll('#viewModeChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.mode==='ativos'));
   const hSearch = document.getElementById('hSearch'); if(hSearch) hSearch.value = '';
-  filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set([loc]) };
+  filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set([loc]), doador:new Set() };
   irParaView('animais'); // o clique já dispara renderHorses() com o filtro acima já aplicado
 }
 const ATALHOS_NOVO = {
@@ -3536,9 +3537,6 @@ function createAnimalSelector(hostEl, opts){
           <input type="text" placeholder="Buscar animal..." id="${hostEl.id}_search">
           <button type="button" class="chip" data-cat="__clear">Todas categorias</button>
           ${cats.map(c=>`<span class="chip" data-cat="${c}">${c}</span>`).join('')}
-          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_all">Selecionar todos</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_none">Limpar seleção</button>
-          <span class="chip ${state.onlySelected?'active':''}" id="${hostEl.id}_onlysel" title="Mostrar só quem já está marcado, pra conferir mais fácil">👁 Só selecionados (${nSel})</span>
         </div>
         ${locs.length>0 ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
           <span class="hint-text" style="margin-right:2px;">Localização:</span>
@@ -3557,6 +3555,11 @@ function createAnimalSelector(hostEl, opts){
           ${!opts.hideExternos ? `<span class="chip ${state.includeExternos?'active':''}" data-inc="externos">Externos</span>` : ''}
         </div>` : ''}
         <div class="selector-hint">Clique em uma ou mais categorias/localizações/proprietários pra filtrar (pode combinar várias ao mesmo tempo, inclusive entre filtros diferentes). Setas ↑ ↓ navegam na lista e espaço marca/desmarca.</div>
+        <div class="selector-toolbar" style="border-top:1px solid var(--line);">
+          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_all">Selecionar todos</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_none">Limpar seleção</button>
+          <span class="chip ${state.onlySelected?'active':''}" id="${hostEl.id}_onlysel" title="Mostrar só quem já está marcado, pra conferir mais fácil">👁 Só selecionados (${nSel})</span>
+        </div>
         <div class="selector-body" id="${hostEl.id}_body"></div>
         <div class="selector-footer"><span id="${hostEl.id}_count">0 selecionados</span><span>${list.length} animal(is) na lista</span></div>
       </div>`;
@@ -3971,7 +3974,7 @@ document.getElementById('btnNormalizeCasing').addEventListener('click', async ()
 // Filtros múltiplos da lista de Animais (Sexo/Status/Categoria/Pelagem/Localização) — cada um é um
 // Set, então dá pra marcar várias opções ao mesmo tempo no mesmo filtro (ex: Categoria "3° Ano" +
 // "4° Ano" juntas). Mesmo padrão de chip-toggle já usado nos seletores de animais dos outros módulos.
-let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set() };
+let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set(), doador:new Set() };
 function renderFiltrosAnimaisChips(){
   const host = document.getElementById('hFiltrosChips');
   const chipGrupo = (chave, label, opcoes)=>{
@@ -3989,7 +3992,8 @@ function renderFiltrosAnimaisChips(){
   const pelagemOpts = dedupOrdenado('pelagem');
   const racaOpts = dedupOrdenado('raca');
   const localizacaoOpts = dedupOrdenado('localizacao');
-  host.innerHTML = chipGrupo('sexo','Sexo',sexoOpts) + chipGrupo('status','Status',statusOpts) + chipGrupo('categoria','Categoria',categoriaOpts) + chipGrupo('pelagem','Pelagem',pelagemOpts) + chipGrupo('raca','Raça',racaOpts) + chipGrupo('localizacao','Localização',localizacaoOpts);
+  const doadorOpts = [{value:'sim',label:'Sim'},{value:'nao',label:'Não'}];
+  host.innerHTML = chipGrupo('sexo','Sexo',sexoOpts) + chipGrupo('status','Status',statusOpts) + chipGrupo('categoria','Categoria',categoriaOpts) + chipGrupo('pelagem','Pelagem',pelagemOpts) + chipGrupo('raca','Raça',racaOpts) + chipGrupo('localizacao','Localização',localizacaoOpts) + chipGrupo('doador','Doadora de embriões',doadorOpts);
   host.querySelectorAll('[data-fam]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const [chave, val] = chip.dataset.fam.split('|');
@@ -4033,7 +4037,8 @@ function renderHorses(){
       && (fm.categoria.size===0 || fm.categoria.has(h.categoria))
       && (fm.pelagem.size===0 || fm.pelagem.has(h.pelagem))
       && (fm.raca.size===0 || fm.raca.has(h.raca))
-      && (fm.localizacao.size===0 || fm.localizacao.has(h.localizacao));
+      && (fm.localizacao.size===0 || fm.localizacao.has(h.localizacao))
+      && (fm.doador.size===0 || fm.doador.has(h.doador?'sim':'nao'));
   });
   if(sortColumn){
     filtered.sort((a,b)=>{
@@ -9533,46 +9538,54 @@ document.getElementById('btnSaveDietaAnimais').addEventListener('click', async (
   showAlert('Animais desta dieta atualizados: '+animaisSel.length+'.');
 });
 
-// Medidor tipo "combustível" por ingrediente da dieta: barra cheia = 30+ dias de estoque no ritmo
-// de consumo da última semana (mesma conta do alerta de Estoque, calcProjecaoConsumo); barra quase
-// vazia = falta ~1 dia. Vermelho até 3 dias, laranja até 10, verde acima disso.
-function barraIngredienteDieta(it){
-  const nome = `${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`;
-  const p = estoqueProdutos.find(x=>x.id===it.produtoId);
-  let pct, cor, txt;
-  if(!p){
-    pct=0; cor='var(--muted)'; txt='vínculo quebrado com o Estoque';
-  } else {
-    const proj = calcProjecaoConsumo(p);
-    const saldo = Number(p.quantidade)||0;
-    if(!proj.suficiente){
-      // sem histórico de consumo — mostra só o saldo, barra neutra
-      pct = saldo>0 ? 100 : 0;
-      cor = saldo>0 ? 'var(--muted)' : 'var(--danger,#c0392b)';
-      txt = saldo>0 ? `${saldo}${p.unidade?(' '+p.unidade):''} em estoque (sem histórico de consumo)` : 'sem estoque';
-    } else {
-      const dias = proj.diasRestantes;
-      pct = dias===Infinity ? 100 : Math.max(2, Math.min(100, Math.round(dias/30*100)));
-      cor = (dias<=3) ? 'var(--danger,#c0392b)' : (dias<=10 ? 'var(--warn,#e67e22)' : 'var(--ok,#27ae60)');
-      txt = dias===Infinity ? 'estoque folgado' : `~${dias} dia(s) no ritmo da última semana`;
-    }
+// Medidor tipo "combustível" de um alimento: barra cheia = 30+ dias de estoque no ritmo de consumo
+// da última semana (mesma conta do alerta de Estoque, calcProjecaoConsumo); barra quase vazia = ~1 dia.
+// Vermelho até 3 dias, laranja até 10, verde acima disso.
+function medidorConsumoProduto(p){
+  const un = p && p.unidade ? (' '+p.unidade) : '';
+  const saldo = p ? (Number(p.quantidade)||0) : 0;
+  if(!p) return { pct:0, cor:'var(--muted)', titulo:'(alimento sem vínculo no Estoque)', txt:'corrija em Estoque → 🔗 Vínculos quebrados' };
+  const proj = calcProjecaoConsumo(p);
+  if(!proj.suficiente){
+    return { pct: saldo>0?100:0, cor: saldo>0?'var(--muted)':'var(--danger,#c0392b)', titulo:p.nome,
+      txt: saldo>0 ? `${saldo}${un} em estoque — sem histórico de consumo pra estimar` : 'sem estoque' };
   }
-  return `<div style="margin:3px 0;">
-    <div style="font-size:11.5px;line-height:1.3;">${nome}</div>
-    <div style="display:flex;align-items:center;gap:6px;">
-      <div style="flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden;max-width:140px;">
-        <div style="height:100%;width:${pct}%;background:${cor};"></div>
+  const dias = proj.diasRestantes;
+  const pct = dias===Infinity ? 100 : Math.max(2, Math.min(100, Math.round(dias/30*100)));
+  const cor = (dias<=3) ? 'var(--danger,#c0392b)' : (dias<=10 ? 'var(--warn,#e67e22)' : 'var(--ok,#27ae60)');
+  const txt = (dias===Infinity ? 'estoque folgado' : `~${dias} dia(s) restantes`) +
+    ` · ${saldo.toFixed(saldo%1?1:0)}${un} · consumo ${proj.consumoSemanal.toFixed(1)}${un}/semana`;
+  return { pct, cor, titulo:p.nome, txt };
+}
+// Painel de medidores no topo de Dietas: um por alimento que aparece em ALGUMA dieta com animais
+// (dieta "sendo fornecida"). Alimento que não está em nenhuma dieta não aparece (não está sendo consumido).
+function renderDietasMedidores(){
+  const host = document.getElementById('dietasMedidoresHost');
+  if(!host) return;
+  const ids = new Set();
+  dietas.forEach(d=>{ if((d.animais||[]).length){ (d.itens||[]).forEach(it=>{ if(it.produtoId) ids.add(it.produtoId); }); } });
+  if(ids.size===0){ host.innerHTML=''; return; }
+  const cards = [...ids].map(pid=>{
+    const p = estoqueProdutos.find(x=>x.id===pid);
+    const m = medidorConsumoProduto(p);
+    return `<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;">
+      <div style="font-weight:600;font-size:13.5px;margin-bottom:8px;">${m.titulo}</div>
+      <div style="height:16px;background:var(--line);border-radius:8px;overflow:hidden;">
+        <div style="height:100%;width:${m.pct}%;background:${m.cor};transition:width .2s;"></div>
       </div>
-      <span style="font-size:10px;color:var(--muted);white-space:nowrap;">${txt}</span>
-    </div>
-  </div>`;
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">${m.txt}</div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `<div class="section-label" style="border-top:none;padding-top:0;margin-bottom:8px;">Estoque dos alimentos em uso <span style="font-family:'Inter';font-size:11px;color:var(--muted);font-weight:400;">— barra cheia = ~30 dias, no ritmo de consumo da última semana</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">${cards}</div>`;
 }
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
+  renderDietasMedidores();
   if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   tbody.innerHTML = dietas.map(d=>{
-    const itensResumo = (d.itens||[]).map(it=>barraIngredienteDieta(it)).join('');
+    const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
     const nAnimais = (d.animais||[]).length;
     const hoje = toISODate(new Date());
     const modoTxt = d.modoConsumo==='automatico'
