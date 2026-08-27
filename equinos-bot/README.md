@@ -65,13 +65,39 @@ Deve responder `{"ok":true,"result":true,"description":"Webhook was set"}`.
 
 Pronto. No Telegram, mande **/start** pro bot.
 
-## Comandos
+## Como usar
+
+Modo **bloco**: o bot manda um modelo, você preenche (uma info por linha, `Campo: valor`) e
+manda tudo **numa mensagem só**. Ordem não importa, linha em branco = campo vazio.
+
+```
+Nome: Estopa
+Sexo: fêmea
+Nascimento: 26/08/2026
+Pai: Vento
+Mãe: Aurora
+Pelagem: Tordilho
+Categoria: Potro
+Proprietário: Paulo Toledo
+```
+
+Manejo com vários animais de uma vez:
+
+```
+Tipo: Casco
+Ferrageamento: Ferrado completo
+Data: hoje
+Animais: Estrela, Vento, Aurora
+Obs:
+```
+
+O bot valida, mostra a prévia e só grava depois do botão **Confirmar**.
 
 | Comando | O que faz |
 |---|---|
 | `/start` | Abre o menu |
-| `/animal` | Começa o cadastro de um animal |
-| `/manejo` | Começa o registro de um manejo (Casco, Dente ou outro) |
+| `/animal` | Manda o modelo de cadastro de animal |
+| `/manejo` | Manda o modelo de registro de manejo (Casco, Dente ou outro) |
 | `/cancelar` | Aborta o que estava fazendo |
 
 Vacina e Vermífugo ficam de fora nesta versão (dependem do controle de estoque) — use o app pra esses.
