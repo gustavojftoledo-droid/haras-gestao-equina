@@ -714,7 +714,7 @@
         <div id="grupoFiltroBanner" style="display:none;background:var(--card);border:1px solid var(--brass-light);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;justify-content:space-between;align-items:center;"></div>
         <div style="display:flex;gap:8px;margin-bottom:16px;" id="viewModeChips">
           <span class="chip active" data-mode="ativos">Ativos</span>
-          <span class="chip" data-mode="todos">Todos os próprios</span>
+          <span class="chip" data-mode="todos">Todos os internos</span>
           <span class="chip" data-mode="vendidos">Vendidos</span>
           <span class="chip" data-mode="falecidos">Falecidos</span>
           <span class="chip" data-mode="externos">Externos</span>
@@ -729,6 +729,11 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="hSearch" placeholder="Nome, código, proprietário..."></div>
         </div>
         <div id="hFiltrosChips" style="margin-bottom:14px;"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelTodos">Selecionar todos</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelLimpar">Limpar seleção</button>
+          <span class="chip" id="btnAnimSelSo" title="Mostrar só os animais já marcados, pra conferir mais fácil">👁 Só selecionados</span>
+        </div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr>
             <th style="width:30px;"><input type="checkbox" id="hSelectAll" title="Selecionar todos os visíveis"></th>
@@ -756,6 +761,11 @@
 
         <div id="rview_fichas">
           <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 6px;">
+            <span class="hint-text" style="margin:0;">Ordenar o relatório por:</span>
+            <span class="chip active" data-relordem="nome" id="relOrdemNome">Nome (A–Z)</span>
+            <span class="chip" data-relordem="idade" id="relOrdemIdade">Idade (mais velho primeiro)</span>
+          </div>
           <div id="relFichaSelectorHost" style="margin:10px 0 16px;"></div>
           <div class="filters" style="margin-bottom:10px;">
             <div class="f"><label>Custo por Animal — período</label><div id="relCustoPeriodo"></div></div>
@@ -781,7 +791,7 @@
 
           <div class="filters">
             <div class="f"><label>Incluir</label><select id="relIncluir">
-              <option value="proprios">Só próprios (ativo+vendido+falecido)</option>
+              <option value="proprios">Só internos (ativo+vendido+falecido)</option>
               <option value="todos">Todos (inclui externos)</option>
             </select></div>
             <div class="f grow"><label>Buscar na lista</label><input type="text" id="relSearch" placeholder="Filtrar por nome..."></div>
@@ -1325,7 +1335,7 @@
         <div class="field"><label>Nome</label><input type="text" id="f_nome" required></div>
         <div class="field"><label>Apelido</label><input type="text" id="f_apelido"></div>
         <div class="field"><label>Sexo</label><select id="f_sexo"><option value="MASCULINO">Masculino</option><option value="FEMININO">Feminino</option></select></div>
-        <div class="field"><label>Situação</label><select id="f_situacao"><option value="P">Próprio</option><option value="E">Externo</option><option value="V">Vendido</option></select></div>
+        <div class="field"><label>Situação</label><select id="f_situacao"><option value="P">Interno</option><option value="E">Externo</option><option value="V">Vendido</option></select></div>
         <div class="field"><label>Status</label><div style="display:flex;gap:6px;"><select id="f_status" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="status">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="status" data-selid="f_status" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="status" data-selid="f_status" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Data Nascimento</label><input type="date" id="f_nascimento"></div>
         <div class="field"><label>Data Falecimento</label><input type="date" id="f_falecimento"></div>
@@ -1555,6 +1565,7 @@
     <div id="tpSessaoResumo" style="margin-bottom:12px;"></div>
     <div class="form-grid cols3" style="margin-bottom:16px;">
       <div class="field"><label>Data Saída</label><input type="date" id="tp_data" required></div>
+      <div class="field"><label>Tipo de viagem</label><select id="tp_tipoViagem"><option value="ida">Só ida</option><option value="idavolta">Ida e volta</option></select></div>
       <div class="field"><label>Origem</label><select id="tp_origem_sel"></select></div>
       <div class="field"><label>Destino</label><select id="tp_destino_sel"></select></div>
       <div class="field"><label>Meio de Transporte</label><div class="field-plus"><select id="tp_meio_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="meioTransporte">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="meioTransporte" data-selid="tp_meio_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="meioTransporte" data-selid="tp_meio_sel" title="Excluir valor selecionado">🗑</button></div></div>
@@ -4016,6 +4027,7 @@ function renderHorses(){
   const filtered = baseList.filter(h=>{
     const matchTerm = !term || (h.nome||'').toLowerCase().includes(term) || (h.codigo||'').toLowerCase().includes(term) || (h.proprietario||'').toLowerCase().includes(term);
     return matchTerm
+      && (!soSelecionadosAnimais || selectedHorseIds.has(h.id))
       && (fm.sexo.size===0 || fm.sexo.has(h.sexo))
       && (fm.status.size===0 || fm.status.has(h.status))
       && (fm.categoria.size===0 || fm.categoria.has(h.categoria))
@@ -4037,7 +4049,7 @@ function renderHorses(){
     const arrow = th.querySelector('.sort-arrow'); if(arrow) arrow.remove();
     if(th.dataset.sort===sortColumn){ th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${sortDir==='asc'?'▲':'▼'}</span>`); }
   });
-  let statsHtml = `<div class="stat"><div class="stat-num">${baseList.length}</div><div class="stat-label">${{ativos:'Total ativos',todos:'Total (todos próprios)',vendidos:'Total vendidos',falecidos:'Total falecidos',externos:'Total externos'}[viewMode]||'Total no plantel'}</div></div>`;
+  let statsHtml = `<div class="stat"><div class="stat-num">${baseList.length}</div><div class="stat-label">${{ativos:'Total ativos',todos:'Total (todos internos)',vendidos:'Total vendidos',falecidos:'Total falecidos',externos:'Total externos'}[viewMode]||'Total no plantel'}</div></div>`;
   if(viewMode==='vendidos' && podeVerValoresAnimais()){
     const parseValor = (v)=>{ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : 0; };
     const totalBRL = baseList.filter(h=>(h.valor||'').startsWith('R$')).reduce((s,h)=>s+parseValor(h.valor),0);
@@ -4082,6 +4094,8 @@ function renderHorses(){
     });
   });
   document.getElementById('hSelectAll').checked = filtered.length>0 && filtered.every(h=>selectedHorseIds.has(h.id));
+  const soChip = document.getElementById('btnAnimSelSo');
+  if(soChip){ soChip.classList.toggle('active', soSelecionadosAnimais); soChip.textContent = `👁 Só selecionados (${selectedHorseIds.size})`; }
   renderValorSelecaoBar(filtered);
 }
 document.getElementById('hSelectAll').addEventListener('change', (e)=>{
@@ -4094,6 +4108,23 @@ document.getElementById('hSearch').addEventListener('input', renderHorses);
 
 let sortColumn = null, sortDir = 'asc';
 let selectedHorseIds = new Set();
+let soSelecionadosAnimais = false;
+
+// Botões de seleção logo acima da lista de nomes (Animais → Lista) — mesmo comportamento do
+// "Selecionar todos" do cabeçalho, só que sempre visíveis antes do início dos nomes.
+document.getElementById('btnAnimSelTodos').addEventListener('click', ()=>{
+  document.querySelectorAll('#hTbody .hRowSelect').forEach(cb=>{ cb.checked=true; selectedHorseIds.add(cb.dataset.id); });
+  renderHorses();
+});
+document.getElementById('btnAnimSelLimpar').addEventListener('click', ()=>{
+  selectedHorseIds.clear();
+  if(soSelecionadosAnimais) soSelecionadosAnimais=false;
+  renderHorses();
+});
+document.getElementById('btnAnimSelSo').addEventListener('click', ()=>{
+  soSelecionadosAnimais = !soSelecionadosAnimais;
+  renderHorses();
+});
 
 function parseValorNum(v){ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : 0; }
 
@@ -4305,7 +4336,7 @@ document.getElementById('f_fotoFile').addEventListener('change', e=>{
   reader.readAsDataURL(file);
 });
 document.getElementById('f_fotoUrl').addEventListener('input', atualizarFotoPreview);
-function ensureExternalAnimal(nome, sexo, pais){
+function ensureExternalAnimal(nome, sexo, pais, comoInterno){
   if(!nome || !nome.trim()) return;
   const clean = titleCase(nome.trim());
   const existing = horses.find(h=>h.nome && h.nome.toLowerCase()===clean.toLowerCase());
@@ -4315,14 +4346,19 @@ function ensureExternalAnimal(nome, sexo, pais){
       if(pais.pai && !existing.pai) existing.pai = titleCase(pais.pai);
       if(pais.mae && !existing.mae) existing.mae = titleCase(pais.mae);
     }
+    // Toda receptora que entra passa a ser um animal interno do haras (não fica como Externo).
+    if(comoInterno && existing.situacao==='E'){
+      existing.situacao='P';
+      if(!existing.categoria) existing.categoria='Receptora';
+    }
     return;
   }
   horses.push({ id:'h_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), codigo:'', nome:clean, apelido:'', sexo,
-    situacao:'E', status:'', nascimento:'', falecimento:'', pelagem:'', categoria:'', localizacao:'',
+    situacao: comoInterno?'P':'E', status:'', nascimento:'', falecimento:'', pelagem:'', categoria: comoInterno?'Receptora':'', localizacao:'',
     pai: (pais&&pais.pai)?titleCase(pais.pai):'', mae: (pais&&pais.mae)?titleCase(pais.mae):'',
     avopat:'', avopatmat:'', avomatpat:'', avomat:'', freqcasco:'', freqdente:'', freqvacina:'', freqvermifugo:'',
     proprietario:'', valor:'', doador:false, criadoEm: toISODate(new Date()),
-    obs:'Cadastrado automaticamente como reprodutor externo via genealogia' });
+    obs: comoInterno?'Cadastrada automaticamente como receptora (animal interno)':'Cadastrado automaticamente como reprodutor externo via genealogia' });
 }
 
 document.getElementById('overlayHorse').addEventListener('keydown', e=>{
@@ -5572,7 +5608,7 @@ function ultimoSubtipoCasco(animalId){
   const regs = manejos.filter(m=>m.tipo==='Casco' && (m.animais||[]).some(a=>a.id===animalId)).sort((a,b)=>b.data.localeCompare(a.data));
   return regs[0] ? (regs[0].subtipoCasco||'') : '';
 }
-async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
+async function concluirTarefaManejo(animalId, tipo, subtipoCasco, dataConclusao){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
   if(tipo==='Vacina' || tipo==='Vermífugo'){
     // Mesma exigência de um Manejo normal (medicamento, estoque, baixa ou confirmação explícita sem
@@ -5581,7 +5617,7 @@ async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
     renderCalendar(); renderInicio();
     return;
   }
-  const registro = { id:'mj_'+Date.now(), data: toISODate(new Date()), tipo, obs:'Concluído pelo Calendário', animais:[{id:h.id, nome:h.nome}] };
+  const registro = { id:'mj_'+Date.now(), data: dataConclusao || toISODate(new Date()), tipo, obs:'Concluído pelo Calendário', animais:[{id:h.id, nome:h.nome}] };
   if(tipo==='Casco' && subtipoCasco){
     registro.subtipoCasco = subtipoCasco;
     registro.animais[0].tipo = subtipoCasco;
@@ -5593,8 +5629,8 @@ async function concluirTarefaManejo(animalId, tipo, subtipoCasco){
 }
 // Marca a mesma tarefa (Casco/Dente/Vacina/Vermífugo) como concluída pra vários animais de uma vez —
 // evita ter que clicar animal por animal quando o dia inteiro precisa do mesmo manejo.
-async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal){
-  const hoje = toISODate(new Date());
+async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal, dataConclusao){
+  const hoje = dataConclusao || toISODate(new Date());
   if(tipo==='Vacina' || tipo==='Vermífugo'){
     // Mesma exigência de sempre, animal por animal (medicamento/quantidade/estoque disponível podem
     // variar de um bicho pro outro, então não dá pra simplificar num lançamento só).
@@ -5674,6 +5710,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const iconeGrupo = CAL_ICON[tipo] || (ehAtividade ? '🏇' : '');
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
     const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
+    const dataMestre = (ehManejo && podeLote && tipo!=='Vacina' && tipo!=='Vermífugo') ? `<input type="date" data-caldet-datamaster="1" value="${toISODate(new Date())}" title="Data em que foi feito — vale pra todos ao 'Marcar todos concluídos' (o próximo manejo é calculado a partir daqui)">` : '';
     const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
@@ -5681,7 +5718,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;">${btnFront}${seletorMestre}${btnConcluirTodos}${btnExcluirTodos}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirTodos}${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -5702,7 +5739,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
-              : `<div style="display:flex;gap:6px;align-items:center;">${seletorCasco}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
+              : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${seletorCasco}${(t.tipo==='Vacina'||t.tipo==='Vermífugo')?'':`<input type="date" class="cal-data-conclusao" data-caldet-data="${t.animalId}" value="${toISODate(new Date())}" title="Data em que foi feito — o próximo manejo é calculado a partir daqui">`}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
       </div>`;
     }).join('');
     return header+rows;
@@ -5711,6 +5748,11 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     sel.addEventListener('change', ()=>{
       if(!sel.value) return;
       document.getElementById('calDetBody').querySelectorAll('[data-caldet-subtipo]').forEach(rowSel=>{ rowSel.value = sel.value; });
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-caldet-datamaster]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      document.getElementById('calDetBody').querySelectorAll('[data-caldet-data]').forEach(rowInp=>{ rowInp.value = inp.value; });
     });
   });
   document.getElementById('calDetBody').querySelectorAll('[data-irperfil]').forEach(btn=>{
@@ -5727,7 +5769,8 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       const [animalId, tipo] = btn.dataset.concluirmanejo.split('|');
       const seletorCasco = document.querySelector(`[data-caldet-subtipo="${animalId}"]`);
-      await concluirTarefaManejo(animalId, tipo, seletorCasco ? seletorCasco.value : undefined);
+      const inputData = document.querySelector(`[data-caldet-data="${animalId}"]`);
+      await concluirTarefaManejo(animalId, tipo, seletorCasco ? seletorCasco.value : undefined, (inputData && inputData.value) ? inputData.value : undefined);
       closeModal('overlayCalDetalhe');
     });
   });
@@ -5806,7 +5849,9 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       const tipo = btn.dataset.concluirtodos;
       const grupo = porTipo[tipo];
-      if(!(await showConfirm(`Marcar ${tipo} como concluído pra ${grupo.length} item(ns) hoje?`))) return;
+      const inputDataMestre = document.querySelector('[data-caldet-datamaster]');
+      const dataMestre = (inputDataMestre && inputDataMestre.value) ? inputDataMestre.value : undefined;
+      if(!(await showConfirm(`Marcar ${tipo} como concluído pra ${grupo.length} item(ns)${dataMestre?(' em '+fmtDate(dataMestre)):' hoje'}?`))) return;
       if(grupo[0].categoria==='tratamento'){
         await concluirDosesTratamentoEmLote(grupo.map(t=>({tratamentoId:t.tratamentoId, doseKey:t.doseKey})));
       } else if(tipo==='Casco'){
@@ -5817,9 +5862,9 @@ function abrirDetalheCalendario(iso, tipoFiltro){
           const sel = document.querySelector(`[data-caldet-subtipo="${t.animalId}"]`);
           if(sel) subtiposPorAnimal[t.animalId] = sel.value;
         });
-        await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo, subtiposPorAnimal);
+        await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo, subtiposPorAnimal, dataMestre);
       } else {
-        await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo);
+        await concluirTarefaManejoEmLote(grupo.map(t=>t.animalId), tipo, undefined, dataMestre);
       }
       closeModal('overlayCalDetalhe');
     });
@@ -6830,7 +6875,7 @@ document.getElementById('btnConfirmarImportNasc').addEventListener('click', asyn
   importNascValidos.forEach(v=>{
     ensureExternalAnimal(v.matriz, 'FEMININO');
     if(v.pai) ensureExternalAnimal(v.pai, 'MASCULINO');
-    if(v.receptora) ensureExternalAnimal(v.receptora, 'FEMININO');
+    if(v.receptora) ensureExternalAnimal(v.receptora, 'FEMININO', null, true);
     const mae = horses.find(h=>h.nome && h.nome.toLowerCase()===v.matriz.toLowerCase());
     const pai = v.pai ? horses.find(h=>h.nome && h.nome.toLowerCase()===v.pai.toLowerCase()) : null;
     const novoAnimal = {
@@ -7070,6 +7115,8 @@ document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   document.getElementById('tp_motivo').value = '';
   document.getElementById('tp_valorFrete').value = '';
   document.getElementById('tp_realizado').checked = false;
+  document.getElementById('tp_tipoViagem').value = 'ida';
+  document.getElementById('tp_tipoViagem').closest('.field').style.display = '';
   resetSelectorComFront(transporteSelector);
   transporteUltimaContagemAnimais = -1;
   atualizarValorTotalTransporte();
@@ -7083,6 +7130,7 @@ function openTransporteEdit(id){
   // Editar um transporte já existente é sempre UM registro — "Adicionar outro" cria um registro NOVO
   // à parte, então não faz sentido aqui (mesmo padrão do Tratamento — ver openTratamentoEdit).
   document.getElementById('btnAddOutroTransporte').style.display = 'none';
+  document.getElementById('tp_tipoViagem').closest('.field').style.display = 'none';
   transporteSessao = [];
   renderTpSessaoResumo();
   populateAuxSelects();
@@ -7131,10 +7179,30 @@ async function tentarSalvarTransporteAtual(){
   return { registro, countLoc };
 }
 document.getElementById('btnSaveTransporte').addEventListener('click', async ()=>{
+  const eraIdaEVolta = !editingTransporteId && document.getElementById('tp_tipoViagem').value === 'idavolta';
   const r = await tentarSalvarTransporteAtual();
   if(!r) return;
-  closeModal('overlayTransporte');
   renderTransportes(); renderHorses();
+  if(eraIdaEVolta){
+    // Ida salva — oferece cadastrar a volta já com os mesmos animais e origem/destino invertidos.
+    if(await showConfirm('Transporte de ida salvo. Cadastrar agora o transporte de volta ('+(r.registro.destino||'—')+' → '+(r.registro.origem||'—')+')?')){
+      editingTransporteId = null;
+      document.getElementById('btnDeleteTransporte').style.display = 'none';
+      document.getElementById('tp_tipoViagem').value = 'ida';
+      document.getElementById('tp_origem_sel').value = r.registro.destino||'';
+      document.getElementById('tp_destino_sel').value = r.registro.origem||'';
+      document.getElementById('tp_motivo').value = r.registro.motivo ? ('Volta — '+r.registro.motivo) : 'Volta';
+      document.getElementById('tp_valorFrete').value = '';
+      document.getElementById('tp_realizado').checked = false;
+      // Mesmos animais da ida vêm pré-marcados (é o caso comum de ida e volta), tudo editável.
+      transporteSelector.setSelected((r.registro.animais||[]).map(a=>({id:a.id})));
+      transporteUltimaContagemAnimais = -1;
+      atualizarValorTotalTransporte();
+      showAlert('Agora cadastre a volta e clique em "Salvar Transporte".');
+      return;
+    }
+  }
+  closeModal('overlayTransporte');
   showAlert('Transporte salvo.'+(r.countLoc>0?(' Localização atualizada em '+r.countLoc+' animal(is).'):''));
 });
 // Sessão de múltiplos transportes: cada um vira uma linha compacta e some do formulário, que reseta
@@ -7647,7 +7715,7 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   // mesmo que o nascimento ainda não tenha sido confirmado.
   ensureExternalAnimal(matrizNome,'FEMININO');
   if(paiNome) ensureExternalAnimal(paiNome,'MASCULINO');
-  if(receptoraNome) ensureExternalAnimal(receptoraNome,'FEMININO');
+  if(receptoraNome) ensureExternalAnimal(receptoraNome,'FEMININO',null,true);
   await storeSet('horses_list', horses);
 
   if(confirmado){
@@ -9465,12 +9533,46 @@ document.getElementById('btnSaveDietaAnimais').addEventListener('click', async (
   showAlert('Animais desta dieta atualizados: '+animaisSel.length+'.');
 });
 
+// Medidor tipo "combustível" por ingrediente da dieta: barra cheia = 30+ dias de estoque no ritmo
+// de consumo da última semana (mesma conta do alerta de Estoque, calcProjecaoConsumo); barra quase
+// vazia = falta ~1 dia. Vermelho até 3 dias, laranja até 10, verde acima disso.
+function barraIngredienteDieta(it){
+  const nome = `${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`;
+  const p = estoqueProdutos.find(x=>x.id===it.produtoId);
+  let pct, cor, txt;
+  if(!p){
+    pct=0; cor='var(--muted)'; txt='vínculo quebrado com o Estoque';
+  } else {
+    const proj = calcProjecaoConsumo(p);
+    const saldo = Number(p.quantidade)||0;
+    if(!proj.suficiente){
+      // sem histórico de consumo — mostra só o saldo, barra neutra
+      pct = saldo>0 ? 100 : 0;
+      cor = saldo>0 ? 'var(--muted)' : 'var(--danger,#c0392b)';
+      txt = saldo>0 ? `${saldo}${p.unidade?(' '+p.unidade):''} em estoque (sem histórico de consumo)` : 'sem estoque';
+    } else {
+      const dias = proj.diasRestantes;
+      pct = dias===Infinity ? 100 : Math.max(2, Math.min(100, Math.round(dias/30*100)));
+      cor = (dias<=3) ? 'var(--danger,#c0392b)' : (dias<=10 ? 'var(--warn,#e67e22)' : 'var(--ok,#27ae60)');
+      txt = dias===Infinity ? 'estoque folgado' : `~${dias} dia(s) no ritmo da última semana`;
+    }
+  }
+  return `<div style="margin:3px 0;">
+    <div style="font-size:11.5px;line-height:1.3;">${nome}</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <div style="flex:1;height:7px;background:var(--line);border-radius:4px;overflow:hidden;max-width:140px;">
+        <div style="height:100%;width:${pct}%;background:${cor};"></div>
+      </div>
+      <span style="font-size:10px;color:var(--muted);white-space:nowrap;">${txt}</span>
+    </div>
+  </div>`;
+}
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
   if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   tbody.innerHTML = dietas.map(d=>{
-    const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
+    const itensResumo = (d.itens||[]).map(it=>barraIngredienteDieta(it)).join('');
     const nAnimais = (d.animais||[]).length;
     const hoje = toISODate(new Date());
     const modoTxt = d.modoConsumo==='automatico'
@@ -12945,8 +13047,25 @@ function renderAnimalTimeline(h){
   });
 }
 
+let relFichaOrdem = 'nome'; // 'nome' (alfabética) ou 'idade' (mais velho primeiro)
+function ordenarAnimaisRel(lista){
+  const arr = [...lista];
+  if(relFichaOrdem==='idade'){
+    // mais velho primeiro = data de nascimento mais antiga primeiro; sem data vai pro fim
+    arr.sort((a,b)=>{
+      const da=a.nascimento||'', db=b.nascimento||'';
+      if(da && db) return da.localeCompare(db) || (a.nome||'').localeCompare(b.nome||'','pt');
+      if(da) return -1;
+      if(db) return 1;
+      return (a.nome||'').localeCompare(b.nome||'','pt');
+    });
+  } else {
+    arr.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  }
+  return arr;
+}
 function fichaSelecionados(){
-  return relFichaSelector.getSelected().map(s=>horses.find(x=>x.id===s.id)).filter(Boolean).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  return ordenarAnimaisRel(relFichaSelector.getSelected().map(s=>horses.find(x=>x.id===s.id)).filter(Boolean));
 }
 
 function gerarRelatorioFicha1(){
@@ -12998,6 +13117,12 @@ function gerarRelatorioFicha4(){
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
 document.getElementById('btnGerarRel4Ficha').addEventListener('click', gerarRelatorioFicha4);
+document.querySelectorAll('[data-relordem]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    relFichaOrdem = chip.dataset.relordem;
+    document.querySelectorAll('[data-relordem]').forEach(c=>c.classList.toggle('active', c.dataset.relordem===relFichaOrdem));
+  });
+});
 // ---- Relatório 3 — Custo por Animal ----
 // Motor único: uma função só, em cima do extrato já unificado (todosLancamentosFinanceiro), substitui
 // as quatro contas separadas que existiam antes (Manejos, Veterinária, Treinos, Dieta) — cada uma
@@ -13155,7 +13280,7 @@ function renderRelatorios(){
     <td><strong>${h.nome||''}</strong></td>
     <td>${h.codigo||'—'}</td>
     <td>${h.sexo==='MASCULINO'?'M':(h.sexo==='FEMININO'?'F':'—')}</td>
-    <td>${h.situacao==='E'?'Externo':(h.situacao==='V'?'Vendido':'Próprio')}</td>
+    <td>${h.situacao==='E'?'Externo':(h.situacao==='V'?'Vendido':'Interno')}</td>
   </tr>`).join('');
 }
 document.getElementById('relIncluir').addEventListener('change', renderRelatorios);
@@ -13532,9 +13657,9 @@ function renderDuplicatesList(){
     <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <div>
         <span class="pill ${p.exact?'st-descarte':'st-outro'}">${p.exact?'Nome idêntico':'Nome parecido'}</span>
-        <div style="margin-top:6px;font-size:14px;"><strong>${p.a.nome}</strong> <span style="color:var(--muted);">(#${p.a.codigo||'—'}, ${p.a.situacao==='E'?'Externo':(p.a.situacao==='V'?'Vendido':'Próprio')})</span>
+        <div style="margin-top:6px;font-size:14px;"><strong>${p.a.nome}</strong> <span style="color:var(--muted);">(#${p.a.codigo||'—'}, ${p.a.situacao==='E'?'Externo':(p.a.situacao==='V'?'Vendido':'Interno')})</span>
         &nbsp;vs&nbsp;
-        <strong>${p.b.nome}</strong> <span style="color:var(--muted);">(#${p.b.codigo||'—'}, ${p.b.situacao==='E'?'Externo':(p.b.situacao==='V'?'Vendido':'Próprio')})</span></div>
+        <strong>${p.b.nome}</strong> <span style="color:var(--muted);">(#${p.b.codigo||'—'}, ${p.b.situacao==='E'?'Externo':(p.b.situacao==='V'?'Vendido':'Interno')})</span></div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
         <button type="button" class="btn btn-sm btn-ghost" data-dismiss="${p.key}">Não é o mesmo</button>
