@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+# Chave da conta de servico do Firebase — NUNCA commitar
+*service-account*.json
+*serviceAccount*.json
+gcp-*.json

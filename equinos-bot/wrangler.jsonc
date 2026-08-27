@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "equinos-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-10",
+  "compatibility_flags": ["nodejs_compat"],
+
+  /**
+   * Segredos (definir com `npx wrangler secret put NOME`):
+   *   TELEGRAM_TOKEN        -> token do bot, dado pelo @BotFather
+   *   TELEGRAM_WEBHOOK_SECRET -> qualquer string aleatoria; confere o header do webhook
+   *   GCP_SERVICE_ACCOUNT   -> JSON inteiro da conta de servico do Firebase (uma linha)
+   *   ALLOWED_CHAT_IDS      -> ids de chat do Telegram autorizados, separados por virgula
+   */
+  "vars": {
+    "FIREBASE_PROJECT_ID": "equinos-manager",
+    "FIRESTORE_COLLECTION": "harasData"
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "70f2e3abf0404e959ca1e256c05ba617"
+    }
+  ],
+
+  "observability": { "enabled": true }
+}
