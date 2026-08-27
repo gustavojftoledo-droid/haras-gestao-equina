@@ -1,13 +1,20 @@
 # equinos-bot
 
-Bot do Telegram com **menu guiado** (sem IA) pra **cadastrar Animal** e **registrar Manejo**
-no Equinos Manager. Grava direto no mesmo Firestore que o app usa, sempre com **prévia +
-botão Confirmar** antes de qualquer gravação.
+Bot do Telegram que entende **frase solta** (texto ou voz-do-teclado) pra **cadastrar Animal**
+e **registrar Manejo** no Equinos Manager. Uma IA barata (Claude Haiku) extrai os campos; o bot
+mostra a **prévia** e só grava depois do **botão Confirmar**. Grava direto no mesmo Firestore que
+o app usa.
 
-- Sem IA, sem transcrição de áudio → **custo zero** (Cloudflare Workers grátis + Firestore grátis + Telegram grátis).
+Exemplos:
+> Cadastra a Estopa, fêmea, filha do Vento com a Aurora, nascida ontem, tordilha, do Paulo
+> Ferrei hoje a Rosa, a Tirania e a Tulipa
+
 - Só o seu chat do Telegram é aceito (lista de permissão).
 - Toda gravação entra na auditoria do app como "Chatbot (Telegram)".
 - Concorrência: relê o Firestore na hora de confirmar, então não sobrescreve edição feita no app nesse meio-tempo.
+- Custo: Telegram/Cloudflare/Firestore grátis; a IA custa ~R$0,01 por comando (uns poucos reais/mês no uso normal).
+- Transcrição de áudio (mensagem de voz do Telegram) ainda não — use o microfone do teclado.
+- Vacina/Vermífugo com baixa de estoque: pelo app.
 
 ## O que já está pronto
 
@@ -47,6 +54,10 @@ npx wrangler secret put GCP_SERVICE_ACCOUNT
 # seu chat id (pode pôr vários separados por vírgula)
 npx wrangler secret put ALLOWED_CHAT_IDS
 
+# chave da API da Anthropic — crie em console.anthropic.com > API keys
+# (precisa de um cartão / créditos nessa conta; o uso é de centavos por comando)
+npx wrangler secret put ANTHROPIC_API_KEY
+
 # publica
 npm run deploy
 ```
@@ -67,40 +78,24 @@ Pronto. No Telegram, mande **/start** pro bot.
 
 ## Como usar
 
-Modo **bloco**: o bot manda um modelo, você preenche (uma info por linha, `Campo: valor`) e
-manda tudo **numa mensagem só**. Ordem não importa, linha em branco = campo vazio.
+Manda a frase, do jeito que falar. A IA entende e monta.
 
-```
-Nome: Estopa
-Sexo: fêmea
-Nascimento: 26/08/2026
-Pai: Vento
-Mãe: Aurora
-Pelagem: Tordilho
-Categoria: Potro
-Proprietário: Paulo Toledo
-```
+> Cadastra a Estopa, fêmea, filha do Vento com a Aurora, nascida ontem, tordilha, categoria potro, do Paulo Toledo
 
-Manejo com vários animais de uma vez:
+> Ferrei hoje a Rosa, a Tirania e a Tulipa
 
-```
-Tipo: Casco
-Ferrageamento: Ferrado completo
-Data: hoje
-Animais: Estrela, Vento, Aurora
-Obs:
-```
+> Casqueei a Estrela dia 20/08
 
-O bot valida, mostra a prévia e só grava depois do botão **Confirmar**.
+O bot mostra a prévia e só grava depois do botão **Confirmar**. Se faltar algo (nome, sexo,
+qual animal…) ele pergunta. Nomes de pai/mãe/animais são batidos com o cadastro (ignora
+acento e maiúscula); animal que não existe, ele avisa e não grava.
 
 | Comando | O que faz |
 |---|---|
-| `/start` | Abre o menu |
-| `/animal` | Manda o modelo de cadastro de animal |
-| `/manejo` | Manda o modelo de registro de manejo (Casco, Dente ou outro) |
-| `/cancelar` | Aborta o que estava fazendo |
+| `/start` | Explica como usar |
+| `/cancelar` | Esquece a conversa atual |
 
-Vacina e Vermífugo ficam de fora nesta versão (dependem do controle de estoque) — use o app pra esses.
+Vacina e Vermífugo (com baixa de estoque) ficam de fora — use o app pra esses.
 
 ## Desenvolvimento
 
@@ -116,7 +111,8 @@ npx wrangler deploy --dry-run
 | Arquivo | Papel |
 |---|---|
 | `src/index.ts` | Entrada do Worker: recebe o webhook, checa permissão, roteia |
-| `src/flows.ts` | Máquina de estado das conversas (Animal, Manejo) + prévia/confirmação |
+| `src/ai.ts` | Chama o Claude Haiku (tool use) e devolve os campos do Animal/Manejo, ou uma pergunta |
+| `src/flows.ts` | Conversa: chama a IA, valida, bate nomes com o cadastro, prévia/confirmação, gravação |
 | `src/domain.ts` | Regras portadas do app: monta o objeto do animal/manejo, genealogia, listas auxiliares, auditoria |
 | `src/firestore.ts` | Leitura/escrita no Firestore via REST + JWT da conta de serviço |
 | `src/telegram.ts` | Chamadas à API do Telegram |
@@ -125,7 +121,7 @@ npx wrangler deploy --dry-run
 
 Cada nova entidade que "tem a mesma lógica" (Dieta, Nascimento, Treino, Transporte…) é:
 1. um builder em `domain.ts` (`montarX`) que devolve o objeto no formato do app;
-2. um fluxo de perguntas em `flows.ts` (copiar `startManejo`/`manejoText`/`previewManejo`/`confirmarManejo`);
-3. um item no menu.
+2. uma ferramenta nova em `ai.ts` (`TOOLS[]`) com o schema dos campos;
+3. um ramo em `flows.ts` → `interpretarEResponder` (validar + `previewX` + `pendente`) e um `gravarX`.
 
 O passo de confirmação e a gravação (`getList`/`setList` + `auditEntrada`) já são genéricos.

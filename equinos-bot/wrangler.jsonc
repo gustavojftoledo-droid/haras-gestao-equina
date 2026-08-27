@@ -11,6 +11,7 @@
    *   TELEGRAM_WEBHOOK_SECRET -> qualquer string aleatoria; confere o header do webhook
    *   GCP_SERVICE_ACCOUNT   -> JSON inteiro da conta de servico do Firebase (uma linha)
    *   ALLOWED_CHAT_IDS      -> ids de chat do Telegram autorizados, separados por virgula
+   *   ANTHROPIC_API_KEY     -> chave da API da Anthropic (console.anthropic.com) — a IA que entende as frases
    */
   "vars": {
     "FIREBASE_PROJECT_ID": "equinos-manager",

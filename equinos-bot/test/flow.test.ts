@@ -1,6 +1,7 @@
 /**
- * Testa a conversa em modo "bloco" (Animal e Manejo) sem credenciais: Firestore falso em
- * memória, Telegram capturado, e uma chave RSA de verdade pro JWT.
+ * Testa a conversa com a IA "mockada" (a chamada ao Claude é interceptada e devolve um
+ * tool_use canned). Firestore falso em memória, Telegram capturado, chave RSA de verdade.
+ * O foco: nada grava antes do Confirmar, e o que grava tem o formato certo.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,8 +15,12 @@ const FAKE_SA = JSON.stringify({
   token_uri: "https://oauth2.googleapis.com/token",
 });
 
+type IAResp =
+  | { tool: "criar_animal" | "registrar_manejo"; input: any }
+  | { texto: string };
+
 type Store = Record<string, any>;
-function makeEnv(store: Store) {
+function makeEnv(store: Store, iaFila: IAResp[]) {
   const kv = new Map<string, string>();
   const sent: { text: string; buttons?: any }[] = [];
 
@@ -40,6 +45,27 @@ function makeEnv(store: Store) {
       if (url.endsWith("/sendMessage")) sent.push({ text: body.text, buttons: body.reply_markup?.inline_keyboard });
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
+    if (url.includes("api.anthropic.com")) {
+      const next = iaFila.shift();
+      let content: any[];
+      if (next && "tool" in next) {
+        content = [{ type: "tool_use", id: "tu_1", name: next.tool, input: next.input }];
+      } else {
+        content = [{ type: "text", text: next ? next.texto : "..." }];
+      }
+      return new Response(
+        JSON.stringify({
+          id: "msg_1",
+          type: "message",
+          role: "assistant",
+          model: "claude-haiku-4-5",
+          stop_reason: next && "tool" in next ? "tool_use" : "end_turn",
+          content,
+          usage: { input_tokens: 10, output_tokens: 10 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
     if (url.includes("oauth2.googleapis.com/token")) {
       return new Response(JSON.stringify({ access_token: "fake", expires_in: 3600 }), { status: 200 });
     }
@@ -60,6 +86,7 @@ function makeEnv(store: Store) {
     TELEGRAM_TOKEN: "t",
     TELEGRAM_WEBHOOK_SECRET: "s",
     GCP_SERVICE_ACCOUNT: FAKE_SA,
+    ANTHROPIC_API_KEY: "sk-test",
     ALLOWED_CHAT_IDS: "1",
     FIREBASE_PROJECT_ID: "equinos-manager",
     FIRESTORE_COLLECTION: "harasData",
@@ -93,19 +120,16 @@ function fromV(x: any): any {
 }
 const last = (s: any[]) => s[s.length - 1];
 
-test("animal: bloco completo → prévia → confirma grava", async () => {
+test("animal: frase solta → prévia → confirma grava", async () => {
   const store: Store = { horses_list: [{ id: "h_v", nome: "Vento", situacao: "P", pai: "Raio", mae: "Lua" }], aux_lists: {}, auditoria_log: [] };
-  const { env, sent, restore } = makeEnv(store);
+  const { env, sent, restore } = makeEnv(store, [
+    { tool: "criar_animal", input: { nome: "Estopa", sexo: "FEMININO", nascimento: "2026-08-26", pai: "Vento", pelagem: "Tordilho", proprietario: "Paulo Toledo" } },
+  ]);
   try {
-    await onText(env, 1, "/animal");
-    await onText(
-      env,
-      1,
-      "Nome: Estopa\nSexo: fêmea\nNascimento: 26/08/2026\nPai: Vento\nMãe: \nPelagem: Tordilho\nCategoria: Potro\nProprietário: Paulo Toledo",
-    );
-    assert.match(last(sent).text, /incluir um animal novo/);
+    await onText(env, 1, "cadastra a estopa, fêmea, filha do vento, nascida ontem, tordilha, do paulo");
+    assert.match(last(sent).text, /cadastrar um animal/);
     assert.match(last(sent).text, /Estopa/);
-    assert.equal(store.horses_list.length, 1, "nada gravado antes de confirmar");
+    assert.equal(store.horses_list.length, 1, "nada antes do confirmar");
 
     await onCallback(env, 1, "confirm:animal");
     assert.equal(store.horses_list.length, 2);
@@ -114,55 +138,41 @@ test("animal: bloco completo → prévia → confirma grava", async () => {
     assert.equal(nova.situacao, "P");
     assert.equal(nova.nascimento, "2026-08-26");
     assert.equal(nova.pai, "Vento");
-    assert.equal(nova.avopat, "Raio"); // herdou avós do pai
+    assert.equal(nova.avopat, "Raio");
     assert.equal(store.auditoria_log[0].acao, "inclusao");
-    assert.deepEqual(store.aux_lists.pelagem, ["Tordilho"]);
   } finally {
     restore();
   }
 });
 
-test("animal: modelo em branco (só labels) → pede pra preencher", async () => {
+test("animal: IA pede o sexo → pergunta chega, nada grava", async () => {
   const store: Store = { horses_list: [], aux_lists: {}, auditoria_log: [] };
-  const { env, sent, restore } = makeEnv(store);
+  const { env, sent, restore } = makeEnv(store, [{ texto: "Qual o sexo da Estopa?" }]);
   try {
-    await onText(env, 1, "/animal");
-    await onText(env, 1, "Nome: \nSexo: (macho ou fêmea)\nNascimento: (dd/mm/aaaa)\nPai: \nMãe: ");
-    assert.match(last(sent).text, /Faltou ajustar/);
-    assert.match(last(sent).text, /Nome/);
-    assert.match(last(sent).text, /Sexo/);
+    await onText(env, 1, "cadastra a estopa");
+    assert.match(last(sent).text, /sexo/i);
     assert.equal(store.horses_list.length, 0);
   } finally {
     restore();
   }
 });
 
-test("animal: data inválida é recusada", async () => {
-  const store: Store = { horses_list: [], aux_lists: {}, auditoria_log: [] };
-  const { env, sent, restore } = makeEnv(store);
-  try {
-    await onText(env, 1, "/animal");
-    await onText(env, 1, "Nome: Teste\nSexo: macho\nNascimento: 31/02/2020");
-    assert.match(last(sent).text, /Nascimento.*dd\/mm\/aaaa/s);
-  } finally {
-    restore();
-  }
-});
-
-test("manejo: Casco, vários animais numa linha, data hoje", async () => {
+test("manejo: ferrei Rosa, Tirania e Tulipa → 1 registro com 3 animais", async () => {
   const store: Store = {
     horses_list: [
-      { id: "h_1", nome: "Estrela" },
-      { id: "h_2", nome: "Vento" },
-      { id: "h_3", nome: "Aurora" },
+      { id: "h1", nome: "Rosa" },
+      { id: "h2", nome: "Tirania" },
+      { id: "h3", nome: "Tulipa" },
     ],
+    aux_lists: { subtipoFerrageamento: ["Ferrado completo", "Casqueado completo"] },
     manejos_list: [],
     auditoria_log: [],
   };
-  const { env, sent, restore } = makeEnv(store);
+  const { env, sent, restore } = makeEnv(store, [
+    { tool: "registrar_manejo", input: { tipo: "Casco", ferrageamento: "Ferrado completo", animais: ["Rosa", "Tirania", "Tulipa"] } },
+  ]);
   try {
-    await onText(env, 1, "/manejo");
-    await onText(env, 1, "Tipo: Casco\nFerrageamento: Ferrado completo\nData: hoje\nAnimais: Estrela, Vento, Aurora\nObs: rotina");
+    await onText(env, 1, "ferrei hoje a rosa, a tirania e a tulipa");
     assert.match(last(sent).text, /registrar um manejo/i);
     assert.match(last(sent).text, /Animais \(3\)/);
     assert.equal(store.manejos_list.length, 0);
@@ -174,19 +184,19 @@ test("manejo: Casco, vários animais numa linha, data hoje", async () => {
     assert.equal(mj.subtipoCasco, "Ferrado completo");
     assert.equal(mj.animais.length, 3);
     assert.equal(mj.animais[0].tipo, "Ferrado completo");
-    assert.equal(mj.obs, "rotina");
     assert.match(mj.data, /^\d{4}-\d{2}-\d{2}$/);
   } finally {
     restore();
   }
 });
 
-test("manejo: animal inexistente é apontado, nada grava", async () => {
-  const store: Store = { horses_list: [{ id: "h_1", nome: "Estrela" }], manejos_list: [], auditoria_log: [] };
-  const { env, sent, restore } = makeEnv(store);
+test("manejo: animal que não existe → pergunta, nada grava", async () => {
+  const store: Store = { horses_list: [{ id: "h1", nome: "Rosa" }], aux_lists: {}, manejos_list: [], auditoria_log: [] };
+  const { env, sent, restore } = makeEnv(store, [
+    { tool: "registrar_manejo", input: { tipo: "Dente", animais: ["Rosa", "Fantasma"] } },
+  ]);
   try {
-    await onText(env, 1, "/manejo");
-    await onText(env, 1, "Tipo: Dente\nData: 01/08/2026\nAnimais: Estrela, Fantasma");
+    await onText(env, 1, "cheque dental na rosa e no fantasma");
     assert.match(last(sent).text, /Não achei.*Fantasma/s);
     assert.equal(store.manejos_list.length, 0);
   } finally {
@@ -195,26 +205,23 @@ test("manejo: animal inexistente é apontado, nada grava", async () => {
 });
 
 test("manejo: Vacina é recusada", async () => {
-  const store: Store = { horses_list: [{ id: "h_1", nome: "Estrela" }], manejos_list: [] };
-  const { env, sent, restore } = makeEnv(store);
+  const store: Store = { horses_list: [{ id: "h1", nome: "Rosa" }], aux_lists: {}, manejos_list: [] };
+  const { env, sent, restore } = makeEnv(store, [{ tool: "registrar_manejo", input: { tipo: "Vacina", animais: ["Rosa"] } }]);
   try {
-    await onText(env, 1, "/manejo");
-    await onText(env, 1, "Tipo: Vacina\nAnimais: Estrela");
-    assert.match(last(sent).text, /Vacina e Vermífugo dependem/);
+    await onText(env, 1, "vacinei a rosa");
+    assert.match(last(sent).text, /Vacina e vermífugo dependem/);
   } finally {
     restore();
   }
 });
 
-test("/start abre o menu e /cancelar limpa", async () => {
-  const store: Store = { horses_list: [] };
-  const { env, sent, restore } = makeEnv(store);
+test("/cancelar limpa a sessão", async () => {
+  const store: Store = { horses_list: [], aux_lists: {} };
+  const { env, sent, restore } = makeEnv(store, [{ texto: "Qual o sexo?" }]);
   try {
-    await onText(env, 1, "/animal");
+    await onText(env, 1, "cadastra a estrela");
     await onText(env, 1, "/cancelar");
-    assert.match(last(sent).text, /cancelei/i);
-    await onText(env, 1, "oi");
-    assert.match(last(sent).text, /Equinos Manager/);
+    assert.match(last(sent).text, /esqueci/i);
   } finally {
     restore();
   }

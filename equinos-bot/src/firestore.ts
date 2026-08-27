@@ -14,6 +14,7 @@ export interface Env {
   TELEGRAM_WEBHOOK_SECRET: string;
   GCP_SERVICE_ACCOUNT: string;
   ALLOWED_CHAT_IDS: string;
+  ANTHROPIC_API_KEY: string;
   FIREBASE_PROJECT_ID: string;
   FIRESTORE_COLLECTION: string;
 }

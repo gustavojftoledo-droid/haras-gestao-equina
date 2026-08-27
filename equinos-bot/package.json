@@ -9,6 +9,9 @@
     "type-check": "tsc --noEmit",
     "test": "node --test \"test/basic.test.ts\" \"test/flow.test.ts\""
   },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.0"
+  },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260826.1",
     "typescript": "^5.6.0",
