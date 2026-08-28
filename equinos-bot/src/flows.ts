@@ -23,10 +23,14 @@ import {
 } from "./domain.ts";
 
 type Turno = { role: "user" | "assistant"; content: string };
+type ManejoPendente = DadosManejo & {
+  animaisIds: { id: string; nome: string; valorExtra?: number }[];
+  valoresCasco: Record<string, number>;
+};
 export interface Session {
   step: "conversa" | "confirm";
   historico: Turno[];
-  pendente?: { tipo: "animal"; dados: DadosAnimal } | { tipo: "manejo"; dados: DadosManejo & { animaisIds: { id: string; nome: string }[] } };
+  pendente?: { tipo: "animal"; dados: DadosAnimal } | { tipo: "manejo"; dados: ManejoPendente };
 }
 
 const KEY = (chatId: number) => `sess:${chatId}`;
@@ -168,8 +172,20 @@ async function interpretarEResponder(env: Env, chatId: number, s: Session): Prom
     dataISO = iso;
   }
 
+  // valores extra por animal (ex: "ferradura fechada R$150 na Zebra") → casa com quem já foi achado
+  const animaisIds: { id: string; nome: string; valorExtra?: number }[] = achados.map((a) => ({ ...a }));
+  for (const ve of d.valoresExtra || []) {
+    const alvo = norm(ve.animal);
+    const linha =
+      animaisIds.find((a) => norm(a.nome) === alvo) || animaisIds.find((a) => norm(a.nome).includes(alvo));
+    if (linha) linha.valorExtra = (linha.valorExtra || 0) + ve.valor;
+  }
+
   const tipoNorm = /^casque|^ferr|^casco/i.test(norm(d.tipo)) ? "Casco" : /^dente|^odont/i.test(norm(d.tipo)) ? "Dente" : titleCase(d.tipo);
-  const pend = { ...d, tipo: tipoNorm, data: dataISO, animaisIds: achados };
+  const config = await getMap(env, "config");
+  const valoresCasco: Record<string, number> =
+    config && typeof config.valoresCasco === "object" && config.valoresCasco ? config.valoresCasco : {};
+  const pend = { ...d, tipo: tipoNorm, data: dataISO, animaisIds, valoresCasco };
   s.step = "confirm";
   s.pendente = { tipo: "manejo", dados: pend };
   await save(env, chatId, s);
@@ -203,15 +219,20 @@ function previewAnimal(env: Env, chatId: number, d: DadosAnimal): Promise<void> 
   );
 }
 
-function previewManejo(env: Env, chatId: number, d: DadosManejo & { animaisIds: { id: string; nome: string }[] }): Promise<void> {
+function previewManejo(env: Env, chatId: number, d: ManejoPendente): Promise<void> {
+  const base = d.tipo === "Casco" && d.ferrageamento ? Number(d.valoresCasco[d.ferrageamento]) : NaN;
+  const extras = d.animaisIds.filter((a) => a.valorExtra && a.valorExtra > 0);
   return sendMessage(
     env,
     chatId,
     "Vou <b>registrar um manejo</b>:" +
       `\n<b>Tipo:</b> ${esc(d.tipo)}` +
       (d.ferrageamento ? `\n<b>Ferrageamento:</b> ${esc(d.ferrageamento)}` : "") +
+      (d.ferrador ? `\n<b>Ferrador:</b> ${esc(d.ferrador)}` : "") +
       `\n<b>Data:</b> ${fmtDataBR(d.data!)}` +
       `\n<b>Animais (${d.animaisIds.length}):</b> ${esc(d.animaisIds.map((a) => a.nome).join(", "))}` +
+      (Number.isFinite(base) ? `\n<b>Valor de referência:</b> R$ ${base.toFixed(2)} por animal` : "") +
+      (extras.length ? `\n<b>Extra:</b> ${esc(extras.map((a) => `${a.nome} R$ ${a.valorExtra!.toFixed(2)}`).join(", "))}` : "") +
       (d.obs ? `\n<b>Obs:</b> ${esc(d.obs)}` : ""),
     [[{ text: "✔ Confirmar", data: "confirm:manejo" }, { text: "Cancelar", data: "cancel:x" }]],
   );
@@ -268,11 +289,7 @@ async function gravarAnimal(env: Env, chatId: number, d: DadosAnimal): Promise<v
   }
 }
 
-async function gravarManejo(
-  env: Env,
-  chatId: number,
-  d: DadosManejo & { animaisIds: { id: string; nome: string }[] },
-): Promise<void> {
+async function gravarManejo(env: Env, chatId: number, d: ManejoPendente): Promise<void> {
   await sendMessage(env, chatId, "Gravando…");
   try {
     const manejos = await getList(env, "manejos_list");
@@ -282,6 +299,8 @@ async function gravarManejo(
       obs: d.obs,
       animais: d.animaisIds,
       subtipoCasco: d.tipo === "Casco" ? d.ferrageamento || undefined : undefined,
+      ferrador: d.ferrador,
+      valoresCasco: d.valoresCasco,
     });
     manejos.push(reg);
     await setList(env, "manejos_list", manejos);

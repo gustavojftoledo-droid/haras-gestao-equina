@@ -221,6 +221,8 @@ export interface ManejoAnimal {
   id: string;
   nome: string;
   tipo?: string; // subtipo de ferrageamento (Casco)
+  valorBase?: number; // "retrato" do valor de referência do subtipo na hora
+  valorExtra?: number; // valor extra desse animal (frete, ferradura especial…)
 }
 export interface Manejo {
   id: string;
@@ -238,8 +240,11 @@ export interface NovoManejoInput {
   tipo: TipoManejo;
   data: string;
   obs?: string;
-  animais: { id: string; nome: string }[];
+  animais: { id: string; nome: string; valorExtra?: number }[];
   subtipoCasco?: string;
+  ferrador?: string;
+  /** config.valoresCasco do app (Firestore doc `config`) — pra gravar o valorBase igual a tela manual */
+  valoresCasco?: Record<string, number>;
 }
 
 /** Monta o registro de manejo no mesmo formato do "Salvar Lançamento" do app. Nao grava. */
@@ -249,14 +254,22 @@ export function montarManejo(inp: NovoManejoInput): Manejo {
     data: inp.data,
     tipo: inp.tipo,
     obs: inp.obs || "Registrado via chatbot (Telegram)",
-    animais: inp.animais.map((a) => ({ id: a.id, nome: a.nome })),
+    animais: inp.animais.map((a) => {
+      const linha: ManejoAnimal = { id: a.id, nome: a.nome };
+      if (a.valorExtra && a.valorExtra > 0) linha.valorExtra = a.valorExtra;
+      return linha;
+    }),
   };
   if (inp.tipo === "Casco") {
     reg.subtipoCasco = inp.subtipoCasco || "";
-    reg.ferrador = "";
+    reg.ferrador = inp.ferrador || "";
     reg.valor = null;
     reg.deslocamento = null;
-    if (inp.subtipoCasco) reg.animais.forEach((a) => (a.tipo = inp.subtipoCasco));
+    const base = inp.subtipoCasco && inp.valoresCasco ? Number(inp.valoresCasco[inp.subtipoCasco]) : NaN;
+    reg.animais.forEach((a) => {
+      if (inp.subtipoCasco) a.tipo = inp.subtipoCasco;
+      if (Number.isFinite(base)) a.valorBase = base;
+    });
   }
   if (inp.tipo === "Dente") {
     reg.valor = null;

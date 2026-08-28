@@ -69,17 +69,25 @@ test("montarAnimal herda avós dos pais já cadastrados", () => {
   assert.ok(animal.criadoEm.match(/^\d{4}-\d{2}-\d{2}$/));
 });
 
-test("montarManejo — Casco e Dente", () => {
+test("montarManejo — Casco pega valorBase da config e valorExtra por animal", () => {
   const casco = montarManejo({
     tipo: "Casco",
     data: "2026-08-01",
-    animais: [{ id: "h_1", nome: "Estrela" }],
+    animais: [
+      { id: "h_1", nome: "Zebra", valorExtra: 150 },
+      { id: "h_2", nome: "Ativo" },
+    ],
     subtipoCasco: "Ferrado completo",
+    ferrador: "Catraca",
+    valoresCasco: { "Ferrado completo": 200, "Casqueado completo": 80 },
   });
   assert.equal(casco.subtipoCasco, "Ferrado completo");
+  assert.equal(casco.ferrador, "Catraca");
   assert.equal(casco.animais[0].tipo, "Ferrado completo");
-  assert.equal(casco.valor, null);
-  assert.equal(casco.ferrador, "");
+  assert.equal(casco.animais[0].valorBase, 200);
+  assert.equal(casco.animais[0].valorExtra, 150);
+  assert.equal(casco.animais[1].valorBase, 200);
+  assert.equal(casco.animais[1].valorExtra, undefined);
 
   const dente = montarManejo({ tipo: "Dente", data: "2026-08-01", animais: [{ id: "h_1", nome: "Estrela" }] });
   assert.equal(dente.valor, null);

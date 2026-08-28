@@ -26,8 +26,10 @@ export interface DadosAnimal {
 export interface DadosManejo {
   tipo: string;
   ferrageamento?: string;
+  ferrador?: string;
   data?: string;
   animais: string[];
+  valoresExtra?: { animal: string; valor: number }[];
   obs?: string;
 }
 
@@ -65,9 +67,20 @@ const TOOLS: Anthropic.Tool[] = [
           type: "string",
           description: "Só quando tipo=Casco: o procedimento exato (ex: 'Ferrado completo', 'Casqueado completo')",
         },
+        ferrador: { type: "string", description: "Nome do ferrador, se citado" },
         data: { type: "string", description: "Data no formato AAAA-MM-DD. Se não disser, deixe vazio (será hoje)." },
-        animais: { type: "array", items: { type: "string" }, description: "Nomes dos animais, como ditos" },
-        obs: { type: "string" },
+        animais: { type: "array", items: { type: "string" }, description: "Nomes SÓ dos animais que passaram pelo procedimento" },
+        valores_extra: {
+          type: "array",
+          description: "Valores extras cobrados por animal específico (ex: 'ferradura fechada R$150 na Zebra')",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: { animal: { type: "string" }, valor: { type: "number" } },
+            required: ["animal", "valor"],
+          },
+        },
+        obs: { type: "string", description: "Observação livre — NÃO repita aqui nomes de animais, ferrador nem valores já extraídos acima" },
       },
       required: ["tipo", "animais"],
     },
@@ -81,6 +94,7 @@ function sistema(subtipos: string[]): string {
     "Extraia SOMENTE o que a pessoa disse. Nunca invente pelagem, categoria, pai, mãe, valores.",
     "Para cadastrar animal: se faltar o nome OU o sexo, NÃO chame a ferramenta — faça uma pergunta curta.",
     "Para manejo: se faltar o tipo OU os animais, faça uma pergunta curta.",
+    "No manejo, separe bem: 'animais' são só os bichos que passaram pelo procedimento; 'ferrador' é o nome do ferrador; 'valores_extra' é [{animal, valor}] quando cobram algo a mais de um animal ('ferradura fechada R$150 na Zebra'). O campo 'obs' fica só com o que sobrar, sem repetir nome de animal/ferrador/valor.",
     subtipos.length
       ? `Procedimentos de ferrageamento válidos (escolha o mais próximo do que a pessoa disse): ${subtipos.join("; ")}.`
       : "",
@@ -139,11 +153,18 @@ function limparAnimal(i: any): DadosAnimal {
 }
 function limparManejo(i: any): DadosManejo {
   const animais = Array.isArray(i.animais) ? i.animais.map((x: unknown) => String(x).trim()).filter(Boolean) : [];
+  const valoresExtra = Array.isArray(i.valores_extra)
+    ? i.valores_extra
+        .map((x: any) => ({ animal: s(x?.animal) || "", valor: Number(x?.valor) || 0 }))
+        .filter((x: any) => x.animal && x.valor > 0)
+    : undefined;
   return {
     tipo: s(i.tipo) || "",
     ferrageamento: s(i.ferrageamento),
+    ferrador: s(i.ferrador),
     data: s(i.data),
     animais,
+    valoresExtra: valoresExtra && valoresExtra.length ? valoresExtra : undefined,
     obs: s(i.obs),
   };
 }

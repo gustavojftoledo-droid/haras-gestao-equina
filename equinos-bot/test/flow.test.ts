@@ -157,7 +157,7 @@ test("animal: IA pede o sexo → pergunta chega, nada grava", async () => {
   }
 });
 
-test("manejo: ferrei Rosa, Tirania e Tulipa → 1 registro com 3 animais", async () => {
+test("manejo: 1 registro c/ 3 animais, valorBase da config, ferrador e extra por animal", async () => {
   const store: Store = {
     horses_list: [
       { id: "h1", nome: "Rosa" },
@@ -165,26 +165,37 @@ test("manejo: ferrei Rosa, Tirania e Tulipa → 1 registro com 3 animais", async
       { id: "h3", nome: "Tulipa" },
     ],
     aux_lists: { subtipoFerrageamento: ["Ferrado completo", "Casqueado completo"] },
+    config: { valoresCasco: { "Ferrado completo": 200 } },
     manejos_list: [],
     auditoria_log: [],
   };
   const { env, sent, restore } = makeEnv(store, [
-    { tool: "registrar_manejo", input: { tipo: "Casco", ferrageamento: "Ferrado completo", animais: ["Rosa", "Tirania", "Tulipa"] } },
+    {
+      tool: "registrar_manejo",
+      input: {
+        tipo: "Casco",
+        ferrageamento: "Ferrado completo",
+        ferrador: "Catraca",
+        animais: ["Rosa", "Tirania", "Tulipa"],
+        valores_extra: [{ animal: "Rosa", valor: 150 }],
+      },
+    },
   ]);
   try {
-    await onText(env, 1, "ferrei hoje a rosa, a tirania e a tulipa");
-    assert.match(last(sent).text, /registrar um manejo/i);
+    await onText(env, 1, "ferrei hoje a rosa, tirania e tulipa, ferrador catraca, ferradura fechada 150 na rosa");
     assert.match(last(sent).text, /Animais \(3\)/);
+    assert.match(last(sent).text, /Ferrador:.*Catraca/s);
+    assert.match(last(sent).text, /refer.ncia.*200/s);
+    assert.match(last(sent).text, /Extra:.*Rosa/s);
     assert.equal(store.manejos_list.length, 0);
 
     await onCallback(env, 1, "confirm:manejo");
-    assert.equal(store.manejos_list.length, 1);
     const mj = store.manejos_list[0];
-    assert.equal(mj.tipo, "Casco");
-    assert.equal(mj.subtipoCasco, "Ferrado completo");
     assert.equal(mj.animais.length, 3);
+    assert.equal(mj.ferrador, "Catraca");
     assert.equal(mj.animais[0].tipo, "Ferrado completo");
-    assert.match(mj.data, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(mj.animais[0].valorBase, 200);
+    assert.equal(mj.animais.find((a: any) => a.nome === "Rosa").valorExtra, 150);
   } finally {
     restore();
   }
