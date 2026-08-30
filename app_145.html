@@ -737,21 +737,22 @@
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelTodos">Selecionar todos</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelLimpar">Limpar seleção</button>
           <span class="chip" id="btnAnimSelSo" title="Mostrar só os animais já marcados, pra conferir mais fácil">👁 Só selecionados</span>
+          <button type="button" class="btn btn-sm btn-ghost" data-colpicker="animais">⚙ Colunas</button>
         </div>
-        <div class="grid-wrap"><table class="grid">
+        <div class="grid-wrap"><table class="grid" data-lista="animais">
           <thead><tr>
             <th style="width:30px;"><input type="checkbox" id="hSelectAll" title="Selecionar todos os visíveis"></th>
             <th class="sortable" data-sort="nome">Nome</th>
-            <th class="sortable" data-sort="sexo">Sexo</th>
-            <th class="sortable" data-sort="nascimento">Dt Nasc.</th>
-            <th class="sortable" data-sort="pai">Pai</th>
-            <th class="sortable" data-sort="mae">Mãe</th>
-            <th class="sortable" data-sort="pelagem">Pelagem</th>
-            <th class="sortable" data-sort="raca">Raça</th>
-            <th class="sortable" data-sort="categoria">Categoria</th>
-            <th class="sortable" data-sort="status">Status</th>
-            <th class="sortable" data-sort="proprietario">Proprietário</th>
-            <th class="sortable" data-sort="comprador">Comprador</th>
+            <th class="sortable" data-sort="sexo" data-col="sexo">Sexo</th>
+            <th class="sortable" data-sort="nascimento" data-col="nascimento">Dt Nasc.</th>
+            <th class="sortable" data-sort="pai" data-col="pai">Pai</th>
+            <th class="sortable" data-sort="mae" data-col="mae">Mãe</th>
+            <th class="sortable" data-sort="pelagem" data-col="pelagem">Pelagem</th>
+            <th class="sortable" data-sort="raca" data-col="raca">Raça</th>
+            <th class="sortable" data-sort="categoria" data-col="categoria">Categoria</th>
+            <th class="sortable" data-sort="status" data-col="status">Status</th>
+            <th class="sortable" data-sort="proprietario" data-col="proprietario">Proprietário</th>
+            <th class="sortable" data-sort="comprador" data-col="comprador">Comprador</th>
           </tr></thead>
           <tbody id="hTbody"></tbody>
         </table></div>
@@ -942,9 +943,10 @@
         <div class="f grow"><label>Buscar</label><input type="text" id="tpSearch" placeholder="Origem, destino, motorista, motivo..."></div>
         <div class="f"><label>Situação</label><select id="tpFiltroSituacao"><option value="">Todas</option><option value="N">Planejado</option><option value="S">Realizado</option></select></div>
         <div class="f"><label>Período (data saída)</label><div id="tpFiltroPeriodo"></div></div>
+        <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button></div>
       </div>
-      <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Data Saída</th><th>Origem → Destino</th><th>Meio</th><th>Motorista</th><th>Motivo</th><th>Qtd. Animais</th><th>Valor Frete</th><th>Situação</th><th></th></tr></thead>
+      <div class="grid-wrap"><table class="grid" data-lista="transporte">
+        <thead><tr><th>Data Saída</th><th data-col="origemDestino">Origem → Destino</th><th data-col="meio">Meio</th><th data-col="motorista">Motorista</th><th data-col="motivo">Motivo</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="valorFrete">Valor Frete</th><th data-col="situacao">Situação</th><th></th></tr></thead>
         <tbody id="tpTbody"></tbody>
       </table></div>
     </div>
@@ -1126,11 +1128,11 @@
       <div id="eview_dietas" style="display:none;">
         <div class="topbar" style="margin-bottom:14px;">
           <div class="subtitle" style="margin:0;">Horário, alimento e quantidade (por animal) de cada dieta</div>
-          <button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button>
+          <div style="display:flex;gap:8px;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button><button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button></div>
         </div>
         <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Dieta</th><th>Animais</th><th>Itens</th><th>Custo estimado/mês</th><th>Observações</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="dietas">
+          <thead><tr><th>Dieta</th><th data-col="animais">Animais</th><th data-col="itens">Itens</th><th data-col="custoMes">Custo estimado/mês</th><th data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="dtTbody"></tbody>
         </table></div>
       </div>
@@ -1141,9 +1143,10 @@
           <div class="f"><label>Origem</label><select id="movFiltroOrigem"><option value="">Todas</option><option value="manual">Manual</option><option value="dieta">Dieta</option><option value="veterinaria">Veterinária</option><option value="ajuste">Reajuste</option></select></div>
           <div class="f"><label>Data de</label><input type="date" id="movFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="movFiltroAte"></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas</button></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Produto</th><th>Movimento</th><th>Qtd</th><th>Valor</th><th>Origem</th><th>Motivo / Observações</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="estoqueMov">
+          <thead><tr><th>Data</th><th data-col="produto">Produto</th><th data-col="movimento">Movimento</th><th data-col="qtd">Qtd</th><th data-col="valor">Valor</th><th data-col="origem">Origem</th><th data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
           <tbody id="movTbody"></tbody>
         </table></div>
       </div>
@@ -1186,9 +1189,10 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vlSearch" placeholder="Veterinário, medicamento, animal..."></div>
           <div class="f"><label>Data de</label><input type="date" id="vlFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="vlFiltroAte"></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas</button></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Tipo</th><th>Resumo</th><th>Animais</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="vetLista">
+          <thead><tr><th>Data</th><th data-col="tipo">Tipo</th><th data-col="resumo">Resumo</th><th data-col="animais">Animais</th><th></th></tr></thead>
           <tbody id="vlTbody"></tbody>
         </table></div>
       </div>
@@ -1203,9 +1207,10 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vsSearch" placeholder="Veterinário, animal, observações..."></div>
           <div class="f"><label>Data de</label><input type="date" id="vsFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="vsFiltroAte"></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas</button></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Veterinário</th><th>Animais revisados</th><th>Observação geral</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="vetVisitas">
+          <thead><tr><th>Data</th><th data-col="veterinario">Veterinário</th><th data-col="animais">Animais revisados</th><th data-col="obsGeral">Observação geral</th><th></th></tr></thead>
           <tbody id="vsTbody"></tbody>
         </table></div>
       </div>
@@ -1220,6 +1225,7 @@
             <span class="hint-text" id="tratSelCount">0 selecionado(s)</span>
           </div>
           <button type="button" class="btn btn-sm btn-danger" id="btnTratDelSel" style="display:none;">🗑 Excluir selecionados</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-colpicker="vetTratamentos">⚙ Colunas</button>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
         <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -1227,8 +1233,8 @@
           <span class="chip" data-trstatus="concluido" id="trstat_concluido">Histórico (concluídos)</span>
           <span class="chip" data-trstatus="" id="trstat_todos">Todos</span>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th>Animais</th><th>Período</th><th>Meio</th><th>Status</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="vetTratamentos">
+          <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th data-col="animais">Animais</th><th data-col="periodo">Período</th><th data-col="meio">Meio</th><th data-col="status">Status</th><th></th></tr></thead>
           <tbody id="trTbody"></tbody>
         </table></div>
 
@@ -1268,10 +1274,11 @@
           <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
           <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
           <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button></div>
         </div>
         <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Origem</th><th>Tipo</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="financeiro">
+          <thead><tr><th>Data</th><th data-col="origem">Origem</th><th data-col="tipo">Tipo</th><th data-col="categoria">Categoria</th><th data-col="descricao">Descrição</th><th>Valor</th><th></th></tr></thead>
           <tbody id="finTbody"></tbody>
         </table></div>
       </div>
@@ -4174,12 +4181,12 @@ function renderHorses(){
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
       <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()">👁</button> <strong>${h.nome||''}</strong>${tags.join('')}</td>
-      <td><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
-      <td>${fmtDate(h.nascimento)}</td>
-      <td>${h.pai||''}</td><td>${h.mae||''}</td><td>${h.pelagem||''}</td><td>${h.raca||''}</td><td>${h.categoria||''}</td>
-      <td><span class="pill st-outro">${h.status||'—'}</span></td>
-      <td>${h.proprietario||''}</td>
-      <td>${h.comprador||''}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
+      <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
+      <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
+      <td data-col="pai">${h.pai||''}</td><td data-col="mae">${h.mae||''}</td><td data-col="pelagem">${h.pelagem||''}</td><td data-col="raca">${h.raca||''}</td><td data-col="categoria">${h.categoria||''}</td>
+      <td data-col="status"><span class="pill st-outro">${h.status||'—'}</span></td>
+      <td data-col="proprietario">${h.proprietario||''}</td>
+      <td data-col="comprador">${h.comprador||''}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click', ()=>openHorseEdit(tr.dataset.id)));
@@ -7577,13 +7584,13 @@ function renderTransportes(){
     const situ = t.realizado==='S';
     return `<tr data-id="${t.id}">
       <td>${fmtDate(t.data)}</td>
-      <td>${t.origem||'—'} → ${t.destino||'—'}</td>
-      <td>${t.meioTransporte||'—'}</td>
-      <td>${t.motorista||'—'}</td>
-      <td>${t.motivo||'—'}</td>
-      <td>${nAnimais}</td>
-      <td>${fmtMoeda(Number(t.valorFrete)||0,'BRL')}</td>
-      <td><span class="pill ${situ?'st-ativo':'st-outro'}">${situ?'Realizado':'Planejado'}</span></td>
+      <td data-col="origemDestino">${t.origem||'—'} → ${t.destino||'—'}</td>
+      <td data-col="meio">${t.meioTransporte||'—'}</td>
+      <td data-col="motorista">${t.motorista||'—'}</td>
+      <td data-col="motivo">${t.motivo||'—'}</td>
+      <td data-col="qtdAnimais">${nAnimais}</td>
+      <td data-col="valorFrete">${fmtMoeda(Number(t.valorFrete)||0,'BRL')}</td>
+      <td data-col="situacao"><span class="pill ${situ?'st-ativo':'st-outro'}">${situ?'Realizado':'Planejado'}</span></td>
       <td style="white-space:nowrap;">${!situ?`<button type="button" class="btn btn-sm btn-ghost" data-marcarrealizado="${t.id}" title="Marca como realizado e atualiza a localização dos animais">✔ Marcar feito</button>`:''} <button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">🗑</button></td>
     </tr>`;
   }).join('');
@@ -8061,10 +8068,13 @@ function gerarRelatorioTreino3(){
   host.innerHTML = `<div class="report-card print-block">${cabecalho}` + tipos.map(tipo=>{
     const doTipo = relevantTreinos.filter(t=>(t.tipo||'Sem tipo')===tipo);
     return `<div class="report-data-titulo">${tipo}</div>
-      ${doTipo.map(t=>`
+      ${doTipo.map(t=>{
+        // Só os animais selecionados no filtro (não a sessão inteira, se ela tiver outros animais).
+        const animaisMostrar = t.animais.filter(a=>idsSelecionados.has(a.id));
+        return `
         <div class="report-tipo-titulo">${fmtDate(t.data)}${t.local?(' — '+t.local):''}</div>
-        <div class="report-animal-lista">${t.animais.map(a=>`<div>${a.nome}${a.extra?(' — '+a.extra):''}</div>`).join('')}</div>
-      `).join('')}`;
+        <div class="report-animal-lista">${animaisMostrar.map(a=>`<div>${a.nome}${a.extra?(' — '+a.extra):''}</div>`).join('')}</div>
+      `;}).join('')}`;
   }).join('') + `</div>`;
   btnPdf.style.display='inline-block';
 }
@@ -10182,10 +10192,10 @@ function renderDietas(){
       : '<span style="color:var(--muted);">—</span>';
     return `<tr>
       <td><strong>${d.nome}</strong><br>${modoTxt}</td>
-      <td>${nAnimais>0 ? animaisComOlhoHTML(d.animais) : '<span style="color:var(--muted);">Nenhum ainda</span>'}</td>
-      <td style="font-size:12px;">${itensResumo||'—'}</td>
-      <td style="font-size:12.5px;">${custoTxt}</td>
-      <td>${d.obs||''}</td>
+      <td data-col="animais">${nAnimais>0 ? animaisComOlhoHTML(d.animais) : '<span style="color:var(--muted);">Nenhum ainda</span>'}</td>
+      <td data-col="itens" style="font-size:12px;">${itensResumo||'—'}</td>
+      <td data-col="custoMes" style="font-size:12.5px;">${custoTxt}</td>
+      <td data-col="obs">${d.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-consumir="${d.id}">Registrar consumo (hoje)</button>
         <button type="button" class="btn btn-sm btn-ghost" data-animais="${d.id}">🐴 Animais</button>
@@ -10860,9 +10870,9 @@ function renderVisitas(){
   tbody.innerHTML = filtered.map(v=>{
     const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
-    <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td>
-    <td>${animaisComOlhoHTML(v.animais)||'—'}</td>
-    <td>${v.obsGeral||''}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+    <td>${fmtDate(v.data)}</td><td data-col="veterinario">${v.veterinario||'—'}</td>
+    <td data-col="animais">${animaisComOlhoHTML(v.animais)||'—'}</td>
+    <td data-col="obsGeral">${v.obsGeral||''}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
     <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisita="${v.id}" title="Gerar PDF desta visita">📄</button></td>
   </tr>`;
   }).join('');
@@ -11318,10 +11328,10 @@ function renderTratamentos(){
     return `<tr data-id="${t.id}" tabindex="0" class="${tratSelecionados.has(t.id)?'row-selected':''}">
       <td><input type="checkbox" data-selid="${t.id}" ${tratSelecionados.has(t.id)?'checked':''}></td>
       <td><strong>${t.medicamentoNome||'(produto excluído)'}</strong><br><span style="font-size:11px;color:var(--muted);">${t.quantidade}${t.unidade?(' '+t.unidade):''} por dose</span></td>
-      <td>${animaisComOlhoHTML(t.animais)||'<span style="color:var(--muted);">Nenhum</span>'}</td>
-      <td style="font-size:12px;">${fmtDate(t.dataInicio)} a ${fmtDate(termino)}<br>${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''}</td>
-      <td>${t.meioAplicacao||'—'}</td>
-      <td><span class="pill ${cls}">${label}</span></td>
+      <td data-col="animais">${animaisComOlhoHTML(t.animais)||'<span style="color:var(--muted);">Nenhum</span>'}</td>
+      <td data-col="periodo" style="font-size:12px;">${fmtDate(t.dataInicio)} a ${fmtDate(termino)}<br>${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''}</td>
+      <td data-col="meio">${t.meioAplicacao||'—'}</td>
+      <td data-col="status"><span class="pill ${cls}">${label}</span></td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm btn-ghost" data-folha="${t.id}">🖨 Folha</button>
         <button type="button" class="btn btn-sm btn-ghost" data-editar="${t.id}">Editar</button>
@@ -11407,9 +11417,9 @@ function renderVetLista(){
   if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
   tbody.innerHTML = lista.map(r=>`<tr>
     <td>${fmtDate(r.data)}</td>
-    <td><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span></td>
-    <td>${r.resumo}</td>
-    <td>${animaisComOlhoHTML(r.animais)||'—'}</td>
+    <td data-col="tipo"><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span></td>
+    <td data-col="resumo">${r.resumo}</td>
+    <td data-col="animais">${animaisComOlhoHTML(r.animais)||'—'}</td>
     <td style="white-space:nowrap;">
       <button type="button" class="btn btn-sm btn-ghost" data-vlabrir="${r.origemTipo}|${r.id}" title="Ver folha">${r.origemTipo==='visita'?'📄':'🖨'}</button>
       <button type="button" class="btn btn-sm btn-ghost" data-vleditar="${r.origemTipo}|${r.id}">Editar</button>
@@ -11816,12 +11826,12 @@ function renderMovimentos(){
   if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhuma movimentação encontrada.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(m=>`<tr>
     <td>${fmtDate(m.data)}</td>
-    <td>${m.produtoNome||''}</td>
-    <td><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
-    <td>${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
-    <td>${fmtValorMov(m.valor)}</td>
-    <td>${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
-    <td>${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
+    <td data-col="produto">${m.produtoNome||''}</td>
+    <td data-col="movimento"><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
+    <td data-col="qtd">${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
+    <td data-col="valor">${fmtValorMov(m.valor)}</td>
+    <td data-col="origem">${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
+    <td data-col="motivo">${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
@@ -12391,10 +12401,10 @@ function renderFinanceiro(){
       : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
     return `<tr>
     <td>${fmtDate(l.data)}</td>
-    <td><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
-    <td><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}</td>
-    <td>${l.categoria||''}</td>
-    <td>${l.descricao||''}</td>
+    <td data-col="origem"><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
+    <td data-col="tipo"><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}</td>
+    <td data-col="categoria">${l.categoria||''}</td>
+    <td data-col="descricao">${l.descricao||''}</td>
     <td style="font-family:'IBM Plex Mono',monospace;">${fmtMoedaFin(l)}</td>
     <td style="white-space:nowrap;">${acoes}</td>
   </tr>`;
