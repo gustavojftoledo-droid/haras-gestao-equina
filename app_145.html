@@ -4536,12 +4536,16 @@ function renderManejos(){
   const podeExcluirManejo = temPermissao('manejos','excluir');
   tbody.innerHTML = filtered.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
     <td><input type="checkbox" data-selid="${m.id}" ${manejoSelecionados.has(m.id)?'checked':''}></td>
-    <td>${fmtDate(m.data)}</td><td>${m.tipo}</td><td>${m.subtipoCasco||''}</td><td>${m.ferrador||''}</td><td>${fmtValor(calcTotalBase(m))}</td><td>${fmtValor(calcTotal(m))}</td><td>${fmtValor(m.deslocamento)}</td><td>${m.animais.length}</td><td>${m.obs||''}</td>
-    <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
+    <td>${fmtDate(m.data)}</td><td>${m.tipo}</td><td>${m.subtipoCasco||''}</td><td>${m.ferrador||''}</td><td>${fmtValor(calcTotalBase(m))}</td><td>${fmtValor(calcTotal(m))}</td><td>${fmtValor(m.deslocamento)}</td><td>${m.animais.length}</td><td>${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${m.obs||''}</td>
+    <td style="white-space:nowrap;">${m.pendenteEstoque&&podeEditarManejo?`<button type="button" class="btn btn-sm" data-confirmarbaixa="${m.id}" title="Dar baixa no estoque e gerar o custo por animal">✅ Confirmar baixa</button> `:''}<button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-rel]').forEach(b=>b.addEventListener('click', e=>{
     e.stopPropagation();
     gerarRelatorioManejoUnico(b.dataset.rel);
+  }));
+  tbody.querySelectorAll('[data-confirmarbaixa]').forEach(b=>b.addEventListener('click', e=>{
+    e.stopPropagation();
+    confirmarBaixaManejo(b.dataset.confirmarbaixa);
   }));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async e=>{
     e.stopPropagation();
@@ -4594,6 +4598,56 @@ function updateManejoSelUI(){
   document.getElementById('manejoSelCount').textContent = n+' selecionado(s)';
   document.getElementById('btnManejoDelSel').style.display = n>0 ? 'inline-block' : 'none';
   document.getElementById('btnRelManejoSel').style.display = n>0 ? 'inline-block' : 'none';
+}
+// Vacina/Vermífugo lançados pelo chatbot entram com `pendenteEstoque` — o bot não mexe no estoque.
+// Aqui, no computador, o Gustavo confere e dá o OK: casa o medicamento com o Estoque, dá a baixa
+// pela quantidade × nº de animais e grava o custo por animal (mesma conta do "Salvar Lançamento").
+async function confirmarBaixaManejo(id){
+  const m = manejos.find(x=>x.id===id);
+  if(!m || !m.pendenteEstoque) return;
+  const nAnimais = (m.animais||[]).length;
+  const nomeMed = (m.medicamentoNome||'').trim();
+  if(!nomeMed){
+    showAlert('Esse lançamento não tem o nome do medicamento. Abra no ✏️ (clique na linha), informe o medicamento e a quantidade, e salve — aí a baixa acontece.');
+    return;
+  }
+  const prod = estoqueProdutos.find(p=>p.tipo==='Medicamento' && normalizarNomeProduto(p.nome)===normalizarNomeProduto(nomeMed))
+    || estoqueProdutos.find(p=>p.tipo==='Medicamento' && (normalizarNomeProduto(p.nome).includes(normalizarNomeProduto(nomeMed)) || normalizarNomeProduto(nomeMed).includes(normalizarNomeProduto(p.nome))));
+  if(!prod){
+    showAlert(`Não achei "${nomeMed}" cadastrado como Medicamento no Estoque.\n\nCadastre o produto lá primeiro (ou abra este lançamento no ✏️ e ajuste o nome), depois volte aqui.`);
+    return;
+  }
+  let qtdPorAnimal = Number(m.medQuantidade)||0;
+  if(!qtdPorAnimal){
+    const v = await showPrompt(`Quanto de "${prod.nome}" por animal?${prod.unidade?(' (em '+prod.unidade+')'):''}`, '0');
+    if(v===null || v==='') return;
+    qtdPorAnimal = Number(String(v).replace(',','.'))||0;
+    if(qtdPorAnimal<=0){ showAlert('Quantidade inválida.'); return; }
+  }
+  const totalBaixa = qtdPorAnimal * nAnimais;
+  const un = prod.unidade ? (' '+prod.unidade) : '';
+  const falta = checarEstoqueParaBaixa([{ produtoId: prod.id, quantidade: totalBaixa }]);
+  const custoPorAnimal = Math.round((custoUnitarioProduto(prod)||0) * qtdPorAnimal * 100)/100;
+  if(falta.length>0){
+    const ok = await showConfirm(`Estoque insuficiente de ${prod.nome} (falta ${falta[0].falta}${un}). Registrar o manejo mesmo assim, SEM dar baixa e SEM gerar custo?`);
+    if(!ok) return;
+    m.pendenteEstoque = false; m.medQuantidade = qtdPorAnimal; m.medicamentoId = null;
+    await storeSet('manejos_list', manejos);
+    renderManejos();
+    showAlert('Lançamento confirmado sem baixa (saldo insuficiente).');
+    return;
+  }
+  const ok = await showConfirm(`Confirmar ${m.tipo} de "${prod.nome}" em ${nAnimais} animal(is)?\n\n• Baixa no estoque: ${totalBaixa}${un}\n• Custo por animal: R$ ${custoPorAnimal.toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
+  if(!ok) return;
+  await registrarMovimento(prod.id, 'saida', totalBaixa, 'veterinaria', m.tipo+' aplicada (confirmado do chatbot)', m.data, undefined, m.animais);
+  m.medicamentoId = prod.id;
+  m.medQuantidade = qtdPorAnimal;
+  m.valor = custoPorAnimal;
+  (m.animais||[]).forEach(a=>{ a.valorBase = custoPorAnimal; });
+  m.pendenteEstoque = false;
+  await storeSet('manejos_list', manejos);
+  renderEstoque(); renderManejos(); renderFinanceiro();
+  showAlert(`Baixa feita: ${totalBaixa}${un} de ${prod.nome}. Custo de R$ ${custoPorAnimal.toLocaleString('pt-BR',{minimumFractionDigits:2})} por animal lançado.`);
 }
 document.getElementById('btnManejoSelAll').addEventListener('click', ()=>{
   document.querySelectorAll('#mTbody tr[data-id]').forEach(row=>manejoSelecionados.add(row.dataset.id));

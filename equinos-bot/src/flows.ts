@@ -243,7 +243,9 @@ function previewManejo(env: Env, chatId: number, d: ManejoPendente): Promise<voi
       (!ehVet && d.tipo !== "Casco" && d.valor ? `\n<b>Valor:</b> R$ ${d.valor.toFixed(2)} por animal` : "") +
       (extras.length ? `\n<b>Extra:</b> ${esc(extras.map((a) => `${a.nome} R$ ${a.valorExtra!.toFixed(2)}`).join(", "))}` : "") +
       (d.obs ? `\n<b>Obs:</b> ${esc(d.obs)}` : "") +
-      (ehVet ? `\n\n⚠️ <i>Não vou mexer no estoque nem gerar custo. Se precisar de baixa/valor, ajuste no app.</i>` : ""),
+      (ehVet
+        ? `\n\n⚠️ <i>Fica pendente de baixa no estoque. No computador vai aparecer um botão "Confirmar baixa" — aí o app baixa o estoque e gera o custo por animal.</i>`
+        : ""),
     [[{ text: "✔ Confirmar", data: "confirm:manejo" }, { text: "Cancelar", data: "cancel:x" }]],
   );
 }
@@ -329,7 +331,9 @@ async function gravarManejo(env: Env, chatId: number, d: ManejoPendente): Promis
       env,
       chatId,
       `✅ Manejo de <b>${esc(reg.tipo)}</b> registrado para ${d.animaisIds.length} animal(is) em ${fmtDataBR(reg.data)}.` +
-        (ehVet ? `\nEstoque NÃO foi mexido — dá uma conferida no app.` : `\nA próxima data prevista já conta a partir daqui.`),
+        (ehVet
+          ? `\n⏳ Baixa no estoque PENDENTE — abre o app no computador e clica em "Confirmar baixa" nesse lançamento.`
+          : `\nA próxima data prevista já conta a partir daqui.`),
     );
   } catch (e: any) {
     await clear(env, chatId);

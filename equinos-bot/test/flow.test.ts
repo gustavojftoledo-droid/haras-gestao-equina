@@ -223,15 +223,17 @@ test("manejo: Vacina grava sem mexer no estoque, com aviso", async () => {
   try {
     await onText(env, 1, "vacinei a rosa com lexington gold, 2ml");
     assert.match(last(sent).text, /Produto:.*Lexington Gold/s);
-    assert.match(last(sent).text, /não vou mexer no estoque/i);
+    assert.match(last(sent).text, /pendente de baixa/i);
     await onCallback(env, 1, "confirm:manejo");
     const mj = store.manejos_list[0];
     assert.equal(mj.tipo, "Vacina");
     assert.equal(mj.medicamentoId, null);
     assert.equal(mj.medicamentoNome, "Lexington Gold");
     assert.equal(mj.medQuantidade, 2);
+    assert.equal(mj.pendenteEstoque, true);
+    assert.equal(mj.origem, "chatbot");
     assert.equal(store.estoque_movimentos, undefined); // nada de baixa
-    assert.match(last(sent).text, /Estoque NÃO foi mexido/i);
+    assert.match(last(sent).text, /PENDENTE/i);
   } finally {
     restore();
   }

@@ -238,6 +238,9 @@ export interface Manejo {
   medicamentoNome?: string;
   medQuantidade?: number;
   utensilios?: unknown[];
+  /** Vacina/Vermífugo vindos do chatbot: baixa de estoque + custo ficam pendentes de OK no app */
+  pendenteEstoque?: boolean;
+  origem?: string;
 }
 
 export interface NovoManejoInput {
@@ -280,14 +283,15 @@ export function montarManejo(inp: NovoManejoInput): Manejo {
       if (Number.isFinite(base)) a.valorBase = base;
     });
   } else if (inp.tipo === "Vacina" || inp.tipo === "Vermífugo") {
-    // O bot NUNCA dá baixa no estoque — é sempre o caminho "sem baixa" do app (medicamentoId null).
+    // O bot NUNCA dá baixa no estoque. Marca `pendenteEstoque` — no computador o app mostra um
+    // botão "Confirmar baixa" que aí sim baixa o estoque e gera o custo por animal.
     reg.medicamentoId = null;
     reg.medicamentoNome = inp.medicamento || "";
     reg.medQuantidade = inp.quantidade || 0;
     reg.utensilios = [];
-    const v = Number(inp.valor);
-    reg.valor = Number.isFinite(v) && v > 0 ? v : 0;
-    if (Number.isFinite(v) && v > 0) reg.animais.forEach((a) => (a.valorBase = v));
+    reg.valor = 0;
+    reg.pendenteEstoque = true;
+    reg.origem = "chatbot";
   } else {
     // Dente e "outro": valor por animal, igual o campo "Valor (R$) — por animal" da tela.
     const v = Number(inp.valor);
