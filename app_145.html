@@ -1017,7 +1017,7 @@
         <div class="stats" id="nascStats"></div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="nSearch" placeholder="Matriz, pai, receptora, observações..."></div>
-          <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Confirmadas</option><option value="N">Não confirmadas</option></select></div>
+          <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
           <div class="f"><label>Ano cobertura</label><input type="text" id="nFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
           <div class="f"><label>Ano nascimento</label><input type="text" id="nFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
         </div>
@@ -1034,9 +1034,12 @@
           <div class="f"><label>De</label><input type="date" id="vrFiltroDe"></div>
           <div class="f"><label>Até</label><input type="date" id="vrFiltroAte"></div>
         </div>
-        <div class="hint-text" style="margin:0 0 10px;">Cada visita registra o exame reprodutivo de uma ou mais éguas. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela e agenda o protocolo de vacinas de gestação. Dá pra ditar por voz.</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
+          <div class="hint-text" style="margin:0;flex:1;min-width:240px;">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button>
+        </div>
         <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Veterinário</th><th>Local</th><th>Éguas</th><th>Diagnósticos</th><th></th></tr></thead>
+          <thead><tr id="vrThead"></tr></thead>
           <tbody id="vrTbody"></tbody>
         </table></div>
       </div>
@@ -1071,7 +1074,7 @@
 
       <div id="nview_relatorio" style="display:none;">
         <div class="filters">
-          <div class="f"><label>Confirmação</label><select id="nrFiltroConf"><option value="">Todas</option><option value="S">Confirmadas</option><option value="N">Não confirmadas</option></select></div>
+          <div class="f"><label>Confirmação</label><select id="nrFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
           <div class="f"><label>Ano cobertura</label><input type="text" id="nrFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
           <div class="f"><label>Ano nascimento</label><input type="text" id="nrFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
         </div>
@@ -2058,6 +2061,19 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
+<!-- COLUNAS DA LISTA DE VISITAS / EXAMES (Reprodução) -->
+<div class="overlay" id="overlayColunasVisitaRepro">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Colunas da lista</div><button class="modal-close" data-close="overlayColunasVisitaRepro">✕</button></div>
+    <div class="hint-text" style="margin-bottom:14px;">Escolha o que aparece na lista de Visitas / Exames (Data, Veterinário e Égua sempre aparecem).</div>
+    <div id="colunasVisitaReproHost" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn" data-close="overlayColunasVisitaRepro">Fechar</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- COLUNAS DO ESTOQUE (escolher o que aparece na tabela) -->
 <div class="overlay" id="overlayColunasEstoque">
   <div class="modal">
@@ -2260,11 +2276,16 @@ function showAlert(msg){
   const duracao = Math.min(9000, Math.max(3500, msg.length*60));
   clearTimeout(window._toastTimer); window._toastTimer=setTimeout(()=>{ t.style.display='none'; }, duracao);
 }
-function showConfirm(msg){
+// opts (opcional): { okLabel:'Excluir', danger:true, titulo:'Excluir manejo' }
+function showConfirm(msg, opts){
+  opts = opts || {};
   return new Promise(resolve=>{
-    document.getElementById('dialogTitle').textContent='Confirmar';
-    document.getElementById('dialogMessage').textContent=msg;
+    document.getElementById('dialogTitle').textContent = opts.titulo || 'Confirmar';
+    document.getElementById('dialogMessage').textContent = msg;
     document.getElementById('dialogInput').style.display='none';
+    const ok = document.getElementById('dialogOk');
+    ok.textContent = opts.okLabel || 'OK';
+    ok.classList.toggle('btn-danger', !!opts.danger);
     dialogResolve=resolve; openModal('overlayDialog');
   });
 }
@@ -2298,10 +2319,14 @@ document.getElementById('dialogOk').addEventListener('click', ()=>{
   const isPrompt = inp.style.display!=='none';
   const val = isPrompt ? (inp.value.trim()||null) : true;
   closeModal('overlayDialog');
+  document.getElementById('dialogOk').classList.remove('btn-danger');
+  document.getElementById('dialogOk').textContent = 'OK';
   if(dialogResolve){ dialogResolve(val); dialogResolve=null; }
 });
 document.getElementById('dialogCancel').addEventListener('click', ()=>{
   closeModal('overlayDialog');
+  document.getElementById('dialogOk').classList.remove('btn-danger');
+  document.getElementById('dialogOk').textContent = 'OK';
   if(dialogResolve){ dialogResolve(null); dialogResolve=null; }
 });
 document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('dialogOk').click(); } });
@@ -4599,7 +4624,7 @@ function renderManejos(){
   }));
   tbody.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async e=>{
     e.stopPropagation();
-    if(!(await showConfirm('Excluir este lançamento de manejo?'))) return;
+    if(!(await showConfirm('Tem certeza que quer excluir este lançamento de manejo? Não dá pra desfazer.', {okLabel:'Excluir', danger:true, titulo:'Excluir manejo'}))) return;
     manejos = manejos.filter(m=>m.id!==b.dataset.del);
     manejoSelecionados.delete(b.dataset.del);
     await storeSet('manejos_list', manejos, true); renderManejos();
@@ -4709,7 +4734,7 @@ document.getElementById('btnManejoSelNone').addEventListener('click', ()=>{
 document.getElementById('btnManejoDelSel').addEventListener('click', async ()=>{
   const n = manejoSelecionados.size;
   if(n===0) return;
-  if(!(await showConfirm(`Excluir ${n} lançamento(s) de manejo selecionado(s)? Essa ação não pode ser desfeita.`))) return;
+  if(!(await showConfirm(`Tem certeza que quer excluir ${n} lançamento(s) de manejo selecionado(s)? Não dá pra desfazer.`, {okLabel:'Excluir', danger:true, titulo:'Excluir manejos'}))) return;
   manejos = manejos.filter(m=>!manejoSelecionados.has(m.id));
   manejoSelecionados.clear();
   await storeSet('manejos_list', manejos, true);
@@ -4987,8 +5012,8 @@ function computeProgramacao(dataReferencia){
    o calendário já passa a mostrar também as aplicações de medicamento, sem mudar nada aqui. */
 let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
-const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰', RetornoRepro:'🔄' };
-const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário', RetornoRepro:'Retorno Reprodutivo' };
+const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰', RetornoRepro:'🔄', Transporte:'🚚' };
+const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário', RetornoRepro:'Retorno Reprodutivo', Transporte:'Transporte' };
 // Data no fuso LOCAL do aparelho, no formato AAAA-MM-DD — nunca use .toISOString() aqui: ela sempre
 // devolve o horário em UTC, e pra quem está no Brasil (UTC-3) isso faz o app achar que já é o dia
 // seguinte a partir das 21h de toda noite (a partir das 20h no horário de verão, quando existia).
@@ -5100,7 +5125,19 @@ function computeCalendarTasks(){
       situacao: r.retorno<hoje ? 'atrasado' : 'proximo'
     });
   });
-  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...salarioTasks, ...atividadeTasks];
+  // Transporte planejado (ainda não marcado como realizado) — some da agenda quando você marca
+  // "realizado" no cadastro. Atrasado = data de saída já passou e não foi marcado.
+  const transporteTasks = [];
+  (transportes||[]).forEach(t=>{
+    if(t.realizado==='S' || !t.data) return;
+    transporteTasks.push({
+      data: t.data, tipo:'Transporte', categoria:'transporte', transporteId: t.id,
+      label: 'Transporte: '+(t.origem||'?')+' → '+(t.destino||'?'),
+      animalId:null, animalNome:(t.animais||[]).map(a=>a.nome).join(', '),
+      situacao: t.data<hoje ? 'atrasado' : 'proximo'
+    });
+  });
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...transporteTasks, ...salarioTasks, ...atividadeTasks];
 }
 function tasksByDate(tasks){
   const map = {};
@@ -5633,7 +5670,7 @@ function renderInicioReproducao(host){
     </div>
     <div class="dash-footer-2col">
       <div><div class="rotulo">Prenhezes confirmadas</div><div class="valor">${prenhezes.length}</div></div>
-      <div><div class="rotulo">Coberturas registradas</div><div class="valor">${nascimentos.filter(n=>n.confirm!=='S').length}</div></div>
+      <div><div class="rotulo">Coberturas em aberto</div><div class="valor">${nascimentos.filter(n=>n.confirm!=='S' && n.prenhezConfirmada!=='S').length}</div></div>
     </div>
   `;
 }
@@ -5885,6 +5922,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehFuncionario = arr[0].categoria==='funcionario';
     const ehAtividade = arr[0].categoria==='atividade';
     const ehRepro = arr[0].categoria==='repro';
+    const ehTransporte = arr[0].categoria==='transporte';
     const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento||ehAtividade) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
@@ -5896,7 +5934,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
-    const btnConcluirTodos = (ehAtividade||ehRepro) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
+    const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -5912,8 +5950,10 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div>${ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
-        ${ehTratamento
+        <div>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
+        ${ehTransporte
+          ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-abrirtransporte="${t.transporteId}">👁 Abrir / marcar realizado</button></div>`
+          : ehTratamento
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-tratamentoid="${t.tratamentoId}" data-dosekey="${t.doseKey}">✔ Marcar aplicado</button><button type="button" class="btn btn-sm btn-danger" data-excluirtratid="${t.tratamentoId}" data-excluirdosekey="${t.doseKey}" title="Remove essa dose da agenda sem baixar estoque nem lançar financeiro">🗑 Excluir</button></div>`
           : ehAtividade
             ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-consultaratividade="${t.treinoId}">👁 Consultar / Editar</button><button type="button" class="btn btn-sm btn-danger" data-excluiratividade="${t.treinoId}" title="Exclui esse treino/atividade cadastrado">🗑 Excluir</button></div>`
@@ -5960,7 +6000,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
   });
   document.getElementById('calDetBody').querySelectorAll('[data-excluirmanejo]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
-      if(!(await showConfirm('Excluir essa tarefa da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo manejo desse tipo pra esse animal).'))) return;
+      if(!(await showConfirm('Tem certeza que quer excluir essa tarefa da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo manejo desse tipo pra esse animal).', {okLabel:'Excluir', danger:true, titulo:'Excluir tarefa'}))) return;
       dismissedManejoTasks.add(btn.dataset.excluirmanejo);
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
@@ -5971,7 +6011,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       const tipo = btn.dataset.excluirtodosmanejo;
       const grupo = porTipo[tipo];
-      if(!(await showConfirm(`Excluir a tarefa de ${tipo} pra ${grupo.length} animal(is) de uma vez? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente pra todos eles.`))) return;
+      if(!(await showConfirm(`Tem certeza que quer excluir a tarefa de ${tipo} pra ${grupo.length} animal(is) de uma vez? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente pra todos eles.`, {okLabel:'Excluir', danger:true, titulo:'Excluir tarefas'}))) return;
       grupo.forEach(t=> dismissedManejoTasks.add(chaveTarefaManejo(t)));
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
@@ -5998,6 +6038,13 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', ()=>{
       closeModal('overlayCalDetalhe');
       openTreinoEdit(btn.dataset.consultaratividade);
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-abrirtransporte]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      closeModal('overlayCalDetalhe');
+      if(typeof irParaView==='function') irParaView('transporte');
+      setTimeout(()=>{ if(typeof openTransporteEdit==='function') openTransporteEdit(btn.dataset.abrirtransporte); }, 30);
     });
   });
   document.getElementById('calDetBody').querySelectorAll('[data-excluiratividade]').forEach(btn=>{
@@ -6317,7 +6364,7 @@ function openManejoEdit(id){
 }
 document.getElementById('btnDeleteManejoModal').addEventListener('click', async ()=>{
   if(!editingManejoId) return;
-  if(!(await showConfirm('Excluir este lançamento de manejo?'))) return;
+  if(!(await showConfirm('Tem certeza que quer excluir este lançamento de manejo? Não dá pra desfazer.', {okLabel:'Excluir', danger:true, titulo:'Excluir manejo'}))) return;
   manejos = manejos.filter(m=>m.id!==editingManejoId);
   manejoSelecionados.delete(editingManejoId);
   await storeSet('manejos_list', manejos, true);
@@ -8428,26 +8475,32 @@ function renderNascimentos(){
   const anoNasc=document.getElementById('nFiltroAnoNasc').value;
   const term=(document.getElementById('nSearch').value||'').toLowerCase();
   const filtered = nascimentos.filter(n=>{
-    const matchConf = !conf || n.confirm===conf;
+    const matchConf = !conf
+      || (conf==='S' && n.confirm==='S')
+      || (conf==='P' && n.prenhezConfirmada==='S' && n.confirm!=='S')
+      || (conf==='N' && n.confirm!=='S' && n.prenhezConfirmada!=='S');
     const matchAno = !ano || (n.datacob||'').startsWith(ano);
     const matchAnoNasc = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
     const matchTerm = !term || (n.matriz||'').toLowerCase().includes(term) || (n.pai||'').toLowerCase().includes(term) || (n.receptora||'').toLowerCase().includes(term) || (n.obs||'').toLowerCase().includes(term);
     return matchConf && matchAno && matchAnoNasc && matchTerm;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
 
+  // Cada cobertura conta em UMA classificação só (mutuamente exclusivas): já nasceu, prenhez confirmada,
+  // ou ainda em aberto. Uma égua confirmada prenhe NÃO conta como "não confirmada" nem entra na taxa de
+  // perda — ela está prenhe, não perdida.
   const total=nascimentos.length;
   const confirmados=nascimentos.filter(n=>n.confirm==='S').length;
-  const naoConfirmados=total-confirmados;
-  const taxaPerda = total>0 ? Math.round((naoConfirmados/total)*100) : 0;
-  // Só fica "confirmada" nesse quadro enquanto o nascimento ainda não foi confirmado — depois disso
-  // ela sai daqui e passa a contar como "Confirmadas (nasceram)" acima.
   const prenhezesConfirmadas = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
+  const emAberto=nascimentos.filter(n=>n.confirm!=='S' && n.prenhezConfirmada!=='S').length;
+  // Taxa de perda = coberturas em aberto sobre as que já tiveram um desfecho conhecido (prenhe/nasceu)
+  // + as em aberto — mesma base de antes, mas sem contar as prenhas como perda.
+  const taxaPerda = total>0 ? Math.round((emAberto/total)*100) : 0;
   document.getElementById('nascStats').innerHTML = `
     <div class="stat clickable" id="statCardTotalNasc" style="cursor:pointer;" title="Ver todas, sem filtro nenhum"><div class="stat-num">${total}</div><div class="stat-label">Coberturas registradas</div></div>
     <div class="stat clickable ${conf==='S'?'active':''}" id="statCardConfirmadas" style="cursor:pointer;" title="Ver só as que já nasceram"><div class="stat-num">${confirmados}</div><div class="stat-label">Confirmadas (nasceram)</div></div>
-    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardNaoConfirmadas" style="cursor:pointer;" title="Ver só as que ainda não confirmaram nascimento"><div class="stat-num">${naoConfirmados}</div><div class="stat-label">Não confirmadas</div></div>
-    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardTaxaPerda" style="cursor:pointer;" title="Mesma lista de 'Não confirmadas' — é de onde vem essa taxa"><div class="stat-num">${taxaPerda}%</div><div class="stat-label">Taxa de perda</div></div>
-    <div class="stat clickable" id="statCardPrenhezes" style="cursor:pointer;"><div class="stat-num" style="color:${prenhezesConfirmadas.length>0?'var(--green)':'inherit'};">${prenhezesConfirmadas.length}</div><div class="stat-label">Prenhezes confirmadas</div></div>`;
+    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardNaoConfirmadas" style="cursor:pointer;" title="Coberturas ainda sem prenhez confirmada e sem nascimento"><div class="stat-num">${emAberto}</div><div class="stat-label">Em aberto</div></div>
+    <div class="stat clickable ${conf==='N'?'active':''}" id="statCardTaxaPerda" style="cursor:pointer;" title="Mesma lista de 'Em aberto' — é de onde vem essa taxa"><div class="stat-num">${taxaPerda}%</div><div class="stat-label">Taxa de perda</div></div>
+    <div class="stat clickable ${conf==='P'?'active':''}" id="statCardPrenhezes" style="cursor:pointer;"><div class="stat-num" style="color:${prenhezesConfirmadas.length>0?'var(--green)':'inherit'};">${prenhezesConfirmadas.length}</div><div class="stat-label">Prenhezes confirmadas</div></div>`;
   // Cada quadro leva direto pro que ele representa — mesmo padrão do Início (contagem por localização
   // clicável): "Coberturas registradas" limpa os filtros (é o total de verdade, sem filtro nenhum),
   // "Confirmadas"/"Não confirmadas"/"Taxa de perda" aplicam o filtro de Confirmação já existente na
@@ -8666,7 +8719,10 @@ function gerarRelatorioNascimentos(){
   const ano = document.getElementById('nrFiltroAno').value;
   const anoNasc = document.getElementById('nrFiltroAnoNasc').value;
   const filtered = nascimentos.filter(n=>{
-    const matchConf = !conf || n.confirm===conf;
+    const matchConf = !conf
+      || (conf==='S' && n.confirm==='S')
+      || (conf==='P' && n.prenhezConfirmada==='S' && n.confirm!=='S')
+      || (conf==='N' && n.confirm!=='S' && n.prenhezConfirmada!=='S');
     const matchAno = !ano || (n.datacob||'').startsWith(ano);
     const matchAnoNasc = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
     return matchConf && matchAno && matchAnoNasc;
@@ -11019,33 +11075,90 @@ document.getElementById('btnDeleteVisitaRepro').addEventListener('click', async 
 });
 bindSaveShortcut('overlayVisitaRepro','btnSaveVisitaRepro');
 
-function resumoDiagVisitaRepro(v){
-  const cont = {};
-  (v.eguas||[]).forEach(e=>{ const l = REPRO_DIAG_LABEL[e.diagnostico]; if(l && e.diagnostico) cont[l] = (cont[l]||0)+1; });
-  return Object.entries(cont).map(([l,n])=>`${l}: ${n}`).join(' · ') || '—';
+// Colunas opcionais da lista de Visitas / Exames — Data, Veterinário e Égua sempre aparecem; o resto
+// o usuário escolhe em "⚙ Colunas" (fica salvo em config.colunasVisitaRepro).
+const VISITA_REPRO_COLUNAS_META = [
+  { key:'local',         label:'Local',              default:true },
+  { key:'diagnostico',   label:'Diagnóstico',        default:true },
+  { key:'folOD',         label:'Folículo ovário D',  default:true },
+  { key:'folOE',         label:'Folículo ovário E',  default:false },
+  { key:'edema',         label:'Edema uterino',      default:true },
+  { key:'utero',         label:'Útero',              default:false },
+  { key:'cervix',        label:'Cérvix',             default:false },
+  { key:'ovulou',        label:'Ovulou?',            default:false },
+  { key:'cio',           label:'Cio',                default:false },
+  { key:'medicacao',     label:'Medicação',          default:false },
+  { key:'proximaAcao',   label:'Próxima ação',       default:true },
+  { key:'proximoRetorno',label:'Retorno previsto',   default:true },
+  { key:'obs',           label:'Observação',         default:false },
+];
+function getColunasVisitaReproVisiveis(){
+  const salvo = config.colunasVisitaRepro || {};
+  return VISITA_REPRO_COLUNAS_META.filter(c=> salvo[c.key]!==undefined ? !!salvo[c.key] : c.default);
 }
+function celulaVisitaRepro(key, e){
+  const v = e[key];
+  if(key==='folOD' || key==='folOE') return v ? (v+' mm') : '—';
+  if(key==='edema') return (v!=='' && v!=null) ? v : '—';
+  if(key==='ovulou') return v==='sim' ? 'Sim' : (v==='nao' ? 'Não' : '—');
+  if(key==='diagnostico') return v ? (REPRO_DIAG_LABEL[v]||v) : '—';
+  if(key==='proximoRetorno') return v ? fmtDate(v) : '—';
+  return (v && String(v).trim()) ? v : '—';
+}
+function renderColunasVisitaReproPicker(){
+  const host = document.getElementById('colunasVisitaReproHost');
+  const vis = new Set(getColunasVisitaReproVisiveis().map(c=>c.key));
+  host.innerHTML = VISITA_REPRO_COLUNAS_META.map(c=>`
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" data-colvr="${c.key}" ${vis.has(c.key)?'checked':''}> ${c.label}
+    </label>`).join('');
+  host.querySelectorAll('[data-colvr]').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      if(!config.colunasVisitaRepro) config.colunasVisitaRepro = {};
+      config.colunasVisitaRepro[cb.dataset.colvr] = cb.checked;
+      await storeSet('config', config);
+      renderVisitasRepro();
+    });
+  });
+}
+document.getElementById('btnColunasVisitaRepro').addEventListener('click', ()=>{
+  renderColunasVisitaReproPicker();
+  openModal('overlayColunasVisitaRepro');
+});
 function renderVisitasRepro(){
   const tbody = document.getElementById('vrTbody');
-  if(!tbody) return;
+  const thead = document.getElementById('vrThead');
+  if(!tbody || !thead) return;
   const deEl = document.getElementById('vrFiltroDe'), ateEl = document.getElementById('vrFiltroAte');
   const de = deEl?deEl.value:'', ate = ateEl?ateEl.value:'';
   const vet = (document.getElementById('vrFiltroVet')?.value||'').toLowerCase();
   const term = (document.getElementById('vrSearch')?.value||'').toLowerCase();
-  const filtered = visitasRepro.filter(v=>{
-    const md = (!de||v.data>=de) && (!ate||v.data<=ate);
-    const mv = !vet || (v.veterinario||'').toLowerCase().includes(vet);
-    const mt = !term || (v.eguas||[]).some(e=>(e.nome||'').toLowerCase().includes(term));
-    return md && mv && mt;
-  }).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
-  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(v=>`<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
-      <td>${fmtDate(v.data)}</td>
+  const cols = getColunasVisitaReproVisiveis();
+  thead.innerHTML = `<th>Data</th><th>Veterinário</th><th>Égua</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th></th>`;
+  // uma linha por égua examinada
+  const linhas = [];
+  visitasRepro.forEach(v=>{
+    if(de && v.data<de) return;
+    if(ate && v.data>ate) return;
+    if(vet && !(v.veterinario||'').toLowerCase().includes(vet)) return;
+    (v.eguas||[]).forEach(e=>{
+      if(term && !(e.nome||'').toLowerCase().includes(term)) return;
+      linhas.push({ v, e });
+    });
+  });
+  linhas.sort((a,b)=> (b.v.data||'').localeCompare(a.v.data||'') || (a.e.nome||'').localeCompare(b.e.nome||'','pt'));
+  const nColunas = 4 + cols.length;
+  if(linhas.length===0){ tbody.innerHTML = `<tr><td colspan="${nColunas}" class="empty">Nenhum exame registrado.</td></tr>`; return; }
+  tbody.innerHTML = linhas.map(({v,e})=>{
+    const prenhe = e.diagnostico==='prenhe' || e.diagnostico==='gemelar';
+    return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra abrir a visita">
+      <td style="white-space:nowrap;">${fmtDate(v.data)}</td>
       <td>${v.veterinario||'—'}</td>
-      <td>${v.local||'—'}</td>
-      <td>${(v.eguas||[]).map(e=>e.nome).join(', ')||'—'}</td>
-      <td>${resumoDiagVisitaRepro(v)}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+      <td><strong>${e.nome||'—'}</strong>${prenhe?' <span class="pill st-ativo">prenhe</span>':''}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+      ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisitarepro="${v.id}" title="Gerar PDF desta visita">📄</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(row=>{
     row.addEventListener('click', e=>{ if(e.target.closest('button')) return; openVisitaReproEdit(row.dataset.id); });
   });
