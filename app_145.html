@@ -1321,6 +1321,7 @@
           <button class="btn btn-sm no-print" id="btnPerfilNovoManejo">+ Inserir Manejo</button>
           <button class="btn btn-sm no-print" id="btnPerfilNovaVisita">+ Visita Veterinária</button>
           <button class="btn btn-sm no-print" id="btnPerfilNovoTratamento">+ Tratamento</button>
+          <button class="btn btn-sm no-print" id="btnPerfilNovoExameRepro" style="display:none;">+ Exame reprodutivo</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilEditar">✎ Editar cadastro</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilImprimir">🖨 Imprimir</button><button class="btn btn-ghost btn-sm no-print" id="btnPdfPerfil">⬇ Baixar PDF</button>
         </div>
@@ -13159,6 +13160,16 @@ document.getElementById('btnPerfilNovaVisita').addEventListener('click', ()=>{
     setTimeout(()=> visitaSelector.setSelected([{id:animalId}]), 30);
   }, 30);
 });
+function abrirNovoExameReproParaAnimal(animalId){
+  guardarPontoDeVolta();
+  irParaView('nascimentos');
+  setTimeout(()=>{
+    showNascTab('visitas');
+    document.getElementById('btnNewVisitaRepro').click();
+    setTimeout(()=>{ visitaReproSelector.setSelected([{id:animalId}]); sincronizarReproEguas(); renderReproEguas(); }, 30);
+  }, 30);
+}
+document.getElementById('btnPerfilNovoExameRepro').addEventListener('click', ()=>{ if(perfilAnimalId) abrirNovoExameReproParaAnimal(perfilAnimalId); });
 document.getElementById('btnPerfilNovoTratamento').addEventListener('click', ()=>{
   if(!perfilAnimalId) return;
   const animalId = perfilAnimalId;
@@ -13192,6 +13203,7 @@ function renderAnimalPerfil(id){
   if(h.doador) tags.push('<span class="pill st-ativo" style="margin-left:6px;">Doador</span>');
   document.getElementById('perfilNome').innerHTML = (h.nome||'—') + tags.join('');
   document.getElementById('perfilSubtitle').textContent = [h.codigo?('Código '+h.codigo):null, h.categoria, h.apelido?('"'+h.apelido+'"'):null].filter(Boolean).join(' · ');
+  document.getElementById('btnPerfilNovoExameRepro').style.display = (h.sexo==='FEMININO') ? 'inline-block' : 'none';
 
   const idade = calcAgeYears(h.nascimento);
   const gruposDoAnimal = grupos.filter(g=>(g.animais||[]).some(a=>a.id===h.id));
@@ -13339,11 +13351,21 @@ function renderAnimalPerfil(id){
       </div>
     </div>
     ${temPermissao('financeiro','ver') ? blocoCustoAnimalFicha(h) : ''}
+    ${blocoReproducaoFicha(h)}
   `;
 
   document.getElementById('perfilWrap').innerHTML = `<div>${main}</div><div>${sidebar}</div>`;
   renderTreinosPerfil(h);
   renderAnimalTimeline(h);
+
+  document.querySelectorAll('[data-abrircob]').forEach(el=>{
+    el.addEventListener('click', ()=>{ guardarPontoDeVolta(); irParaView('nascimentos'); setTimeout(()=>{ showNascTab('lista'); openNascEdit(el.dataset.abrircob); }, 30); });
+  });
+  document.querySelectorAll('[data-abrirexamerepro]').forEach(el=>{
+    el.addEventListener('click', ()=>{ guardarPontoDeVolta(); irParaView('nascimentos'); setTimeout(()=>{ showNascTab('visitas'); openVisitaReproEdit(el.dataset.abrirexamerepro); }, 30); });
+  });
+  const btnFichaExame = document.getElementById('btnFichaNovoExameRepro');
+  if(btnFichaExame) btnFichaExame.addEventListener('click', ()=> abrirNovoExameReproParaAnimal(h.id));
 
   document.querySelectorAll('[data-statclick]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -13703,6 +13725,47 @@ function blocoCustoAnimalFicha(h){
       `).join('')}
       <div class="hint-text" style="margin-top:10px;">Só o que já foi atribuído diretamente a esse animal (Ração, Saúde, Casco...). Não inclui a parte dele nos custos gerais do haras rateados entre todos os animais — isso está em Financeiro → Custo por Animal.</div>
     </div>
+  </div>`;
+}
+// Card "Reprodução" da Ficha do Animal: coberturas em que o animal é matriz/receptora/pai + exames
+// reprodutivos (visitasRepro). Só aparece pra fêmeas ou pra quem já tem algum histórico reprodutivo.
+function blocoReproducaoFicha(h){
+  const nome = normNomeParentesco(h.nome);
+  const comoMatriz = nascimentos.filter(n=> normNomeParentesco(n.matriz)===nome);
+  const comoReceptora = nascimentos.filter(n=> n.transferenciaEmbriao && normNomeParentesco(n.receptora)===nome);
+  const comoPai = nascimentos.filter(n=> normNomeParentesco(n.pai)===nome);
+  const exames = [];
+  visitasRepro.forEach(v=>{ (v.eguas||[]).forEach(e=>{ if(e.animalId===h.id) exames.push({v,e}); }); });
+  exames.sort((a,b)=> (b.v.data||'').localeCompare(a.v.data||''));
+  const temAlgo = comoMatriz.length||comoReceptora.length||comoPai.length||exames.length;
+  if(h.sexo!=='FEMININO' && !temAlgo) return '';
+  const statusCob = n => n.confirm==='S'
+    ? '<span class="pill st-outro">Nasceu</span>'
+    : (n.prenhezConfirmada==='S' ? '<span class="pill st-ativo">Prenhe</span>' : '<span class="pill st-descarte">Não confirmada</span>');
+  const linhaCob = (n, papel) => {
+    const detalhe = papel==='matriz' ? (n.pai?('pai '+n.pai):'sem pai informado')
+      : papel==='receptora' ? ('embrião de '+(n.matriz||'?'))
+      : ('matriz '+(n.matriz||'?'));
+    const prov = n.datanasc ? ('nasc. '+fmtDate(n.datanasc))
+      : (n.datacob ? ('prev. '+fmtDate(calcProvavelNascimento(n.datacob))) : '');
+    return `<div class="stat-list-row clicavel" data-abrircob="${n.id}"><span>${n.datacob?fmtDate(n.datacob):'—'} · ${detalhe}${prov?(' · '+prov):''}</span>${statusCob(n)}</div>`;
+  };
+  const partesExame = e => [
+    e.diagnostico ? (REPRO_DIAG_LABEL[e.diagnostico]||e.diagnostico) : null,
+    (e.folOD||e.folOE) ? ('fol. '+[e.folOD&&('OD '+e.folOD),e.folOE&&('OE '+e.folOE)].filter(Boolean).join('/')) : null,
+    (e.edema!=='' && e.edema!==undefined && e.edema!==null) ? ('edema '+e.edema) : null,
+    e.ovulou==='sim' ? 'ovulou' : null,
+    e.proximaAcao || null
+  ].filter(Boolean).join(' · ');
+  let corpo = '';
+  if(comoMatriz.length) corpo += `<div class="perfil-subsection">Como matriz (${comoMatriz.length})</div>${comoMatriz.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'matriz')).join('')}`;
+  if(comoReceptora.length) corpo += `<div class="perfil-subsection">Como receptora (${comoReceptora.length})</div>${comoReceptora.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'receptora')).join('')}`;
+  if(comoPai.length) corpo += `<div class="perfil-subsection">Serviços como reprodutor (${comoPai.length})</div>${comoPai.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'pai')).join('')}`;
+  if(exames.length) corpo += `<div class="perfil-subsection">Exames reprodutivos (${exames.length})</div>${exames.map(({v,e})=>`<div class="stat-list-row clicavel" data-abrirexamerepro="${v.id}"><span>${fmtDate(v.data)}${v.veterinario?(' · '+v.veterinario):''}${partesExame(e)?(' · '+partesExame(e)):''}</span>${e.proximoRetorno?('<span class="pill st-outro">retorno '+fmtDate(e.proximoRetorno)+'</span>'):''}</div>`).join('')}`;
+  if(!corpo) corpo = '<div class="hint-text">Nenhum registro reprodutivo ainda.</div>';
+  return `<div class="perfil-card">
+    <div class="perfil-card-head">🐣 Reprodução ${temPermissao('nascimentos','inserir')?`<button type="button" class="btn btn-sm btn-ghost no-print" id="btnFichaNovoExameRepro" style="text-transform:none;">+ Exame reprodutivo</button>`:''}</div>
+    <div class="perfil-card-body">${corpo}</div>
   </div>`;
 }
 function custoDietaResumo(d){
