@@ -8072,7 +8072,7 @@ function gerarRelatorioTreino3(){
         // Só os animais selecionados no filtro (não a sessão inteira, se ela tiver outros animais).
         const animaisMostrar = t.animais.filter(a=>idsSelecionados.has(a.id));
         return `
-        <div class="report-tipo-titulo">${fmtDate(t.data)}${t.local?(' — '+t.local):''}</div>
+        <div class="report-tipo-titulo">${fmtDate(t.data)} <span style="font-weight:700;color:#2f4a37;">[${t.tipo||'Sem tipo'}]</span>${t.local?(' — '+t.local):''}</div>
         <div class="report-animal-lista">${animaisMostrar.map(a=>`<div>${a.nome}${a.extra?(' — '+a.extra):''}</div>`).join('')}</div>
       `;}).join('')}`;
   }).join('') + `</div>`;
