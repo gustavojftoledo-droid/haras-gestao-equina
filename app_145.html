@@ -6835,10 +6835,14 @@ function agruparImportTreinos(validos){
 }
 /* ===== Formato especial: relatório "LISTAGEM DE TREINOS" (matriz animal × sessão) =====
    Alguns sistemas antigos exportam o histórico de treinos como uma MATRIZ: uma linha por animal,
-   uma coluna por sessão (T1406, T1407...), a célula marca T/M/J = participou (e em JOGO, o número
-   antes do J = chukkers jogados). No fim vem a tabela "TREINOS" com CÓD/DATA/LOCAL/TIPO/OBSERVAÇÕES.
-   A OBSERVAÇÃO junta nome(s) de responsável e, depois de " / ", o comentário. Aqui separamos tudo:
-   responsável vai pro campo Treinador, o resto pra Observação; os chukkers viram observação por animal. */
+   uma coluna por sessão (T1406...), a célula marca T/M/J/B = participou, com um número antes = os
+   chukkers/períodos daquele animal ("16 J" = 1º e 6º). No fim (podendo ocupar VÁRIAS páginas — o
+   cabeçalho aparece uma vez) vem a tabela "TREINOS" com CÓD/DATA/LOCAL/TIPO/OBSERVAÇÕES.
+   A OBSERVAÇÃO junta o(s) responsável(is) no começo e depois o comentário livre — os separadores
+   variam (" / ", " - ", ",", " E ", "|") e às vezes o responsável vem com nº de posição ("GUSTAVO 1").
+   Separamos por um "vocabulário de pessoas" (nomes que aparecem como responsável em ≥2 sessões +
+   um núcleo conhecido + a lista auxiliar de treinadores; nunca um nome de cavalo). O que sobra vai
+   pra Observação; os chukkers viram observação por animal. */
 async function parseListagemTreinosPDF(file){
   if(typeof pdfjsLib === 'undefined'){ throw new Error('O leitor de PDF não carregou (precisa de internet na primeira vez).'); }
   if(!pdfjsLib.GlobalWorkerOptions.workerSrc){ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
@@ -6880,7 +6884,10 @@ async function parseListagemTreinosPDF(file){
   if(!headerCodes){ throw new Error('Não achei a matriz de treinos (linha com os códigos T####) nesse PDF.'); }
   const pitch = colX.length>1 ? Math.abs((colX[colX.length-1]-colX[0])/(colX.length-1)) : 18;
   const colOf = x=>{ let b=-1,bd=1e9; for(let i=0;i<colX.length;i++){ const d=Math.abs(x-colX[i]); if(d<bd){ bd=d; b=i; } } return bd<=pitch*0.8 ? b : -1; };
+  const semAcento = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
   // --- linhas de animal: nome (à esquerda da coluna APELIDO) + TOT (inteiro no fim) + marcas na linha de cima ---
+  // A célula da matriz pode vir como um item só ("16 J") ou dois itens colados ("1"+"J") na mesma coluna
+  // — por isso agrupa por coluna e junta o texto antes de contar.
   const partsByCode = {};
   const animalNomes = [];
   const mismatches = [];
@@ -6896,98 +6903,151 @@ async function parseListagemTreinosPDF(file){
         const tot = Number(last.s.trim());
         const markRow = rows[ri-1];
         if(!markRow) return;
-        const marks = markRow.cells.map(c=>({ col:colOf(c.x), s:c.s.trim() })).filter(m=>m.col>=0 && /[A-Za-z]/.test(m.s));
+        const porCol = {};
+        markRow.cells.forEach(c=>{ const col = colOf(c.x); if(col<0) return; (porCol[col] = porCol[col]||[]).push(c.s.trim()); });
+        const marks = Object.entries(porCol).map(([col,arr])=>({ col:+col, s:arr.join(' ').replace(/\s+/g,' ').trim() })).filter(m=>/[A-Za-z]/.test(m.s));
         if(marks.length !== tot) mismatches.push({ nome, lido:marks.length, esperado:tot });
         animalNomes.push(nome);
         marks.forEach(m=>{
           const code = headerCodes[m.col];
-          (partsByCode[code] = partsByCode[code]||[]).push({ nome, chukker: m.s.replace(/[^0-9]/g,'') });
+          if(!code) return;
+          (partsByCode[code] = partsByCode[code]||[]).push({ nome, letra:(m.s.match(/[A-Za-z]/)||[''])[0].toUpperCase(), chukker: m.s.replace(/[^0-9]/g,'') });
         });
       }
     });
   });
-  // --- tabela de detalhe: CÓD DATA LOCAL TIPO OBSERVAÇÕES ---
-  let detail = [];
+  // --- tabela de detalhe: CÓD DATA LOCAL TIPO OBSERVAÇÕES (pode ocupar VÁRIAS páginas; o cabeçalho aparece uma vez) ---
+  const detail = [];
+  let detCols = null, detIniciada = false;
   pages.forEach(items=>{
     const rows = toRows(items);
-    let hy=null, hx={};
-    rows.forEach(row=>{ const t=row.cells.map(c=>c.s).join(' '); if(/OBSERVA/.test(t) && /LOCAL/.test(t) && /TIPO/.test(t)){ hy=row.y; row.cells.forEach(c=>{ hx[c.s.trim()]=c.x; }); } });
-    if(hy==null) return;
-    const gx = k=> hx[k];
-    const cols = [['COD', gx('CÓD')??gx('COD')], ['DATA',gx('DATA')], ['LOCAL',gx('LOCAL')], ['TIPO',gx('TIPO')], ['OBS',gx('OBSERVAÇÕES')??gx('OBSERVACOES')]].filter(c=>c[1]!=null);
-    rows.filter(r=>r.y<hy).forEach(row=>{
-      const cs = row.cells;
-      if(!/^T\d{3,4}$/.test((cs[0].s||'').trim())) return;
-      const rec = { COD:cs[0].s.trim(), DATA:'', LOCAL:'', TIPO:'', OBS:'' };
-      cs.slice(1).forEach(c=>{ let nm='OBS'; for(let i=cols.length-1;i>=0;i--){ if(c.x >= cols[i][1]-3){ nm=cols[i][0]; break; } } rec[nm]=(rec[nm]?rec[nm]+' ':'')+c.s; });
-      detail.push(rec);
+    let hIdx = -1;
+    rows.forEach((row,i)=>{
+      const t = semAcento(row.cells.map(c=>c.s).join(' ')).toUpperCase();
+      if(/OBSERVAC/.test(t) && /LOCAL/.test(t) && /\bTIPO\b/.test(t) && /DATA/.test(t)){
+        hIdx = i;
+        const hx = {};
+        row.cells.forEach(c=>{ hx[semAcento(c.s.trim()).toUpperCase()] = c.x; });
+        detCols = [['COD',hx['COD']], ['DATA',hx['DATA']], ['LOCAL',hx['LOCAL']], ['TIPO',hx['TIPO']], ['OBS',hx['OBSERVACOES']]].filter(c=>c[1]!=null);
+      }
     });
+    if(hIdx>=0) detIniciada = true;
+    if(!detIniciada || !detCols) return;
+    for(let i=(hIdx>=0?hIdx+1:0); i<rows.length; i++){
+      const cs = rows[i].cells;
+      if(!/^T\d{3,4}$/.test((cs[0].s||'').trim())) continue;
+      const rec = { COD:cs[0].s.trim(), DATA:'', LOCAL:'', TIPO:'', OBS:'' };
+      cs.slice(1).forEach(c=>{ let nm='OBS'; for(let k=detCols.length-1;k>=0;k--){ if(c.x >= detCols[k][1]-3){ nm=detCols[k][0]; break; } } rec[nm]=(rec[nm]?rec[nm]+' ':'')+c.s; });
+      detail.push(rec);
+    }
   });
   if(detail.length===0){ throw new Error('Achei a matriz mas não a tabela de sessões (CÓD/DATA/LOCAL/TIPO/OBSERVAÇÕES).'); }
-  // --- combina ---
-  const TIPO_MAP = { TREINO:'Treino', MONTADA:'Montada', JOGO:'Jogo' };
-  const pareceListaDePessoas = txt=>{
-    const toks = txt.split(/\s*,\s*|\s+E\s+/).map(t=>t.trim()).filter(Boolean);
-    return toks.length>0 && toks.every(t=> /^[A-ZÀ-Ú][A-ZÀ-Ú.\-' ]{1,14}$/.test(t) && t.split(/\s+/).length<=2 && !/\d/.test(t));
+  // --- vocabulário de pessoas: token no começo da OBSERVAÇÃO que aparece como "responsável" em ≥2 sessões ---
+  const CORE_PESSOAS = ['GUSTAVO','HENRIQUE','PAULO','PAULA','LEANDRO','LONGUINHO','GUIGA','PIPE'];
+  const ehTokenNome = t => /^[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú.'’-]*(\s+[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú.'’-]*)?$/.test(t) && t.split(/\s+/).length<=2 && !/\d/.test(t) && t.replace(/[^A-Za-zÀ-ú]/g,'').length>=2 && t.length<=16;
+  const partirObs = raw => (raw||'').replace(/\s*\|\s*/g,' / ').replace(/\s+/g,' ').trim();
+  const tokensCabeca = raw => {
+    const brutos = partirObs(raw).split(/\s*,\s*|\s+E\s+|\s+\/\s+|\s+-\s+/);
+    const out = [];
+    for(let t of brutos){ t = t.trim().replace(/\s+\d+$/,''); if(ehTokenNome(t)) out.push(t); else break; }
+    return out;
   };
+  const nomesAnimaisSet = new Set(animalNomes.map(n=>semAcento(n).toUpperCase().replace(/\s+/g,' ')));
+  const freq = {};
+  detail.forEach(d=> tokensCabeca(d.OBS).forEach(t=>{ const k=semAcento(t).toUpperCase(); if(!nomesAnimaisSet.has(k)) freq[k]=(freq[k]||0)+1; }));
+  const vocabPessoas = new Set(CORE_PESSOAS);
+  Object.keys(freq).forEach(k=>{ if(freq[k]>=2) vocabPessoas.add(k); });
+  (aux.treinador||[]).forEach(t=>vocabPessoas.add(semAcento(t).toUpperCase()));
+  nomesAnimaisSet.forEach(n=>vocabPessoas.delete(n)); // nome de cavalo nunca é "responsável"
+  const separarPessoasEObs = raw=>{
+    let rest = partirObs(raw);
+    const pessoas = [];
+    while(rest){
+      const m = rest.match(/^([^,\/-]+?)(\s*,\s*|\s+E\s+|\s+\/\s+|\s+-\s+|$)/);
+      if(!m) break;
+      const bruto = m[1].trim();
+      const cand = bruto.replace(/\s+\d+$/,'');
+      const key = semAcento(cand).toUpperCase();
+      const temNumeroDePosicao = /\s\d$/.test(bruto); // "GUSTAVO 1", "PIPE 2" — quase sempre é jogador
+      if(ehTokenNome(cand) && !nomesAnimaisSet.has(key) && (vocabPessoas.has(key) || temNumeroDePosicao)){
+        pessoas.push(cand);
+        rest = rest.slice(m[0].length).trim();
+      } else break;
+    }
+    return { treinador: pessoas.map(p=>titleCase(p)).join(', '), obs: rest.trim() };
+  };
+  // --- combina ---
+  const TIPO_MAP = { TREINO:'Treino', MONTADA:'Montada', JOGO:'Jogo', 'BATE BOLA':'Bate Bola' };
   const grupos = detail.map(d=>{
-    const obsRaw = (d.OBS||'').replace(/\s+/g,' ').trim();
-    const si = obsRaw.indexOf(' / ');
-    const head = si>=0 ? obsRaw.slice(0,si).trim() : obsRaw;
-    const tail = si>=0 ? obsRaw.slice(si+3).trim() : '';
-    let treinador='', obs='';
-    if(pareceListaDePessoas(head)){ treinador = head.split(/\s*,\s*|\s+E\s+/).map(t=>titleCase(t.trim())).join(', '); obs = tail; }
-    else { obs = obsRaw; }
+    const { treinador, obs } = separarPessoasEObs(d.OBS);
     const dm = (d.DATA||'').trim().match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    const eJogo = (d.TIPO||'').trim().toUpperCase()==='JOGO';
+    const eJogo = /JOGO/.test((d.TIPO||'').toUpperCase());
     const animais = (partsByCode[d.COD]||[]).map(p=>({
       nome: p.nome,
-      extra: (eJogo && p.chukker) ? ('Chukkers: ' + p.chukker.split('').join(' e ')) : ''
+      extra: p.chukker ? ((eJogo?'Chukkers: ':'Períodos: ') + p.chukker.split('').join(' e ')) : ''
     }));
     return {
       cod: d.COD,
       data: dm ? (dm[3]+'-'+dm[2]+'-'+dm[1]) : '',
-      tipo: TIPO_MAP[(d.TIPO||'').trim().toUpperCase()] || titleCase((d.TIPO||'').trim()),
+      tipo: TIPO_MAP[(d.TIPO||'').replace(/\s+/g,' ').trim().toUpperCase()] || titleCase((d.TIPO||'').replace(/\s+/g,' ').trim()),
       local: (d.LOCAL||'').replace(/\s+/g,' ').trim(),
       treinador, obs, animais
     };
-  }).filter(g=>g.data && g.animais.length);
+  }).filter(g=>g.data);
   return { grupos, animalNomes:[...new Set(animalNomes)], mismatches };
 }
 // Constrói a prévia (passo 2) do import a partir dos grupos já lidos da matriz — casa os nomes com o
 // cadastro de Animais, separa os não encontrados, e deixa importTreinoGrupos pronto pro Confirmar.
+// Casa o nome do relatório com o cadastro de Animais tolerando acento/espaço e complementos
+// ("ELLEN" casa com "Ellen MM"). Só aceita a aproximação quando ela aponta pra UM único animal.
+function acharCavaloListagem(nome){
+  const norm = s => (s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+  const alvo = norm(nome);
+  if(!alvo) return null;
+  const exato = horses.filter(h=>h.nome && norm(h.nome)===alvo);
+  if(exato.length) return exato[0];
+  const aprox = horses.filter(h=>{
+    const n = norm(h.nome);
+    return n===alvo || n.startsWith(alvo+' ') || n.split(' ')[0]===alvo || alvo.startsWith(n+' ') || alvo.split(' ')[0]===n;
+  });
+  return aprox.length===1 ? aprox[0] : null;
+}
 function analisarImportTreinoListagem(grupos, mismatches){
   const naoEncontrados = new Set();
-  importTreinoGrupos = grupos.map(g=>{
+  const todos = grupos.map(g=>{
     const animais = [];
     g.animais.forEach(a=>{
-      const h = horses.find(x=>x.nome && x.nome.trim().toLowerCase()===a.nome.toLowerCase());
+      const h = acharCavaloListagem(a.nome);
       if(!h){ naoEncontrados.add(a.nome); return; }
       animais.push({ id:h.id, nome:h.nome, extra:a.extra||'', valorExtra:'', valorExtra2:'' });
     });
-    return { data:g.data, tipo:g.tipo, local:g.local, treinador:g.treinador, obs:g.obs, animais };
-  }).filter(g=>g.animais.length>0).sort((a,b)=> a.data.localeCompare(b.data));
+    return { cod:g.cod, data:g.data, tipo:g.tipo, local:g.local, treinador:g.treinador, obs:g.obs, animais, totalLido:g.animais.length };
+  }).sort((a,b)=> a.data.localeCompare(b.data) || a.cod.localeCompare(b.cod));
+  importTreinoGrupos = todos.filter(g=>g.animais.length>0);
+  const semAnimal = todos.filter(g=>g.animais.length===0);
 
   const totalPart = importTreinoGrupos.reduce((s,g)=>s+g.animais.length,0);
   let html = `<div class="hint-text" style="margin-bottom:14px;">
-    Formato <strong>"Listagem de Treinos"</strong> reconhecido. <strong>${importTreinoGrupos.length}</strong> sessão(ões), <strong>${totalPart}</strong> participação(ões) de animal.
-    ${naoEncontrados.size ? '<br>'+naoEncontrados.size+' cavalo(s) não encontrado(s) no cadastro.' : ''}
-    ${mismatches.length ? '<br>⚠ '+mismatches.length+' animal(is) com contagem divergente — confira na tabela.' : ''}
+    Formato <strong>"Listagem de Treinos"</strong> reconhecido — <strong>${todos.length}</strong> sessão(ões) no relatório.
+    Vão entrar <strong>${importTreinoGrupos.length}</strong> sessão(ões) com <strong>${totalPart}</strong> participação(ões) de animal.
+    ${semAnimal.length ? '<br>'+semAnimal.length+' sessão(ões) sem nenhum animal reconhecido — não entram.' : ''}
+    ${naoEncontrados.size ? '<br>'+naoEncontrados.size+' nome(s) de cavalo não encontrado(s) no cadastro (lista abaixo).' : ''}
+    ${mismatches.length ? '<br>⚠ '+mismatches.length+' animal(is) com contagem divergente na leitura da matriz.' : ''}
   </div>`;
   html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
     <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Treinador</th><th>Observação</th><th>Animais</th></tr></thead>
-    <tbody>${importTreinoGrupos.map(g=>`<tr>
+    <tbody>${todos.map(g=>`<tr${g.animais.length===0?' style="opacity:.5;"':''}>
       <td style="white-space:nowrap;">${fmtDate(g.data)}</td><td>${g.tipo||''}</td><td>${g.local||''}</td>
       <td>${g.treinador||'<span style="color:var(--muted);">—</span>'}</td>
       <td style="font-size:11.5px;">${g.obs||''}</td>
-      <td style="font-size:11.5px;">${g.animais.map(a=>a.nome+(a.extra?(' ('+a.extra.replace('Chukkers:','ck')+')'):'')).join(', ')}</td>
+      <td style="font-size:11.5px;">${g.animais.length ? g.animais.map(a=>a.nome+(a.extra?(' <span style="color:var(--muted);">['+a.extra+']</span>'):'')).join(', ') : '<span style="color:#a33;">nenhum reconhecido de '+g.totalLido+'</span>'}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
   if(naoEncontrados.size){
-    html += `<div class="hint-text" style="color:#a33;margin-bottom:8px;"><strong>Cavalos não encontrados</strong> (não entram — cadastre com esse nome antes, se quiser incluí-los):<br>${[...naoEncontrados].sort().join(', ')}</div>`;
+    html += `<div class="hint-text" style="color:#a33;margin-bottom:8px;"><strong>Cavalos não encontrados no cadastro</strong> (não entram — cadastre com esse nome e reimporte, se quiser incluí-los):<br>${[...naoEncontrados].sort().join(', ')}</div>`;
   }
   if(mismatches.length){
-    html += `<div class="hint-text" style="color:#a33;"><strong>Contagem divergente</strong> (li um nº de participações diferente do total impresso — pode ter perdido/somado alguma marca):<br>${mismatches.map(m=>m.nome+': li '+m.lido+', esperado '+m.esperado).join(' · ')}</div>`;
+    html += `<div class="hint-text" style="color:#a33;"><strong>Contagem divergente</strong> (li um nº de marcas diferente do total impresso na matriz — confira esses depois de importar):<br>${mismatches.map(m=>m.nome+': li '+m.lido+', esperado '+m.esperado).join(' · ')}</div>`;
   }
   document.getElementById('importTreinoResumo').innerHTML = html;
   const btn = document.getElementById('btnConfirmarImportTreino');
