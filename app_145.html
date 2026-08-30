@@ -881,11 +881,12 @@
           <div style="display:flex;gap:8px;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnRelManejoSel" style="display:none;">📄 Relatório dos selecionados</button>
             <button type="button" class="btn btn-sm btn-danger" id="btnManejoDelSel" style="display:none;">🗑 Excluir selecionados</button>
+            <button type="button" class="btn btn-sm btn-ghost" data-colpicker="manejos">⚙ Colunas</button>
           </div>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th style="width:34px;"></th><th>Data</th><th>Tipo</th><th>Subtipo (Casco)</th><th>Ferrador</th><th>Total ferrageamento (R$)</th><th>Total c/ extras (R$)</th><th>Deslocamento (R$)</th><th>Qtd. Animais</th><th>Observações</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="manejos">
+          <thead><tr><th style="width:34px;"></th><th>Data</th><th data-col="tipo">Tipo</th><th data-col="subtipo">Subtipo (Casco)</th><th data-col="ferrador">Ferrador</th><th data-col="totalBase">Total ferrageamento (R$)</th><th data-col="totalExtras">Total c/ extras (R$)</th><th data-col="deslocamento">Deslocamento (R$)</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="mTbody"></tbody>
         </table></div>
       </div>
@@ -967,9 +968,10 @@
           <div class="f"><label>Tipo</label><select id="tFiltroTipo"><option value="">Todos</option></select></div>
           <div class="f"><label>Data de</label><input type="date" id="tFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="tFiltroAte"></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Data</th><th>Local</th><th>Tipo</th><th>Quem treinou</th><th>Qtd. Animais</th><th>Observações</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="treinos">
+          <thead><tr><th>Data</th><th data-col="local">Local</th><th data-col="tipo">Tipo</th><th data-col="quemTreinou">Quem treinou</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="tTbody"></tbody>
         </table></div>
       </div>
@@ -1020,9 +1022,10 @@
           <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
           <div class="f"><label>Ano cobertura</label><input type="text" id="nFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
           <div class="f"><label>Ano nascimento</label><input type="text" id="nFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
+          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Provável Nascimento</th><th>Dt Nascimento</th><th>Confirm.</th><th>Prenhez</th><th>Confirmado</th><th>Observações</th><th></th></tr></thead>
+        <div class="grid-wrap"><table class="grid" data-lista="coberturas">
+          <thead><tr><th>Matriz</th><th data-col="pai">Pai</th><th data-col="receptora">Receptora</th><th data-col="dtCobertura">Dt Cobertura</th><th data-col="provavelNasc">Provável Nascimento</th><th data-col="dtNasc">Dt Nascimento</th><th data-col="confirm">Confirm.</th><th data-col="prenhez">Prenhez</th><th data-col="confirmado">Confirmado</th><th data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -1309,9 +1312,12 @@
         <button class="btn" id="btnNewFuncionario" title="Atalho: Alt+P">+ Novo Funcionário</button>
       </div>
       <div class="stats" id="funcStats"></div>
-      <div class="hint-text" style="margin:0 0 10px;">Cadastro só de identificação. Todo dia 5, o Calendário do Início lembra de confirmar o pagamento do salário de cada funcionário — clique lá pra confirmar (e ajustar o valor se precisar). Outros custos (vale, adiantamento...) entram por "Lançar custo".</div>
-      <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Nome</th><th>Documento</th><th>Nascimento</th><th>Último salário lançado</th><th></th></tr></thead>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 10px;">
+        <div class="hint-text" style="margin:0;flex:1;">Cadastro só de identificação. Todo dia 5, o Calendário do Início lembra de confirmar o pagamento do salário de cada funcionário — clique lá pra confirmar (e ajustar o valor se precisar). Outros custos (vale, adiantamento...) entram por "Lançar custo".</div>
+        <button type="button" class="btn btn-ghost btn-sm" data-colpicker="funcionarios">⚙ Colunas</button>
+      </div>
+      <div class="grid-wrap"><table class="grid" data-lista="funcionarios">
+        <thead><tr><th>Nome</th><th data-col="documento">Documento</th><th data-col="nascimento">Nascimento</th><th data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
         <tbody id="funcTbody"></tbody>
       </table></div>
     </div>
@@ -2058,6 +2064,16 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div><button type="button" class="btn btn-danger" id="btnDeleteMov">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayEditarMov">Cancelar</button><button type="button" class="btn" id="btnSaveMov">Salvar</button></div>
     </div>
+  </div>
+</div>
+
+<!-- COLUNAS DE QUALQUER LISTA (seletor genérico — ver ativarSeletoresColunas) -->
+<div class="overlay" id="overlayColunasGenerico">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="colunasGenericoTitulo">Colunas da lista</div><button class="modal-close" data-close="overlayColunasGenerico">✕</button></div>
+    <div class="hint-text" style="margin-bottom:14px;">Marque o que aparece nesta lista. As colunas principais (nome/data e os botões) aparecem sempre.</div>
+    <div id="colunasGenericoHost" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn" data-close="overlayColunasGenerico">Fechar</button></div></div>
   </div>
 </div>
 
@@ -2982,6 +2998,7 @@ async function loadAll(){
   refreshDatalists();
   populateAuxSelects();
   renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
+  aplicarColunasListas();
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
@@ -4611,7 +4628,7 @@ function renderManejos(){
   const podeExcluirManejo = temPermissao('manejos','excluir');
   tbody.innerHTML = filtered.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
     <td><input type="checkbox" data-selid="${m.id}" ${manejoSelecionados.has(m.id)?'checked':''}></td>
-    <td>${fmtDate(m.data)}</td><td>${m.tipo}</td><td>${m.subtipoCasco||''}</td><td>${m.ferrador||''}</td><td>${fmtValor(calcTotalBase(m))}</td><td>${fmtValor(calcTotal(m))}</td><td>${fmtValor(m.deslocamento)}</td><td>${m.animais.length}</td><td>${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${m.obs||''}</td>
+    <td>${fmtDate(m.data)}</td><td data-col="tipo">${m.tipo}</td><td data-col="subtipo">${m.subtipoCasco||''}</td><td data-col="ferrador">${m.ferrador||''}</td><td data-col="totalBase">${fmtValor(calcTotalBase(m))}</td><td data-col="totalExtras">${fmtValor(calcTotal(m))}</td><td data-col="deslocamento">${fmtValor(m.deslocamento)}</td><td data-col="qtdAnimais">${m.animais.length}</td><td data-col="obs">${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${m.obs||''}</td>
     <td style="white-space:nowrap;">${m.pendenteEstoque&&podeEditarManejo?`<button type="button" class="btn btn-sm" data-confirmarbaixa="${m.id}" title="Dar baixa no estoque e gerar o custo por animal">✅ Confirmar baixa</button> `:''}<button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-rel]').forEach(b=>b.addEventListener('click', e=>{
@@ -5727,11 +5744,12 @@ function renderInicioAtividades(host){
         <span style="color:var(--text-faint);white-space:nowrap;">${fmtDate(t.data).slice(0,5)}</span>
       </div>`).join('')}
     </div>` : ''}
-    ${grupos.length>0 ? `<div style="border-top:1px solid var(--line-soft);padding-top:12px;">
+    ${grupos.length>0 ? `<div data-vergrupos="1" style="border-top:1px solid var(--line-soft);padding-top:12px;cursor:pointer;" title="Abrir Grupos">
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px;">Grupos</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">${gruposHtml}</div>
     </div>` : ''}
   `;
+  host.querySelectorAll('[data-vergrupos]').forEach(el=>el.addEventListener('click', e=>{ e.stopPropagation(); irParaView('grupos'); }));
 }
 
 function calLabel(){
@@ -7827,7 +7845,7 @@ function renderTreinos(){
   const tbody=document.getElementById('tTbody');
   if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhum treino encontrado.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
-    <td>${fmtDate(t.data)}</td><td>${t.local||''}</td><td>${t.tipo||''}</td><td>${t.treinadores||''}</td><td>${t.animais.length}</td><td>${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
+    <td>${fmtDate(t.data)}</td><td data-col="local">${t.local||''}</td><td data-col="tipo">${t.tipo||''}</td><td data-col="quemTreinou">${t.treinadores||''}</td><td data-col="qtdAnimais">${t.animais.length}</td><td data-col="obs">${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">Excluir</button></td>
   </tr>`).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', ()=>{
@@ -8540,11 +8558,11 @@ function renderNascimentos(){
       ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
       : `<span class="pill st-descarte">Não</span>`;
     return `<tr>
-      <td>${nomeComOlho(n.matriz)}</td><td>${nomeComOlho(n.pai)}</td><td>${nomeComOlho(n.receptora)}</td>
-      <td>${fmtDate(n.datacob)}</td><td>${provavel?fmtDate(provavel):'—'}</td><td>${fmtDate(n.datanasc)}</td>
-      <td><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
-      <td>${prenhezPill}</td>
-      <td>${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td>${n.obs||''}</td>
+      <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
+      <td data-col="dtCobertura">${fmtDate(n.datacob)}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
+      <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
+      <td data-col="prenhez">${prenhezPill}</td>
+      <td data-col="confirmado">${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${n.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm btn-ghost" data-nedit="${n.id}" title="Editar">✏️</button>
         ${n.confirm!=='S' ? `<button type="button" class="btn btn-sm btn-ghost" data-nconfirmprenhez="${n.id}" title="Confirmar prenhez hoje">🤰 Confirmar</button>` : ''}
@@ -8938,6 +8956,57 @@ function renderColunasEstoquePicker(){
 document.getElementById('btnColunasEstoque').addEventListener('click', ()=>{
   renderColunasEstoquePicker();
   openModal('overlayColunasEstoque');
+});
+
+/* ===== Seletor de colunas GENÉRICO (vale pra qualquer lista) =====
+   Cada tabela marca a `<table class="grid" data-lista="X">` e cada <th>/<td> opcional com data-col="chave".
+   O que fica oculto some por REGRA DE CSS (um <style> por lista) — os re-renders não precisam saber de nada,
+   o CSS pega os <td> novos sozinho. A escolha fica em config.colunasListas (salva na nuvem, vale pra todos). */
+const LISTA_COLUNAS_TITULO = {
+  animais:'Colunas — Animais', manejos:'Colunas — Manejos', programacao:'Colunas — Programação de Manejos',
+  transporte:'Colunas — Transporte', treinos:'Colunas — Atividades', coberturas:'Colunas — Coberturas',
+  protocoloAgenda:'Colunas — Vacinas previstas', dietas:'Colunas — Dietas', estoqueMov:'Colunas — Movimentações de estoque',
+  vetLista:'Colunas — Veterinária (Lista)', vetVisitas:'Colunas — Visitas', vetTratamentos:'Colunas — Tratamentos',
+  financeiro:'Colunas — Financeiro', funcionarios:'Colunas — Funcionários', auditoria:'Colunas — Auditoria',
+};
+function colunasOcultas(listaId){
+  const salvo = (config.colunasListas && config.colunasListas[listaId]) || {};
+  return new Set(Object.keys(salvo).filter(k=> salvo[k]===false));
+}
+function aplicarColunasListas(){
+  Object.keys(LISTA_COLUNAS_TITULO).forEach(listaId=>{
+    let sty = document.getElementById('colsty_'+listaId);
+    if(!sty){ sty = document.createElement('style'); sty.id = 'colsty_'+listaId; document.head.appendChild(sty); }
+    const ocultas = [...colunasOcultas(listaId)];
+    sty.textContent = ocultas.map(k=> `table[data-lista="${listaId}"] [data-col="${k}"]{display:none;}`).join('\n');
+  });
+}
+function abrirSeletorColunas(listaId){
+  const tabela = document.querySelector(`table[data-lista="${listaId}"]`);
+  if(!tabela){ showAlert('Essa lista ainda não abriu — abra a aba dela primeiro e tente de novo.'); return; }
+  const ths = [...tabela.querySelectorAll('thead th[data-col]')];
+  const ocultas = colunasOcultas(listaId);
+  document.getElementById('colunasGenericoTitulo').textContent = LISTA_COLUNAS_TITULO[listaId] || 'Colunas da lista';
+  document.getElementById('colunasGenericoHost').innerHTML = ths.map(th=>{
+    const k = th.dataset.col;
+    return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" data-colgen="${k}" ${ocultas.has(k)?'':'checked'}> ${th.textContent.trim()||k}
+    </label>`;
+  }).join('') || '<div class="hint-text">Essa lista não tem colunas opcionais.</div>';
+  document.getElementById('colunasGenericoHost').querySelectorAll('[data-colgen]').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      if(!config.colunasListas) config.colunasListas = {};
+      if(!config.colunasListas[listaId]) config.colunasListas[listaId] = {};
+      config.colunasListas[listaId][cb.dataset.colgen] = cb.checked; // true = visível, false = oculta
+      await storeSet('config', config);
+      aplicarColunasListas();
+    });
+  });
+  openModal('overlayColunasGenerico');
+}
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-colpicker]');
+  if(btn) abrirSeletorColunas(btn.dataset.colpicker);
 });
 
 function renderEstoque(){
@@ -13048,9 +13117,9 @@ function renderFuncionarios(){
     const pago = salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth());
     return `<tr>
     <td><strong>${fu.nome||''}</strong></td>
-    <td>${fu.documento||'—'}</td>
-    <td>${fu.dataNascimento ? fmtDate(fu.dataNascimento) : '—'}</td>
-    <td style="font-family:'IBM Plex Mono',monospace;">${fu.ultimoSalarioValor ? fmtMoeda(fu.ultimoSalarioValor, fu.ultimoSalarioMoeda) : '—'}${pago?' <span class="pill st-ativo" style="margin-left:4px;">Mês em dia</span>':''}</td>
+    <td data-col="documento">${fu.documento||'—'}</td>
+    <td data-col="nascimento">${fu.dataNascimento ? fmtDate(fu.dataNascimento) : '—'}</td>
+    <td data-col="ultimoSalario" style="font-family:'IBM Plex Mono',monospace;">${fu.ultimoSalarioValor ? fmtMoeda(fu.ultimoSalarioValor, fu.ultimoSalarioMoeda) : '—'}${pago?' <span class="pill st-ativo" style="margin-left:4px;">Mês em dia</span>':''}</td>
     <td style="white-space:nowrap;">
       <button type="button" class="btn btn-sm" data-confirmarsalario="${fu.id}">Confirmar salário</button>
       <button type="button" class="btn btn-sm btn-ghost" data-lancarcusto="${fu.id}">Lançar custo</button>
