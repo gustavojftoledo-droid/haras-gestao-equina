@@ -7976,7 +7976,7 @@ function gerarRelatorioTreino1(){
   host.innerHTML = `<div class="report-card print-block">${cabecalho}
     ${linhas.map(l=>{
       return `<div class="report-animal-block">
-        <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${l.animal.nome}</div>
+        <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${l.animal.nome} <span style="font-weight:400;font-size:12px;color:#555;">— ${l.registros.length} sessão(ões): ${resumoTiposTreino(l.registros)}</span></div>
         <div class="grid-wrap compact"><table class="grid">
           <thead><tr><th>Data</th><th>Local</th><th>Tipo</th><th>Quem treinou</th></tr></thead>
           <tbody>${l.registros.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.local||''}</td><td>${r.tipo||''}</td><td>${r.treinadores||''}</td></tr>`).join('')}</tbody>
@@ -7987,6 +7987,13 @@ function gerarRelatorioTreino1(){
   btnPdf.style.display='inline-block';
 }
 
+// "Treino: 12 · Montada: 5 · Jogo: 3" — quantas sessões de cada tipo numa lista de treinos.
+function resumoTiposTreino(lista){
+  const cont = {};
+  (lista||[]).forEach(t=>{ const k = t.tipo||'Sem tipo'; cont[k] = (cont[k]||0)+1; });
+  const partes = Object.entries(cont).sort((a,b)=> b[1]-a[1]).map(([k,n])=> `${k}: ${n}`);
+  return partes.join(' · ');
+}
 const MATRIX_COLS_PER_BLOCK = 24; // quantas sessões cabem numa página A4 paisagem antes de quebrar em outra parte
 // Letra que representa o tipo de treino na matriz (B/T/J pros tipos usuais, ou a inicial de tipos personalizados).
 function tipoAbrevTreino(tipo){
@@ -8007,7 +8014,7 @@ function gerarRelatorioTreino2(){
 
   const host = document.getElementById('treinoRelResult');
   const btnPdf = document.getElementById('btnPdfRelTreino');
-  const cabecalho = `<h1 style="border:none;">Relatório de Treinos — Tabela de Presença</h1><div class="sub">${relevantTreinos.length} treino(s) no período.</div>`;
+  const cabecalho = `<h1 style="border:none;">Relatório de Treinos — Tabela de Presença</h1><div class="sub">${relevantTreinos.length} treino(s) no período — ${resumoTiposTreino(relevantTreinos)}.</div>`;
   if(relevantTreinos.length===0){ host.innerHTML = `<div class="report-card print-block">${cabecalho}<div class="empty">Nenhum treino encontrado para os animais e período selecionados.</div></div>`; btnPdf.style.display='inline-block'; return; }
 
   // Só entram na matriz os animais que participaram de pelo menos uma dessas sessões — quem não
@@ -8061,13 +8068,13 @@ function gerarRelatorioTreino3(){
 
   const host = document.getElementById('treinoRelResult');
   const btnPdf = document.getElementById('btnPdfRelTreino');
-  const cabecalho = `<h1 style="border:none;">Relatório de Treinos — Por Treino</h1><div class="sub">${relevantTreinos.length} treino(s) encontrado(s).</div>`;
+  const cabecalho = `<h1 style="border:none;">Relatório de Treinos — Por Treino</h1><div class="sub">${relevantTreinos.length} treino(s) encontrado(s) — ${resumoTiposTreino(relevantTreinos)}.</div>`;
   if(relevantTreinos.length===0){ host.innerHTML = `<div class="report-card print-block">${cabecalho}<div class="empty">Nenhum treino encontrado para os animais e período selecionados.</div></div>`; btnPdf.style.display='inline-block'; return; }
 
   const tipos = [...new Set(relevantTreinos.map(t=>t.tipo||'Sem tipo'))];
   host.innerHTML = `<div class="report-card print-block">${cabecalho}` + tipos.map(tipo=>{
     const doTipo = relevantTreinos.filter(t=>(t.tipo||'Sem tipo')===tipo);
-    return `<div class="report-data-titulo">${tipo}</div>
+    return `<div class="report-data-titulo">${tipo} (${doTipo.length})</div>
       ${doTipo.map(t=>{
         // Só os animais selecionados no filtro (não a sessão inteira, se ela tiver outros animais).
         const animaisMostrar = t.animais.filter(a=>idsSelecionados.has(a.id));
@@ -8126,7 +8133,7 @@ function gerarRelatorioCobrancaTreinos(){
   }).join('');
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório de Cobrança — Treinos</div>
-    <div class="subtitle" style="margin-bottom:14px;">${selecionados.length} animal(is) selecionado(s)${(de||ate)?(' · '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')):' · todo o histórico'}</div>
+    <div class="subtitle" style="margin-bottom:14px;">${selecionados.length} animal(is) selecionado(s)${(de||ate)?(' · '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')):' · todo o histórico'} · ${resumoTiposTreino(lista)}</div>
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Qtd.</th><th>Animais e valores</th><th>Total do treino</th></tr></thead>
       <tbody>${linhas}</tbody>
