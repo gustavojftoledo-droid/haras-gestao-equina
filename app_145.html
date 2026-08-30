@@ -535,7 +535,7 @@
         <div class="nav-group-body">
           <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
           <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
-          <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Nascimentos</div>
+          <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Reprodução</div>
         </div>
       </div>
 
@@ -994,15 +994,17 @@
     <!-- NASCIMENTOS -->
     <div class="view" id="view-nascimentos">
       <div class="topbar">
-        <div><div class="title">Nascimentos</div><div class="subtitle">Coberturas, confirmações e nascimentos</div></div>
+        <div><div class="title">Reprodução</div><div class="subtitle">Visitas veterinárias, coberturas, prenhez e nascimentos</div></div>
         <div style="display:flex;gap:10px;">
           <button class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
           <button class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
-          <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Novo Serviço</button>
+          <button class="btn btn-ghost" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
+          <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Nova Cobertura</button>
         </div>
       </div>
       <div class="subtabs">
-        <span class="chip active" data-nvtab="lista" id="nvtab_lista">Lista</span>
+        <span class="chip active" data-nvtab="lista" id="nvtab_lista">Coberturas</span>
+        <span class="chip" data-nvtab="visitas" id="nvtab_visitas">🩺 Visitas / Exames</span>
         <span class="chip" data-nvtab="protocolo" id="nvtab_protocolo">💉 Protocolo de Vacinas</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
       </div>
@@ -1018,6 +1020,20 @@
         <div class="grid-wrap"><table class="grid">
           <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Provável Nascimento</th><th>Dt Nascimento</th><th>Confirm.</th><th>Prenhez</th><th>Confirmado</th><th>Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
+        </table></div>
+      </div>
+
+      <div id="nview_visitas" style="display:none;">
+        <div class="filters">
+          <div class="f grow"><label>Buscar égua</label><input type="text" id="vrSearch" placeholder="Nome da égua..."></div>
+          <div class="f"><label>Veterinário</label><input type="text" id="vrFiltroVet" placeholder="Nome"></div>
+          <div class="f"><label>De</label><input type="date" id="vrFiltroDe"></div>
+          <div class="f"><label>Até</label><input type="date" id="vrFiltroAte"></div>
+        </div>
+        <div class="hint-text" style="margin:0 0 10px;">Cada visita registra o exame reprodutivo de uma ou mais éguas. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela e agenda o protocolo de vacinas de gestação. Dá pra ditar por voz.</div>
+        <div class="grid-wrap"><table class="grid">
+          <thead><tr><th>Data</th><th>Veterinário</th><th>Local</th><th>Éguas</th><th>Diagnósticos</th><th></th></tr></thead>
+          <tbody id="vrTbody"></tbody>
         </table></div>
       </div>
 
@@ -1543,7 +1559,7 @@
     <div id="manejoMedFields" style="display:none;margin-bottom:16px;">
       <div class="form-grid cols3">
         <div class="field"><label>Medicamento</label><input type="text" id="m_medicamento" list="dl_medicamentos" placeholder="Digite pra buscar (cadastrado no Estoque)"></div>
-        <div class="field"><label>Quantidade por animal</label><input type="number" step="0.01" id="m_medQuantidade" placeholder="Ex: 2"></div>
+        <div class="field"><label>Quantidade por animal</label><input type="number" step="0.01" id="m_medQuantidade" placeholder="Ex: 2 (Vermífugo: normalmente 1)"></div>
       </div>
       <div class="section-label" style="border-top:none;padding-top:0;margin-top:12px;">Utensílios usados <span style="font-family:'Inter';font-size:11px;color:var(--muted);">(ex: seringa, agulha — opcional, também dá baixa no estoque)</span></div>
       <div id="manejoUtensiliosHost" style="margin:8px 0;"></div>
@@ -1837,6 +1853,30 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisita" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisita">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- VISITA REPRODUTIVA / EXAME DE ÉGUAS -->
+<div class="overlay" id="overlayVisitaRepro">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="vrModalTitle">Nova Visita Reprodutiva</div><button class="modal-close" data-close="overlayVisitaRepro">✕</button></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozVisitaRepro">🎤 Ditar por voz</button><span class="hint-text" id="visitaRepro_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
+    <div class="form-grid">
+      <div class="field"><label>Data da visita</label><input type="date" id="vr_data"></div>
+      <div class="field"><label>Veterinário / Responsável</label><div class="field-plus"><select id="vr_veterinario_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="veterinario">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="veterinario" data-selid="vr_veterinario_sel" title="Excluir valor selecionado">🗑</button></div></div>
+      <div class="field"><label>Local</label><input type="text" id="vr_local" placeholder="Opcional"></div>
+      <div class="field full"><label>Observação geral da visita</label><textarea id="vr_obsGeral" rows="2" spellcheck="true" lang="pt-BR" placeholder="Opcional"></textarea></div>
+    </div>
+    <div class="section-label" style="border-top:none;padding-top:0;">Éguas examinadas <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— marque as éguas e preencha o exame de cada uma (pode ditar por voz em cada card)</span></div>
+    <div id="visitaReproSelectorHost" style="margin:10px 0 16px;"></div>
+    <div id="visitaReproEguasHost" style="margin:8px 0;"></div>
+    <div class="section-label" style="border-top:none;padding-top:0;margin-top:16px;">Documentos / Ultrassom <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— links (Drive, foto na nuvem...), não arquivos anexados</span></div>
+    <div id="visitaReproDocsHost" style="margin:8px 0;"></div>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaReproDoc">+ Adicionar documento</button>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaRepro" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVisitaRepro">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaRepro">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -2263,7 +2303,7 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 
 /* ---------- STATE ---------- */
 let horses=[], manejos=[], treinos=[], nascimentos=[];
-let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[];
+let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[], visitasRepro=[];
 let auditoria=[];
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
@@ -2387,7 +2427,8 @@ const AUDIT_KEYS = {
   horses_list:        { modulo:'Animais',     nome: r=>r.nome },
   manejos_list:       { modulo:'Manejos',     nome: r=>[r.tipo, r.subtipo, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   treinos_list:       { modulo:'Atividades',  nome: r=>[r.tipo, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
-  nascimentos_list:   { modulo:'Nascimentos', nome: r=>[r.matriz, r.pai&&('x '+r.pai)].filter(Boolean).join(' ') },
+  nascimentos_list:   { modulo:'Reprodução', nome: r=>[r.matriz, r.pai&&('x '+r.pai)].filter(Boolean).join(' ') },
+  visitas_repro_list: { modulo:'Reprodução', nome: r=>['Visita', r.veterinario, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   estoque_produtos:   { modulo:'Estoque',     nome: r=>r.nome },
   estoque_movimentos: { modulo:'Estoque',     nome: r=>[r.tipoMov==='saida'?'Saída':'Entrada', r.produtoNome, r.quantidade].filter(Boolean).join(' · ') },
   dietas_list:        { modulo:'Dietas',      nome: r=>r.nome },
@@ -2473,6 +2514,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'financeiro_lancamentos': lancamentos = val; break;
     case 'tratamentos_list': tratamentos = val; break;
     case 'visitas_list': visitas = val; break;
+    case 'visitas_repro_list': visitasRepro = val; break;
     case 'funcionarios_list': funcionarios = val; break;
     case 'transportes_list': transportes = val; break;
     case 'usuarios_list': usuarios = val; break;
@@ -2707,6 +2749,7 @@ async function loadAll(){
   const rU = await storeGet('usuarios_list');
   const rTR = await storeGet('tratamentos_list');
   const rVS = await storeGet('visitas_list');
+  const rVR = await storeGet('visitas_repro_list');
   const rTP = await storeGet('transportes_list');
   const rRS = await storeGet('rel_selecoes');
   const rNFA = await storeGet('nf_aprendizado');
@@ -2721,14 +2764,14 @@ async function loadAll(){
   examesSnapshot = JSON.parse(JSON.stringify(examesPorAnimal));
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
   estoqueProdutos = rEP.value; estoqueMovimentos = rEM.value; dietas = rDT.value; grupos = rG.value;
-  tratamentos = rTR.value; visitas = rVS.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[]; transportes = rTP.value||[];
+  tratamentos = rTR.value; visitas = rVS.value||[]; visitasRepro = rVR.value||[]; lancamentos = rFin.value||[]; funcionarios = rFU.value||[]; transportes = rTP.value||[];
   // "Foto" inicial de cada lista auditada, tirada logo depois de carregar — é contra ela que toda
   // gravação daqui pra frente vai ser comparada pra descobrir o que mudou (ver storeSet/auditDiff).
   Object.keys(AUDIT_KEYS).forEach(k=>auditTirarFoto(k, ({
     horses_list:horses, manejos_list:manejos, treinos_list:treinos, nascimentos_list:nascimentos,
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
-    visitas_list:visitas, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
+    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -2908,7 +2951,7 @@ async function loadAll(){
   if(dietasChanged) await storeSet('dietas_list', dietas);
   refreshDatalists();
   populateAuxSelects();
-  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
+  renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
   await processarConsumoAutomatico();
   await processarTratamentosAutomaticos();
   renderInicio();
@@ -2936,6 +2979,7 @@ function populateAuxSelects(){
   fill('t_treinador1_sel', aux.treinador||[]); fill('t_treinador2_sel', aux.treinador||[]); fill('t_treinador3_sel', aux.treinador||[]);
   fill('m_ferrador_sel', aux.ferrador||[]);
   fill('vs_veterinario_sel', aux.veterinario||[]);
+  fill('vr_veterinario_sel', aux.veterinario||[]);
   fill('m_subtipoCasco', aux.subtipoFerrageamento||[]);
   fill('fin_categoria', aux.finCategoria||[]);
   fill('t_donoTropa_sel', aux.donoTropa||[]);
@@ -3518,7 +3562,8 @@ function createAnimalSelector(hostEl, opts){
       const matchLoc = state.localizacoes.size===0 || state.localizacoes.has(h.localizacao);
       const matchProp = state.proprietarios.size===0 || state.proprietarios.has(h.proprietario);
       const matchSelected = !state.onlySelected || (state.selected[h.id] && state.selected[h.id].checked);
-      return matchSearch && matchCat && matchLoc && matchProp && matchSelected;
+      const matchSexo = !opts.somenteFemeas || h.sexo==='FEMININO';
+      return matchSearch && matchCat && matchLoc && matchProp && matchSelected && matchSexo;
     });
   }
   function categories(){ return sortCategorias([...new Set(basePool().map(h=>h.categoria).filter(Boolean))]); }
@@ -4611,8 +4656,7 @@ async function confirmarBaixaManejo(id){
     showAlert('Esse lançamento não tem o nome do medicamento. Abra no ✏️ (clique na linha), informe o medicamento e a quantidade, e salve — aí a baixa acontece.');
     return;
   }
-  const prod = estoqueProdutos.find(p=>p.tipo==='Medicamento' && normalizarNomeProduto(p.nome)===normalizarNomeProduto(nomeMed))
-    || estoqueProdutos.find(p=>p.tipo==='Medicamento' && (normalizarNomeProduto(p.nome).includes(normalizarNomeProduto(nomeMed)) || normalizarNomeProduto(nomeMed).includes(normalizarNomeProduto(p.nome))));
+  const prod = acharMedicamentoEstoque(nomeMed);
   if(!prod){
     showAlert(`Não achei "${nomeMed}" cadastrado como Medicamento no Estoque.\n\nCadastre o produto lá primeiro (ou abra este lançamento no ✏️ e ajuste o nome), depois volte aqui.`);
     return;
@@ -4631,7 +4675,7 @@ async function confirmarBaixaManejo(id){
   if(falta.length>0){
     const ok = await showConfirm(`Estoque insuficiente de ${prod.nome} (falta ${falta[0].falta}${un}). Registrar o manejo mesmo assim, SEM dar baixa e SEM gerar custo?`);
     if(!ok) return;
-    m.pendenteEstoque = false; m.medQuantidade = qtdPorAnimal; m.medicamentoId = null;
+    m.pendenteEstoque = false; m.baixaEstoqueFeita = true; m.medQuantidade = qtdPorAnimal; m.medicamentoId = null;
     await storeSet('manejos_list', manejos);
     renderManejos();
     showAlert('Lançamento confirmado sem baixa (saldo insuficiente).');
@@ -4644,7 +4688,7 @@ async function confirmarBaixaManejo(id){
   m.medQuantidade = qtdPorAnimal;
   m.valor = custoPorAnimal;
   (m.animais||[]).forEach(a=>{ a.valorBase = custoPorAnimal; });
-  m.pendenteEstoque = false;
+  m.pendenteEstoque = false; m.baixaEstoqueFeita = true;
   await storeSet('manejos_list', manejos);
   renderEstoque(); renderManejos(); renderFinanceiro();
   showAlert(`Baixa feita: ${totalBaixa}${un} de ${prod.nome}. Custo de R$ ${custoPorAnimal.toLocaleString('pt-BR',{minimumFractionDigits:2})} por animal lançado.`);
@@ -4938,8 +4982,8 @@ function computeProgramacao(dataReferencia){
    o calendário já passa a mostrar também as aplicações de medicamento, sem mudar nada aqui. */
 let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
-const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰' };
-const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário' };
+const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰', RetornoRepro:'🔄' };
+const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário', RetornoRepro:'Retorno Reprodutivo' };
 // Data no fuso LOCAL do aparelho, no formato AAAA-MM-DD — nunca use .toISOString() aqui: ela sempre
 // devolve o horário em UTC, e pra quem está no Brasil (UTC-3) isso faz o app achar que já é o dia
 // seguinte a partir das 21h de toda noite (a partir das 20h no horário de verão, quando existia).
@@ -5031,7 +5075,27 @@ function computeCalendarTasks(){
       situacao: 'proximo'
     });
   });
-  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...salarioTasks, ...atividadeTasks];
+  // Retorno reprodutivo: a "próxima visita" que o veterinário anotou pra cada égua. Só o retorno mais
+  // recente por égua, e só se nenhuma visita posterior a esse retorno já aconteceu (aí já voltou).
+  const retornoReproTasks = [];
+  const ultimoRetornoPorEgua = {};
+  visitasRepro.forEach(v=>{
+    (v.eguas||[]).forEach(e=>{
+      if(!e.proximoRetorno || !e.animalId) return;
+      const atual = ultimoRetornoPorEgua[e.animalId];
+      if(!atual || (v.data||'') > (atual.visitaData||'')) ultimoRetornoPorEgua[e.animalId] = { nome:e.nome, retorno:e.proximoRetorno, visitaData:v.data };
+    });
+  });
+  Object.entries(ultimoRetornoPorEgua).forEach(([animalId, r])=>{
+    const jaVoltou = visitasRepro.some(v=> (v.data||'') > r.retorno && (v.eguas||[]).some(e=>e.animalId===animalId));
+    if(jaVoltou) return;
+    retornoReproTasks.push({
+      data: r.retorno, tipo:'RetornoRepro', label:'Retorno reprodutivo: '+r.nome, categoria:'repro',
+      animalId, animalNome:r.nome,
+      situacao: r.retorno<hoje ? 'atrasado' : 'proximo'
+    });
+  });
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...salarioTasks, ...atividadeTasks];
 }
 function tasksByDate(tasks){
   const map = {};
@@ -5782,6 +5846,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehPotro = arr[0].categoria==='potro';
     const ehFuncionario = arr[0].categoria==='funcionario';
     const ehAtividade = arr[0].categoria==='atividade';
+    const ehRepro = arr[0].categoria==='repro';
     const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento||ehAtividade) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
@@ -5793,7 +5858,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
-    const btnConcluirTodos = ehAtividade ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
+    const btnConcluirTodos = (ehAtividade||ehRepro) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -5816,6 +5881,8 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-consultaratividade="${t.treinoId}">👁 Consultar / Editar</button><button type="button" class="btn btn-sm btn-danger" data-excluiratividade="${t.treinoId}" title="Exclui esse treino/atividade cadastrado">🗑 Excluir</button></div>`
           : (ehGestacao||ehPotro)
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
+            : ehRepro
+              ? `<button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">👁 Ver ficha</button>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
               : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${seletorCasco}${(t.tipo==='Vacina'||t.tipo==='Vermífugo')?'':`<input type="date" class="cal-data-conclusao" data-caldet-data="${t.animalId}" value="${toISODate(new Date())}" title="Data em que foi feito — o próximo manejo é calculado a partir daqui">`}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
@@ -6051,6 +6118,8 @@ function atualizarCamposCascoVisibilidade(){
   document.getElementById('manejoCascoFields').style.display = (tipoAtual==='Casco') ? 'block' : 'none';
   document.getElementById('manejoDenteFields').style.display = (tipoAtual==='Dente') ? 'block' : 'none';
   document.getElementById('manejoMedFields').style.display = (tipoAtual==='Vacina' || tipoAtual==='Vermífugo') ? 'block' : 'none';
+  // Vermífugo é dosado por unidade (1 por animal) — já deixa o campo preenchido pra não travar o save.
+  if(tipoAtual==='Vermífugo' && document.getElementById('m_medQuantidade').value==='') document.getElementById('m_medQuantidade').value = '1';
   if(typeof manejoSelector!=='undefined' && manejoSelector.draw) manejoSelector.draw();
   atualizarValorTotalManejo();
 }
@@ -6259,7 +6328,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   if(tipo==='Vacina' || tipo==='Vermífugo'){
     nomeMedDigitado = f('m_medicamento').trim();
     if(!nomeMedDigitado){ showAlert('Informe o medicamento usado (cadastre no Estoque primeiro, se ainda não tiver).'); return; }
-    medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMedDigitado.toLowerCase());
+    medicamento = acharMedicamentoEstoque(nomeMedDigitado);
     medQuantidade = Number(f('m_medQuantidade'));
     if(!medQuantidade || medQuantidade<=0){ showAlert('Informe a quantidade por animal.'); return; }
     if(!medicamento){
@@ -6296,9 +6365,13 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   }
   // Baixa automática no estoque (medicamento + utensílios, pela quantidade de animais) — só em lançamento
   // NOVO, pra não dar baixa de novo cada vez que você reabre e salva o mesmo lançamento pra editar outra coisa.
+  // O que NÃO baixou agora (produto não cadastrado, saldo insuficiente, ou é edição) fica marcado como
+  // "baixa pendente" — aí o selo ⏳ + botão "✅ Confirmar baixa" aparecem em Manejos pra resolver depois.
   let avisoBaixa = '';
+  let baixou = false;
+  const jaTinhaBaixa = !!(registroAnterior && registroAnterior.baixaEstoqueFeita);
   if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo') && semEstoqueMedicamento){
-    avisoBaixa = ' (sem baixa no estoque — produto não cadastrado)';
+    avisoBaixa = ' (sem baixa no estoque — produto não cadastrado; use "✅ Confirmar baixa" na lista depois de cadastrar)';
   } else if(!editingManejoId && (tipo==='Vacina' || tipo==='Vermífugo')){
     const itensBaixa = [{ produtoId: medicamento.id, quantidade: medQuantidade*selected.length }];
     utensiliosValidos.forEach(u=> itensBaixa.push({ produtoId: u.produtoId, quantidade: u.quantidade*selected.length }));
@@ -6306,13 +6379,18 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     if(faltando.length>0){
       const msg = 'Estoque insuficiente pra dar baixa: '+faltando.map(f=>`${f.nome} (falta ${f.falta}${f.unidade?(' '+f.unidade):''})`).join(', ')+'. Salvar o manejo mesmo assim, sem dar baixa no estoque?';
       if(!(await showConfirm(msg))) return;
-      avisoBaixa = ' (sem baixa no estoque — saldo insuficiente)';
+      avisoBaixa = ' (sem baixa no estoque — saldo insuficiente; use "✅ Confirmar baixa" na lista)';
     } else {
       for(const it of itensBaixa){
         await registrarMovimento(it.produtoId, 'saida', it.quantidade, 'veterinaria', tipo+' aplicada em manejo', data, undefined, selected);
       }
       renderEstoque();
+      baixou = true;
     }
+  }
+  if(tipo==='Vacina' || tipo==='Vermífugo'){
+    registro.baixaEstoqueFeita = baixou || jaTinhaBaixa;
+    registro.pendenteEstoque = !registro.baixaEstoqueFeita;
   }
   if(editingManejoId){
     manejos = manejos.map(m=> m.id===editingManejoId ? registro : m);
@@ -7908,7 +7986,7 @@ async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem, tipoMane
 
   const nomeMed = await showPrompt('Medicamento aplicado em '+h.nome+' ('+nomeItem+'):', 'Nome do medicamento');
   if(!nomeMed) return {ok:false};
-  const medicamento = estoqueProdutos.find(p=>p.tipo==='Medicamento' && p.nome.toLowerCase()===nomeMed.trim().toLowerCase());
+  const medicamento = acharMedicamentoEstoque(nomeMed);
 
   let quantidade = 1;
   if(medicamento){
@@ -7974,22 +8052,28 @@ async function marcarItemProtocoloPotro(animalId, itemId, feito){
 
 // Data da confirmação é escolhida na hora (padrão hoje, mas editável) — cobre tanto a primeira
 // confirmação quanto reconfirmações depois, que podem ter acontecido num dia diferente da última.
+// Miolo reaproveitável: marca a cobertura `n` como prenhez confirmada na data dada e, na PRIMEIRA vez,
+// gera a agenda de vacinas de gestação. Não persiste nem re-renderiza — quem chama faz isso. Devolve
+// quantas vacinas entraram no calendário agora (0 se já existiam). Usado pelo botão 🤰 da Lista e pela
+// aba Visitas / Exames (diagnóstico "prenhe").
+function confirmarPrenhezRegistro(n, data){
+  n.prenhezConfirmada = 'S';
+  n.prenhezUltima = data;
+  if(!n.prenhezHistorico) n.prenhezHistorico = [];
+  n.prenhezHistorico.push(data);
+  if(!n.protocoloVacinas || n.protocoloVacinas.length===0){
+    n.protocoloVacinas = gerarAgendaVacinasGestacao(n);
+    return n.protocoloVacinas.length;
+  }
+  return 0;
+}
 async function confirmarPrenhez(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
   const nomeGestante = alvoVacinaGestacao(n).nome;
   const data = await showPromptDate('Confirmar prenhez', 'Data da confirmação de prenhez'+(nomeGestante?(' de '+nomeGestante):'')+':', toISODate(new Date()));
   if(!data) return; // cancelou
-  n.prenhezConfirmada = 'S';
-  n.prenhezUltima = data;
-  if(!n.prenhezHistorico) n.prenhezHistorico = [];
-  n.prenhezHistorico.push(data);
-  // Gera a agenda de vacinas da gestação — só na primeira vez que essa prenhez é confirmada, pra não
-  // apagar marcações de "aplicada" já feitas se você reconfirmar depois.
-  let avisoVacinas = '';
-  if(!n.protocoloVacinas || n.protocoloVacinas.length===0){
-    n.protocoloVacinas = gerarAgendaVacinasGestacao(n);
-    if(n.protocoloVacinas.length>0) avisoVacinas = ' '+n.protocoloVacinas.length+' vacina(s) da gestação já entraram no calendário (confira em Nascimentos → Protocolo de Vacinas).';
-  }
+  const nVacinas = confirmarPrenhezRegistro(n, data);
+  const avisoVacinas = nVacinas>0 ? (' '+nVacinas+' vacina(s) da gestação já entraram no calendário (confira em Reprodução → Protocolo de Vacinas).') : '';
   await storeSet('nascimentos_list', nascimentos);
   renderNascimentos();
   showAlert('Prenhez confirmada em '+fmtDate(data)+'.'+avisoVacinas);
@@ -8132,13 +8216,15 @@ function renderNascimentos(){
 ['nFiltroConf','nFiltroAno','nFiltroAnoNasc','nSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
 
 function showNascTab(tab){
-  ['lista','protocolo','relatorio'].forEach(t=>{
+  ['lista','visitas','protocolo','relatorio'].forEach(t=>{
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
   if(tab==='protocolo') renderProtocoloVacinas();
+  if(tab==='visitas') renderVisitasRepro();
 }
 document.getElementById('nvtab_lista').addEventListener('click', ()=>showNascTab('lista'));
+document.getElementById('nvtab_visitas').addEventListener('click', ()=>showNascTab('visitas'));
 document.getElementById('nvtab_protocolo').addEventListener('click', ()=>showNascTab('protocolo'));
 document.getElementById('nvtab_relatorio').addEventListener('click', ()=>showNascTab('relatorio'));
 
@@ -9126,6 +9212,16 @@ let ultimasLinhasNaoReconhecidas = [];
 
 function normalizarNomeProduto(s){
   return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Acha um Medicamento no Estoque tolerando acento/espa\u00e7o/grafia: primeiro nome normalizado id\u00eantico,
+// depois "um cont\u00e9m o outro" (ex: digitou "ivermectina", cadastrado como "Verm\u00edfugo Ivermectina 3,15%").
+// Usado no Salvar Manejo (Vacina/Verm\u00edfugo), no Confirmar baixa e no protocolo de vacinas.
+function acharMedicamentoEstoque(nome){
+  const alvo = normalizarNomeProduto(nome||'');
+  if(!alvo) return null;
+  return estoqueProdutos.find(p=>p.tipo==='Medicamento' && normalizarNomeProduto(p.nome)===alvo)
+    || estoqueProdutos.find(p=>p.tipo==='Medicamento' && (normalizarNomeProduto(p.nome).includes(alvo) || alvo.includes(normalizarNomeProduto(p.nome))))
+    || null;
 }
 function melhorMatchProduto(nome){
   const alvo = normalizarNomeProduto(nome);
@@ -10403,6 +10499,304 @@ function gerarRelatorioVisitasFiltro(){
   abrirPreviaRelatorio(conteudo, `Relatorio_Visitas_${ordenadas.length}.pdf`, `Relatório de Visitas — ${ordenadas.length} visita(s)`);
 }
 document.getElementById('btnRelVisitasFiltro').addEventListener('click', gerarRelatorioVisitasFiltro);
+
+/* ================= VISITAS REPRODUTIVAS / EXAME DE ÉGUAS (Reprodução) ================= */
+let editingVisitaReproId = null;
+let reproEguasState = [];   // [{animalId, nome, folOD, folOE, edema, utero, cervix, ovulou, cio, diagnostico, medicacao, proximaAcao, proximoRetorno, obs}]
+let visitaReproDocsState = [];
+const REPRO_DIAG_OPCOES = [['','—'],['nao_examinado','Não examinado'],['vazia','Vazia'],['prenhe','Prenhe'],['gemelar','Prenhe — gemelar'],['reabsorveu','Reabsorção / perda']];
+const REPRO_DIAG_LABEL = Object.fromEntries(REPRO_DIAG_OPCOES);
+const reproDiagPrenhe = d => d==='prenhe' || d==='gemelar';
+
+const visitaReproHost = document.getElementById('visitaReproSelectorHost');
+const visitaReproSelector = createAnimalSelector(visitaReproHost, { onlyActive:true, somenteFemeas:true, onChange:()=>{ sincronizarReproEguas(); renderReproEguas(); renderVisitaReproDocs(); } });
+
+function eguaReproVazia(a){ return { animalId:a.id, nome:a.nome, folOD:'', folOE:'', edema:'', utero:'', cervix:'', ovulou:'', cio:'', diagnostico:'', medicacao:'', proximaAcao:'', proximoRetorno:'', obs:'' }; }
+function sincronizarReproEguas(){
+  const sel = visitaReproSelector.getSelected();
+  const porId = {}; reproEguasState.forEach(e=>{ porId[e.animalId] = e; });
+  reproEguasState = sel.map(a=> porId[a.id] ? {...porId[a.id], nome:a.nome} : eguaReproVazia(a));
+}
+function opcoesAnimaisVisitaRepro(){ return visitaReproSelector.getSelected().map(a=>({id:a.id, nome:a.nome})); }
+
+const CAMPOS_DITADO_EGUA = [
+  { chaves:['folículo direito','foliculo direito','ovário direito','ovario direito','folículo od','foliculo od'], campo:'folOD', tipo:'numero' },
+  { chaves:['folículo esquerdo','foliculo esquerdo','ovário esquerdo','ovario esquerdo','folículo oe','foliculo oe'], campo:'folOE', tipo:'numero' },
+  { chaves:['edema'], campo:'edema', tipo:'numero' },
+  { chaves:['útero','utero'], campo:'utero', tipo:'texto' },
+  { chaves:['cérvix','cervix','colo'], campo:'cervix', tipo:'texto' },
+  { chaves:['cio'], campo:'cio', tipo:'texto' },
+  { chaves:['medicação','medicacao','apliquei','aplicado'], campo:'medicacao', tipo:'texto' },
+  { chaves:['próxima ação','proxima acao','conduta','plano'], campo:'proximaAcao', tipo:'texto' },
+  { chaves:['retorno','voltar','próxima visita','proxima visita','revisar'], campo:'proximoRetorno', tipo:'data' },
+  { chaves:['observação','observacao','obs','nota','comentário','comentario'], campo:'obs', tipo:'texto' },
+  // entradas "âncora" só pra delimitar o texto dos campos acima — o valor real vem da heurística abaixo.
+  { chaves:['ovulou','ovulação','ovulacao','ovulada','ovulado'], campo:'_ovul', tipo:'texto' },
+  { chaves:['diagnóstico','diagnostico','prenhe','prenhez','vazia','gestante','gemelar','gêmeos','gemeos','reabsor'], campo:'_diag', tipo:'texto' },
+];
+function aplicarDitadoEgua(idx, texto){
+  const e = reproEguasState[idx]; if(!e) return [];
+  const r = interpretarDitado(texto, CAMPOS_DITADO_EGUA);
+  const entendido = [];
+  Object.keys(r).forEach(k=>{ if(k[0]==='_') return; if(r[k]!==''&&r[k]!==undefined&&r[k]!==null){ e[k]=String(r[k]); entendido.push(k+': '+r[k]); } });
+  const t = (texto||'').toLowerCase();
+  if(/n[ãa]o ovul/.test(t)){ e.ovulou='nao'; entendido.push('ovulou: não'); }
+  else if(/ovul/.test(t)){ e.ovulou='sim'; entendido.push('ovulou: sim'); }
+  if(/g[êe]meo|gemelar/.test(t)){ e.diagnostico='gemelar'; entendido.push('diagnóstico: gemelar'); }
+  else if(/prenhe|gestante|positiv/.test(t)){ e.diagnostico='prenhe'; entendido.push('diagnóstico: prenhe'); }
+  else if(/vazia|negativ/.test(t)){ e.diagnostico='vazia'; entendido.push('diagnóstico: vazia'); }
+  if(entendido.length===0 && texto && texto.trim()){ e.obs = (e.obs? e.obs+' ' : '') + texto.trim(); entendido.push('anotado na observação'); }
+  return entendido;
+}
+
+function renderReproEguas(){
+  const host = document.getElementById('visitaReproEguasHost');
+  if(reproEguasState.length===0){ host.innerHTML = '<div class="hint-text">Marque as éguas examinadas acima.</div>'; return; }
+  const edemaOpts = ['','0','1','2','3','4'].map(v=>`<option value="${v}">${v===''?'—':v}</option>`).join('');
+  const ovulouOpts = [['','—'],['sim','Sim'],['nao','Não']].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  const diagOpts = REPRO_DIAG_OPCOES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  host.innerHTML = reproEguasState.map((e,idx)=>`
+    <div class="perfil-card" style="margin-bottom:12px;" data-reidx="${idx}">
+      <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>🐴 ${e.nome}${reproDiagPrenhe(e.diagnostico)?' <span class="pill st-ativo">prenhe</span>':''}</span>
+        <button type="button" class="btn btn-sm btn-ghost" id="revoz_${idx}" style="text-transform:none;">🎤 Ditar exame</button>
+      </div>
+      <div class="perfil-card-body">
+        <div class="hint-text" id="revozstatus_${idx}" style="display:none;margin:0 0 8px;"></div>
+        <div class="form-grid cols3">
+          <div class="field"><label>Folículo ovário D (mm)</label><input type="number" step="0.1" min="0" data-refield="folOD" data-reidx="${idx}" value="${e.folOD}"></div>
+          <div class="field"><label>Folículo ovário E (mm)</label><input type="number" step="0.1" min="0" data-refield="folOE" data-reidx="${idx}" value="${e.folOE}"></div>
+          <div class="field"><label>Edema uterino (0–4)</label><select data-refield="edema" data-reidx="${idx}">${edemaOpts}</select></div>
+          <div class="field"><label>Útero</label><input type="text" data-refield="utero" data-reidx="${idx}" value="${(e.utero||'').replace(/"/g,'&quot;')}" placeholder="Ex: tônus bom"></div>
+          <div class="field"><label>Cérvix</label><input type="text" data-refield="cervix" data-reidx="${idx}" value="${(e.cervix||'').replace(/"/g,'&quot;')}" placeholder="Ex: fechada"></div>
+          <div class="field"><label>Ovulou?</label><select data-refield="ovulou" data-reidx="${idx}">${ovulouOpts}</select></div>
+          <div class="field"><label>Cio</label><input type="text" data-refield="cio" data-reidx="${idx}" value="${(e.cio||'').replace(/"/g,'&quot;')}" placeholder="Opcional"></div>
+          <div class="field"><label>Diagnóstico de gestação</label><select data-refield="diagnostico" data-reidx="${idx}">${diagOpts}</select></div>
+          <div class="field"><label>Medicação aplicada</label><input type="text" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml"></div>
+          <div class="field"><label>Próxima ação / conduta</label><input type="text" data-refield="proximaAcao" data-reidx="${idx}" value="${(e.proximaAcao||'').replace(/"/g,'&quot;')}" placeholder="Ex: cobrir amanhã"></div>
+          <div class="field"><label>Retorno / próxima visita</label><input type="date" data-refield="proximoRetorno" data-reidx="${idx}" value="${e.proximoRetorno||''}"></div>
+          <div class="field full"><label>Observação</label><textarea rows="2" data-refield="obs" data-reidx="${idx}" spellcheck="true" lang="pt-BR" placeholder="Texto livre — ditável por voz">${e.obs||''}</textarea></div>
+        </div>
+      </div>
+    </div>`).join('');
+  reproEguasState.forEach((e,idx)=>{
+    ['edema','ovulou','diagnostico'].forEach(fld=>{ const el = host.querySelector(`[data-refield="${fld}"][data-reidx="${idx}"]`); if(el) el.value = e[fld]||''; });
+  });
+  host.querySelectorAll('[data-refield]').forEach(el=>{
+    const ev = (el.tagName==='SELECT') ? 'change' : 'input';
+    el.addEventListener(ev, ()=>{
+      reproEguasState[Number(el.dataset.reidx)][el.dataset.refield] = el.value;
+      if(el.dataset.refield==='diagnostico') renderReproEguas();
+    });
+  });
+  reproEguasState.forEach((e,idx)=>{
+    wireBotaoVoz('revoz_'+idx, 'revozstatus_'+idx, 'ex: "folículo direito 35, edema 2, ovulou, retorno em 2 dias".', (texto)=>{
+      const ent = aplicarDitadoEgua(idx, texto);
+      // Atualiza os campos do card na tela sem re-renderizar (pra não perder o status do ditado).
+      host.querySelectorAll(`[data-refield][data-reidx="${idx}"]`).forEach(el=>{ el.value = reproEguasState[idx][el.dataset.refield]||''; });
+      const head = host.querySelector(`.perfil-card[data-reidx="${idx}"] .perfil-card-head span`);
+      if(head) head.innerHTML = `🐴 ${reproEguasState[idx].nome}${reproDiagPrenhe(reproEguasState[idx].diagnostico)?' <span class="pill st-ativo">prenhe</span>':''}`;
+      return ent;
+    });
+  });
+}
+
+function renderVisitaReproDocs(){
+  const host = document.getElementById('visitaReproDocsHost');
+  const animaisOpts = opcoesAnimaisVisitaRepro();
+  const cols = '130px 1fr 1.4fr 32px';
+  if(visitaReproDocsState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum documento adicionado.</div>'; return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Égua</div><div>Nome</div><div>Link</div><div></div>
+    </div>` +
+    visitaReproDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+      <select data-vrdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>
+      <input type="text" data-vrdfield="nome" data-idx="${idx}" value="${(it.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex: Ultrassom 14d">
+      <input type="text" data-vrdfield="url" data-idx="${idx}" value="${(it.url||'').replace(/"/g,'&quot;')}" placeholder="Link (Drive, foto na nuvem...)">
+      <button type="button" class="btn btn-sm btn-danger" data-vrdremove="${idx}" title="Remover">✕</button>
+    </div>`).join('');
+  host.querySelectorAll('[data-vrdfield]').forEach(el=>{
+    el.addEventListener('input', ()=>{ visitaReproDocsState[Number(el.dataset.idx)][el.dataset.vrdfield] = el.value; });
+  });
+  host.querySelectorAll('[data-vrdremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ visitaReproDocsState.splice(Number(btn.dataset.vrdremove),1); renderVisitaReproDocs(); });
+  });
+}
+document.getElementById('btnAddVisitaReproDoc').addEventListener('click', ()=>{
+  const animaisOpts = opcoesAnimaisVisitaRepro();
+  visitaReproDocsState.push({ animalId: animaisOpts.length===1?animaisOpts[0].id:'', nome:'', url:'' });
+  renderVisitaReproDocs();
+});
+
+function abrirNovaVisitaRepro(){
+  editingVisitaReproId = null;
+  document.getElementById('vrModalTitle').textContent = 'Nova Visita Reprodutiva';
+  document.getElementById('vr_data').value = toISODate(new Date());
+  document.getElementById('vr_veterinario_sel').value = '';
+  document.getElementById('vr_local').value = '';
+  document.getElementById('vr_obsGeral').value = '';
+  document.getElementById('btnDeleteVisitaRepro').style.display = 'none';
+  reproEguasState = [];
+  resetSelectorComFront(visitaReproSelector);
+  renderReproEguas();
+  visitaReproDocsState = []; renderVisitaReproDocs();
+  openModal('overlayVisitaRepro');
+}
+document.getElementById('btnNewVisitaRepro').addEventListener('click', abrirNovaVisitaRepro);
+
+function openVisitaReproEdit(id){
+  const v = visitasRepro.find(x=>x.id===id); if(!v) return;
+  editingVisitaReproId = id;
+  document.getElementById('vrModalTitle').textContent = 'Editar Visita Reprodutiva';
+  document.getElementById('vr_data').value = v.data||'';
+  document.getElementById('vr_veterinario_sel').value = v.veterinario||'';
+  document.getElementById('vr_local').value = v.local||'';
+  document.getElementById('vr_obsGeral').value = v.obsGeral||'';
+  document.getElementById('btnDeleteVisitaRepro').style.display = 'inline-block';
+  reproEguasState = (v.eguas||[]).map(e=>({...eguaReproVazia({id:e.animalId,nome:e.nome}), ...e}));
+  visitaReproSelector.setSelected((v.eguas||[]).map(e=>({id:e.animalId})));
+  visitaReproSelector.draw();
+  renderReproEguas();
+  visitaReproDocsState = (v.documentos||[]).map(d=>({...d}));
+  renderVisitaReproDocs();
+  openModal('overlayVisitaRepro');
+}
+
+// Acha a cobertura em aberto mais recente de uma égua (por nome), matriz ou receptora (transf. embrião).
+function coberturaAbertaDaEgua(nome){
+  const alvo = normNomeParentesco(nome);
+  return nascimentos
+    .filter(n=> n.confirm!=='S' && (normNomeParentesco(n.matriz)===alvo || (n.transferenciaEmbriao && normNomeParentesco(n.receptora)===alvo)))
+    .sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''))[0] || null;
+}
+
+document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()=>{
+  const data = f('vr_data');
+  if(!data){ showAlert('Informe a data da visita.'); return; }
+  const eguasSel = visitaReproSelector.getSelected();
+  if(eguasSel.length===0){ showAlert('Selecione ao menos uma égua examinada.'); return; }
+  sincronizarReproEguas();
+  const eguas = reproEguasState.map(e=>({
+    animalId:e.animalId, nome:e.nome,
+    folOD:e.folOD||'', folOE:e.folOE||'', edema:e.edema||'', utero:(e.utero||'').trim(), cervix:(e.cervix||'').trim(),
+    ovulou:e.ovulou||'', cio:(e.cio||'').trim(), diagnostico:e.diagnostico||'', medicacao:(e.medicacao||'').trim(),
+    proximaAcao:(e.proximaAcao||'').trim(), proximoRetorno:e.proximoRetorno||'', obs:(e.obs||'').trim(),
+    nascimentoId: e.nascimentoId||null
+  }));
+  const docsValidos = visitaReproDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vrd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
+  const record = { id: editingVisitaReproId || ('vr_'+Date.now()), data, veterinario:f('vr_veterinario_sel'), local:f('vr_local').trim(), obsGeral:f('vr_obsGeral').trim(), eguas, documentos:docsValidos };
+  // Integração com a prenhez: toda égua marcada como prenhe liga na cobertura aberta dela e dispara o
+  // protocolo de vacinas de gestação (mesmo efeito do botão 🤰 da aba Coberturas).
+  let mexeuNascimentos = false; const semCobertura = []; let totalVacinas = 0;
+  for(const e of eguas){
+    if(!reproDiagPrenhe(e.diagnostico)) continue;
+    const n = coberturaAbertaDaEgua(e.nome);
+    if(!n){ semCobertura.push(e.nome); continue; }
+    e.nascimentoId = n.id;
+    totalVacinas += confirmarPrenhezRegistro(n, data);
+    mexeuNascimentos = true;
+  }
+  if(mexeuNascimentos) await storeSet('nascimentos_list', nascimentos);
+  visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
+  await storeSet('visitas_repro_list', visitasRepro);
+  closeModal('overlayVisitaRepro');
+  renderVisitasRepro(); renderNascimentos();
+  if(typeof renderCalendar==='function') renderCalendar();
+  if(typeof renderInicio==='function') renderInicio();
+  let msg = 'Visita salva.';
+  if(mexeuNascimentos) msg += ' Prenhez confirmada na cobertura correspondente' + (totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
+  if(semCobertura.length>0) msg += ' Sem cobertura em aberto pra: '+semCobertura.join(', ')+' (registre a cobertura na aba Coberturas pra ligar a prenhez).';
+  if(mexeuNascimentos || semCobertura.length>0) showAlert(msg);
+});
+document.getElementById('btnDeleteVisitaRepro').addEventListener('click', async ()=>{
+  if(!editingVisitaReproId || !(await showConfirm('Excluir esta visita reprodutiva? As prenhezes já confirmadas por ela não são desfeitas.'))) return;
+  visitasRepro = visitasRepro.filter(v=>v.id!==editingVisitaReproId);
+  await storeSet('visitas_repro_list', visitasRepro, true);
+  closeModal('overlayVisitaRepro'); renderVisitasRepro();
+});
+bindSaveShortcut('overlayVisitaRepro','btnSaveVisitaRepro');
+
+function resumoDiagVisitaRepro(v){
+  const cont = {};
+  (v.eguas||[]).forEach(e=>{ const l = REPRO_DIAG_LABEL[e.diagnostico]; if(l && e.diagnostico) cont[l] = (cont[l]||0)+1; });
+  return Object.entries(cont).map(([l,n])=>`${l}: ${n}`).join(' · ') || '—';
+}
+function renderVisitasRepro(){
+  const tbody = document.getElementById('vrTbody');
+  if(!tbody) return;
+  const deEl = document.getElementById('vrFiltroDe'), ateEl = document.getElementById('vrFiltroAte');
+  const de = deEl?deEl.value:'', ate = ateEl?ateEl.value:'';
+  const vet = (document.getElementById('vrFiltroVet')?.value||'').toLowerCase();
+  const term = (document.getElementById('vrSearch')?.value||'').toLowerCase();
+  const filtered = visitasRepro.filter(v=>{
+    const md = (!de||v.data>=de) && (!ate||v.data<=ate);
+    const mv = !vet || (v.veterinario||'').toLowerCase().includes(vet);
+    const mt = !term || (v.eguas||[]).some(e=>(e.nome||'').toLowerCase().includes(term));
+    return md && mv && mt;
+  }).sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
+  tbody.innerHTML = filtered.map(v=>`<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
+      <td>${fmtDate(v.data)}</td>
+      <td>${v.veterinario||'—'}</td>
+      <td>${v.local||'—'}</td>
+      <td>${(v.eguas||[]).map(e=>e.nome).join(', ')||'—'}</td>
+      <td>${resumoDiagVisitaRepro(v)}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisitarepro="${v.id}" title="Gerar PDF desta visita">📄</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('tr[data-id]').forEach(row=>{
+    row.addEventListener('click', e=>{ if(e.target.closest('button')) return; openVisitaReproEdit(row.dataset.id); });
+  });
+  tbody.querySelectorAll('[data-relvisitarepro]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); gerarRelatorioVisitaReproUnica(b.dataset.relvisitarepro); }));
+}
+['vrFiltroDe','vrFiltroAte','vrFiltroVet','vrSearch'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', renderVisitasRepro);
+});
+
+function blocoExameEgua(e){
+  const linhas = [
+    ['Folículo OD', e.folOD && (e.folOD+' mm')],
+    ['Folículo OE', e.folOE && (e.folOE+' mm')],
+    ['Edema uterino', e.edema!==''?e.edema:''],
+    ['Útero', e.utero], ['Cérvix', e.cervix],
+    ['Ovulou', e.ovulou==='sim'?'Sim':(e.ovulou==='nao'?'Não':'')],
+    ['Cio', e.cio],
+    ['Diagnóstico', e.diagnostico ? REPRO_DIAG_LABEL[e.diagnostico] : ''],
+    ['Medicação', e.medicacao],
+    ['Próxima ação', e.proximaAcao],
+    ['Retorno', e.proximoRetorno && fmtDate(e.proximoRetorno)],
+    ['Observação', e.obs],
+  ].filter(([,v])=>v);
+  return `<div class="report-tipo-titulo" style="margin-top:14px;">${e.nome}</div>
+    <ul class="animais-simples">${linhas.map(([k,v])=>`<li><b>${k}:</b> ${v}</li>`).join('')}</ul>`;
+}
+function blocoRelatorioVisitaRepro(v){
+  return `<h1 style="border:none;">Visita Reprodutiva — ${fmtDate(v.data)}</h1>
+    <div class="sub">Veterinário: ${v.veterinario||'—'}${v.local?(' · Local: '+v.local):''}</div>
+    ${v.obsGeral?`<div class="sub" style="margin-top:8px;"><b>Observação geral:</b> ${v.obsGeral}</div>`:''}
+    ${(v.eguas||[]).map(blocoExameEgua).join('')}
+    ${(v.documentos||[]).length?`<div class="report-tipo-titulo" style="margin-top:14px;">Documentos</div><ul class="animais-simples">${v.documentos.map(d=>`<li>${d.nome}: ${d.url}</li>`).join('')}</ul>`:''}`;
+}
+function gerarRelatorioVisitaReproUnica(id){
+  const v = visitasRepro.find(x=>x.id===id); if(!v) return;
+  abrirPreviaRelatorio(blocoRelatorioVisitaRepro(v), `Relatorio_Visita_Reprodutiva_${v.data}.pdf`, `Visita Reprodutiva — ${fmtDate(v.data)}`);
+}
+
+const CAMPOS_DITADO_VISITA_REPRO = [
+  { chaves:['veterinário','veterinario','vet','responsável','responsavel'], campo:'veterinario', tipo:'texto' },
+  { chaves:['data','dia'], campo:'data', tipo:'data' },
+  { chaves:['local','haras','fazenda'], campo:'local', tipo:'texto' },
+  { chaves:['observação','observacao','obs','nota'], campo:'obsGeral', tipo:'texto' },
+];
+wireBotaoVoz('btnVozVisitaRepro','visitaRepro_vozStatus', 'ex: "veterinário Fulano, data hoje, local Haras Central".', (texto)=>{
+  const r = interpretarDitado(texto, CAMPOS_DITADO_VISITA_REPRO);
+  const ent = [];
+  if(r.veterinario){ const sel=document.getElementById('vr_veterinario_sel'); if(![...sel.options].some(o=>o.value.toLowerCase()===r.veterinario.toLowerCase())){ const o=document.createElement('option'); o.value=o.textContent=titleCase(r.veterinario); sel.appendChild(o); } sel.value=titleCase(r.veterinario); ent.push('Veterinário: '+titleCase(r.veterinario)); }
+  if(r.data){ document.getElementById('vr_data').value=r.data; ent.push('Data: '+fmtDate(r.data)); }
+  if(r.local){ document.getElementById('vr_local').value=titleCase(r.local); ent.push('Local: '+titleCase(r.local)); }
+  if(r.obsGeral){ document.getElementById('vr_obsGeral').value=r.obsGeral; ent.push('Observação'); }
+  return ent;
+});
 
 const tratSelecionados = new Set();
 // 'ativo' (padrão) = em andamento ou atrasado, some da vista quem já terminou — deixa a lista do dia a
@@ -11978,6 +12372,9 @@ function interpretarDataFalada(texto){
   const t = (texto||'').toLowerCase();
   if(/\bhoje\b/.test(t)) return toISODate(new Date());
   if(/\bontem\b/.test(t)){ const d=new Date(); d.setDate(d.getDate()-1); return toISODate(d); }
+  if(/amanh[ãa]/.test(t)){ const d=new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
+  let mr = t.match(/em\s+(\d{1,2})\s+dias?/);
+  if(mr){ const d=new Date(); d.setDate(d.getDate()+Number(mr[1])); return toISODate(d); }
   let m = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
   if(m){ let ano=m[3]; if(ano.length===2) ano='20'+ano; return ano+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
   m = t.match(/(\d{1,2})\s*(?:de\s+)?([a-zç]+)(?:\s*(?:de\s+)?(\d{4}))?/);
@@ -12317,7 +12714,7 @@ document.getElementById('btnDeleteFuncionario').addEventListener('click', async 
 // (Casco/Vacina/Vermífugo/Dente) o usuário tem acesso; array vazio ou ausente = todos os tipos.
 // Início e Calendário não entram nessa grade — todo usuário logado sempre vê os dois (é a base do app).
 const MODULOS_PERMISSAO = ['animais','grupos','nascimentos','manejos','veterinaria','transporte','treinos','estoque','funcionarios','financeiro','usuarios'];
-const MODULO_LABEL = { animais:'Animais', grupos:'Grupos', nascimentos:'Nascimentos', manejos:'Manejos', veterinaria:'Veterinária', transporte:'Transporte', treinos:'Atividades', estoque:'Estoque', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
+const MODULO_LABEL = { animais:'Animais', grupos:'Grupos', nascimentos:'Reprodução', manejos:'Manejos', veterinaria:'Veterinária', transporte:'Transporte', treinos:'Atividades', estoque:'Estoque', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
 // Agrupado igual o menu lateral, só pra desenhar a grade de permissões na mesma ordem que a pessoa já reconhece.
 const MODULO_GRUPO = { 'Animais':['animais','grupos','nascimentos'], 'Saúde':['manejos','veterinaria'], 'Operação':['transporte','treinos','estoque'], 'Administração':['funcionarios','financeiro','usuarios'] };
 const ACOES_PERMISSAO = [['ver','Ver'],['inserir','Inserir'],['editar','Editar'],['excluir','Excluir']];
@@ -12369,7 +12766,7 @@ function descreverAcesso(user){
   return partes.length ? partes.join(', ') : 'Nenhum acesso configurado ainda';
 }
 // Cada botão "+ Novo X" só aparece pra quem tem permissão de "inserir" no módulo dono dele.
-const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnImportTreino:'treinos', btnNewNasc:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
+const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnImportTreino:'treinos', btnNewNasc:'nascimentos', btnNewVisitaRepro:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
 function aplicarPermissoesBotoesNovo(){
   Object.entries(BOTOES_NOVO_POR_MODULO).forEach(([id,modulo])=>{
     const btn = document.getElementById(id);
@@ -13080,6 +13477,20 @@ function computeTimelineAnimal(h){
       detalhe: [a.extra, nomesCustos||null, totalCusto>0?('💰 '+fmtMoeda(totalCusto,'BRL')):null, linksDoc||null].filter(Boolean).join(' · ')
     });
   });
+  visitasRepro.forEach(v=>{
+    const e = (v.eguas||[]).find(x=>x.animalId===h.id);
+    if(!e) return;
+    const partes = [
+      e.diagnostico ? REPRO_DIAG_LABEL[e.diagnostico] : null,
+      (e.folOD||e.folOE) ? ('folículo '+[e.folOD&&('OD '+e.folOD),e.folOE&&('OE '+e.folOE)].filter(Boolean).join(' / ')+' mm') : null,
+      e.edema!=='' && e.edema!==undefined ? ('edema '+e.edema) : null,
+      e.ovulou==='sim' ? 'ovulou' : null,
+      e.proximaAcao||null,
+      e.proximoRetorno ? ('retorno '+fmtDate(e.proximoRetorno)) : null,
+      e.obs||null
+    ].filter(Boolean);
+    eventos.push({ data:v.data, tipo:'visita', titulo:'Exame reprodutivo'+(v.veterinario?(' — '+v.veterinario):''), detalhe: partes.join(' · ') });
+  });
   nascimentos.forEach(n=>{
     // "Nasceu" (o próprio nascimento do animal) e "Filho nasceu"/"Cobertura registrada" (quando o
     // animal é o pai/mãe) são a mesma informação de fundo — nascimento registrado — só vista de lados
@@ -13498,7 +13909,7 @@ document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
 document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   const out = document.getElementById('diagOutput');
   out.textContent = 'Consultando...';
-  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','funcionarios_list','config'];
+  const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','visitas_repro_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','funcionarios_list','config'];
   let lines = [];
   lines.push('Modo de armazenamento: ' + (HAS_CLOUD_STORAGE ? 'nuvem do Claude (window.storage)' : 'armazenamento local deste navegador (localStorage) — normal quando o arquivo é aberto baixado'));
   for(const key of keys){
@@ -13605,7 +14016,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
   atualizarBackupPastaStatus();
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, auditoria, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, auditoria, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -13675,6 +14086,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     tratamentos = [...tratamentos, ...((backup.tratamentos||[]).filter(t=>!existingTratIds.has(t.id)))];
     const existingVisitIds = new Set(visitas.map(v=>v.id));
     visitas = [...visitas, ...((backup.visitas||[]).filter(v=>!existingVisitIds.has(v.id)))];
+    const existingVisitReproIds = new Set(visitasRepro.map(v=>v.id));
+    visitasRepro = [...visitasRepro, ...((backup.visitasRepro||[]).filter(v=>!existingVisitReproIds.has(v.id)))];
     const existingFuncIds = new Set(funcionarios.map(fu=>fu.id));
     funcionarios = [...funcionarios, ...((backup.funcionarios||[]).filter(fu=>!existingFuncIds.has(fu.id)))];
     const existingTranspIds = new Set(transportes.map(t=>t.id));
@@ -13692,9 +14105,9 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       await storeSet('estoque_produtos', estoqueProdutos); await storeSet('estoque_movimentos', estoqueMovimentos); await storeSet('dietas_list', dietas);
       await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
       await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
-      await storeSet('transportes_list', transportes);
+      await storeSet('transportes_list', transportes); await storeSet('visitas_repro_list', visitasRepro);
     });
-    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
+    refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
   }catch(err){ showAlert('Não foi possível ler esse arquivo de backup.'); }
   e.target.value='';
