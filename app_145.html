@@ -1954,9 +1954,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
           <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
           É transferência de embrião?
         </label>
-        <div class="hint-text" style="margin-top:4px;">Marcando, a Receptora entra e as vacinas da gestação passam a ser dela, não da Matriz — é ela quem carrega a prenhez.</div>
+        <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode deixar em branco agora e informar depois (após a coleta e a transferência do embrião), editando esta cobertura.</div>
       </div>
-      <div class="field" id="n_receptoraWrap" style="display:none;"><label>Receptora</label><input type="text" id="n_receptora" list="dl_femeas"></div>
+      <div class="field" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional — informe após a transferência)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
       <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
       <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
       <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
@@ -7854,8 +7854,11 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   const confirmado = document.getElementById('n_confirm').checked;
   const paiNome = titleCase(f('n_pai'));
   const transferenciaEmbriao = document.getElementById('n_transferenciaEmbriao').checked;
+  // Receptora pode ficar em branco numa transferência de embrião — normalmente ela só é definida depois
+  // da coleta do embrião e da transferência. Enquanto não tiver receptora, as vacinas de gestação vão
+  // pra Matriz (fallback do alvoVacinaGestacao); é só editar a cobertura e informar a receptora depois
+  // — a agenda de vacinas passa a apontar pra ela sozinha (as datas não mudam).
   const receptoraNome = transferenciaEmbriao ? titleCase(f('n_receptora')) : '';
-  if(transferenciaEmbriao && !receptoraNome){ showAlert('É transferência de embrião — informe a Receptora.'); return; }
   const existente = editingNascId ? nascimentos.find(x=>x.id===editingNascId) : null;
   // Espalha o registro existente antes dos campos do formulário — sem isso, editar qualquer coisa
   // numa cobertura já confirmada (data, observação...) apagava o protocolo de vacinas da gestação
@@ -10687,15 +10690,27 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   const record = { id: editingVisitaReproId || ('vr_'+Date.now()), data, veterinario:f('vr_veterinario_sel'), local:f('vr_local').trim(), obsGeral:f('vr_obsGeral').trim(), eguas, documentos:docsValidos };
   // Integração com a prenhez: toda égua marcada como prenhe liga na cobertura aberta dela e dispara o
   // protocolo de vacinas de gestação (mesmo efeito do botão 🤰 da aba Coberturas).
-  let mexeuNascimentos = false; const semCobertura = []; let totalVacinas = 0;
+  let mexeuNascimentos = false; const semCobertura = []; const receptorasDefinidas = []; let totalVacinas = 0;
   for(const e of eguas){
     if(!reproDiagPrenhe(e.diagnostico)) continue;
-    const n = coberturaAbertaDaEgua(e.nome);
+    let n = coberturaAbertaDaEgua(e.nome);
+    // Transferência de embrião cuja receptora ainda não foi definida: se existe UMA única cobertura de TE
+    // em aberto sem receptora, é essa égua examinada agora que virou a receptora — liga ela aqui.
+    if(!n){
+      const teSemReceptora = nascimentos.filter(x=> x.confirm!=='S' && x.transferenciaEmbriao && !(x.receptora||'').trim());
+      if(teSemReceptora.length===1){
+        n = teSemReceptora[0];
+        n.receptora = e.nome;
+        ensureExternalAnimal(e.nome, 'FEMININO', null, true);
+        receptorasDefinidas.push(e.nome + (n.matriz?(' (embrião de '+n.matriz+')'):''));
+      }
+    }
     if(!n){ semCobertura.push(e.nome); continue; }
     e.nascimentoId = n.id;
     totalVacinas += confirmarPrenhezRegistro(n, data);
     mexeuNascimentos = true;
   }
+  if(receptorasDefinidas.length) await storeSet('horses_list', horses);
   if(mexeuNascimentos) await storeSet('nascimentos_list', nascimentos);
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
   await storeSet('visitas_repro_list', visitasRepro);
@@ -10704,9 +10719,10 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   if(typeof renderCalendar==='function') renderCalendar();
   if(typeof renderInicio==='function') renderInicio();
   let msg = 'Visita salva.';
+  if(receptorasDefinidas.length) msg += ' Receptora definida na transferência de embrião: '+receptorasDefinidas.join(', ')+'.';
   if(mexeuNascimentos) msg += ' Prenhez confirmada na cobertura correspondente' + (totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
   if(semCobertura.length>0) msg += ' Sem cobertura em aberto pra: '+semCobertura.join(', ')+' (registre a cobertura na aba Coberturas pra ligar a prenhez).';
-  if(mexeuNascimentos || semCobertura.length>0) showAlert(msg);
+  if(mexeuNascimentos || semCobertura.length>0 || receptorasDefinidas.length) showAlert(msg);
 });
 document.getElementById('btnDeleteVisitaRepro').addEventListener('click', async ()=>{
   if(!editingVisitaReproId || !(await showConfirm('Excluir esta visita reprodutiva? As prenhezes já confirmadas por ela não são desfeitas.'))) return;
