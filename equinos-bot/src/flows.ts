@@ -139,11 +139,7 @@ async function interpretarEResponder(env: Env, chatId: number, s: Session): Prom
 
   // manejo
   const d = res.dados;
-  if (/^vacin|^vermif/i.test(norm(d.tipo))) {
-    await clear(env, chatId);
-    return sendMessage(env, chatId, "Vacina e vermífugo dependem do controle de estoque — faça pelo app.");
-  }
-  if (!d.tipo) return pergunta(env, chatId, s, "Qual o tipo do manejo? (Casco, Dente…)");
+  if (!d.tipo) return pergunta(env, chatId, s, "Qual o tipo do manejo? (Casco, Dente, Vacina…)");
   if (!d.animais.length) return pergunta(env, chatId, s, "Em quais animais?");
 
   const horses = (await getList(env, "horses_list")) as Horse[];
@@ -181,7 +177,16 @@ async function interpretarEResponder(env: Env, chatId: number, s: Session): Prom
     if (linha) linha.valorExtra = (linha.valorExtra || 0) + ve.valor;
   }
 
-  const tipoNorm = /^casque|^ferr|^casco/i.test(norm(d.tipo)) ? "Casco" : /^dente|^odont/i.test(norm(d.tipo)) ? "Dente" : titleCase(d.tipo);
+  const tn = norm(d.tipo);
+  const tipoNorm = /^casque|^ferr|^casco/.test(tn)
+    ? "Casco"
+    : /^dente|^odont/.test(tn)
+      ? "Dente"
+      : /^vacin/.test(tn)
+        ? "Vacina"
+        : /^vermif|^verminos|^verme/.test(tn)
+          ? "Vermífugo"
+          : titleCase(d.tipo);
   const config = await getMap(env, "config");
   const valoresCasco: Record<string, number> =
     config && typeof config.valoresCasco === "object" && config.valoresCasco ? config.valoresCasco : {};
@@ -220,6 +225,7 @@ function previewAnimal(env: Env, chatId: number, d: DadosAnimal): Promise<void> 
 }
 
 function previewManejo(env: Env, chatId: number, d: ManejoPendente): Promise<void> {
+  const ehVet = d.tipo === "Vacina" || d.tipo === "Vermífugo";
   const base = d.tipo === "Casco" && d.ferrageamento ? Number(d.valoresCasco[d.ferrageamento]) : NaN;
   const extras = d.animaisIds.filter((a) => a.valorExtra && a.valorExtra > 0);
   return sendMessage(
@@ -227,13 +233,17 @@ function previewManejo(env: Env, chatId: number, d: ManejoPendente): Promise<voi
     chatId,
     "Vou <b>registrar um manejo</b>:" +
       `\n<b>Tipo:</b> ${esc(d.tipo)}` +
-      (d.ferrageamento ? `\n<b>Ferrageamento:</b> ${esc(d.ferrageamento)}` : "") +
-      (d.ferrador ? `\n<b>Ferrador:</b> ${esc(d.ferrador)}` : "") +
+      (d.tipo === "Casco" && d.ferrageamento ? `\n<b>Ferrageamento:</b> ${esc(d.ferrageamento)}` : "") +
+      (d.tipo === "Casco" && d.ferrador ? `\n<b>Ferrador:</b> ${esc(d.ferrador)}` : "") +
+      (ehVet && d.medicamento ? `\n<b>Produto:</b> ${esc(d.medicamento)}` : "") +
+      (ehVet && d.quantidade ? `\n<b>Dose/animal:</b> ${d.quantidade}` : "") +
       `\n<b>Data:</b> ${fmtDataBR(d.data!)}` +
       `\n<b>Animais (${d.animaisIds.length}):</b> ${esc(d.animaisIds.map((a) => a.nome).join(", "))}` +
       (Number.isFinite(base) ? `\n<b>Valor de referência:</b> R$ ${base.toFixed(2)} por animal` : "") +
+      (!ehVet && d.tipo !== "Casco" && d.valor ? `\n<b>Valor:</b> R$ ${d.valor.toFixed(2)} por animal` : "") +
       (extras.length ? `\n<b>Extra:</b> ${esc(extras.map((a) => `${a.nome} R$ ${a.valorExtra!.toFixed(2)}`).join(", "))}` : "") +
-      (d.obs ? `\n<b>Obs:</b> ${esc(d.obs)}` : ""),
+      (d.obs ? `\n<b>Obs:</b> ${esc(d.obs)}` : "") +
+      (ehVet ? `\n\n⚠️ <i>Não vou mexer no estoque nem gerar custo. Se precisar de baixa/valor, ajuste no app.</i>` : ""),
     [[{ text: "✔ Confirmar", data: "confirm:manejo" }, { text: "Cancelar", data: "cancel:x" }]],
   );
 }
@@ -299,8 +309,11 @@ async function gravarManejo(env: Env, chatId: number, d: ManejoPendente): Promis
       obs: d.obs,
       animais: d.animaisIds,
       subtipoCasco: d.tipo === "Casco" ? d.ferrageamento || undefined : undefined,
-      ferrador: d.ferrador,
+      ferrador: d.tipo === "Casco" ? d.ferrador : undefined,
       valoresCasco: d.valoresCasco,
+      valor: d.valor,
+      medicamento: d.medicamento,
+      quantidade: d.quantidade,
     });
     manejos.push(reg);
     await setList(env, "manejos_list", manejos);
@@ -311,11 +324,12 @@ async function gravarManejo(env: Env, chatId: number, d: ManejoPendente): Promis
       auditEntrada(log, "inclusao", "Manejos", `${reg.tipo} — ${d.animaisIds.map((a) => a.nome).join(", ")}`, reg.id),
     );
     await clear(env, chatId);
+    const ehVet = reg.tipo === "Vacina" || reg.tipo === "Vermífugo";
     await sendMessage(
       env,
       chatId,
       `✅ Manejo de <b>${esc(reg.tipo)}</b> registrado para ${d.animaisIds.length} animal(is) em ${fmtDataBR(reg.data)}.` +
-        `\nA próxima data prevista já conta a partir daqui.`,
+        (ehVet ? `\nEstoque NÃO foi mexido — dá uma conferida no app.` : `\nA próxima data prevista já conta a partir daqui.`),
     );
   } catch (e: any) {
     await clear(env, chatId);

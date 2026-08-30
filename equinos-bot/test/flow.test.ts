@@ -215,12 +215,42 @@ test("manejo: animal que não existe → pergunta, nada grava", async () => {
   }
 });
 
-test("manejo: Vacina é recusada", async () => {
-  const store: Store = { horses_list: [{ id: "h1", nome: "Rosa" }], aux_lists: {}, manejos_list: [] };
-  const { env, sent, restore } = makeEnv(store, [{ tool: "registrar_manejo", input: { tipo: "Vacina", animais: ["Rosa"] } }]);
+test("manejo: Vacina grava sem mexer no estoque, com aviso", async () => {
+  const store: Store = { horses_list: [{ id: "h1", nome: "Rosa" }], aux_lists: {}, config: {}, manejos_list: [], auditoria_log: [] };
+  const { env, sent, restore } = makeEnv(store, [
+    { tool: "registrar_manejo", input: { tipo: "Vacina", medicamento: "Lexington Gold", quantidade: 2, animais: ["Rosa"] } },
+  ]);
   try {
-    await onText(env, 1, "vacinei a rosa");
-    assert.match(last(sent).text, /Vacina e vermífugo dependem/);
+    await onText(env, 1, "vacinei a rosa com lexington gold, 2ml");
+    assert.match(last(sent).text, /Produto:.*Lexington Gold/s);
+    assert.match(last(sent).text, /não vou mexer no estoque/i);
+    await onCallback(env, 1, "confirm:manejo");
+    const mj = store.manejos_list[0];
+    assert.equal(mj.tipo, "Vacina");
+    assert.equal(mj.medicamentoId, null);
+    assert.equal(mj.medicamentoNome, "Lexington Gold");
+    assert.equal(mj.medQuantidade, 2);
+    assert.equal(store.estoque_movimentos, undefined); // nada de baixa
+    assert.match(last(sent).text, /Estoque NÃO foi mexido/i);
+  } finally {
+    restore();
+  }
+});
+
+test("manejo: Dente com valor por animal", async () => {
+  const store: Store = { horses_list: [{ id: "h1", nome: "Rosa" }], aux_lists: {}, config: {}, manejos_list: [], auditoria_log: [] };
+  const { env, sent, restore } = makeEnv(store, [
+    { tool: "registrar_manejo", input: { tipo: "Dente", valor: 80, animais: ["Rosa"] } },
+  ]);
+  try {
+    await onText(env, 1, "cheque dental na rosa, 80 reais");
+    assert.match(last(sent).text, /Valor:.*80/s);
+    await onCallback(env, 1, "confirm:manejo");
+    const mj = store.manejos_list[0];
+    assert.equal(mj.tipo, "Dente");
+    assert.equal(mj.valor, 80);
+    assert.equal(mj.animais[0].valorBase, 80);
+    assert.equal(mj.ferrador, undefined);
   } finally {
     restore();
   }

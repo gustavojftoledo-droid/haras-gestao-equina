@@ -234,6 +234,10 @@ export interface Manejo {
   ferrador?: string;
   valor?: number | null;
   deslocamento?: number | null;
+  medicamentoId?: string | null;
+  medicamentoNome?: string;
+  medQuantidade?: number;
+  utensilios?: unknown[];
 }
 
 export interface NovoManejoInput {
@@ -245,6 +249,11 @@ export interface NovoManejoInput {
   ferrador?: string;
   /** config.valoresCasco do app (Firestore doc `config`) — pra gravar o valorBase igual a tela manual */
   valoresCasco?: Record<string, number>;
+  /** Dente/outros: valor por animal (R$) */
+  valor?: number;
+  /** Vacina/Vermífugo: nome do produto e dose por animal (o bot nunca dá baixa no estoque) */
+  medicamento?: string;
+  quantidade?: number;
 }
 
 /** Monta o registro de manejo no mesmo formato do "Salvar Lançamento" do app. Nao grava. */
@@ -270,9 +279,20 @@ export function montarManejo(inp: NovoManejoInput): Manejo {
       if (inp.subtipoCasco) a.tipo = inp.subtipoCasco;
       if (Number.isFinite(base)) a.valorBase = base;
     });
-  }
-  if (inp.tipo === "Dente") {
-    reg.valor = null;
+  } else if (inp.tipo === "Vacina" || inp.tipo === "Vermífugo") {
+    // O bot NUNCA dá baixa no estoque — é sempre o caminho "sem baixa" do app (medicamentoId null).
+    reg.medicamentoId = null;
+    reg.medicamentoNome = inp.medicamento || "";
+    reg.medQuantidade = inp.quantidade || 0;
+    reg.utensilios = [];
+    const v = Number(inp.valor);
+    reg.valor = Number.isFinite(v) && v > 0 ? v : 0;
+    if (Number.isFinite(v) && v > 0) reg.animais.forEach((a) => (a.valorBase = v));
+  } else {
+    // Dente e "outro": valor por animal, igual o campo "Valor (R$) — por animal" da tela.
+    const v = Number(inp.valor);
+    reg.valor = Number.isFinite(v) && v > 0 ? v : null;
+    if (Number.isFinite(v) && v > 0) reg.animais.forEach((a) => (a.valorBase = v));
   }
   return reg;
 }

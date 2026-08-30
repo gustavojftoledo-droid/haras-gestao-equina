@@ -27,6 +27,9 @@ export interface DadosManejo {
   tipo: string;
   ferrageamento?: string;
   ferrador?: string;
+  medicamento?: string;
+  quantidade?: number;
+  valor?: number;
   data?: string;
   animais: string[];
   valoresExtra?: { animal: string; valor: number }[];
@@ -57,17 +60,20 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "registrar_manejo",
     description:
-      "Registra um manejo (procedimento) feito em um ou mais animais. Ex: casqueamento/ferrageamento (Casco), cheque dental (Dente).",
+      "Registra um manejo feito em um ou mais animais: Casco (casqueamento/ferrageamento), Dente (cheque dental), Vacina, Vermífugo (vermifugação), ou outro.",
     input_schema: {
       type: "object",
       additionalProperties: false,
       properties: {
-        tipo: { type: "string", description: "Casco, Dente, ou outro tipo dito pela pessoa" },
+        tipo: { type: "string", description: "Casco, Dente, Vacina, Vermífugo, ou outro tipo dito pela pessoa" },
         ferrageamento: {
           type: "string",
           description: "Só quando tipo=Casco: o procedimento exato (ex: 'Ferrado completo', 'Casqueado completo')",
         },
-        ferrador: { type: "string", description: "Nome do ferrador, se citado" },
+        ferrador: { type: "string", description: "Nome do ferrador (só faz sentido em Casco)" },
+        medicamento: { type: "string", description: "Só Vacina/Vermífugo: nome do produto aplicado, se dito" },
+        quantidade: { type: "number", description: "Só Vacina/Vermífugo: dose por animal, se dita (ex: 2)" },
+        valor: { type: "number", description: "Valor por animal em reais (Dente ou outros). NÃO use pra Casco." },
         data: { type: "string", description: "Data no formato AAAA-MM-DD. Se não disser, deixe vazio (será hoje)." },
         animais: { type: "array", items: { type: "string" }, description: "Nomes SÓ dos animais que passaram pelo procedimento" },
         valores_extra: {
@@ -80,7 +86,7 @@ const TOOLS: Anthropic.Tool[] = [
             required: ["animal", "valor"],
           },
         },
-        obs: { type: "string", description: "Observação livre — NÃO repita aqui nomes de animais, ferrador nem valores já extraídos acima" },
+        obs: { type: "string", description: "Observação livre — NÃO repita aqui nomes de animais, ferrador, medicamento nem valores já extraídos acima" },
       },
       required: ["tipo", "animais"],
     },
@@ -94,7 +100,7 @@ function sistema(subtipos: string[]): string {
     "Extraia SOMENTE o que a pessoa disse. Nunca invente pelagem, categoria, pai, mãe, valores.",
     "Para cadastrar animal: se faltar o nome OU o sexo, NÃO chame a ferramenta — faça uma pergunta curta.",
     "Para manejo: se faltar o tipo OU os animais, faça uma pergunta curta.",
-    "No manejo, separe bem: 'animais' são só os bichos que passaram pelo procedimento; 'ferrador' é o nome do ferrador; 'valores_extra' é [{animal, valor}] quando cobram algo a mais de um animal ('ferradura fechada R$150 na Zebra'). O campo 'obs' fica só com o que sobrar, sem repetir nome de animal/ferrador/valor.",
+    "No manejo, separe bem: 'animais' são só os bichos que passaram pelo procedimento; 'ferrador' só em Casco; 'medicamento'/'quantidade' só em Vacina/Vermífugo; 'valor' é o preço por animal (Dente/outros, nunca Casco); 'valores_extra' [{animal, valor}] quando cobram algo a mais de UM animal. 'obs' fica só com o que sobrar, sem repetir nada já extraído.",
     subtipos.length
       ? `Procedimentos de ferrageamento válidos (escolha o mais próximo do que a pessoa disse): ${subtipos.join("; ")}.`
       : "",
@@ -158,10 +164,14 @@ function limparManejo(i: any): DadosManejo {
         .map((x: any) => ({ animal: s(x?.animal) || "", valor: Number(x?.valor) || 0 }))
         .filter((x: any) => x.animal && x.valor > 0)
     : undefined;
+  const num = (v: unknown) => (Number(v) > 0 ? Number(v) : undefined);
   return {
     tipo: s(i.tipo) || "",
     ferrageamento: s(i.ferrageamento),
     ferrador: s(i.ferrador),
+    medicamento: s(i.medicamento),
+    quantidade: num(i.quantidade),
+    valor: num(i.valor),
     data: s(i.data),
     animais,
     valoresExtra: valoresExtra && valoresExtra.length ? valoresExtra : undefined,
