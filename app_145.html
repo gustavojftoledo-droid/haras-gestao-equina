@@ -205,6 +205,7 @@
   @media (max-width:860px){ .dash-3col{grid-template-columns:1fr;} }
 
   .dash-row4{display:grid;grid-template-columns:var(--cols-row4, repeat(3,1fr));gap:18px;align-items:stretch;margin-top:18px;}
+  @media (max-width:1200px) and (min-width:861px){ .dash-row4{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:860px){ .dash-row4{grid-template-columns:1fr;} }
   .dash-poco-linha{background:var(--card-well);border-radius:6px;padding:11px 13px;}
   .dash-mini-pocos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -616,6 +617,7 @@
       </div>
 
       <div class="dash-row4" id="inicioLinha4">
+        <div class="dash-card card-btn" id="inicioReproCard" title="Abrir Reprodução"></div>
         <div class="dash-card card-btn" id="inicioSaudeCard" title="Abrir Veterinária"></div>
         <div class="dash-card card-btn" id="inicioEstoqueCard" title="Abrir Estoque"></div>
         <div class="dash-card card-btn" id="inicioAtividadesCard" title="Abrir Atividades"></div>
@@ -5532,6 +5534,7 @@ function renderInicioLinha4(){
   const acessos = viewsPermitidas(currentUser);
   const linha = document.getElementById('inicioLinha4');
   const cards = [
+    {id:'inicioReproCard', view:'nascimentos', ok:acessos.includes('nascimentos'), render:renderInicioReproducao},
     {id:'inicioSaudeCard', view:'veterinaria', ok:acessos.includes('veterinaria'), render:renderInicioSaude},
     {id:'inicioEstoqueCard', view:'estoque', ok:acessos.includes('estoque'), render:renderInicioEstoque},
     {id:'inicioAtividadesCard', view:'treinos', ok:acessos.includes('treinos'), render:renderInicioAtividades},
@@ -5581,22 +5584,54 @@ function renderInicioSaude(host){
       <div class="dash-medidor-barra"><div style="width:${pct}%;background:var(--ok);"></div></div>`;
   }).join('');
 
-  const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
-  // Quem realmente vai parir é a receptora quando é transferência de embrião (alvoVacinaGestacao já
-  // resolve isso certo pro protocolo de vacina) — a Matriz sozinha só cabe pra prenhez natural.
-  const previstos = prenhezes.map(n=>({nome: alvoVacinaGestacao(n).nome, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
-    .filter(p=>p.prevista).sort((a,b)=>(a.prevista>b.prevista?1:-1)).slice(0,2);
-
   host.innerHTML = `
-    ${dashCardHead('coracao','Saúde e nascimentos','Veterinária')}
+    ${dashCardHead('coracao','Saúde','Veterinária')}
     ${pocoVisita}
     <div>
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
       <div style="max-height:280px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
+  `;
+}
+
+// "Reprodução" no Início: prenhezes confirmadas + partos previstos, retornos reprodutivos que o
+// veterinário deixou agendados, e a última visita/exame reprodutivo. Atalho pra aba Reprodução.
+function renderInicioReproducao(host){
+  const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
+  // Quem realmente vai parir é a receptora quando é transferência de embrião (alvoVacinaGestacao já
+  // resolve isso certo) — a Matriz sozinha só cabe pra prenhez natural.
+  const previstos = prenhezes.map(n=>({nome: alvoVacinaGestacao(n).nome, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
+    .filter(p=>p.prevista).sort((a,b)=>(a.prevista>b.prevista?1:-1)).slice(0,3);
+  const previstosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>' : previstos.map(p=>
+    `<div class="dash-medidor-linha"><span><strong>${p.nome}</strong></span><span>${fmtDate(p.prevista)}</span></div>`).join('');
+
+  const retornos = (typeof computeCalendarTasks==='function' ? computeCalendarTasks() : [])
+    .filter(t=>t.tipo==='RetornoRepro').sort((a,b)=>(a.data||'').localeCompare(b.data||'')).slice(0,4);
+  const retornosHtml = retornos.length===0 ? '<div class="hint-text">Nenhum retorno agendado.</div>' : retornos.map(t=>
+    `<div style="font-size:11.5px;color:var(--text-body);display:flex;justify-content:space-between;gap:6px;padding:2px 0;"><span>${t.animalNome||'—'}</span><span style="color:${t.situacao==='atrasado'?'var(--burgundy)':'var(--text-faint)'};">${fmtDate(t.data)}</span></div>`).join('');
+
+  const ultima = visitasRepro.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+  const pocoUltima = !ultima ? '' : `<div class="dash-poco-linha">
+    <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--green);margin-bottom:4px;">
+      <span>Última visita · ${ultima.veterinario||'—'}</span><span>${fmtDate(ultima.data)}</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-body);">${(ultima.eguas||[]).map(e=>e.nome).join(', ')||'—'}</div>
+  </div>`;
+
+  host.innerHTML = `
+    ${dashCardHead('coracao','Reprodução','Abrir')}
+    ${pocoUltima}
+    <div>
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Partos previstos</div>
+      ${previstosHtml}
+    </div>
+    <div>
+      <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin:10px 0 6px;">Retornos reprodutivos</div>
+      ${retornosHtml}
+    </div>
     <div class="dash-footer-2col">
       <div><div class="rotulo">Prenhezes confirmadas</div><div class="valor">${prenhezes.length}</div></div>
-      <div style="flex:1.6;"><div class="rotulo">Partos previstos</div><div style="font-size:12px;color:var(--text-body);">${previstos.length===0?'—':previstos.map(p=>`${p.nome} ${fmtDate(p.prevista).slice(0,5)}`).join(' · ')}</div></div>
+      <div><div class="rotulo">Coberturas registradas</div><div class="valor">${nascimentos.filter(n=>n.confirm!=='S').length}</div></div>
     </div>
   `;
 }
