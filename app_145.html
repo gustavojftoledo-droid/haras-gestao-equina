@@ -2450,7 +2450,69 @@ const FIRESTORE_COLLECTION = 'harasData';
 const HAS_CLOUD_STORAGE = (typeof window.storage !== 'undefined');
 const LS_PREFIX = 'haras_gestao_equina__';
 
+/* ===== TREINOS FATIADOS POR ANO =====
+   treinos_list virava um documento só, grande demais depois de anos de histórico de polo (o Firestore
+   tem teto de ~1 MB por documento — estourou = gravação falha de vez). Agora o histórico fica dividido
+   em treinos_2024, treinos_2025... cada gravação só reescreve o(s) ano(s) que mudou, e nenhum ano
+   sozinho chega perto do teto. treinos_index (união de anos, só cresce) diz quais docs ler ao abrir.
+   Tudo transparente: o resto do app continua falando "treinos_list" no storeGet/storeSet. */
+const TREINO_SHARD_RE = /^treinos_(\d{4}|semdata)$/;
+let treinoAnosCarregados = []; // anos já existentes em disco (do índice) — base pra saber o que reescrever
+function anoDoTreino(t){
+  const d = t && t.data;
+  return (typeof d==='string' && /^\d{4}-/.test(d)) ? d.slice(0,4) : 'semdata';
+}
+function treinosPorAno(lista){
+  const m = {};
+  (Array.isArray(lista)?lista:[]).forEach(t=>{ const a=anoDoTreino(t); (m[a]=m[a]||[]).push(t); });
+  return m;
+}
+// Esse ano mudou desde a última "foto"? (compara contra auditSnapshots — mesma base do diff da auditoria)
+function treinoAnoMudou(ano, arr){
+  const snap = auditSnapshots['treinos_'+ano];
+  if(!snap) return true; // ano novo, ou ainda não fotografado
+  if(snap.size !== arr.length) return true;
+  for(const t of arr){ if(snap.get(t.id) !== JSON.stringify(t)) return true; }
+  return false;
+}
+async function storeGetTreinos(){
+  const idxRes = await storeGetRaw('treinos_index');
+  const anos = Array.isArray(idxRes.value) ? idxRes.value.filter(a=>/^(\d{4}|semdata)$/.test(a)) : [];
+  if(anos.length===0){
+    // Ainda não migrado pro formato fatiado: usa o documento único antigo (loadAll faz a migração).
+    const legado = await storeGetRaw('treinos_list');
+    return { ok: legado.ok, value: Array.isArray(legado.value)?legado.value:[], _legado:true };
+  }
+  const partes = await Promise.all(anos.map(a=>storeGetRaw('treinos_'+a)));
+  let out = [], ok = idxRes.ok;
+  partes.forEach(r=>{ if(!r.ok) ok=false; if(Array.isArray(r.value)) out = out.concat(r.value); });
+  treinoAnosCarregados = anos.slice();
+  return { ok, value: out };
+}
+async function storeSetTreinos(lista){
+  treinos = Array.isArray(lista)?lista:[];
+  const grupos = treinosPorAno(treinos);
+  const anos = new Set([...Object.keys(grupos), ...treinoAnosCarregados]);
+  let ok = true;
+  for(const a of anos){
+    const arr = grupos[a] || [];
+    if(!treinoAnoMudou(a, arr)) continue;
+    // Ano que ficou vazio (último treino do ano apagado): grava [] com userDeleted pra passar da trava
+    // que bloqueia gravar lista vazia por cima de dados.
+    const vazioConhecido = arr.length===0 && treinoAnosCarregados.includes(a);
+    const r = await storeSet('treinos_'+a, arr, vazioConhecido ? true : undefined);
+    if(r===false) ok = false;
+  }
+  const anosComConteudo = Object.keys(grupos).filter(a=>grupos[a].length>0).sort();
+  const precisaIdx = treinoAnosCarregados.length===0 || anosComConteudo.some(a=>!treinoAnosCarregados.includes(a));
+  if(precisaIdx) await storeSet('treinos_index', anosComConteudo); // união — atualizarGlobalPosFusao seta treinoAnosCarregados
+  return ok;
+}
 async function storeGet(key){
+  if(key==='treinos_list') return await storeGetTreinos();
+  return await storeGetRaw(key);
+}
+async function storeGetRaw(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
       const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
@@ -2508,6 +2570,8 @@ const AUDIT_KEYS = {
 // dos dois, as linhas mais antigas saem pra dar lugar às novas.
 const AUDIT_LIMITE = 1500;
 const AUDIT_LIMITE_BYTES = 600000;
+// Config de auditoria pra uma chave — inclui as fatias treinos_YYYY, que herdam a config de treinos_list.
+function audCfg(key){ return AUDIT_KEYS[key] || (TREINO_SHARD_RE.test(key) ? AUDIT_KEYS.treinos_list : null); }
 
 /* ================= FUSÃO AUTOMÁTICA DE GRAVAÇÕES CONCORRENTES =================
    Até aqui, TODA gravação sobrescrevia a lista/objeto INTEIRO com o que esta aba tinha em memória. Se
@@ -2539,7 +2603,7 @@ function fundirListaDeEntidades(minhaBaseAnteriorMap, val, doBanco){
 }
 // Listas simples de marcação (Set virou array pra salvar) — "dispensei isso" só soma, nunca conflita
 // de verdade entre duas sessões, então a fusão certa é sempre a união dos dois lados.
-const UNION_SET_KEYS = new Set(['dismissed_manejo_tasks','dismissed_duplicates','dismissed_anomalias_estoque']);
+const UNION_SET_KEYS = new Set(['dismissed_manejo_tasks','dismissed_duplicates','dismissed_anomalias_estoque','treinos_index']);
 function fundirUniaoDeLista(val, doBanco){
   return [...new Set([...(Array.isArray(doBanco)?doBanco:[]), ...(Array.isArray(val)?val:[])])];
 }
@@ -2585,16 +2649,24 @@ function atualizarGlobalPosFusao(key, val){
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
+    case 'treinos_index': treinoAnosCarregados = [...new Set(Array.isArray(val)?val:[])].sort(); break;
+    default:
+      if(TREINO_SHARD_RE.test(key)){
+        // Fatia de um ano voltou fundida do banco — recompõe o treinos global com essa fatia no lugar.
+        const ano = key.slice(8); // 'treinos_'.length
+        treinos = treinos.filter(t=>anoDoTreino(t)!==ano).concat(Array.isArray(val)?val:[]);
+      }
+      break;
   }
 }
 const auditSnapshots = {}; // chave -> Map(id -> JSON do registro na última versão gravada)
 let auditPronto = false;   // só começa a registrar depois que loadAll tirou a "foto" inicial
 function auditNomeRegistro(key, registro){
-  try{ return (AUDIT_KEYS[key].nome(registro)||'').toString().trim() || '(sem nome)'; }
+  try{ return (audCfg(key).nome(registro)||'').toString().trim() || '(sem nome)'; }
   catch(e){ return '(sem nome)'; }
 }
 function auditTirarFoto(key, lista){
-  if(!AUDIT_KEYS[key] || !Array.isArray(lista)) return;
+  if(!audCfg(key) || !Array.isArray(lista)) return;
   const m = new Map();
   lista.forEach(r=>{ if(r && r.id!==undefined) m.set(r.id, JSON.stringify(r)); });
   auditSnapshots[key] = m;
@@ -2672,7 +2744,7 @@ async function auditComoUmaAcaoSo(modulo, resumo, fn){
 }
 // Compara a lista que está sendo gravada com a última "foto" e devolve as linhas de log a criar.
 function auditDiff(key, val){
-  const cfg = AUDIT_KEYS[key];
+  const cfg = audCfg(key);
   if(!auditPronto || !cfg || !Array.isArray(val)) return [];
   const antes = auditSnapshots[key];
   if(!antes) return []; // primeira gravação dessa chave nesta sessão: só tira a foto, sem inventar histórico
@@ -2708,6 +2780,7 @@ function apararAuditoria(lista){
   return out;
 }
 async function storeSet(key,val,userDeleted){
+  if(key==='treinos_list') return await storeSetTreinos(val); // fatia por ano (treinos_YYYY) — ver storeSetTreinos
   if(key==='auditoria_log'){
     // O próprio log de auditoria também é só-soma (nunca edita/exclui uma linha já gravada) — funde
     // como união (ver fundirListaDeEntidades sem "base anterior": tudo em val conta como novo, nada é
@@ -2717,7 +2790,7 @@ async function storeSet(key,val,userDeleted){
     const doBanco = releitura.ok ? releitura.value : val;
     val = apararAuditoria(fundirListaDeEntidades(undefined, val, doBanco));
     auditoria = val;
-  } else if(AUDIT_KEYS[key]){
+  } else if(audCfg(key)){
     // Audita o que ESTA aba realmente mudou nesta gravação — sempre ANTES de fundir com o banco, pra
     // nunca atribuir a esta pessoa uma mudança que na verdade veio de outra sessão.
     const entradas = auditDiff(key, val);
@@ -2823,6 +2896,16 @@ async function loadAll(){
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
   })[k]));
+  // Migração única pro formato fatiado por ano (treinos_index + treinos_YYYY). Roda ANTES das fotos
+  // por ano (senão storeSetTreinos acharia que nada mudou e não gravaria fatia nenhuma) e com
+  // auditPronto ainda false — sem encher o log. Idempotente: reescrever as fatias com os mesmos ids
+  // não duplica nada.
+  if(rT._legado && Array.isArray(treinos) && treinos.length){
+    try{ await storeSet('treinos_list', treinos); }catch(e){ console.error('migração treinos:', e); }
+  }
+  // Uma "foto" por ano de treino (treinos_2024...) — é contra ela que storeSetTreinos decide qual ano
+  // reescrever, e o diff da auditoria de cada ano.
+  Object.entries(treinosPorAno(treinos)).forEach(([a,arr])=>auditTirarFoto('treinos_'+a, arr));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
   // de QUALQUER animal, não só do que tinha o exame. Se algum animal ainda tiver .exames embutido
