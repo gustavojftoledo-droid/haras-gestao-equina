@@ -7915,6 +7915,8 @@ function openTreinoEdit(id){
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
 document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btnSaveTreino');
+  if(btn.disabled) return; // evita salvar duas vezes se o usuário clicar de novo enquanto grava
   const data=document.getElementById('t_data').value;
   if(!data){ showAlert('Informe a data do treino.'); return; }
   const selected = treinoSelector.getSelected();
@@ -7932,9 +7934,15 @@ document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
       donoDaTropa: f('t_donoTropa_sel')
     };
   }
-  treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
-  await storeSet('treinos_list', treinos);
-  closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
+  const rotuloBtn = btn.innerHTML;
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try{
+    treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
+    await storeSet('treinos_list', treinos);
+    closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
+  } finally {
+    btn.disabled = false; btn.innerHTML = rotuloBtn;
+  }
 });
 
 /* ---- Relatórios de Treino ---- */
