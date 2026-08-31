@@ -10454,6 +10454,18 @@ function statusTratamento(t){
   return 'ativo';
 }
 const TRATAMENTO_STATUS_LABEL = { ativo:['st-outro','Em andamento'], concluido:['st-ativo','Concluído'], atrasado:['st-descarte','Com dose(s) atrasada(s)'] };
+// Rótulo do status COM a contagem de doses — "Terminou" só quando tomou TODAS as doses (não é pelo
+// tempo passar). Atrasado = tempo passou e ainda falta dose. Aparece na mesma coluna Status.
+function rotuloStatusTratamento(t){
+  const doses = gerarDosesTratamento(t);
+  const feitas = doses.filter(ds=>(t.doseConcluidas||[]).includes(ds.key)).length;
+  const total = doses.length;
+  const falta = total - feitas;
+  const st = statusTratamento(t);
+  if(st==='concluido') return { cls:'st-ativo', label:`✔ Terminou — ${feitas}/${total} doses` };
+  if(st==='atrasado')  return { cls:'st-descarte', label:`⚠ Atrasado — falta${falta>1?'m':''} ${falta} dose${falta>1?'s':''}` };
+  return { cls:'st-outro', label:`Em andamento — ${feitas}/${total} doses` };
+}
 
 function openTratamentoNew(){
   editingTratamentoId = null;
@@ -11338,15 +11350,14 @@ function renderTratamentos(){
   tbody.innerHTML = filtrados.map(t=>{
     const periodosTxt = PERIODOS_TRATAMENTO.filter(p=>t.periodos&&t.periodos[p]).join(', ');
     const termino = calcDataTermino(t.dataInicio, t.diasTratamento, t.intervaloDias);
-    const st = statusTratamento(t);
-    const [cls,label] = TRATAMENTO_STATUS_LABEL[st];
+    const rot = rotuloStatusTratamento(t);
     return `<tr data-id="${t.id}" tabindex="0" class="${tratSelecionados.has(t.id)?'row-selected':''}">
       <td><input type="checkbox" data-selid="${t.id}" ${tratSelecionados.has(t.id)?'checked':''}></td>
       <td><strong>${t.medicamentoNome||'(produto excluído)'}</strong><br><span style="font-size:11px;color:var(--muted);">${t.quantidade}${t.unidade?(' '+t.unidade):''} por dose</span></td>
       <td data-col="animais">${animaisComOlhoHTML(t.animais)||'<span style="color:var(--muted);">Nenhum</span>'}</td>
       <td data-col="periodo" style="font-size:12px;">${fmtDate(t.dataInicio)} a ${fmtDate(termino)}<br>${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''}</td>
       <td data-col="meio">${t.meioAplicacao||'—'}</td>
-      <td data-col="status"><span class="pill ${cls}">${label}</span></td>
+      <td data-col="status"><span class="pill ${rot.cls}">${rot.label}</span></td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm btn-ghost" data-folha="${t.id}">🖨 Folha</button>
         <button type="button" class="btn btn-sm btn-ghost" data-editar="${t.id}">Editar</button>
