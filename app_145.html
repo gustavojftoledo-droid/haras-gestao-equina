@@ -2312,6 +2312,14 @@ function showConfirm(msg, opts){
     dialogResolve=resolve; openModal('overlayDialog');
   });
 }
+// Grava sem travar a tela: o modal já foi fechado / a lista já foi redesenhada com o dado novo em
+// memória; aqui só empurra pro Firestore em segundo plano. Se der erro, storeSet já mostra o aviso
+// (toast). `aoTerminar(ok)` (opcional) roda depois — útil pra re-render refletir a fusão que voltou.
+function salvarEmSegundoPlano(chave, dados, aoTerminar){
+  Promise.resolve().then(()=> storeSet(chave, dados))
+    .then(ok=>{ if(aoTerminar) try{ aoTerminar(ok); }catch(e){ console.error(e); } })
+    .catch(e=> console.error('salvarEmSegundoPlano('+chave+'):', e));
+}
 function showPrompt(msg, placeholder){
   return new Promise(resolve=>{
     document.getElementById('dialogTitle').textContent='Novo item';
@@ -2786,30 +2794,19 @@ function showLoadWarning(){
 }
 
 async function loadAll(){
-  const rH = await storeGet('horses_list');
-  const rM = await storeGet('manejos_list');
-  const rT = await storeGet('treinos_list');
-  const rN = await storeGet('nascimentos_list');
-  const rAux = await storeGet('aux_lists');
-  const rDismissed = await storeGet('dismissed_duplicates');
-  const rDismissedAnomalias = await storeGet('dismissed_anomalias_estoque');
-  const rDismissedManejo = await storeGet('dismissed_manejo_tasks');
-  const rEP = await storeGet('estoque_produtos');
-  const rEM = await storeGet('estoque_movimentos');
-  const rDT = await storeGet('dietas_list');
-  const rG = await storeGet('grupos_list');
-  const rConfig = await storeGet('config');
-  const rU = await storeGet('usuarios_list');
-  const rTR = await storeGet('tratamentos_list');
-  const rVS = await storeGet('visitas_list');
-  const rVR = await storeGet('visitas_repro_list');
-  const rTP = await storeGet('transportes_list');
-  const rRS = await storeGet('rel_selecoes');
-  const rNFA = await storeGet('nf_aprendizado');
-  const rFin = await storeGet('financeiro_lancamentos');
-  const rFU = await storeGet('funcionarios_list');
-  const rAD = await storeGet('auditoria_log');
-  const rEx = await storeGet('exames_animais');
+  // Todas as leituras em PARALELO — antes eram ~24 idas ao Firestore uma depois da outra (abertura
+  // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
+  const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
+         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rAD, rEx] = await Promise.all([
+    storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
+    storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
+    storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
+    storeGet('dietas_list'), storeGet('grupos_list'), storeGet('config'), storeGet('usuarios_list'),
+    storeGet('tratamentos_list'), storeGet('visitas_list'), storeGet('visitas_repro_list'),
+    storeGet('transportes_list'), storeGet('rel_selecoes'), storeGet('nf_aprendizado'),
+    storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'), storeGet('auditoria_log'),
+    storeGet('exames_animais')
+  ]);
   auditoria = Array.isArray(rAD.value) ? rAD.value : [];
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
   usuarios = rU.value;
@@ -4208,7 +4205,7 @@ document.getElementById('hSelectAll').addEventListener('change', (e)=>{
   const list = [...rows].map(cb=>horses.find(h=>h.id===cb.dataset.id)).filter(Boolean);
   renderValorSelecaoBar(list);
 });
-document.getElementById('hSearch').addEventListener('input', renderHorses);
+document.getElementById('hSearch').addEventListener('input', debounce(renderHorses));
 
 let sortColumn = null, sortDir = 'asc';
 let selectedHorseIds = new Set();
@@ -4548,9 +4545,9 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   ensureExternalAnimal(data.mae,'FEMININO',{pai:data.avomatpat, mae:data.avomat});
   ensureExternalAnimal(data.avopat,'MASCULINO'); ensureExternalAnimal(data.avopatmat,'FEMININO');
   ensureExternalAnimal(data.avomatpat,'MASCULINO'); ensureExternalAnimal(data.avomat,'FEMININO');
-  await storeSet('horses_list', horses);
   closeModal('overlayHorse'); refreshDatalists();
   atualizarTelasQueDependemDeAnimais();
+  salvarEmSegundoPlano('horses_list', horses, ()=>{ atualizarTelasQueDependemDeAnimais(); });
   if(perfilAnimalId===data.id && document.getElementById('view-animalPerfil').classList.contains('active')) renderAnimalPerfil(data.id);
   // Virou "Vendido" agora (não estava antes)? A entrada no Financeiro é automática — lancamentosDerivadosVendas()
   // lê o cadastro do animal direto, então não tem nada pra criar nem pra confirmar aqui. Só avisa,
@@ -5028,6 +5025,7 @@ function computeProgramacao(dataReferencia){
   // etc, que leem computeProgramacao() direto sem passar pelo Calendário.
   return rows.filter(r=> !r.proxima || !dismissedManejoTasks.has(chaveTarefaManejo({animalId:r.animalId, tipo:r.tipo, label:r.label, data:toISODate(r.proxima)})));
 }
+computeProgramacao = memoRajada(computeProgramacao); // ver memoRajada — evita recalcular ~6x por renderInicio()
 
 /* ================= CALENDÁRIO DE TAREFAS (página Início) =================
    Reaproveita computeProgramacao() (Casco/Dente/Vacina/Vermífugo) e agrupa por data.
@@ -5048,6 +5046,28 @@ function toISODate(d){
   const mes = String(d.getMonth()+1).padStart(2,'0');
   const dia = String(d.getDate()).padStart(2,'0');
   return `${ano}-${mes}-${dia}`;
+}
+// Memoiza uma função pura durante a "rajada" síncrona de renders (ex: renderInicio() chama
+// computeProgramacao ~6x). O cache some sozinho no próximo microtask — nenhum código precisa invalidar.
+// Chamada COM argumento (ex: computeProgramacao('2026-01-01')) ignora o cache.
+function memoRajada(fn){
+  let cache = null, agendado = false;
+  return function(){
+    if(arguments.length>0) return fn.apply(this, arguments);
+    if(cache !== null) return cache;
+    cache = fn.call(this);
+    if(!agendado){ agendado = true; Promise.resolve().then(()=>{ cache = null; agendado = false; }); }
+    return cache;
+  };
+}
+// Adia a chamada até o usuário parar de digitar por `ms` — evita re-render pesado a cada tecla.
+function debounce(fn, ms){
+  let t = null;
+  return function(){
+    const ctx = this, args = arguments;
+    clearTimeout(t);
+    t = setTimeout(()=>{ fn.apply(ctx, args); }, ms||250);
+  };
 }
 function computeCalendarTasks(){
   // dismissedManejoTasks já é filtrado dentro de computeProgramacao() (na fonte) — aqui só mapeia pro
@@ -5163,6 +5183,7 @@ function computeCalendarTasks(){
   });
   return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...transporteTasks, ...salarioTasks, ...atividadeTasks];
 }
+computeCalendarTasks = memoRajada(computeCalendarTasks); // idem — chamado ~4x por renderInicio()
 function tasksByDate(tasks){
   const map = {};
   tasks.forEach(t=>{ if(!map[t.data]) map[t.data]=[]; map[t.data].push(t); });
@@ -6507,8 +6528,8 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   } else {
     manejos.push(registro);
   }
-  await storeSet('manejos_list', manejos);
   closeModal('overlayManejo'); renderManejos();
+  salvarEmSegundoPlano('manejos_list', manejos, ()=>renderManejos());
   if(avisoBaixa) showAlert('Lançamento salvo'+avisoBaixa+'.');
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
@@ -7611,7 +7632,7 @@ function renderTransportes(){
     showAlert('Transporte marcado como realizado.'+(count>0?(' Localização atualizada em '+count+' animal(is).'):''));
   }));
 }
-document.getElementById('tpSearch').addEventListener('input', renderTransportes);
+document.getElementById('tpSearch').addEventListener('input', debounce(renderTransportes));
 document.getElementById('tpFiltroSituacao').addEventListener('change', renderTransportes);
 document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   editingTransporteId = null;
@@ -7689,7 +7710,7 @@ async function tentarSalvarTransporteAtual(){
   if(registro.realizado==='S' && !jaEstavaRealizado){
     countLoc = await aplicarLocalizacaoTransporte(registro);
   }
-  await storeSet('transportes_list', transportes);
+  salvarEmSegundoPlano('transportes_list', transportes, ()=>renderTransportes());
   return { registro, countLoc };
 }
 document.getElementById('btnSaveTransporte').addEventListener('click', async ()=>{
@@ -7914,9 +7935,7 @@ function openTreinoEdit(id){
   openModal('overlayTreino');
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
-document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
-  const btn = document.getElementById('btnSaveTreino');
-  if(btn.disabled) return; // evita salvar duas vezes se o usuário clicar de novo enquanto grava
+document.getElementById('btnSaveTreino').addEventListener('click', ()=>{
   const data=document.getElementById('t_data').value;
   if(!data){ showAlert('Informe a data do treino.'); return; }
   const selected = treinoSelector.getSelected();
@@ -7934,15 +7953,9 @@ document.getElementById('btnSaveTreino').addEventListener('click', async ()=>{
       donoDaTropa: f('t_donoTropa_sel')
     };
   }
-  const rotuloBtn = btn.innerHTML;
-  btn.disabled = true; btn.textContent = 'Salvando...';
-  try{
-    treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
-    await storeSet('treinos_list', treinos);
-    closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
-  } finally {
-    btn.disabled = false; btn.innerHTML = rotuloBtn;
-  }
+  treinos = editingTreinoId ? treinos.map(t=>t.id===editingTreinoId?registro:t) : [...treinos, registro];
+  closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
+  salvarEmSegundoPlano('treinos_list', treinos, ()=>{ renderTreinos(); renderFinanceiro(); });
 });
 
 /* ---- Relatórios de Treino ---- */
@@ -8253,7 +8266,7 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   ensureExternalAnimal(matrizNome,'FEMININO');
   if(paiNome) ensureExternalAnimal(paiNome,'MASCULINO');
   if(receptoraNome) ensureExternalAnimal(receptoraNome,'FEMININO',null,true);
-  await storeSet('horses_list', horses);
+  // horses_list é salvo uma vez só no fim (as mutações acontecem todas em memória primeiro).
 
   if(confirmado){
     const nomeAnimal = titleCase(f('n_nomeAnimal'));
@@ -8268,7 +8281,6 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
         if(!animalExistente.protocoloPotro || animalExistente.protocoloPotro.length===0){
           animalExistente.protocoloPotro = gerarProtocoloPotro(record.datanasc);
         }
-        await storeSet('horses_list', horses);
       }
     } else {
       const mae = horses.find(h=>h.nome && h.nome.toLowerCase()===matrizNome.toLowerCase());
@@ -8285,12 +8297,12 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
       };
       horses.push(novoAnimal);
       record.animalId = novoAnimal.id;
-      await storeSet('horses_list', horses);
     }
   }
   nascimentos = editingNascId ? nascimentos.map(x=>x.id===editingNascId?record:x) : [...nascimentos, record];
-  await storeSet('nascimentos_list', nascimentos);
   closeModal('overlayNasc'); refreshDatalists(); renderHorses(); renderNascimentos();
+  salvarEmSegundoPlano('horses_list', horses);
+  salvarEmSegundoPlano('nascimentos_list', nascimentos, ()=>{ renderHorses(); renderNascimentos(); });
 });
 document.getElementById('btnDeleteNasc').addEventListener('click', async ()=>{
   if(!editingNascId) return;
@@ -8599,7 +8611,8 @@ function renderNascimentos(){
   tbody.querySelectorAll('[data-nconfirmprenhez]').forEach(b=>b.addEventListener('click', ()=>confirmarPrenhez(b.dataset.nconfirmprenhez)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
 }
-['nFiltroConf','nFiltroAno','nFiltroAnoNasc','nSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
+['nFiltroConf','nFiltroAno','nFiltroAnoNasc'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
+document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
 function showNascTab(tab){
   ['lista','visitas','protocolo','relatorio'].forEach(t=>{
@@ -9195,7 +9208,8 @@ document.getElementById('btnExcluirProdutosLote').addEventListener('click', asyn
   renderEstoque();
   showAlert(`${n} produto(s) excluído(s).`);
 });
-['eSearch','eSoMinimo'].forEach(id=>document.getElementById(id).addEventListener('input', renderEstoque));
+document.getElementById('eSoMinimo').addEventListener('input', renderEstoque);
+document.getElementById('eSearch').addEventListener('input', debounce(renderEstoque));
 
 /* ========== GERAR PEDIDO (Estoque) ==========
    Usa a seleção (checkbox) já feita na lista de produtos — marca os produtos na tabela, clica em
@@ -10112,8 +10126,8 @@ document.getElementById('btnSaveDieta').addEventListener('click', async ()=>{
   const data = { id: editingDietaId || ('dt_'+Date.now()), nome, animais: existente ? existente.animais : [], itens, obs:f('dt_obs'),
     modoConsumo, diasSemana: [...dietaDiasSemanaState], ultimoConsumoAuto: existente ? existente.ultimoConsumoAuto : '' };
   dietas = editingDietaId ? dietas.map(d=>d.id===editingDietaId?data:d) : [...dietas, data];
-  await storeSet('dietas_list', dietas);
   closeModal('overlayDieta'); renderDietas();
+  salvarEmSegundoPlano('dietas_list', dietas, ()=>renderDietas());
   if(eraNova) openDietaAnimais(data.id); // logo depois de criar, já facilita marcar quem come essa dieta
 });
 document.getElementById('btnDeleteDieta').addEventListener('click', async ()=>{
@@ -10562,7 +10576,7 @@ async function tentarSalvarTratamentoAtual(){
     doseConcluidas: existente ? (existente.doseConcluidas||[]) : []
   };
   tratamentos = editingTratamentoId ? tratamentos.map(t=>t.id===editingTratamentoId?data:t) : [...tratamentos, data];
-  await storeSet('tratamentos_list', tratamentos);
+  salvarEmSegundoPlano('tratamentos_list', tratamentos, ()=>{ renderTratamentos(); if(typeof renderVetLista==='function') renderVetLista(); });
   return data;
 }
 document.getElementById('btnSaveTratamento').addEventListener('click', async ()=>{
@@ -10869,8 +10883,8 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
     }
   }
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
-  await storeSet('visitas_list', visitas);
   closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
+  salvarEmSegundoPlano('visitas_list', visitas, ()=>{ renderVisitas(); renderFinanceiro(); });
 });
 document.getElementById('btnDeleteVisita').addEventListener('click', async ()=>{
   if(!editingVisitaId || !(await showConfirm('Excluir esta visita? O histórico de baixas de produto já feitas no estoque não é desfeito.'))) return;
@@ -10916,10 +10930,11 @@ function renderVisitas(){
   if(typeof renderVetLista==='function') renderVetLista();
 }
 let visitasFiltradasAtual = [];
-['vsFiltroDe','vsFiltroAte','vsSearch'].forEach(id=>{
+['vsFiltroDe','vsFiltroAte'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener('input', renderVisitas);
 });
+(function(){ const el=document.getElementById('vsSearch'); if(el) el.addEventListener('input', debounce(renderVisitas)); })();
 
 // Relatório em PDF de uma visita — mesmo esquema já usado em Manejos, Treinos e Nascimentos:
 // mostra a prévia na tela primeiro, só baixa o PDF quando a pessoa pedir.
@@ -11159,14 +11174,14 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     totalVacinas += confirmarPrenhezRegistro(n, data);
     mexeuNascimentos = true;
   }
-  if(receptorasDefinidas.length) await storeSet('horses_list', horses);
-  if(mexeuNascimentos) await storeSet('nascimentos_list', nascimentos);
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
-  await storeSet('visitas_repro_list', visitasRepro);
   closeModal('overlayVisitaRepro');
   renderVisitasRepro(); renderNascimentos();
   if(typeof renderCalendar==='function') renderCalendar();
   if(typeof renderInicio==='function') renderInicio();
+  if(receptorasDefinidas.length) salvarEmSegundoPlano('horses_list', horses);
+  if(mexeuNascimentos) salvarEmSegundoPlano('nascimentos_list', nascimentos);
+  salvarEmSegundoPlano('visitas_repro_list', visitasRepro, ()=>{ renderVisitasRepro(); renderNascimentos(); });
   let msg = 'Visita salva.';
   if(receptorasDefinidas.length) msg += ' Receptora definida na transferência de embrião: '+receptorasDefinidas.join(', ')+'.';
   if(mexeuNascimentos) msg += ' Prenhez confirmada na cobertura correspondente' + (totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
@@ -11270,7 +11285,8 @@ function renderVisitasRepro(){
   });
   tbody.querySelectorAll('[data-relvisitarepro]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); gerarRelatorioVisitaReproUnica(b.dataset.relvisitarepro); }));
 }
-['vrFiltroDe','vrFiltroAte','vrFiltroVet','vrSearch'].forEach(id=>{
+(function(){ const el=document.getElementById('vrSearch'); if(el) el.addEventListener('input', debounce(renderVisitasRepro)); })();
+['vrFiltroDe','vrFiltroAte','vrFiltroVet'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener('input', renderVisitasRepro);
 });
@@ -11429,6 +11445,7 @@ function combinedVetHistorico(){
     buscaTxt: [x.veterinario, x.obsGeral, ...(x.animais||[]).map(a=>a.nome)].filter(Boolean).join(' ').toLowerCase() }));
   const t = tratamentos.map(x=>({ origemTipo:'tratamento', id:x.id, data:x.dataInicio,
     resumo: 'Tratamento — '+(x.medicamentoNome||'(produto excluído)'), animais:x.animais||[],
+    statusRot: rotuloStatusTratamento(x),
     buscaTxt: [x.medicamentoNome, x.responsavel, ...(x.animais||[]).map(a=>a.nome)].filter(Boolean).join(' ').toLowerCase() }));
   return [...v, ...t].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
 }
@@ -11443,7 +11460,7 @@ function renderVetLista(){
   if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
   tbody.innerHTML = lista.map(r=>`<tr>
     <td>${fmtDate(r.data)}</td>
-    <td data-col="tipo"><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span></td>
+    <td data-col="tipo"><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span>${r.statusRot?` <span class="pill ${r.statusRot.cls}">${r.statusRot.label}</span>`:''}</td>
     <td data-col="resumo">${r.resumo}</td>
     <td data-col="animais">${animaisComOlhoHTML(r.animais)||'—'}</td>
     <td style="white-space:nowrap;">
@@ -11460,7 +11477,8 @@ function renderVetLista(){
     if(tipo==='visita') openVisitaEdit(id); else openTratamentoEdit(id);
   }));
 }
-['vlSearch','vlFiltroDe','vlFiltroAte'].forEach(id=> document.getElementById(id).addEventListener('input', renderVetLista));
+['vlFiltroDe','vlFiltroAte'].forEach(id=> document.getElementById(id).addEventListener('input', renderVetLista));
+document.getElementById('vlSearch').addEventListener('input', debounce(renderVetLista));
 function showVetTab(tab){
   ['lista','visitas','tratamento'].forEach(t=>{
     document.getElementById('vtrtab_'+t).classList.toggle('active', t===tab);
@@ -11736,8 +11754,8 @@ document.getElementById('btnSaveGrupo').addEventListener('click', async ()=>{
   if(animaisSel.length===0){ showAlert('Selecione ao menos um animal para o grupo.'); return; }
   const data = { id: editingGrupoId || ('gp_'+Date.now()), nome, animais: animaisSel.map(a=>({id:a.id, nome:a.nome})), obs:f('g_obs') };
   grupos = editingGrupoId ? grupos.map(g=>g.id===editingGrupoId?data:g) : [...grupos, data];
-  await storeSet('grupos_list', grupos);
   closeModal('overlayGrupo'); renderGrupos();
+  salvarEmSegundoPlano('grupos_list', grupos, ()=>renderGrupos());
 });
 document.getElementById('btnDeleteGrupo').addEventListener('click', async ()=>{
   if(!editingGrupoId || !(await showConfirm('Excluir este grupo? Os animais não são afetados, só o agrupamento.'))) return;
@@ -11809,7 +11827,7 @@ function renderGrupos(){
   tbody.querySelectorAll('[data-editar]').forEach(b=>b.addEventListener('click', ()=>openGrupoEdit(b.dataset.editar)));
   tbody.querySelectorAll('[data-vergrupo]').forEach(b=>b.addEventListener('click', ()=>verGrupoNoFront(b.dataset.vergrupo)));
 }
-document.getElementById('gSearch').addEventListener('input', renderGrupos);
+document.getElementById('gSearch').addEventListener('input', debounce(renderGrupos));
 
 function showGrupoTab(tab){
   ['lista','relatorio'].forEach(t=>{
@@ -12340,6 +12358,10 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosVendas()
   ];
 }
+// Custa caro (junta lançamentos + derivados de manejos/estoque/treinos/visitas/tratamentos/dietas/
+// transporte/vendas) e é chamado várias vezes por render (renderFinanceiro 2x, e 1x por animal em
+// renderCustoPorAnimalTab). Memoiza durante a rajada síncrona.
+todosLancamentosFinanceiro = memoRajada(todosLancamentosFinanceiro);
 
 // Painel fixo "Resumo do mês" — independente dos filtros da lista abaixo, sempre mostra o mês
 // escolhido (começa no mês atual), com saldo e o gasto por categoria (só saídas, é o que mais
@@ -12671,9 +12693,10 @@ document.getElementById('btnPdfCustoAnimal').addEventListener('click', ()=>{
     </table>`;
   abrirPreviaRelatorio(html, 'Custo_por_Animal.pdf', 'Custo por Animal');
 });
-['finSearch','finFiltroTipo','finFiltroCategoria'].forEach(id=>{
+['finFiltroTipo','finFiltroCategoria'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderFinanceiro);
 });
+document.getElementById('finSearch').addEventListener('input', debounce(renderFinanceiro));
 // Seletor de Animal(is) do Novo Lançamento — opcional, só aparece quando "Atribuir a Animal(is)" está
 // marcado. Reaproveita o mesmo widget/padrão de Manejos e Treino Cobrado (valor por animal + "Ratear").
 const finAnimalSelector = createAnimalSelector(document.getElementById('finAnimalSelectorHost'), {
@@ -13107,17 +13130,19 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
     ...(rateio ? {rateio} : {})
   };
   lancamentos = editingLancamentoId ? lancamentos.map(l=>l.id===editingLancamentoId?registro:l) : [...lancamentos, registro];
-  await storeSet('financeiro_lancamentos', lancamentos);
   // Lançamento de Salário ligado a um funcionário: guarda o valor confirmado como sugestão pra próxima
   // vez (é o que faz "ajustar o valor" ficar valendo pro mês seguinte, sem precisar digitar de novo).
+  let mexeuFuncionarios = false;
   if(origemFuncionarioId && categoria==='Salário'){
     const idx = funcionarios.findIndex(fu=>fu.id===origemFuncionarioId);
     if(idx>=0){
       funcionarios[idx] = {...funcionarios[idx], ultimoSalarioValor: valor, ultimoSalarioMoeda: moeda};
-      await storeSet('funcionarios_list', funcionarios);
+      mexeuFuncionarios = true;
     }
   }
   closeModal('overlayLancamento'); renderFinanceiro(); renderFuncionarios(); renderInicio();
+  if(mexeuFuncionarios) salvarEmSegundoPlano('funcionarios_list', funcionarios);
+  salvarEmSegundoPlano('financeiro_lancamentos', lancamentos, ()=>{ renderFinanceiro(); renderInicio(); });
 });
 document.getElementById('btnDeleteLancamento').addEventListener('click', async ()=>{
   if(!editingLancamentoId || !(await showConfirm('Excluir este lançamento?'))) return;
@@ -13214,8 +13239,8 @@ document.getElementById('btnSaveFuncionario').addEventListener('click', async ()
     ultimoSalarioMoeda: anterior ? anterior.ultimoSalarioMoeda : undefined
   };
   funcionarios = editingFuncionarioId ? funcionarios.map(x=>x.id===editingFuncionarioId?registro:x) : [...funcionarios, registro];
-  await storeSet('funcionarios_list', funcionarios);
   closeModal('overlayFuncionario'); renderFuncionarios();
+  salvarEmSegundoPlano('funcionarios_list', funcionarios, ()=>renderFuncionarios());
 });
 document.getElementById('btnDeleteFuncionario').addEventListener('click', async ()=>{
   if(!editingFuncionarioId || !(await showConfirm('Excluir este funcionário? Os lançamentos já feitos no Financeiro NÃO são apagados, e o lembrete de salário do dia 5 deixa de aparecer pra ele.'))) return;
@@ -13429,7 +13454,7 @@ function renderAuditoria(){
     <td>${descreverMudancas(e)}</td>
   </tr>`).join('');
 }
-['audSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderAuditoria));
+document.getElementById('audSearch').addEventListener('input', debounce(renderAuditoria));
 ['audFiltroUsuario','audFiltroModulo','audFiltroAcao'].forEach(id=>document.getElementById(id).addEventListener('change', renderAuditoria));
 document.getElementById('btnAudPDF').addEventListener('click', ()=>{
   const html = `<h2 style="font-family:'Fraunces',serif;">Auditoria — ${document.getElementById('audStats').textContent.trim().split(/\s{2,}/)[0]||''} ações</h2>`
@@ -14365,7 +14390,7 @@ function renderRelatorios(){
   </tr>`).join('');
 }
 document.getElementById('relIncluir').addEventListener('change', renderRelatorios);
-document.getElementById('relSearch').addEventListener('input', renderRelatorios);
+document.getElementById('relSearch').addEventListener('input', debounce(renderRelatorios));
 
 document.getElementById('btnExportListaNomes').addEventListener('click', ()=>{
   const list = relatorioBaseList().slice().sort((a,b)=> (a.nome||'').localeCompare(b.nome||'', 'pt'));
