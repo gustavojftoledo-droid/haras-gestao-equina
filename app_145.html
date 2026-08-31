@@ -11039,7 +11039,7 @@ function renderReproEguas(){
           <div class="field"><label>Ovulou?</label><select data-refield="ovulou" data-reidx="${idx}">${ovulouOpts}</select></div>
           <div class="field"><label>Cio</label><input type="text" data-refield="cio" data-reidx="${idx}" value="${(e.cio||'').replace(/"/g,'&quot;')}" placeholder="Opcional"></div>
           <div class="field"><label>Diagnóstico de gestação</label><select data-refield="diagnostico" data-reidx="${idx}">${diagOpts}</select></div>
-          <div class="field"><label>Medicação aplicada</label><input type="text" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml"></div>
+          <div class="field"><label>Medicação aplicada</label><input type="text" list="dl_medicamentos" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml (do Estoque)"></div>
           <div class="field"><label>Próxima ação / conduta</label><input type="text" data-refield="proximaAcao" data-reidx="${idx}" value="${(e.proximaAcao||'').replace(/"/g,'&quot;')}" placeholder="Ex: cobrir amanhã"></div>
           <div class="field"><label>Retorno / próxima visita</label><input type="date" data-refield="proximoRetorno" data-reidx="${idx}" value="${e.proximoRetorno||''}"></div>
           <div class="field full"><label>Observação</label><textarea rows="2" data-refield="obs" data-reidx="${idx}" spellcheck="true" lang="pt-BR" placeholder="Texto livre — ditável por voz">${e.obs||''}</textarea></div>
@@ -11150,6 +11150,30 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     proximaAcao:(e.proximaAcao||'').trim(), proximoRetorno:e.proximoRetorno||'', obs:(e.obs||'').trim(),
     nascimentoId: e.nascimentoId||null
   }));
+  // Medicação aplicada: quando o texto casa com um Medicamento do Estoque, dá baixa e gera custo pro
+  // animal (mesma regra de Visita Veterinária / Manejo de Vacina). Não casando — ou sem saldo — pergunta
+  // se segue com a visita SEM baixar estoque e SEM gerar custo. Só em visita NOVA (pra não repetir a
+  // baixa toda vez que reabrir e salvar).
+  if(!editingVisitaReproId){
+    for(const e of eguas){
+      const txt = (e.medicacao||'').trim();
+      if(!txt) continue;
+      const mNum = txt.match(/(\d+(?:[.,]\d+)?)/);
+      const qtd = mNum ? (Number(mNum[1].replace(',','.'))||1) : 1;
+      const nomeBusca = txt.replace(/\d+(?:[.,]\d+)?\s*(ml|mg|g|kg|l|cc|un|und|unidades?|doses?|amp(?:olas?)?)?/gi,' ').replace(/\s+/g,' ').trim() || txt;
+      const med = acharMedicamentoEstoque(nomeBusca);
+      if(!med){
+        if(!(await showConfirm('Não achei "'+txt+'" no Estoque (Medicamentos) para '+e.nome+'. Seguir com a visita SEM dar baixa no estoque e SEM gerar custo?'))) return;
+        continue;
+      }
+      const faltando = checarEstoqueParaBaixa([{produtoId:med.id, quantidade:qtd}]);
+      if(faltando.length>0){
+        if(!(await showConfirm('Estoque insuficiente de "'+med.nome+'" (falta '+faltando[0].falta+(med.unidade?(' '+med.unidade):'')+') para '+e.nome+'. Seguir SEM dar baixa no estoque e SEM gerar custo?'))) return;
+        continue;
+      }
+      await registrarMovimento(med.id, 'saida', qtd, 'veterinaria', 'Visita reprodutiva — '+txt+' — '+e.nome, data, undefined, [{id:e.animalId, nome:e.nome}]);
+    }
+  }
   const docsValidos = visitaReproDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vrd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
   const record = { id: editingVisitaReproId || ('vr_'+Date.now()), data, veterinario:f('vr_veterinario_sel'), local:f('vr_local').trim(), obsGeral:f('vr_obsGeral').trim(), eguas, documentos:docsValidos };
   // Integração com a prenhez: toda égua marcada como prenhe liga na cobertura aberta dela e dispara o
