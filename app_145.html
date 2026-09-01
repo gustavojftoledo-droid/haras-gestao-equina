@@ -11151,8 +11151,8 @@ function renderReproEguas(){
       <div class="perfil-card-body">
         <div class="hint-text" id="revozstatus_${idx}" style="display:none;margin:0 0 8px;"></div>
         <div class="form-grid cols3">
-          <div class="field"><label>Folículo ovário D (mm)</label><input type="number" step="0.1" min="0" data-refield="folOD" data-reidx="${idx}" value="${e.folOD}"></div>
-          <div class="field"><label>Folículo ovário E (mm)</label><input type="number" step="0.1" min="0" data-refield="folOE" data-reidx="${idx}" value="${e.folOE}"></div>
+          <div class="field"><label>Folículo ovário D</label><input type="text" data-refield="folOD" data-reidx="${idx}" value="${(e.folOD||'').replace(/"/g,'&quot;')}" placeholder="Ex: 35, 35mm, 35x30, CL..."></div>
+          <div class="field"><label>Folículo ovário E</label><input type="text" data-refield="folOE" data-reidx="${idx}" value="${(e.folOE||'').replace(/"/g,'&quot;')}" placeholder="Ex: 35, 35mm, 35x30, CL..."></div>
           <div class="field"><label>Edema uterino (0–4)</label><select data-refield="edema" data-reidx="${idx}">${edemaOpts}</select></div>
           <div class="field"><label>Útero</label><input type="text" data-refield="utero" data-reidx="${idx}" value="${(e.utero||'').replace(/"/g,'&quot;')}" placeholder="Ex: tônus bom"></div>
           <div class="field"><label>Cérvix</label><input type="text" data-refield="cervix" data-reidx="${idx}" value="${(e.cervix||'').replace(/"/g,'&quot;')}" placeholder="Ex: fechada"></div>
@@ -11377,9 +11377,12 @@ function getColunasVisitaReproVisiveis(){
   const salvo = config.colunasVisitaRepro || {};
   return VISITA_REPRO_COLUNAS_META.filter(c=> salvo[c.key]!==undefined ? !!salvo[c.key] : c.default);
 }
+// Folículo pode ser só número (35) ou texto livre (35mm, 35x30, CL...) — só acrescenta " mm" quando é
+// um número puro, pra não gerar "35mm mm" nem "CL mm".
+function fmtFoliculo(v){ v=(v==null?'':String(v)).trim(); if(!v) return ''; return /^[\d.,]+$/.test(v) ? v+' mm' : v; }
 function celulaVisitaRepro(key, e){
   const v = e[key];
-  if(key==='folOD' || key==='folOE') return v ? (v+' mm') : '—';
+  if(key==='folOD' || key==='folOE') return v ? fmtFoliculo(v) : '—';
   if(key==='edema') return (v!=='' && v!=null) ? v : '—';
   if(key==='ovulou') return v==='sim' ? 'Sim' : (v==='nao' ? 'Não' : '—');
   if(key==='diagnostico') return v ? (REPRO_DIAG_LABEL[v]||v) : '—';
@@ -11453,8 +11456,8 @@ function renderVisitasRepro(){
 
 function blocoExameEgua(e){
   const linhas = [
-    ['Folículo OD', e.folOD && (e.folOD+' mm')],
-    ['Folículo OE', e.folOE && (e.folOE+' mm')],
+    ['Folículo OD', e.folOD && fmtFoliculo(e.folOD)],
+    ['Folículo OE', e.folOE && fmtFoliculo(e.folOE)],
     ['Edema uterino', e.edema!==''?e.edema:''],
     ['Útero', e.utero], ['Cérvix', e.cervix],
     ['Ovulou', e.ovulou==='sim'?'Sim':(e.ovulou==='nao'?'Não':'')],
@@ -14235,7 +14238,7 @@ function computeTimelineAnimal(h){
     if(!e) return;
     const partes = [
       e.diagnostico ? REPRO_DIAG_LABEL[e.diagnostico] : null,
-      (e.folOD||e.folOE) ? ('folículo '+[e.folOD&&('OD '+e.folOD),e.folOE&&('OE '+e.folOE)].filter(Boolean).join(' / ')+' mm') : null,
+      (e.folOD||e.folOE) ? ('folículo '+[e.folOD&&('OD '+fmtFoliculo(e.folOD)),e.folOE&&('OE '+fmtFoliculo(e.folOE))].filter(Boolean).join(' / ')) : null,
       e.edema!=='' && e.edema!==undefined ? ('edema '+e.edema) : null,
       e.ovulou==='sim' ? 'ovulou' : null,
       e.proximaAcao||null,
