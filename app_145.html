@@ -1977,18 +1977,19 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-head"><div class="modal-title">Nova Cobertura</div><button class="modal-close" data-close="overlayNasc">✕</button></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozNasc">🎤 Ditar por voz</button><span class="hint-text" id="nasc_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <div class="form-grid">
+      <!-- Ordem seguindo a linha do tempo real: quem é → tipo → cobertura(s) → ovulação → coleta →
+           receptora (definida após a coleta) → nascimento. -->
       <div class="field"><label>Matriz (mãe)</label><input type="text" id="n_matriz" list="dl_femeas" required></div>
       <div class="field"><label>Pai</label><input type="text" id="n_pai" list="dl_machos"></div>
-      <div class="field full">
+      <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
           <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
           É transferência de embrião?
         </label>
-        <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode deixar em branco agora e informar depois (após a coleta e a transferência do embrião), editando esta cobertura.</div>
+        <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode informar depois (após a coleta e a transferência), editando esta cobertura.</div>
       </div>
-      <div class="field" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional — informe após a transferência)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
+      <div class="field"><label>Letra do ano</label><input type="text" id="n_letra" maxlength="1"></div>
       <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
-      <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
       <div class="field full">
         <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
         <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
@@ -1996,8 +1997,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
+      <div class="field full" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(informe após a transferência do embrião)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
+      <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
       <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
-      <div class="field"><label>Letra do ano</label><input type="text" id="n_letra" maxlength="1"></div>
       <div class="field full"><label>Observações</label><input type="text" id="n_obs" spellcheck="true" lang="pt-BR"></div>
       <div class="field full" style="border-top:1px solid var(--line);padding-top:14px;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
