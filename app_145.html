@@ -47,26 +47,6 @@
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;}
   .app{display:flex;min-height:100vh;}
-
-  /* ===== Listas ocupam a altura toda da tela =====
-     Nas telas que são "filtros + uma lista", a área de conteúdo trava na altura da janela e SÓ a
-     lista rola por dentro (cabeçalho da tabela fica grudado no topo). Assim aparecem muito mais
-     linhas de uma vez, sem depender de rolar a página. Telas sem lista (Início, Ficha do Animal)
-     continuam rolando a página normalmente. Precisa de :has() (Chrome/Safari atuais têm). */
-  @supports selector(:has(*)){
-    body:has(#appRoot) #appRoot.app{height:100vh;overflow:hidden;}
-    #appRoot.app > .main{min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;}
-    .main > .view.active{flex:1 1 auto;min-height:0;}
-    .main > .view.active:has(.grid-wrap){overflow:hidden;display:flex;flex-direction:column;}
-    .main > .view.active:not(:has(.grid-wrap)){overflow-y:auto;}
-    .main > .view.active:has(.grid-wrap) > div:has(> .grid-wrap){flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
-    .main > .view.active:has(.grid-wrap) > div:has(> .grid-wrap) > .grid-wrap{flex:1 1 auto;min-height:180px;max-height:none;}
-    /* lista direto embaixo da view (Transporte, Funcionários, Usuários, Auditoria — sem sub-abas) */
-    .main > .view.active:has(> .grid-wrap) > .grid-wrap{flex:1 1 auto;min-height:180px;max-height:none;}
-    /* Blocos de filtro em chips que quebram em muitas linhas (Animais) não podem comer a tela toda:
-       travam numa altura e rolam por dentro, deixando espaço pra lista. */
-    .main > .view.active:has(.grid-wrap) [id$="FiltrosChips"]{max-height:82px;overflow-y:auto;}
-  }
   .sidebar{width:210px;background:var(--green);color:#EDE7D6;display:flex;flex-direction:column;flex-shrink:0;}
   .brand{padding:26px 20px 18px;border-bottom:1px solid rgba(237,231,214,0.12);}
   .brand-mark{font-family:'Fraunces',serif;font-size:21px;font-weight:600;}
@@ -283,10 +263,11 @@
   .pill.sex-m{background:#DCE9F5;color:#3D5A75;} .pill.sex-f{background:#F6DDE3;color:#8A3B4C;}
   .pill.st-ativo{background:var(--ok-bg);color:var(--ok);} .pill.st-descarte{background:var(--alert-bg);color:var(--alert-ink);} .pill.st-outro{background:var(--chip-bg);color:var(--muted);}
   .pill.st-warn{background:var(--warn-bg);color:var(--warn-ink);}
-  /* A lista ocupa quase toda a altura da tela (sem teto fixo) — cabeçalho gruda no topo ao rolar.
-     Reserva ~215px pro topo (menu do topo + filtros/stats) e rola só o que passar disso. */
-  .grid-wrap{max-height:calc(100vh - 215px);overflow:auto;border-radius:6px;}
-  .grid-wrap.compact{max-height:calc(100vh - 280px);}
+  /* A lista usa quase toda a altura da tela — cabeçalho da tabela gruda no topo ao rolar. Se ainda
+     não couber, a PÁGINA rola normal (nada trava a rolagem). Reserva pouco pro topo de propósito,
+     pra caber o máximo de linhas de uma vez. */
+  .grid-wrap{max-height:calc(100vh - 150px);overflow:auto;border-radius:6px;}
+  .grid-wrap.compact{max-height:calc(100vh - 210px);}
   /* Lista dentro de janela (modal): no máximo 62% da tela, a janela rola pra ver o resto. */
   .overlay .grid-wrap{max-height:62vh;}
   .empty{text-align:center;padding:60px 20px;color:var(--muted);}
