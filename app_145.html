@@ -374,6 +374,9 @@
   .ped-line{fill:none;stroke:var(--line);stroke-width:1.5;}
   .ped-box{box-sizing:border-box;width:100%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 10px;border:1px solid var(--line);border-radius:4px;background:var(--paper);font-family:'Inter',sans-serif;font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ped-box-root{background:var(--green);border-color:var(--green);color:#fff;font-weight:700;font-size:13px;}
+  .ped-box-link{cursor:pointer;}
+  .ped-box-link:hover{border-color:var(--brass);background:var(--card-well,#F1E6C8);color:var(--brass);text-decoration:underline;}
+  .ped-box-link:focus-visible{outline:2px solid var(--brass);outline-offset:1px;}
 
   /* Ficha completa do animal (página de perfil) */
   .btn-icon-link{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;vertical-align:middle;}
@@ -537,13 +540,13 @@
     <div class="nav" id="nav">
       <div class="nav-item active" data-view="inicio" title="Atalho: Alt+Shift+I"><span class="dot"></span>Início</div>
       <div class="nav-item" data-view="calendario" title="Atalho: Alt+Shift+C"><span class="dot"></span>Calendário</div>
+      <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Reprodução</div>
 
       <div class="nav-group open" data-group="animais-grp">
         <div class="nav-group-head"><span>Animais</span><span class="chev">›</span></div>
         <div class="nav-group-body">
           <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
           <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
-          <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Reprodução</div>
         </div>
       </div>
 
@@ -1010,6 +1013,7 @@
         <div><div class="title">Reprodução</div><div class="subtitle">Visitas veterinárias, coberturas, prenhez e nascimentos</div></div>
         <div style="display:flex;gap:10px;">
           <button class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
+          <button class="btn btn-ghost btn-sm" id="btnConfigColetaEmbriao" title="Dias entre a ovulação e a coleta do embrião (transferência de embrião)">🥚 Dias p/ coleta</button>
           <button class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
           <button class="btn btn-ghost" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
           <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Nova Cobertura</button>
@@ -1983,8 +1987,15 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode deixar em branco agora e informar depois (após a coleta e a transferência do embrião), editando esta cobertura.</div>
       </div>
       <div class="field" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional — informe após a transferência)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
+      <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
+      <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
       <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
       <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
+      <div class="field full">
+        <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
+        <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
+      </div>
       <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
       <div class="field"><label>Letra do ano</label><input type="text" id="n_letra" maxlength="1"></div>
       <div class="field full"><label>Observações</label><input type="text" id="n_obs" spellcheck="true" lang="pt-BR"></div>
@@ -2867,6 +2878,8 @@ async function loadAll(){
     // de procedimento (Ferrageamento ou Casqueamento), em vez de um valor fixo por animal.
     if(config.freqFerrageamento===undefined) config.freqFerrageamento = 30;
     if(config.freqCasqueamento===undefined) config.freqCasqueamento = 60;
+    // Dias entre a ovulação e a coleta do embrião (transferência de embrião) — padrão D8, ajustável.
+    if(config.diasColetaEmbriao===undefined) config.diasColetaEmbriao = 8;
   }
   // Protocolo de vacinas de gestação/potro — sugestão inicial (revisar com veterinário). Só cria na
   // primeira vez; depois disso é 100% editável em Nascimentos → Protocolo de Vacinas, sem se autoreescrever.
@@ -5039,8 +5052,8 @@ computeProgramacao = memoRajada(computeProgramacao); // ver memoRajada — evita
    o calendário já passa a mostrar também as aplicações de medicamento, sem mudar nada aqui. */
 let calView = 'mes';
 let calDate = new Date(); calDate.setHours(0,0,0,0);
-const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰', RetornoRepro:'🔄', Transporte:'🚚' };
-const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário', RetornoRepro:'Retorno Reprodutivo', Transporte:'Transporte' };
+const CAL_ICON = { Casco:'🐴', Dente:'🦷', Vacina:'💉', Vermífugo:'💊', Tratamento:'🩺', VacinaGestacao:'🤰', VacinaPotro:'🐣', Salario:'💰', RetornoRepro:'🔄', ColetaEmbriao:'🥚', Transporte:'🚚' };
+const CAL_GRUPO_LABEL = { VacinaGestacao:'Vacina de Gestação', VacinaPotro:'Vacina de Potro', Salario:'Confirmar Salário', RetornoRepro:'Retorno Reprodutivo', ColetaEmbriao:'Coleta de Embrião', Transporte:'Transporte' };
 // Data no fuso LOCAL do aparelho, no formato AAAA-MM-DD — nunca use .toISOString() aqui: ela sempre
 // devolve o horário em UTC, e pra quem está no Brasil (UTC-3) isso faz o app achar que já é o dia
 // seguinte a partir das 21h de toda noite (a partir das 20h no horário de verão, quando existia).
@@ -5174,6 +5187,19 @@ function computeCalendarTasks(){
       situacao: r.retorno<hoje ? 'atrasado' : 'proximo'
     });
   });
+  // Coleta de embrião: agendada automaticamente quando a ovulação foi marcada numa cobertura de
+  // transferência de embrião (ovulação + N dias). Some quando marcada como feita ou quando o
+  // nascimento é confirmado.
+  const coletaEmbriaoTasks = [];
+  nascimentos.forEach(n=>{
+    if(!n.dataColetaEmbriao || n.coletaEmbriaoFeita || n.confirm==='S') return;
+    const alvoNome = (n.transferenciaEmbriao && n.receptora) ? n.matriz : n.matriz; // a coleta é sempre na doadora/matriz
+    coletaEmbriaoTasks.push({
+      data: n.dataColetaEmbriao, tipo:'ColetaEmbriao', label:'Coleta de embrião: '+(alvoNome||'?'), categoria:'repro',
+      nascimentoId:n.id, animalId:(findHorseByName(alvoNome)||{}).id||null, animalNome:alvoNome||'',
+      situacao: n.dataColetaEmbriao<hoje ? 'atrasado' : 'proximo'
+    });
+  });
   // Transporte planejado (ainda não marcado como realizado) — some da agenda quando você marca
   // "realizado" no cadastro. Atrasado = data de saída já passou e não foi marcado.
   const transporteTasks = [];
@@ -5186,7 +5212,7 @@ function computeCalendarTasks(){
       situacao: t.data<hoje ? 'atrasado' : 'proximo'
     });
   });
-  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...transporteTasks, ...salarioTasks, ...atividadeTasks];
+  return [...manejoTasks, ...tratamentoTasks, ...gestacaoTasks, ...potroTasks, ...retornoReproTasks, ...coletaEmbriaoTasks, ...transporteTasks, ...salarioTasks, ...atividadeTasks];
 }
 computeCalendarTasks = memoRajada(computeCalendarTasks); // idem — chamado ~4x por renderInicio()
 function tasksByDate(tasks){
@@ -5689,7 +5715,7 @@ function renderInicioReproducao(host){
   const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
   // Quem realmente vai parir é a receptora quando é transferência de embrião (alvoVacinaGestacao já
   // resolve isso certo) — a Matriz sozinha só cabe pra prenhez natural.
-  const previstos = prenhezes.map(n=>({nome: alvoVacinaGestacao(n).nome, prevista: n.datacob ? calcProvavelNascimento(n.datacob) : null}))
+  const previstos = prenhezes.map(n=>({nome: alvoVacinaGestacao(n).nome, prevista: refCobertura(n) ? calcProvavelNascimento(refCobertura(n)) : null}))
     .filter(p=>p.prevista).sort((a,b)=>(a.prevista>b.prevista?1:-1)).slice(0,3);
   const previstosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>' : previstos.map(p=>
     `<div class="dash-medidor-linha"><span><strong>${p.nome}</strong></span><span>${fmtDate(p.prevista)}</span></div>`).join('');
@@ -5973,6 +5999,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehFuncionario = arr[0].categoria==='funcionario';
     const ehAtividade = arr[0].categoria==='atividade';
     const ehRepro = arr[0].categoria==='repro';
+    const ehColeta = tipo==='ColetaEmbriao';
     const ehTransporte = arr[0].categoria==='transporte';
     const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento||ehAtividade) && arr.length>1;
@@ -6010,6 +6037,8 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-consultaratividade="${t.treinoId}">👁 Consultar / Editar</button><button type="button" class="btn btn-sm btn-danger" data-excluiratividade="${t.treinoId}" title="Exclui esse treino/atividade cadastrado">🗑 Excluir</button></div>`
           : (ehGestacao||ehPotro)
             ? `<button type="button" class="btn btn-sm" data-concluirprotocolo="${ehGestacao?'gestacao':'potro'}|${ehGestacao?t.nascimentoId:t.animalId}|${t.itemId}">✔ Marcar aplicada</button>`
+            : ehColeta
+              ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-coletafeita="${t.nascimentoId}">✔ Coleta feita</button><button type="button" class="btn btn-sm btn-ghost" data-abrircobcal="${t.nascimentoId}">👁 Ver cobertura</button></div>`
             : ehRepro
               ? `<button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">👁 Ver ficha</button>`
             : ehFuncionario
@@ -6096,6 +6125,22 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       closeModal('overlayCalDetalhe');
       if(typeof irParaView==='function') irParaView('transporte');
       setTimeout(()=>{ if(typeof openTransporteEdit==='function') openTransporteEdit(btn.dataset.abrirtransporte); }, 30);
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-coletafeita]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const n = nascimentos.find(x=>x.id===btn.dataset.coletafeita); if(!n) return;
+      n.coletaEmbriaoFeita = true;
+      await storeSet('nascimentos_list', nascimentos);
+      renderCalendar(); renderInicio(); renderNascimentos();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-abrircobcal]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      closeModal('overlayCalDetalhe');
+      if(typeof irParaView==='function') irParaView('nascimentos');
+      setTimeout(()=>{ if(typeof openNascEdit==='function') openNascEdit(btn.dataset.abrircobcal); }, 30);
     });
   });
   document.getElementById('calDetBody').querySelectorAll('[data-excluiratividade]').forEach(btn=>{
@@ -8171,6 +8216,16 @@ function gerarRelatorioCobrancaTreinos(){
 document.getElementById('btnGerarRelCobranca').addEventListener('click', gerarRelatorioCobrancaTreinos);
 
 /* ================= NASCIMENTOS ================= */
+// Uma cobertura pode ter mais de uma monta (a égua não ovulou e foi coberta de novo no dia seguinte).
+// datacob = a 1ª; coberturasAdicionais = [{data, obs}] com as seguintes. Pro cálculo de provável
+// nascimento e vacinas de gestação, vale a ÚLTIMA (mais perto da ovulação = concepção mais provável).
+function todasCoberturas(n){
+  const out = [];
+  if(n && n.datacob) out.push(n.datacob);
+  ((n && n.coberturasAdicionais)||[]).forEach(c=>{ if(c && c.data) out.push(c.data); });
+  return [...new Set(out)].sort();
+}
+function refCobertura(n){ const c = todasCoberturas(n); return c.length ? c[c.length-1] : ((n&&n.datacob)||''); }
 // Data provável de nascimento = Data Cobertura + tempo de gestação configurado (em dias).
 function calcProvavelNascimento(datacob){
   if(!datacob) return '';
@@ -8179,9 +8234,27 @@ function calcProvavelNascimento(datacob){
   d.setDate(d.getDate() + (Number(config.gestacaoDias)||0));
   return toISODate(d);
 }
+// Coberturas adicionais do modal (mesma égua, montas nos dias seguintes antes de ovular).
+let nascCobExtras = [];
+function renderNascCobExtras(){
+  const host = document.getElementById('n_cobExtrasHost');
+  host.innerHTML = nascCobExtras.map((c,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input type="date" data-cobextra-data="${i}" value="${c.data||''}" style="flex:0 0 150px;">
+      <input type="text" data-cobextra-obs="${i}" value="${(c.obs||'').replace(/"/g,'&quot;')}" placeholder="Observação (opcional)" style="flex:1;">
+      <button type="button" class="btn btn-sm btn-ghost" data-cobextra-del="${i}" title="Remover">✕</button>
+    </div>`).join('');
+  host.querySelectorAll('[data-cobextra-data]').forEach(el=>el.addEventListener('input',()=>{ nascCobExtras[+el.dataset.cobextraData].data=el.value; atualizarProvavelNascimentoView(); }));
+  host.querySelectorAll('[data-cobextra-obs]').forEach(el=>el.addEventListener('input',()=>{ nascCobExtras[+el.dataset.cobextraObs].obs=el.value; }));
+  host.querySelectorAll('[data-cobextra-del]').forEach(el=>el.addEventListener('click',()=>{ nascCobExtras.splice(+el.dataset.cobextraDel,1); renderNascCobExtras(); atualizarProvavelNascimentoView(); }));
+}
+document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
 function atualizarProvavelNascimentoView(){
-  const prov = calcProvavelNascimento(document.getElementById('n_datacob').value);
-  document.getElementById('n_provavelView').value = prov ? fmtDate(prov)+' ('+config.gestacaoDias+' dias após a cobertura)' : '—';
+  const datas = [document.getElementById('n_datacob').value, ...nascCobExtras.map(c=>c.data)].filter(Boolean).sort();
+  const ref = datas.length ? datas[datas.length-1] : '';
+  const prov = calcProvavelNascimento(ref);
+  const sufixo = datas.length>1 ? ' (da última cobertura, '+config.gestacaoDias+' dias)' : ' ('+config.gestacaoDias+' dias após a cobertura)';
+  document.getElementById('n_provavelView').value = prov ? fmtDate(prov)+sufixo : '—';
 }
 document.getElementById('n_datacob').addEventListener('input', atualizarProvavelNascimentoView);
 document.getElementById('btnConfigGestacao').addEventListener('click', async ()=>{
@@ -8195,6 +8268,15 @@ document.getElementById('btnConfigGestacao').addEventListener('click', async ()=
   atualizarProvavelNascimentoView();
   renderNascimentos();
 });
+document.getElementById('btnConfigColetaEmbriao').addEventListener('click', async ()=>{
+  const val = await showPrompt('Dias entre a OVULAÇÃO e a COLETA do embrião (transferência de embrião):', 'Ex: 8 (atual: '+(config.diasColetaEmbriao||8)+')');
+  if(val===null) return;
+  const dias = Number(val);
+  if(!val || isNaN(dias) || dias<=0){ showAlert('Informe um número de dias válido.'); return; }
+  config.diasColetaEmbriao = Math.round(dias);
+  await storeSet('config', config);
+  showAlert('Coleta do embrião passa a ser calculada como ovulação + '+config.diasColetaEmbriao+' dias.');
+});
 
 let editingNascId = null;
 document.getElementById('n_confirm').addEventListener('change', e=>{
@@ -8204,19 +8286,30 @@ document.getElementById('n_confirm').addEventListener('change', e=>{
 // Receptora só faz sentido junto de transferência de embrião — desmarcando, some e limpa (pra não
 // ficar um nome de receptora esquecido numa cobertura que não é mais TE).
 document.getElementById('n_transferenciaEmbriao').addEventListener('change', e=>{
-  document.getElementById('n_receptoraWrap').style.display = e.target.checked ? 'flex' : 'none';
-  if(!e.target.checked) document.getElementById('n_receptora').value = '';
+  const on = e.target.checked;
+  document.getElementById('n_receptoraWrap').style.display = on ? 'flex' : 'none';
+  document.getElementById('n_ovulacaoWrap').style.display = on ? 'flex' : 'none';
+  document.getElementById('n_coletaWrap').style.display = on ? 'flex' : 'none';
+  if(!on){ document.getElementById('n_receptora').value = ''; document.getElementById('n_dataOvulacao').value=''; document.getElementById('n_dataColetaEmbriao').value=''; }
+});
+document.getElementById('n_dataOvulacao').addEventListener('input', ()=>{
+  const ov = document.getElementById('n_dataOvulacao').value;
+  const coletaEl = document.getElementById('n_dataColetaEmbriao');
+  if(ov){ coletaEl.value = toISODate(addToDate(ov, Number(config.diasColetaEmbriao)||8, 'dias')); }
 });
 document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
   document.getElementById('btnDeleteNasc').style.display = 'none';
-  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal'].forEach(id=>document.getElementById(id).value='');
+  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_receptoraWrap').style.display='none';
+  document.getElementById('n_ovulacaoWrap').style.display='none';
+  document.getElementById('n_coletaWrap').style.display='none';
   document.getElementById('n_nomeWrap').style.display='none';
   document.getElementById('n_sexoWrap').style.display='none';
+  nascCobExtras = []; renderNascCobExtras();
   atualizarProvavelNascimentoView();
   openModal('overlayNasc');
 });
@@ -8230,7 +8323,13 @@ function openNascEdit(id){
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
+  document.getElementById('n_ovulacaoWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
+  document.getElementById('n_coletaWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
+  document.getElementById('n_dataOvulacao').value = n.dataOvulacao||'';
+  document.getElementById('n_dataColetaEmbriao').value = n.dataColetaEmbriao||'';
   document.getElementById('n_datacob').value = n.datacob||'';
+  nascCobExtras = (n.coberturasAdicionais||[]).map(c=>({data:c.data||'', obs:c.obs||''}));
+  renderNascCobExtras();
   document.getElementById('n_datanasc').value = n.datanasc||'';
   document.getElementById('n_letra').value = n.letra||'';
   document.getElementById('n_obs').value = n.obs||'';
@@ -8259,7 +8358,11 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   // numa cobertura já confirmada (data, observação...) apagava o protocolo de vacinas da gestação
   // já gerado (e quais doses já tinham sido marcadas como aplicadas).
   const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao,
-    datacob:f('n_datacob'), datanasc:f('n_datanasc'), letra:f('n_letra'), obs:f('n_obs'), confirm: confirmado?'S':'N',
+    datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
+    dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
+    dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
+    coletaEmbriaoFeita: existente ? !!existente.coletaEmbriaoFeita : false,
+    datanasc:f('n_datanasc'), letra:f('n_letra'), obs:f('n_obs'), confirm: confirmado?'S':'N',
     animalId: existente ? existente.animalId : null,
     prenhezConfirmada: existente ? (existente.prenhezConfirmada||'N') : 'N',
     prenhezUltima: existente ? (existente.prenhezUltima||'') : '',
@@ -8329,8 +8432,9 @@ document.getElementById('btnDeleteNasc').addEventListener('click', async ()=>{
    checklist (protocoloVacinas no nascimento / protocoloPotro no animal) — assim marcar "aplicada" não
    se perde, e reabrir a tela não recalcula em cima do que já foi feito. */
 function gerarAgendaVacinasGestacao(n){
-  if(!n.datacob) return [];
-  const provavel = n.datanasc || calcProvavelNascimento(n.datacob);
+  const baseCob = refCobertura(n);
+  if(!baseCob) return [];
+  const provavel = n.datanasc || calcProvavelNascimento(baseCob);
   const itens = [];
   (config.protocoloVacinasGestacao||[]).forEach(regra=>{
     (regra.valores||[]).forEach(v=>{
@@ -8340,7 +8444,7 @@ function gerarAgendaVacinasGestacao(n){
         dataAlvo = toISODate(addToDate(provavel, -Number(v), 'dias'));
       } else {
         // 'mes_gestacao' e 'meses_apos_cobertura' calculam igual: N meses contados da cobertura.
-        dataAlvo = toISODate(addToDate(n.datacob, Number(v), 'meses'));
+        dataAlvo = toISODate(addToDate(baseCob, Number(v), 'meses'));
       }
       itens.push({ id: regra.id+'_'+v, regraId: regra.id, nome: regra.nome, ordinal:Number(v), dataAlvo, feito:false, dataFeito:null });
     });
@@ -8510,13 +8614,16 @@ function abrirListaPrenhezesConfirmadas(){
 
 // Relatório em PDF de um registro de nascimento só — mesmo esquema já usado em Manejos e Treinos.
 function blocoRelatorioNascimento(n){
-  const provavel = !n.datanasc ? calcProvavelNascimento(n.datacob) : '';
+  const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
   const confirmacoes = (n.prenhezHistorico||[]).slice().sort();
+  const cobs = todasCoberturas(n);
   return `<h1 style="border:none;">Nascimento — ${n.matriz}</h1>
     <div class="sub">Pai: ${n.pai||'—'} ${n.receptora?(' · Receptora: '+n.receptora):''}</div>
     <div class="report-tipo-titulo">Datas</div>
     <ul class="animais-simples">
-      <li>Cobertura: ${fmtDate(n.datacob)||'—'}</li>
+      <li>Cobertura${cobs.length>1?'s':''}: ${cobs.length ? cobs.map(fmtDate).join(', ') : '—'}</li>
+      ${n.dataOvulacao?`<li>Ovulação: ${fmtDate(n.dataOvulacao)}</li>`:''}
+      ${n.dataColetaEmbriao?`<li>Coleta do embrião: ${fmtDate(n.dataColetaEmbriao)}</li>`:''}
       <li>Provável nascimento: ${provavel?fmtDate(provavel):'—'}</li>
       <li>Nascimento confirmado: ${n.confirm==='S' ? fmtDate(n.datanasc) : 'Ainda não'}</li>
     </ul>
@@ -8595,13 +8702,15 @@ function renderNascimentos(){
   };
   tbody.innerHTML = filtered.map(n=>{
     const animal = n.animalId ? horses.find(h=>h.id===n.animalId) : null;
-    const provavel = !n.datanasc ? calcProvavelNascimento(n.datacob) : '';
+    const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
+    const cobsN = todasCoberturas(n);
+    const dtCobCell = cobsN.length<=1 ? fmtDate(n.datacob) : `${fmtDate(cobsN[cobsN.length-1])} <span class="pill st-outro" title="${cobsN.map(fmtDate).join(' · ')}">+${cobsN.length-1}</span>`;
     const prenhezPill = n.prenhezConfirmada==='S'
       ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
       : `<span class="pill st-descarte">Não</span>`;
     return `<tr>
       <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
-      <td data-col="dtCobertura">${fmtDate(n.datacob)}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
+      <td data-col="dtCobertura">${dtCobCell}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
       <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
       <td data-col="prenhez">${prenhezPill}</td>
       <td data-col="confirmado">${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${n.obs||''}</td>
@@ -8801,10 +8910,11 @@ function gerarRelatorioNascimentos(){
     <div class="grid-wrap compact"><table class="grid">
       <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Provável Nascimento</th><th>Dt Nascimento</th><th>Confirm.</th><th>Observações</th></tr></thead>
       <tbody>${filtered.map(n=>{
-        const provavel = !n.datanasc ? calcProvavelNascimento(n.datacob) : '';
+        const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
+        const cobsR = todasCoberturas(n);
         return `<tr>
           <td>${nomeComOlho(n.matriz)}</td><td>${nomeComOlho(n.pai)}</td><td>${nomeComOlho(n.receptora)}</td>
-          <td>${fmtDate(n.datacob)}</td><td>${provavel?fmtDate(provavel):'—'}</td><td>${fmtDate(n.datanasc)}</td>
+          <td>${cobsR.map(fmtDate).join(', ')||'—'}</td><td>${provavel?fmtDate(provavel):'—'}</td><td>${fmtDate(n.datanasc)}</td>
           <td>${n.confirm==='S'?'Sim':'Não'}</td><td>${n.obs||''}</td>
         </tr>`;
       }).join('')}</tbody>
@@ -11203,6 +11313,21 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     totalVacinas += confirmarPrenhezRegistro(n, data);
     mexeuNascimentos = true;
   }
+  // Ovulação numa cobertura de TRANSFERÊNCIA DE EMBRIÃO em aberto → grava a data da ovulação e agenda
+  // a coleta do embrião (ovulação + N dias, config.diasColetaEmbriao, padrão 8). Só na 1ª vez (não
+  // sobrescreve se já tinha ovulação registrada). Vira tarefa no Calendário (🥚 Coleta de embrião).
+  const coletasAgendadas = [];
+  const diasColeta = Number(config.diasColetaEmbriao) || 8;
+  for(const e of eguas){
+    if(e.ovulou!=='sim') continue;
+    const n = coberturaAbertaDaEgua(e.nome);
+    if(!n || !n.transferenciaEmbriao || n.dataOvulacao) continue;
+    n.dataOvulacao = data;
+    n.dataColetaEmbriao = toISODate(addToDate(data, diasColeta, 'dias'));
+    n.coletaEmbriaoFeita = false;
+    mexeuNascimentos = true;
+    coletasAgendadas.push(e.nome + ' → coleta ' + fmtDate(n.dataColetaEmbriao));
+  }
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
   closeModal('overlayVisitaRepro');
   renderVisitasRepro(); renderNascimentos();
@@ -11215,7 +11340,8 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   if(receptorasDefinidas.length) msg += ' Receptora definida na transferência de embrião: '+receptorasDefinidas.join(', ')+'.';
   if(mexeuNascimentos) msg += ' Prenhez confirmada na cobertura correspondente' + (totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
   if(semCobertura.length>0) msg += ' Sem cobertura em aberto pra: '+semCobertura.join(', ')+' (registre a cobertura na aba Coberturas pra ligar a prenhez).';
-  if(mexeuNascimentos || semCobertura.length>0 || receptorasDefinidas.length) showAlert(msg);
+  if(coletasAgendadas.length) msg += ' Coleta de embrião agendada: '+coletasAgendadas.join('; ')+'.';
+  if(mexeuNascimentos || semCobertura.length>0 || receptorasDefinidas.length || coletasAgendadas.length) showAlert(msg);
 });
 document.getElementById('btnDeleteVisitaRepro').addEventListener('click', async ()=>{
   if(!editingVisitaReproId || !(await showConfirm('Excluir esta visita reprodutiva? As prenhezes já confirmadas por ela não são desfeitas.'))) return;
@@ -12067,10 +12193,13 @@ function buildPedigreeTree(h){
   const totalW = x3+PED_BOX_W+4, totalH = Math.max(y3[7]+PED_ROW_H/2, PED_BOX_H)+4;
 
   let svg = '';
-  const box = (x,y,nome,destaque)=>{
+  const box = (x,y,nome,destaque,sexo)=>{
     if(!nome) return '';
+    // Nome vira botão pra abrir a ficha do ancestral (mesmo Externo / não ativo). Se ele ainda não
+    // tiver ficha, clicar cria como Externo — ver listener em .pedigree-tree-wrap.
+    const attrs = destaque ? '' : ` data-pedn="${String(nome).replace(/"/g,'&quot;')}" data-peds="${sexo||''}" role="button" tabindex="0" title="Abrir ficha de ${String(nome).replace(/"/g,'&quot;')}"`;
     return `<foreignObject x="${x}" y="${y-PED_BOX_H/2}" width="${PED_BOX_W}" height="${PED_BOX_H}">
-      <div xmlns="http://www.w3.org/1999/xhtml" class="ped-box${destaque?' ped-box-root':''}">${nome}</div>
+      <div xmlns="http://www.w3.org/1999/xhtml" class="ped-box${destaque?' ped-box-root':' ped-box-link'}"${attrs}>${nome}</div>
     </foreignObject>`;
   };
   const linha = (x1,y1,x2,y2)=>{
@@ -12078,17 +12207,40 @@ function buildPedigreeTree(h){
     return `<path d="M ${x1} ${y1} H ${midX} V ${y2} H ${x2}" class="ped-line"/>`;
   };
 
+  // Sexo pela posição na árvore: índice par = macho (linha do pai), ímpar = fêmea (linha da mãe).
+  const sx = i => i%2===0 ? 'MASCULINO' : 'FEMININO';
   // Animal (raiz) — sempre aparece
   svg += box(x0, y0, h.nome, true);
   // Pai / Mãe
-  nivel1.forEach((nome,i)=>{ if(nome){ svg += linha(x0+PED_BOX_W, y0, x1, y1[i]); svg += box(x1, y1[i], nome); } });
+  nivel1.forEach((nome,i)=>{ if(nome){ svg += linha(x0+PED_BOX_W, y0, x1, y1[i]); svg += box(x1, y1[i], nome, false, sx(i)); } });
   // Avós
-  nivel2.forEach((nome,i)=>{ if(nome && nivel1[Math.floor(i/2)]){ svg += linha(x1+PED_BOX_W, y1[Math.floor(i/2)], x2, y2[i]); svg += box(x2, y2[i], nome); } });
+  nivel2.forEach((nome,i)=>{ if(nome && nivel1[Math.floor(i/2)]){ svg += linha(x1+PED_BOX_W, y1[Math.floor(i/2)], x2, y2[i]); svg += box(x2, y2[i], nome, false, sx(i)); } });
   // Bisavós
-  nivel3.forEach((nome,i)=>{ if(nome && nivel2[Math.floor(i/2)]){ svg += linha(x2+PED_BOX_W, y2[Math.floor(i/2)], x3, y3[i]); svg += box(x3, y3[i], nome); } });
+  nivel3.forEach((nome,i)=>{ if(nome && nivel2[Math.floor(i/2)]){ svg += linha(x2+PED_BOX_W, y2[Math.floor(i/2)], x3, y3[i]); svg += box(x3, y3[i], nome, false, sx(i)); } });
 
   return `<div class="pedigree-tree-wrap"><svg class="pedigree-tree-svg" viewBox="0 0 ${totalW} ${totalH}" width="${totalW}" height="${totalH}">${svg}</svg></div>`;
 }
+// Clicar num nome do pedigree abre a ficha daquele ancestral (ativo ou não). Sem ficha ainda, cria
+// como Externo na hora (mesma regra da genealogia no cadastro) e abre.
+async function abrirAncestralPedigree(nome, sexo){
+  if(!nome) return;
+  let alvo = findHorseByName(nome);
+  if(!alvo){
+    ensureExternalAnimal(nome, sexo==='FEMININO'?'FEMININO':'MASCULINO');
+    alvo = findHorseByName(nome);
+    if(alvo){ await storeSet('horses_list', horses); refreshDatalists(); }
+  }
+  if(alvo) abrirPerfilAnimal(alvo.id);
+}
+document.addEventListener('click', e=>{
+  const cx = e.target.closest && e.target.closest('.ped-box-link');
+  if(cx && cx.dataset.pedn) abrirAncestralPedigree(cx.dataset.pedn, cx.dataset.peds);
+});
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const cx = e.target.closest && e.target.closest('.ped-box-link');
+  if(cx && cx.dataset.pedn){ e.preventDefault(); abrirAncestralPedigree(cx.dataset.pedn, cx.dataset.peds); }
+});
 
 /* ================= FINANCEIRO ================= */
 // Livro-caixa simples: lançamentos manuais de entrada e saída, com categoria (lista aberta, editável
@@ -14305,8 +14457,10 @@ function blocoReproducaoFicha(h){
       : papel==='receptora' ? ('embrião de '+(n.matriz||'?'))
       : ('matriz '+(n.matriz||'?'));
     const prov = n.datanasc ? ('nasc. '+fmtDate(n.datanasc))
-      : (n.datacob ? ('prev. '+fmtDate(calcProvavelNascimento(n.datacob))) : '');
-    return `<div class="stat-list-row clicavel" data-abrircob="${n.id}"><span>${n.datacob?fmtDate(n.datacob):'—'} · ${detalhe}${prov?(' · '+prov):''}</span>${statusCob(n)}</div>`;
+      : (refCobertura(n) ? ('prev. '+fmtDate(calcProvavelNascimento(refCobertura(n)))) : '');
+    const cobsL = todasCoberturas(n);
+    const cobTxt = cobsL.length ? (cobsL.map(fmtDate).join(', ')) : '—';
+    return `<div class="stat-list-row clicavel" data-abrircob="${n.id}"><span>${cobTxt} · ${detalhe}${prov?(' · '+prov):''}</span>${statusCob(n)}</div>`;
   };
   const partesExame = e => [
     e.diagnostico ? (REPRO_DIAG_LABEL[e.diagnostico]||e.diagnostico) : null,
