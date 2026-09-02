@@ -1446,6 +1446,7 @@
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
         <div class="field" id="f_dataVendaWrap"><label>Data da Venda</label><input type="date" id="f_dataVenda" title="Usada pelo rateio de custos gerais (Financeiro → Custo por Animal) pra parar de contar este animal a partir do mês seguinte."></div>
         <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_compra" style="width:15px;height:15px;margin:0;"> Animal comprado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(entrou no plantel por compra, não nascimento)</span></label></div>
+        <div class="field" id="f_compradoDeWrap" style="display:none;"><label>Comprado de <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(de quem foi comprado)</span></label><input type="text" id="f_compradoDe" list="dl_vendedores" placeholder="Nome do vendedor / haras"></div>
         <div class="field" id="f_doadorWrap"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="f_doador" style="width:15px;height:15px;margin:0;"> Doadora de embriões <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(só fêmeas)</span></label></div>
         <div class="field full"><label>Link da foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cole um link do Google Drive, Imgur, etc — ou escolha uma foto do celular abaixo)</span></label>
           <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
@@ -1467,7 +1468,7 @@
     </form>
   </div>
 </div>
-<datalist id="dl_machos"></datalist><datalist id="dl_femeas"></datalist><datalist id="dl_medicamentos"></datalist>
+<datalist id="dl_machos"></datalist><datalist id="dl_femeas"></datalist><datalist id="dl_medicamentos"></datalist><datalist id="dl_vendedores"></datalist>
 
 <!-- EDITAR EM LOTE (Animais) -->
 <div class="overlay" id="overlayEditLote">
@@ -2664,7 +2665,7 @@ const AUDIT_CAMPO_LABEL = {
   nascimento:'Nascimento', falecimento:'Falecimento', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
   avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
-  comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', obs:'Observações',
+  comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', compradoDe:'Comprado de', obs:'Observações',
   fotoUrl:'Foto', freqcasco:'Freq. casco', freqdente:'Freq. dente', freqvacina:'Freq. vacina',
   freqvermifugo:'Freq. vermífugo', data:'Data', tipo:'Tipo', subtipo:'Procedimento', descricao:'Descrição',
   moeda:'Moeda', quantidade:'Quantidade', animais:'Animais', rateio:'Rateio por animal',
@@ -3322,6 +3323,7 @@ function refreshDatalists(){
   setDL('dl_femeas', horses.filter(h=>h.sexo==='FEMININO').map(h=>h.nome));
   setDL('dl_allhorses', horses.map(h=>h.nome));
   setDL('dl_medicamentos', estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome));
+  setDL('dl_vendedores', [...horses.map(h=>h.compradoDe), ...(aux.proprietarios||[])]);
 }
 
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -4413,6 +4415,13 @@ function atualizarDataVendaWrap(){
   if(!vendido) document.getElementById('f_dataVenda').value = '';
 }
 document.getElementById('f_situacao').addEventListener('change', atualizarDataVendaWrap);
+// "Comprado de" só aparece quando "Animal comprado" está marcado.
+function atualizarCompradoDeWrap(){
+  const comprado = document.getElementById('f_compra').checked;
+  document.getElementById('f_compradoDeWrap').style.display = comprado ? '' : 'none';
+  if(!comprado) document.getElementById('f_compradoDe').value = '';
+}
+document.getElementById('f_compra').addEventListener('change', atualizarCompradoDeWrap);
 function openHorseNew(){
   editingHorseId=null;
   document.getElementById('hModalTitle').textContent='Novo Animal';
@@ -4423,6 +4432,7 @@ function openHorseNew(){
   ['f_avopat','f_avopatmat','f_avomatpat','f_avomat'].forEach(id=>{ const el=document.getElementById(id); el.readOnly=false; el.style.background='#fff'; });
   atualizarDoadorWrap();
   atualizarDataVendaWrap();
+  atualizarCompradoDeWrap();
   atualizarFotoPreview();
   openModal('overlayHorse');
 }
@@ -4446,7 +4456,9 @@ function openHorseEdit(id){
   document.getElementById('f_valorNumero').value = valorTxt.replace(/^\s*(R\$|US\$)\s*/,'').trim();
   document.getElementById('f_doador').checked = !!h.doador;
   document.getElementById('f_compra').checked = !!h.compra;
+  document.getElementById('f_compradoDe').value = h.compradoDe || '';
   atualizarDoadorWrap();
+  atualizarCompradoDeWrap();
   atualizarFotoPreview();
   tryAutoFillGrandparents();
   openModal('overlayHorse');
@@ -4574,7 +4586,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     // existe na tela, e o valor que já estava gravado é mantido exatamente como estava.
     proprietario:titleCase(f('f_proprietario')),valor: podeVerValoresAnimais() ? (f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '') : ((existenteAnimal&&existenteAnimal.valor)||''),comprador:titleCase(f('f_comprador')),
     dataVenda: f('f_situacao')==='V' ? f('f_dataVenda') : '',
-    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
+    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,compradoDe: document.getElementById('f_compra').checked ? titleCase(f('f_compradoDe')) : '',fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
   // Data em que o registro passou a existir aqui — usada só pelo rateio de custos gerais (Financeiro
   // → Custo por Animal) pra saber a partir de qual mês esse animal entra na divisão. Automática, gravada
   // uma vez só na criação (nunca muda depois); quem já estava cadastrado antes dessa atualização não
@@ -5481,8 +5493,8 @@ function abrirListaInicio(tipo){
       body.innerHTML = itens.map(h=>{
         const situ = h.falecimento ? 'Falecido' : (h.situacao==='V' ? 'Vendido' : (h.situacao==='E' ? 'Externo' : 'Ativo'));
         const cls = situ==='Ativo' ? 'st-ativo' : (situ==='Vendido'||situ==='Falecido' ? 'st-descarte' : 'st-outro');
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-          <div><button type="button" class="eye-inline" data-irperfilinicio="${h.id}" title="Abrir ficha">👁</button> <strong>${h.nome}</strong></div>
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:10px;">
+          <div><button type="button" class="eye-inline" data-irperfilinicio="${h.id}" title="Abrir ficha">👁</button> <strong>${h.nome}</strong>${h.compradoDe?` <span style="color:var(--muted);font-size:12px;">— de ${h.compradoDe}</span>`:''}</div>
           <span class="pill ${cls}">${situ}</span>
         </div>`;
       }).join('');
@@ -14498,6 +14510,7 @@ function renderAnimalPerfil(id){
         <div class="perfil-subsection">Propriedade</div>
         <div class="perfil-fields">
           <div class="perfil-field"><label>Proprietário</label><div class="val">${h.proprietario||'—'}</div></div>
+          ${h.compra?`<div class="perfil-field"><label>Comprado de</label><div class="val">${h.compradoDe||'—'}</div></div>`:''}
           ${h.situacao==='V'?`<div class="perfil-field"><label>Comprador</label><div class="val">${h.comprador||'—'}</div></div>
           <div class="perfil-field"><label>Data da venda</label><div class="val">${h.dataVenda?fmtDate(h.dataVenda):'—'}</div></div>
           ${podeVerValoresAnimais()?`<div class="perfil-field"><label>Valor da venda</label><div class="val">${h.valor||'—'}</div></div>`:''}`:
