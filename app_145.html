@@ -2282,7 +2282,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayRelatorioPrevia">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="relatorioPreviaTitulo">Prévia do Relatório</div><button class="modal-close" data-close="overlayRelatorioPrevia">✕</button></div>
-    <div id="relatorioPreviaBody" style="max-height:60vh;overflow-y:auto;border:1px solid var(--line);border-radius:8px;"></div>
+    <div id="relatorioPreviaBody" style="max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;"></div>
     <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayRelatorioPrevia">Fechar</button><button type="button" class="btn" id="btnBaixarPreviaRelatorio">⬇ Baixar PDF</button></div></div>
   </div>
 </div>
@@ -6743,6 +6743,7 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   wrapper.style.cssText = 'position:fixed;top:0;left:0;width:100%;min-height:100%;background:#fff;z-index:99999;overflow:auto;';
   const larguraConteudo = paisagem ? 1120 : 800; // A4 paisagem cabe bem mais colunas
   wrapper.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf" style="max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;">${htmlConteudo}</div>`;
+  ajustarTabelasRelatorio(wrapper);
   document.body.appendChild(wrapper);
   // Pequena espera pra garantir que o navegador terminou de desenhar o conteúdo antes de capturar.
   await new Promise(r=>setTimeout(r, 60));
@@ -6762,11 +6763,28 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
     window.scrollTo(0, scrollAnterior);
   }
 }
+// Garante que TODA tabela de relatório caiba na folha: distribui a largura igualmente entre as colunas
+// (força mesmo com table-layout:fixed, que o html2canvas às vezes ignora) e, quando tem muita coluna,
+// diminui a fonte/espaçamento (classes .compacta / .mais-compacta do RELATORIO_MANEJO_ESTILO).
+function ajustarTabelasRelatorio(container){
+  container.querySelectorAll('table').forEach(t=>{
+    const ths = t.querySelectorAll('thead th');
+    const n = ths.length || (t.querySelector('tr') ? t.querySelector('tr').children.length : 0);
+    if(n>=12) t.classList.add('mais-compacta');
+    else if(n>=8) t.classList.add('compacta');
+    if(ths.length>1){
+      const w = (100/ths.length).toFixed(3)+'%';
+      ths.forEach(th=>{ if(!th.style.width) th.style.width = w; });
+    }
+  });
+}
 // Mostra o relatório na tela ANTES de baixar — usado nos botões rápidos de relatório (📄 em
 // Manejos/Treinos/Nascimentos/Visitas), pra dar a chance de conferir antes de gerar o PDF.
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
-  document.getElementById('relatorioPreviaBody').innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf">${htmlConteudo}</div>`;
+  const body = document.getElementById('relatorioPreviaBody');
+  body.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf">${htmlConteudo}</div>`;
+  ajustarTabelasRelatorio(body);
   document.getElementById('btnBaixarPreviaRelatorio').onclick = ()=> baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts);
   openModal('overlayRelatorioPrevia');
 }
@@ -9108,18 +9126,20 @@ document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
   const filtroTxt = [conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas';
   const html = `<h1>Relatório de Coberturas</h1>
     <div class="sub">${filtroTxt} · ${lista.length} registro(s)</div>
-    <table class="compacta"><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovulação</th><th>Coleta embrião</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Prenhez</th><th>Nasceu</th><th>Obs.</th></tr></thead>
+    <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovul. / Coleta</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Situação</th><th>Obs.</th></tr></thead>
     <tbody>${lista.map(n=>{
       const prov = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
+      const ovulColeta = [n.dataOvulacao&&fmtDate(n.dataOvulacao), n.dataColetaEmbriao&&('→ '+fmtDate(n.dataColetaEmbriao))].filter(Boolean).join(' ') || '—';
+      const situacao = n.confirm==='S' ? 'Nasceu' + (n.datanasc?(' '+fmtDate(n.datanasc)):'')
+        : n.prenhezConfirmada==='S' ? 'Prenhe' + (n.prenhezUltima?(' '+fmtDate(n.prenhezUltima)):'')
+        : 'Em aberto';
       return `<tr>
         <td>${n.matriz||'—'}</td><td>${n.pai||'—'}</td><td>${n.receptora||'—'}</td>
         <td>${todasCoberturas(n).map(fmtDate).join(', ')||'—'}</td>
-        <td>${n.dataOvulacao?fmtDate(n.dataOvulacao):'—'}</td>
-        <td>${n.dataColetaEmbriao?fmtDate(n.dataColetaEmbriao):'—'}</td>
+        <td>${ovulColeta}</td>
         <td>${prov?fmtDate(prov):'—'}</td>
         <td>${n.datanasc?fmtDate(n.datanasc):'—'}</td>
-        <td>${n.prenhezConfirmada==='S'?('Sim'+(n.prenhezUltima?(' '+fmtDate(n.prenhezUltima)):'')):'Não'}</td>
-        <td>${n.confirm==='S'?'Sim':'Não'}</td>
+        <td>${situacao}</td>
         <td class="obs">${n.obs||''}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
