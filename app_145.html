@@ -8474,12 +8474,13 @@ function todasCoberturas(n){
   return [...new Set(out)].sort();
 }
 function refCobertura(n){ const c = todasCoberturas(n); return c.length ? c[c.length-1] : ((n&&n.datacob)||''); }
-// Estação reprodutiva de uma data: a temporada vai de julho a junho. Julho–Dezembro → "AA/AA+1";
-// Janeiro–Junho → "AA-1/AA". Ex: 15/08/2024 e 20/01/2025 → "24/25".
+// Estação reprodutiva de uma data: a temporada vai de JUNHO a MAIO do ano seguinte.
+// Junho–Dezembro → "AA/AA+1"; Janeiro–Maio → "AA-1/AA".
+// Ex: 06/2025 e 05/2026 → "25/26"; 06/2020 e 05/2021 → "20/21".
 function estacaoReprodutiva(dataISO){
   if(!dataISO || !/^\d{4}-\d{2}/.test(dataISO)) return '';
   const y = +dataISO.slice(0,4), m = +dataISO.slice(5,7);
-  const ini = m>=7 ? y : y-1;
+  const ini = m>=6 ? y : y-1;
   const p2 = n => String(((n%100)+100)%100).padStart(2,'0');
   return p2(ini)+'/'+p2(ini+1);
 }
