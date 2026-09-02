@@ -11409,6 +11409,18 @@ document.getElementById('btnColunasVisitaRepro').addEventListener('click', ()=>{
   renderColunasVisitaReproPicker();
   openModal('overlayColunasVisitaRepro');
 });
+// Ordenação da tabela de Visitas/Exames — clicar no cabeçalho (Data, Veterinário, Égua, ou qualquer
+// coluna visível) ordena; clicar de novo inverte. Padrão: Data, do mais novo pro mais velho.
+let vrSortCol = 'data', vrSortDir = 'desc';
+function vrValorOrdenacao(l, key){
+  if(key==='data') return l.v.data||'';
+  if(key==='veterinario') return (l.v.veterinario||'').toLowerCase();
+  if(key==='egua') return (l.e.nome||'').toLowerCase();
+  if(key==='local') return (l.v.local||'').toLowerCase();
+  if(key==='proximoRetorno') return l.e.proximoRetorno||'';
+  const raw = l.e[key];
+  return (raw==null?'':String(raw)).trim().toLowerCase();
+}
 function renderVisitasRepro(){
   const tbody = document.getElementById('vrTbody');
   const thead = document.getElementById('vrThead');
@@ -11418,7 +11430,9 @@ function renderVisitasRepro(){
   const vet = (document.getElementById('vrFiltroVet')?.value||'').toLowerCase();
   const term = (document.getElementById('vrSearch')?.value||'').toLowerCase();
   const cols = getColunasVisitaReproVisiveis();
-  thead.innerHTML = `<th>Data</th><th>Veterinário</th><th>Égua</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th></th>`;
+  const seta = k => vrSortCol===k ? `<span class="sort-arrow">${vrSortDir==='asc'?'▲':'▼'}</span>` : '';
+  const thOrd = (k,label) => `<th class="sortable ${vrSortCol===k?'sort-active':''}" data-vrsort="${k}">${label} ${seta(k)}</th>`;
+  thead.innerHTML = thOrd('data','Data')+thOrd('veterinario','Veterinário')+thOrd('egua','Égua')+cols.map(c=>thOrd(c.key,c.label)).join('')+`<th></th>`;
   // uma linha por égua examinada
   const linhas = [];
   visitasRepro.forEach(v=>{
@@ -11430,7 +11444,14 @@ function renderVisitasRepro(){
       linhas.push({ v, e });
     });
   });
-  linhas.sort((a,b)=> (b.v.data||'').localeCompare(a.v.data||'') || (a.e.nome||'').localeCompare(b.e.nome||'','pt'));
+  linhas.sort((a,b)=>{
+    const va = vrValorOrdenacao(a, vrSortCol), vb = vrValorOrdenacao(b, vrSortCol);
+    let cmp = (vrSortCol==='data'||vrSortCol==='proximoRetorno')
+      ? String(va).localeCompare(String(vb))
+      : String(va).localeCompare(String(vb), 'pt', {numeric:true, sensitivity:'base'});
+    if(cmp===0) cmp = (b.v.data||'').localeCompare(a.v.data||'') || (a.e.nome||'').localeCompare(b.e.nome||'','pt');
+    return vrSortDir==='asc' ? cmp : -cmp;
+  });
   const nColunas = 4 + cols.length;
   if(linhas.length===0){ tbody.innerHTML = `<tr><td colspan="${nColunas}" class="empty">Nenhum exame registrado.</td></tr>`; return; }
   tbody.innerHTML = linhas.map(({v,e})=>{
@@ -11447,6 +11468,12 @@ function renderVisitasRepro(){
     row.addEventListener('click', e=>{ if(e.target.closest('button')) return; openVisitaReproEdit(row.dataset.id); });
   });
   tbody.querySelectorAll('[data-relvisitarepro]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); gerarRelatorioVisitaReproUnica(b.dataset.relvisitarepro); }));
+  thead.querySelectorAll('th.sortable').forEach(h=>h.addEventListener('click', ()=>{
+    const k = h.dataset.vrsort;
+    if(vrSortCol===k){ vrSortDir = vrSortDir==='asc' ? 'desc' : 'asc'; }
+    else { vrSortCol = k; vrSortDir = (k==='data'||k==='proximoRetorno') ? 'desc' : 'asc'; }
+    renderVisitasRepro();
+  }));
 }
 (function(){ const el=document.getElementById('vrSearch'); if(el) el.addEventListener('input', debounce(renderVisitasRepro)); })();
 ['vrFiltroDe','vrFiltroAte','vrFiltroVet'].forEach(id=>{
