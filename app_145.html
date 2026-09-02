@@ -1033,7 +1033,7 @@
           <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
           <div class="f"><label>Ano cobertura</label><input type="text" id="nFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
           <div class="f"><label>Ano nascimento</label><input type="text" id="nFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button></div>
+          <div class="f" style="align-self:flex-end;display:flex;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button><button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button></div>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
           <thead><tr><th>Matriz</th><th data-col="pai">Pai</th><th data-col="receptora">Receptora</th><th data-col="dtCobertura">Dt Cobertura</th><th data-col="provavelNasc">Provável Nascimento</th><th data-col="dtNasc">Dt Nascimento</th><th data-col="confirm">Confirm.</th><th data-col="prenhez">Prenhez</th><th data-col="confirmado">Confirmado</th><th data-col="obs">Observações</th><th></th></tr></thead>
@@ -1050,7 +1050,7 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
           <div class="hint-text" style="margin:0;flex:1;min-width:240px;">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button>
+          <div style="display:flex;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF</button><button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button></div>
         </div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr id="vrThead"></tr></thead>
@@ -8911,7 +8911,7 @@ function gerarRelatorioNascimentos(){
     return h ? `<span class="animal-eye-wrap">${nome}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : nome;
   };
   host.innerHTML = `<div class="report-card print-block">
-    <div class="title" style="margin-bottom:14px;">Relatório de Nascimentos</div>
+    <div class="title" style="margin-bottom:14px;">Relatório de Coberturas</div>
     <div class="grid-wrap compact"><table class="grid">
       <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Provável Nascimento</th><th>Dt Nascimento</th><th>Confirm.</th><th>Observações</th></tr></thead>
       <tbody>${filtered.map(n=>{
@@ -8928,6 +8928,40 @@ function gerarRelatorioNascimentos(){
   document.getElementById('btnPrintRelNasc').style.display='inline-block'; document.getElementById('btnPdfRelNasc').style.display='inline-block';
 }
 document.getElementById('btnGerarRelNasc').addEventListener('click', gerarRelatorioNascimentos);
+// "Baixar PDF" da aba Coberturas — mesma lista que está na tela (com os filtros aplicados).
+document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
+  const conf=document.getElementById('nFiltroConf').value;
+  const ano=document.getElementById('nFiltroAno').value;
+  const anoNasc=document.getElementById('nFiltroAnoNasc').value;
+  const term=(document.getElementById('nSearch').value||'').toLowerCase();
+  const lista = nascimentos.filter(n=>{
+    const mc = !conf || (conf==='S'&&n.confirm==='S') || (conf==='P'&&n.prenhezConfirmada==='S'&&n.confirm!=='S') || (conf==='N'&&n.confirm!=='S'&&n.prenhezConfirmada!=='S');
+    const ma = !ano || (n.datacob||'').startsWith(ano);
+    const man = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
+    const mt = !term || [n.matriz,n.pai,n.receptora,n.obs].some(x=>(x||'').toLowerCase().includes(term));
+    return mc && ma && man && mt;
+  }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
+  if(lista.length===0){ showAlert('Nenhuma cobertura na lista pra gerar o relatório.'); return; }
+  const filtroTxt = [conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas';
+  const html = `<h1>Relatório de Coberturas</h1>
+    <div class="sub">${filtroTxt} · ${lista.length} registro(s)</div>
+    <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovulação</th><th>Coleta embrião</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Prenhez</th><th>Nasceu</th><th>Obs.</th></tr></thead>
+    <tbody>${lista.map(n=>{
+      const prov = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
+      return `<tr>
+        <td>${n.matriz||'—'}</td><td>${n.pai||'—'}</td><td>${n.receptora||'—'}</td>
+        <td>${todasCoberturas(n).map(fmtDate).join(', ')||'—'}</td>
+        <td>${n.dataOvulacao?fmtDate(n.dataOvulacao):'—'}</td>
+        <td>${n.dataColetaEmbriao?fmtDate(n.dataColetaEmbriao):'—'}</td>
+        <td>${prov?fmtDate(prov):'—'}</td>
+        <td>${n.datanasc?fmtDate(n.datanasc):'—'}</td>
+        <td>${n.prenhezConfirmada==='S'?('Sim'+(n.prenhezUltima?(' '+fmtDate(n.prenhezUltima)):'')):'Não'}</td>
+        <td>${n.confirm==='S'?'Sim':'Não'}</td>
+        <td class="obs">${n.obs||''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  abrirPreviaRelatorio(html, 'Relatorio_Coberturas.pdf', 'Relatório de Coberturas', {orientation:'landscape'});
+});
 document.getElementById('btnPrintRelNasc').addEventListener('click', ()=>window.print());
 
 /* ================= ESTOQUE ================= */
@@ -11412,6 +11446,7 @@ document.getElementById('btnColunasVisitaRepro').addEventListener('click', ()=>{
 // Ordenação da tabela de Visitas/Exames — clicar no cabeçalho (Data, Veterinário, Égua, ou qualquer
 // coluna visível) ordena; clicar de novo inverte. Padrão: Data, do mais novo pro mais velho.
 let vrSortCol = 'data', vrSortDir = 'desc';
+let vrLinhasAtual = [], vrColsAtual = [];
 function vrValorOrdenacao(l, key){
   if(key==='data') return l.v.data||'';
   if(key==='veterinario') return (l.v.veterinario||'').toLowerCase();
@@ -11452,6 +11487,7 @@ function renderVisitasRepro(){
     if(cmp===0) cmp = (b.v.data||'').localeCompare(a.v.data||'') || (a.e.nome||'').localeCompare(b.e.nome||'','pt');
     return vrSortDir==='asc' ? cmp : -cmp;
   });
+  vrLinhasAtual = linhas; vrColsAtual = cols; // pro botão "Baixar PDF" desta aba
   const nColunas = 4 + cols.length;
   if(linhas.length===0){ tbody.innerHTML = `<tr><td colspan="${nColunas}" class="empty">Nenhum exame registrado.</td></tr>`; return; }
   tbody.innerHTML = linhas.map(({v,e})=>{
@@ -11475,6 +11511,24 @@ function renderVisitasRepro(){
     renderVisitasRepro();
   }));
 }
+// "Baixar PDF" da aba Visitas / Exames — usa o que está na tela agora (filtro + ordem + colunas visíveis).
+document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
+  renderVisitasRepro();
+  if(vrLinhasAtual.length===0){ showAlert('Nenhum exame na lista pra gerar o relatório.'); return; }
+  const cols = vrColsAtual;
+  const cabecalho = ['Data','Veterinário','Égua', ...cols.map(c=>c.label)];
+  const de = document.getElementById('vrFiltroDe')?.value, ate = document.getElementById('vrFiltroAte')?.value;
+  const vet = document.getElementById('vrFiltroVet')?.value;
+  const periodo = [de&&('de '+fmtDate(de)), ate&&('até '+fmtDate(ate)), vet&&('vet.: '+vet)].filter(Boolean).join(' · ') || 'todos os registros';
+  const html = `<h1>Relatório de Visitas / Exames Reprodutivos</h1>
+    <div class="sub">${periodo} · ${vrLinhasAtual.length} linha(s)</div>
+    <table><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${vrLinhasAtual.map(({v,e})=>`<tr>
+      <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td><td>${e.nome||'—'}</td>
+      ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
+    </tr>`).join('')}</tbody></table>`;
+  abrirPreviaRelatorio(html, 'Relatorio_Visitas_Exames_Reprodutivos.pdf', 'Visitas / Exames Reprodutivos', {orientation:'landscape'});
+});
 (function(){ const el=document.getElementById('vrSearch'); if(el) el.addEventListener('input', debounce(renderVisitasRepro)); })();
 ['vrFiltroDe','vrFiltroAte','vrFiltroVet'].forEach(id=>{
   const el = document.getElementById(id);
@@ -14573,7 +14627,7 @@ function wireBaixarPdfBtn(btnId, hostId, nomeArquivo){
 }
 wireBaixarPdfBtn('btnPdfRelFicha', 'relFichaResult', 'Relatorio_Fichas_Animais.pdf');
 wireBaixarPdfBtn('btnPdfRelGrupo', 'relGrupoResult', 'Relatorio_Grupos.pdf');
-wireBaixarPdfBtn('btnPdfRelNasc', 'relNascResult', 'Relatorio_Nascimentos.pdf');
+wireBaixarPdfBtn('btnPdfRelNasc', 'relNascResult', 'Relatorio_Coberturas.pdf');
 wireBaixarPdfBtn('btnPdfRelEstoque', 'relEstoqueResult', 'Relatorio_Estoque.pdf');
 wireBaixarPdfBtn('btnPdfRelVet', 'relVetResult', 'Relatorio_Veterinaria.pdf');
 wireBaixarPdfBtn('btnPdfPerfil', 'perfilWrap', ()=>{
