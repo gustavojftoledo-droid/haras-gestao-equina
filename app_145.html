@@ -274,6 +274,7 @@
      direita — "📄 Baixar PDF", "⚙ Colunas" e afins. Padroniza pra não ficar em lugar diferente por tela. */
   .lista-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 10px;}
   .lista-toolbar .lista-toolbar-info{margin:0 auto 0 0;font-size:11.5px;color:var(--muted);max-width:60%;}
+  table.grid th.col-check, table.grid td.col-check{width:34px;text-align:center;padding-left:6px;padding-right:6px;}
   .empty{text-align:center;padding:60px 20px;color:var(--muted);}
 
   .overlay{position:fixed;inset:0;background:rgba(20,16,10,0.5);display:none;align-items:flex-start;justify-content:center;padding:36px 20px;overflow-y:auto;z-index:50;}
@@ -848,10 +849,10 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="gSearch" placeholder="Nome do grupo..."></div>
         </div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista table.grid' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista [data-lista="grupos"]' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="grupos">
-          <thead><tr><th class="sortable" data-ordlista="grupos" data-ordcol="nome">Grupo</th><th class="sortable" data-ordlista="grupos" data-ordcol="qtd">Qtd. Animais</th><th class="sortable" data-ordlista="grupos" data-ordcol="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="grupos" title="Selecionar todos"></th><th class="sortable" data-ordlista="grupos" data-ordcol="nome">Grupo</th><th class="sortable" data-ordlista="grupos" data-ordcol="qtd">Qtd. Animais</th><th class="sortable" data-ordlista="grupos" data-ordcol="obs">Observações</th><th></th></tr></thead>
           <tbody id="gTbody"></tbody>
         </table></div>
       </div>
@@ -967,7 +968,7 @@
         <button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="transporte">
-        <thead><tr><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
+        <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="transporte" title="Selecionar todos"></th><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
         <tbody id="tpTbody"></tbody>
       </table></div>
     </div>
@@ -997,7 +998,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="treinos">
-          <thead><tr><th class="sortable" data-ordlista="treinos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="treinos" data-ordcol="local" data-col="local">Local</th><th class="sortable" data-ordlista="treinos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="treinos" data-ordcol="quemTreinou" data-col="quemTreinou">Quem treinou</th><th class="sortable" data-ordlista="treinos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="treinos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="treinos" title="Selecionar todos"></th><th class="sortable" data-ordlista="treinos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="treinos" data-ordcol="local" data-col="local">Local</th><th class="sortable" data-ordlista="treinos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="treinos" data-ordcol="quemTreinou" data-col="quemTreinou">Quem treinou</th><th class="sortable" data-ordlista="treinos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="treinos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="tTbody"></tbody>
         </table></div>
       </div>
@@ -1165,7 +1166,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="dietas">
-          <thead><tr><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="dietas" title="Selecionar todos"></th><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="dtTbody"></tbody>
         </table></div>
       </div>
@@ -1182,7 +1183,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="estoqueMov">
-          <thead><tr><th class="sortable" data-ordlista="estoqueMov" data-ordcol="data">Data</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="produto" data-col="produto">Produto</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="movimento" data-col="movimento">Movimento</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="qtd" data-col="qtd">Qtd</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="valor" data-col="valor">Valor</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="motivo" data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="estoqueMov" title="Selecionar todos"></th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="data">Data</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="produto" data-col="produto">Produto</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="movimento" data-col="movimento">Movimento</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="qtd" data-col="qtd">Qtd</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="valor" data-col="valor">Valor</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="motivo" data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
           <tbody id="movTbody"></tbody>
         </table></div>
       </div>
@@ -1231,7 +1232,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetLista">
-          <thead><tr><th class="sortable" data-ordlista="vetLista" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetLista" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="resumo" data-col="resumo">Resumo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="animais" data-col="animais">Animais</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="vetLista" title="Selecionar todos"></th><th class="sortable" data-ordlista="vetLista" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetLista" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="resumo" data-col="resumo">Resumo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="animais" data-col="animais">Animais</th><th></th></tr></thead>
           <tbody id="vlTbody"></tbody>
         </table></div>
       </div>
@@ -1252,7 +1253,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetVisitas">
-          <thead><tr><th class="sortable" data-ordlista="vetVisitas" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="veterinario" data-col="veterinario">Veterinário</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="animais" data-col="animais">Animais revisados</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="obsGeral" data-col="obsGeral">Observação geral</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="vetVisitas" title="Selecionar todos"></th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="veterinario" data-col="veterinario">Veterinário</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="animais" data-col="animais">Animais revisados</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="obsGeral" data-col="obsGeral">Observação geral</th><th></th></tr></thead>
           <tbody id="vsTbody"></tbody>
         </table></div>
       </div>
@@ -1326,7 +1327,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="financeiro">
-          <thead><tr><th class="sortable" data-ordlista="financeiro" data-ordcol="data">Data</th><th class="sortable" data-ordlista="financeiro" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="financeiro" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="financeiro" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="financeiro" data-ordcol="descricao" data-col="descricao">Descrição</th><th class="sortable" data-ordlista="financeiro" data-ordcol="valor">Valor</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="financeiro" title="Selecionar todos"></th><th class="sortable" data-ordlista="financeiro" data-ordcol="data">Data</th><th class="sortable" data-ordlista="financeiro" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="financeiro" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="financeiro" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="financeiro" data-ordcol="descricao" data-col="descricao">Descrição</th><th class="sortable" data-ordlista="financeiro" data-ordcol="valor">Valor</th><th></th></tr></thead>
           <tbody id="finTbody"></tbody>
         </table></div>
       </div>
@@ -1375,7 +1376,7 @@
         <button type="button" class="btn btn-ghost btn-sm" data-colpicker="funcionarios">⚙ Colunas</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="funcionarios">
-        <thead><tr><th class="sortable" data-ordlista="funcionarios" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="documento" data-col="documento">Documento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nascimento" data-col="nascimento">Nascimento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="ultimoSalario" data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
+        <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="funcionarios" title="Selecionar todos"></th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="documento" data-col="documento">Documento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nascimento" data-col="nascimento">Nascimento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="ultimoSalario" data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
         <tbody id="funcTbody"></tbody>
       </table></div>
     </div>
@@ -4675,7 +4676,13 @@ function ordenarListaGenerica(listaId, arr, getVal){
 // Genérico: lê o <table> renderizado, tira colunas de ação (cabeçalho vazio), botões e checkboxes.
 function baixarPdfTabela(tableEl, titulo, nomeArquivo){
   if(!tableEl){ showAlert('Nada pra exportar nesta lista.'); return; }
+  // Se tem linha marcada, exporta SÓ as marcadas (qualquer tipo de checkbox de linha).
+  const origRows = [...tableEl.querySelectorAll('tbody tr')];
+  const idxMarcados = origRows.map((tr,i)=> tr.querySelector('td input[type=checkbox]:checked') ? i : -1).filter(i=>i>=0);
   const clone = tableEl.cloneNode(true);
+  if(idxMarcados.length){
+    [...clone.querySelectorAll('tbody tr')].forEach((tr,i)=>{ if(idxMarcados.indexOf(i)<0) tr.remove(); });
+  }
   clone.removeAttribute('class'); clone.removeAttribute('data-lista'); clone.removeAttribute('id');
   clone.querySelectorAll('button, input, .sort-arrow').forEach(el=>el.remove());
   const ths = [...clone.querySelectorAll('thead th')];
@@ -4706,6 +4713,7 @@ function marcarSetasOrdenacao(listaId, scopeSelector){
     const a = th.querySelector('.sort-arrow'); if(a) a.remove();
     if(ativo) th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${st.dir==='asc'?'▲':'▼'}</span>`);
   });
+  sincronizarSelecaoLista(listaId, scopeSelector);
 }
 document.addEventListener('click', (e)=>{
   const th = e.target.closest && e.target.closest('th.sortable[data-ordlista]');
@@ -4717,6 +4725,60 @@ document.addEventListener('click', (e)=>{
   const fn = ORD_RENDERERS[lista];
   if(fn) fn();
 });
+
+/* ===== SELEÇÃO POR LINHA (checkbox) — genérica pra qualquer lista =====
+   No HTML: <th class="col-check"><input type="checkbox" data-checkall="X"></th>
+   Na render, 1ª célula de cada linha: <td class="col-check"><input type="checkbox" data-checklista="X" data-checkid="ID"></td>
+   O botão "Baixar PDF" (data-pdftabela contendo "X") passa a exportar só as marcadas. */
+const listaSelecao = {}; // listaId -> Set de ids
+function selLista(id){ return listaSelecao[id] || (listaSelecao[id] = new Set()); }
+function atualizarBtnPdfSelecao(listaId){
+  const n = selLista(listaId).size;
+  document.querySelectorAll('[data-pdftabela]').forEach(b=>{
+    if((b.dataset.pdftabela||'').indexOf('"'+listaId+'"') < 0) return;
+    b.textContent = n ? `📄 Baixar PDF (${n})` : '📄 Baixar PDF';
+  });
+}
+function sincronizarSelecaoLista(listaId, scopeSelector){
+  const sel = selLista(listaId);
+  const cbs = document.querySelectorAll(scopeSelector + ' input[data-checklista="'+listaId+'"]');
+  if(cbs.length===0){ atualizarBtnPdfSelecao(listaId); return; } // tabela ainda não renderizada
+  const vis = new Set([...cbs].map(c=>c.dataset.checkid));
+  [...sel].forEach(id=>{ if(!vis.has(id)) sel.delete(id); });
+  const marc = [...cbs].filter(c=>c.checked).length;
+  const all = document.querySelector(scopeSelector + ' input[data-checkall="'+listaId+'"]');
+  if(all){ all.checked = cbs.length>0 && marc===cbs.length; all.indeterminate = marc>0 && marc<cbs.length; }
+  atualizarBtnPdfSelecao(listaId);
+}
+document.addEventListener('click', e=>{ // impede o clique no checkbox de abrir a edição da linha
+  if(e.target && e.target.matches && e.target.matches('input[data-checklista],input[data-checkall]')) e.stopPropagation();
+}, true);
+document.addEventListener('change', e=>{
+  const t = e.target;
+  if(!t || !t.dataset) return;
+  if(t.dataset.checklista){
+    const sel = selLista(t.dataset.checklista);
+    if(t.checked) sel.add(t.dataset.checkid); else sel.delete(t.dataset.checkid);
+    const tbl = t.closest('table');
+    const all = tbl && tbl.querySelector('input[data-checkall="'+t.dataset.checklista+'"]');
+    if(all){ const cbs = tbl.querySelectorAll('input[data-checklista="'+t.dataset.checklista+'"]'); const m=[...cbs].filter(c=>c.checked).length; all.checked = cbs.length>0 && m===cbs.length; all.indeterminate = m>0 && m<cbs.length; }
+    atualizarBtnPdfSelecao(t.dataset.checklista);
+  } else if(t.dataset.checkall){
+    const lid = t.dataset.checkall, sel = selLista(lid), tbl = t.closest('table');
+    if(tbl) tbl.querySelectorAll('input[data-checklista="'+lid+'"]').forEach(cb=>{
+      cb.checked = t.checked;
+      if(cb.checked) sel.add(cb.dataset.checkid); else sel.delete(cb.dataset.checkid);
+    });
+    if(tbl){ const all = tbl.querySelector('input[data-checkall="'+lid+'"]'); if(all) all.indeterminate = false; }
+    atualizarBtnPdfSelecao(lid);
+  }
+});
+// 1ª célula da linha: checkbox de seleção (usa data-id da <tr> se o id não for passado)
+function tdCheck(listaId, id){
+  const v = String(id==null?'':id);
+  return `<td class="col-check"><input type="checkbox" data-checklista="${listaId}" data-checkid="${v.replace(/"/g,'&quot;')}" ${selLista(listaId).has(v)?'checked':''}></td>`;
+}
+const thCheck = listaId => `<th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="${listaId}" title="Selecionar todos"></th>`;
 
 /* ================= MANEJOS ================= */
 const manejoSelecionados = new Set();
@@ -7806,10 +7868,11 @@ function renderTransportes(){
     return '';
   });
   marcarSetasOrdenacao('transporte', '#view-transporte [data-lista="transporte"]');
-  document.getElementById('tpTbody').innerHTML = listaTp.length===0 ? `<tr><td colspan="9" class="empty">Nenhum transporte encontrado.</td></tr>` : listaTp.map(t=>{
+  document.getElementById('tpTbody').innerHTML = listaTp.length===0 ? `<tr><td colspan="10" class="empty">Nenhum transporte encontrado.</td></tr>` : listaTp.map(t=>{
     const nAnimais = (t.animais||[]).length;
     const situ = t.realizado==='S';
     return `<tr data-id="${t.id}">
+      ${tdCheck('transporte', t.id)}
       <td>${fmtDate(t.data)}</td>
       <td data-col="origemDestino">${t.origem||'—'} → ${t.destino||'—'}</td>
       <td data-col="meio">${t.meioTransporte||'—'}</td>
@@ -7821,6 +7884,7 @@ function renderTransportes(){
       <td style="white-space:nowrap;">${!situ?`<button type="button" class="btn btn-sm btn-ghost" data-marcarrealizado="${t.id}" title="Marca como realizado e atualiza a localização dos animais">✔ Marcar feito</button>`:''} <button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">🗑</button></td>
     </tr>`;
   }).join('');
+  sincronizarSelecaoLista('transporte', '#view-transporte [data-lista="transporte"]');
   document.getElementById('tpTbody').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openTransporteEdit(b.dataset.edit)));
   document.getElementById('tpTbody').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     if(!(await showConfirm('Excluir este transporte do histórico? Isso NÃO desfaz a mudança de localização já aplicada (se ele já tiver sido marcado como realizado) — ajuste a localização do animal na mão se precisar.'))) return;
@@ -8088,12 +8152,15 @@ function renderTreinos(){
   });
   marcarSetasOrdenacao('treinos', '#view-treinos [data-lista="treinos"]');
   const tbody=document.getElementById('tTbody');
-  if(listaT.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhum treino encontrado.</td></tr>`; return; }
+  if(listaT.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhum treino encontrado.</td></tr>`; sincronizarSelecaoLista('treinos', '#view-treinos [data-lista="treinos"]'); return; }
   tbody.innerHTML = listaT.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
+    ${tdCheck('treinos', t.id)}
     <td>${fmtDate(t.data)}</td><td data-col="local">${t.local||''}</td><td data-col="tipo">${t.tipo||''}</td><td data-col="quemTreinou">${t.treinadores||''}</td><td data-col="qtdAnimais">${t.animais.length}</td><td data-col="obs">${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">Excluir</button></td>
   </tr>`).join('');
-  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', ()=>{
+  sincronizarSelecaoLista('treinos', '#view-treinos [data-lista="treinos"]');
+  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', (ev)=>{
+    if(ev.target.closest('input,button')) return;
     gerarRelatorioTreinoUnico(tr.dataset.id);
   }));
   tbody.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', e=>{
@@ -10573,7 +10640,7 @@ function renderDietasMedidores(){
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
   renderDietasMedidores();
-  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
+  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhuma dieta cadastrada.</td></tr>`; sincronizarSelecaoLista('dietas', '#eview_dietas [data-lista="dietas"]'); return; }
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const listaD = ordenarListaGenerica('dietas', dietas, (d,col)=>{
     if(col==='nome') return (d.nome||'').toLowerCase();
@@ -10596,6 +10663,7 @@ function renderDietas(){
       ? `${fmtR(custo.mensalTotal)}${nAnimais>0?` <span style="color:var(--muted);font-size:11px;">(${fmtR(custo.mensalPorAnimal)}/animal)</span>`:''}${custo.temItemSemPreco?' <span title="Algum item sem valor cadastrado no Estoque — custo real é maior" style="color:var(--warn);">⚠</span>':''}`
       : '<span style="color:var(--muted);">—</span>';
     return `<tr>
+      ${tdCheck('dietas', d.id)}
       <td><strong>${d.nome}</strong><br>${modoTxt}</td>
       <td data-col="animais">${nAnimais>0 ? animaisComOlhoHTML(d.animais) : '<span style="color:var(--muted);">Nenhum ainda</span>'}</td>
       <td data-col="itens" style="font-size:12px;">${itensResumo||'—'}</td>
@@ -10608,6 +10676,7 @@ function renderDietas(){
       </td>
     </tr>`;
   }).join('');
+  sincronizarSelecaoLista('dietas', '#eview_dietas [data-lista="dietas"]');
   tbody.querySelectorAll('[data-editar]').forEach(b=>b.addEventListener('click', ()=>openDietaEdit(b.dataset.editar)));
   tbody.querySelectorAll('[data-animais]').forEach(b=>b.addEventListener('click', ()=>openDietaAnimais(b.dataset.animais)));
   tbody.querySelectorAll('[data-consumir]').forEach(b=>b.addEventListener('click', ()=>registrarConsumoDieta(b.dataset.consumir)));
@@ -11292,19 +11361,21 @@ function renderVisitas(){
   marcarSetasOrdenacao('vetVisitas', '#vtrview_visitas [data-lista="vetVisitas"]');
   const tbody = document.getElementById('vsTbody');
   document.getElementById('btnRelVisitasFiltro').style.display = listaVs.length ? 'inline-block' : 'none';
-  if(listaVs.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
+  if(listaVs.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhuma visita registrada.</td></tr>`; sincronizarSelecaoLista('vetVisitas', '#vtrview_visitas [data-lista="vetVisitas"]'); return; }
   tbody.innerHTML = listaVs.map(v=>{
     const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
+    ${tdCheck('vetVisitas', v.id)}
     <td>${fmtDate(v.data)}</td><td data-col="veterinario">${v.veterinario||'—'}</td>
     <td data-col="animais">${animaisComOlhoHTML(v.animais)||'—'}</td>
     <td data-col="obsGeral">${v.obsGeral||''}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
     <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisita="${v.id}" title="Gerar PDF desta visita">📄</button></td>
   </tr>`;
   }).join('');
+  sincronizarSelecaoLista('vetVisitas', '#vtrview_visitas [data-lista="vetVisitas"]');
   tbody.querySelectorAll('tr[data-id]').forEach(row=>{
     row.addEventListener('click', e=>{
-      if(e.target.closest('button')) return;
+      if(e.target.closest('button,input')) return;
       openVisitaEdit(row.dataset.id);
     });
   });
@@ -11983,8 +12054,9 @@ function renderVetLista(){
     return '';
   });
   marcarSetasOrdenacao('vetLista', '#vtrview_lista [data-lista="vetLista"]');
-  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhum registro encontrado.</td></tr>`; sincronizarSelecaoLista('vetLista', '#vtrview_lista [data-lista="vetLista"]'); return; }
   tbody.innerHTML = lista.map(r=>`<tr>
+    ${tdCheck('vetLista', r.origemTipo+':'+r.id)}
     <td>${fmtDate(r.data)}</td>
     <td data-col="tipo"><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span>${r.statusRot?` <span class="pill ${r.statusRot.cls}">${r.statusRot.label}</span>`:''}</td>
     <td data-col="resumo">${r.resumo}</td>
@@ -11994,6 +12066,7 @@ function renderVetLista(){
       <button type="button" class="btn btn-sm btn-ghost" data-vleditar="${r.origemTipo}|${r.id}">Editar</button>
     </td>
   </tr>`).join('');
+  sincronizarSelecaoLista('vetLista', '#vtrview_lista [data-lista="vetLista"]');
   tbody.querySelectorAll('[data-vlabrir]').forEach(b=>b.addEventListener('click', ()=>{
     const [tipo,id] = b.dataset.vlabrir.split('|');
     if(tipo==='visita') gerarRelatorioVisitaUnica(id); else gerarFolhaTratamento(id);
@@ -12348,8 +12421,9 @@ function renderGrupos(){
   });
   marcarSetasOrdenacao('grupos', '#grview_lista [data-lista="grupos"]');
   const tbody = document.getElementById('gTbody');
-  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="4" class="empty">${grupos.length===0?'Nenhum grupo criado ainda.':'Nenhum grupo encontrado.'}</td></tr>`; return; }
+  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">${grupos.length===0?'Nenhum grupo criado ainda.':'Nenhum grupo encontrado.'}</td></tr>`; sincronizarSelecaoLista('grupos', '#grview_lista [data-lista="grupos"]'); return; }
   tbody.innerHTML = filtered.map(g=>`<tr>
+    ${tdCheck('grupos', g.id)}
     <td><strong>${g.nome}</strong></td>
     <td>${(g.animais||[]).length}</td>
     <td>${g.obs||''}</td>
@@ -12358,6 +12432,7 @@ function renderGrupos(){
       <button type="button" class="btn btn-sm btn-ghost" data-editar="${g.id}">Editar</button>
     </td>
   </tr>`).join('');
+  sincronizarSelecaoLista('grupos', '#grview_lista [data-lista="grupos"]');
   tbody.querySelectorAll('[data-editar]').forEach(b=>b.addEventListener('click', ()=>openGrupoEdit(b.dataset.editar)));
   tbody.querySelectorAll('[data-vergrupo]').forEach(b=>b.addEventListener('click', ()=>verGrupoNoFront(b.dataset.vergrupo)));
 }
@@ -12413,8 +12488,9 @@ function renderMovimentos(){
   });
   marcarSetasOrdenacao('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]');
   const tbody = document.getElementById('movTbody');
-  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhuma movimentação encontrada.</td></tr>`; return; }
+  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="9" class="empty">Nenhuma movimentação encontrada.</td></tr>`; sincronizarSelecaoLista('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]'); return; }
   tbody.innerHTML = filtered.map(m=>`<tr>
+    ${tdCheck('estoqueMov', m.id)}
     <td>${fmtDate(m.data)}</td>
     <td data-col="produto">${m.produtoNome||''}</td>
     <td data-col="movimento"><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
@@ -12424,6 +12500,7 @@ function renderMovimentos(){
     <td data-col="motivo">${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
   </tr>`).join('');
+  sincronizarSelecaoLista('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]');
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
 }
 ORD_RENDERERS.estoqueMov = renderMovimentos;
@@ -13025,12 +13102,13 @@ function renderFinanceiro(){
   });
   marcarSetasOrdenacao('financeiro', '#finview_lancamentos [data-lista="financeiro"]');
   const tbody = document.getElementById('finTbody');
-  if(listaFin.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">${todos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; return; }
+  if(listaFin.length===0){ tbody.innerHTML = `<tr><td colspan="8" class="empty">${todos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; sincronizarSelecaoLista('financeiro', '#finview_lancamentos [data-lista="financeiro"]'); return; }
   tbody.innerHTML = listaFin.map(l=>{
     const acoes = l.origem==='manual'
       ? `<button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button>`
       : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
     return `<tr>
+    ${tdCheck('financeiro', l.id)}
     <td>${fmtDate(l.data)}</td>
     <td data-col="origem"><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
     <td data-col="tipo"><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}</td>
@@ -13040,6 +13118,7 @@ function renderFinanceiro(){
     <td style="white-space:nowrap;">${acoes}</td>
   </tr>`;
   }).join('');
+  sincronizarSelecaoLista('financeiro', '#finview_lancamentos [data-lista="financeiro"]');
   tbody.querySelectorAll('[data-editfin]').forEach(b=>b.addEventListener('click', ()=>openLancamentoEdit(b.dataset.editfin)));
   tbody.querySelectorAll('[data-delfin]').forEach(b=>b.addEventListener('click', async ()=>{
     if(!(await showConfirm('Excluir este lançamento?'))) return;
@@ -13755,7 +13834,7 @@ function renderFuncionarios(){
     <div class="stat"><div class="stat-num" style="color:${pendentes>0?'var(--burgundy)':'inherit'};">${pendentes}</div><div class="stat-label">Salário pendente de confirmar (${MESES_LABEL[hoje.getMonth()]})</div></div>
     <div class="stat"><div class="stat-num">${funcionarios.length-pendentes}</div><div class="stat-label">Salário já confirmado (${MESES_LABEL[hoje.getMonth()]})</div></div>`;
   const tbody = document.getElementById('funcTbody');
-  if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; return; }
+  if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; sincronizarSelecaoLista('funcionarios', '#view-funcionarios [data-lista="funcionarios"]'); return; }
   const lista0 = [...funcionarios].sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
   const lista = ordenarListaGenerica('funcionarios', lista0, (fu,col)=>{
     if(col==='nome') return (fu.nome||'').toLowerCase();
@@ -13769,6 +13848,7 @@ function renderFuncionarios(){
     const qtdLancamentos = lancamentos.filter(l=>l.origemFuncionarioId===fu.id).length;
     const pago = salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth());
     return `<tr>
+    ${tdCheck('funcionarios', fu.id)}
     <td><strong>${fu.nome||''}</strong></td>
     <td data-col="documento">${fu.documento||'—'}</td>
     <td data-col="nascimento">${fu.dataNascimento ? fmtDate(fu.dataNascimento) : '—'}</td>
@@ -13781,6 +13861,7 @@ function renderFuncionarios(){
     </td>
   </tr>`;
   }).join('');
+  sincronizarSelecaoLista('funcionarios', '#view-funcionarios [data-lista="funcionarios"]');
   tbody.querySelectorAll('[data-confirmarsalario]').forEach(b=>b.addEventListener('click', ()=>{
     const fu = funcionarios.find(x=>x.id===b.dataset.confirmarsalario); if(fu) openLancamentoDeFuncionario(fu, 'salario');
   }));
