@@ -15168,7 +15168,7 @@ document.getElementById('btnConfirmMerge').addEventListener('click', async ()=>{
    Isso não muda nada nos dados: eles continuam só no localStorage do aparelho. */
 if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* silencioso: sem hospedagem ainda, tudo bem */ });
+    navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'}).catch(()=>{ /* silencioso: sem hospedagem ainda, tudo bem */ });
   });
 }
 </script>
