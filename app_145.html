@@ -127,6 +127,9 @@
   .stat.clickable{cursor:pointer;transition:border-color .15s;}
   .stat.clickable:hover{border-color:var(--brass-light);}
   .stat.clickable.active{border-color:var(--brass-light);box-shadow:inset 0 0 0 1px var(--brass-light);}
+  /* Quadros por tipo de atividade: quebram em linha nova em vez de ficarem finos demais. */
+  #treinoStats{flex-wrap:wrap;}
+  #treinoStats .stat{flex:1 1 130px;min-width:120px;}
   .stat-num{font-family:'Fraunces',serif;font-size:23px;font-weight:600;color:var(--brass);}
   .stat-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;margin-top:2px;}
 
@@ -987,6 +990,7 @@
       </div>
 
       <div id="tview_historico">
+        <div class="stats" id="treinoStats"></div>
         <div class="filters">
           <div class="f"><label>Tipo</label><select id="tFiltroTipo"><option value="">Todos</option></select></div>
           <div class="f"><label>Período</label><div id="tFiltroPeriodo"></div></div>
@@ -8125,10 +8129,30 @@ document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
 });
 
 const tFiltroPeriodo = createDateRangePicker(document.getElementById('tFiltroPeriodo'), {onChange: renderTreinos});
+// Quadros por tipo de atividade (igual os de Estoque). Um card por tipo que existe (na lista de tipos
+// OU já usado num registro) — tipo novo aparece sozinho. Clicar filtra a lista por aquele tipo.
+function renderTreinoStats(tipoAtivo){
+  const host = document.getElementById('treinoStats'); if(!host) return;
+  const tipos = [...new Set([...(aux.tipotreino||[]), ...treinos.map(t=>t.tipo)])].filter(Boolean)
+    .sort((a,b)=> treinos.filter(t=>t.tipo===b).length - treinos.filter(t=>t.tipo===a).length || a.localeCompare(b,'pt'));
+  host.innerHTML =
+    `<div class="stat clickable ${!tipoAtivo?'active':''}" data-tstat=""><div class="stat-num">${treinos.length}</div><div class="stat-label">Total de atividades</div></div>` +
+    tipos.map(tp=>{
+      const n = treinos.filter(t=>t.tipo===tp).length;
+      return `<div class="stat clickable ${tipoAtivo===tp?'active':''}" data-tstat="${tp.replace(/"/g,'&quot;')}"><div class="stat-num">${n}</div><div class="stat-label">${tp}</div></div>`;
+    }).join('');
+  host.querySelectorAll('[data-tstat]').forEach(card=>card.addEventListener('click', ()=>{
+    const tp = card.dataset.tstat;
+    const sel = document.getElementById('tFiltroTipo');
+    sel.value = (tp && sel.value===tp) ? '' : tp; // clicar de novo no ativo limpa
+    renderTreinos();
+  }));
+}
 function renderTreinos(){
-  populateSelectFilter('tFiltroTipo', treinos.map(t=>t.tipo));
+  populateSelectFilter('tFiltroTipo', [...(aux.tipotreino||[]), ...treinos.map(t=>t.tipo)]);
   const tipo=document.getElementById('tFiltroTipo').value;
   const { de, ate } = tFiltroPeriodo.getRange();
+  renderTreinoStats(tipo);
   const filtered = treinos.filter(t=> (!tipo||t.tipo===tipo) && (!de||t.data>=de) && (!ate||t.data<=ate) ).sort((a,b)=> b.data.localeCompare(a.data));
   const listaT = ordenarListaGenerica('treinos', filtered, (t,col)=>{
     if(col==='data') return t.data||'';
