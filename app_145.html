@@ -270,6 +270,10 @@
   .grid-wrap.compact{max-height:calc(100vh - 210px);}
   /* Lista dentro de janela (modal): no máximo 62% da tela, a janela rola pra ver o resto. */
   .overlay .grid-wrap{max-height:62vh;}
+  /* Barra de ações que fica SEMPRE no mesmo lugar em toda lista: logo acima da tabela, alinhada à
+     direita — "📄 Baixar PDF", "⚙ Colunas" e afins. Padroniza pra não ficar em lugar diferente por tela. */
+  .lista-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 10px;}
+  .lista-toolbar .lista-toolbar-info{margin:0 auto 0 0;font-size:11.5px;color:var(--muted);max-width:60%;}
   .empty{text-align:center;padding:60px 20px;color:var(--muted);}
 
   .overlay{position:fixed;inset:0;background:rgba(20,16,10,0.5);display:none;align-items:flex-start;justify-content:center;padding:36px 20px;overflow-y:auto;z-index:50;}
@@ -843,8 +847,11 @@
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="gSearch" placeholder="Nome do grupo..."></div>
         </div>
-        <div class="grid-wrap"><table class="grid">
-          <thead><tr><th>Grupo</th><th>Qtd. Animais</th><th>Observações</th><th></th></tr></thead>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista table.grid' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="grupos">
+          <thead><tr><th class="sortable" data-ordlista="grupos" data-ordcol="nome">Grupo</th><th class="sortable" data-ordlista="grupos" data-ordcol="qtd">Qtd. Animais</th><th class="sortable" data-ordlista="grupos" data-ordcol="obs">Observações</th><th></th></tr></thead>
           <tbody id="gTbody"></tbody>
         </table></div>
       </div>
@@ -890,12 +897,15 @@
           <div style="display:flex;gap:8px;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnRelManejoSel" style="display:none;">📄 Relatório dos selecionados</button>
             <button type="button" class="btn btn-sm btn-danger" id="btnManejoDelSel" style="display:none;">🗑 Excluir selecionados</button>
-            <button type="button" class="btn btn-sm btn-ghost" data-colpicker="manejos">⚙ Colunas</button>
           </div>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-manejos [data-lista="manejos"]' data-pdftitulo="Manejos" data-pdfarquivo="Manejos">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="manejos">⚙ Colunas</button>
+        </div>
         <div class="grid-wrap"><table class="grid" data-lista="manejos">
-          <thead><tr><th style="width:34px;"></th><th>Data</th><th data-col="tipo">Tipo</th><th data-col="subtipo">Subtipo (Casco)</th><th data-col="ferrador">Ferrador</th><th data-col="totalBase">Total ferrageamento (R$)</th><th data-col="totalExtras">Total c/ extras (R$)</th><th data-col="deslocamento">Deslocamento (R$)</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"></th><th class="sortable" data-ordlista="manejos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="manejos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="manejos" data-ordcol="subtipo" data-col="subtipo">Subtipo (Casco)</th><th class="sortable" data-ordlista="manejos" data-ordcol="ferrador" data-col="ferrador">Ferrador</th><th class="sortable" data-ordlista="manejos" data-ordcol="totalBase" data-col="totalBase">Total ferrageamento (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="totalExtras" data-col="totalExtras">Total c/ extras (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="deslocamento" data-col="deslocamento">Deslocamento (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="manejos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="mTbody"></tbody>
         </table></div>
       </div>
@@ -951,10 +961,13 @@
         <div class="f grow"><label>Buscar</label><input type="text" id="tpSearch" placeholder="Origem, destino, motorista, motivo..."></div>
         <div class="f"><label>Situação</label><select id="tpFiltroSituacao"><option value="">Todas</option><option value="N">Planejado</option><option value="S">Realizado</option></select></div>
         <div class="f"><label>Período (data saída)</label><div id="tpFiltroPeriodo"></div></div>
-        <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button></div>
+      </div>
+      <div class="lista-toolbar">
+        <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-transporte [data-lista="transporte"]' data-pdftitulo="Transportes" data-pdfarquivo="Transportes">📄 Baixar PDF</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="transporte">
-        <thead><tr><th>Data Saída</th><th data-col="origemDestino">Origem → Destino</th><th data-col="meio">Meio</th><th data-col="motorista">Motorista</th><th data-col="motivo">Motivo</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="valorFrete">Valor Frete</th><th data-col="situacao">Situação</th><th></th></tr></thead>
+        <thead><tr><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
         <tbody id="tpTbody"></tbody>
       </table></div>
     </div>
@@ -978,10 +991,13 @@
           <div class="f"><label>Tipo</label><select id="tFiltroTipo"><option value="">Todos</option></select></div>
           <div class="f"><label>Data de</label><input type="date" id="tFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="tFiltroAte"></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="treinos">
-          <thead><tr><th>Data</th><th data-col="local">Local</th><th data-col="tipo">Tipo</th><th data-col="quemTreinou">Quem treinou</th><th data-col="qtdAnimais">Qtd. Animais</th><th data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="treinos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="treinos" data-ordcol="local" data-col="local">Local</th><th class="sortable" data-ordlista="treinos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="treinos" data-ordcol="quemTreinou" data-col="quemTreinou">Quem treinou</th><th class="sortable" data-ordlista="treinos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="treinos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="tTbody"></tbody>
         </table></div>
       </div>
@@ -1033,10 +1049,13 @@
           <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
           <div class="f"><label>Ano cobertura</label><input type="text" id="nFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
           <div class="f"><label>Ano nascimento</label><input type="text" id="nFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
-          <div class="f" style="align-self:flex-end;display:flex;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button><button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
-          <thead><tr><th>Matriz</th><th data-col="pai">Pai</th><th data-col="receptora">Receptora</th><th data-col="dtCobertura">Dt Cobertura</th><th data-col="provavelNasc">Provável Nascimento</th><th data-col="dtNasc">Dt Nascimento</th><th data-col="confirm">Confirm.</th><th data-col="prenhez">Prenhez</th><th data-col="confirmado">Confirmado</th><th data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -1048,9 +1067,10 @@
           <div class="f"><label>De</label><input type="date" id="vrFiltroDe"></div>
           <div class="f"><label>Até</label><input type="date" id="vrFiltroAte"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
-          <div class="hint-text" style="margin:0;flex:1;min-width:240px;">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
-          <div style="display:flex;gap:6px;"><button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF</button><button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button></div>
+        <div class="lista-toolbar">
+          <div class="lista-toolbar-info">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr id="vrThead"></tr></thead>
@@ -1137,11 +1157,15 @@
       <div id="eview_dietas" style="display:none;">
         <div class="topbar" style="margin-bottom:14px;">
           <div class="subtitle" style="margin:0;">Horário, alimento e quantidade (por animal) de cada dieta</div>
-          <div style="display:flex;gap:8px;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button><button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button></div>
+          <div style="display:flex;gap:8px;"><button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button></div>
         </div>
         <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button>
+        </div>
         <div class="grid-wrap"><table class="grid" data-lista="dietas">
-          <thead><tr><th>Dieta</th><th data-col="animais">Animais</th><th data-col="itens">Itens</th><th data-col="custoMes">Custo estimado/mês</th><th data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="dtTbody"></tbody>
         </table></div>
       </div>
@@ -1152,10 +1176,13 @@
           <div class="f"><label>Origem</label><select id="movFiltroOrigem"><option value="">Todas</option><option value="manual">Manual</option><option value="dieta">Dieta</option><option value="veterinaria">Veterinária</option><option value="ajuste">Reajuste</option></select></div>
           <div class="f"><label>Data de</label><input type="date" id="movFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="movFiltroAte"></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas</button></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="estoqueMov">
-          <thead><tr><th>Data</th><th data-col="produto">Produto</th><th data-col="movimento">Movimento</th><th data-col="qtd">Qtd</th><th data-col="valor">Valor</th><th data-col="origem">Origem</th><th data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="estoqueMov" data-ordcol="data">Data</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="produto" data-col="produto">Produto</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="movimento" data-col="movimento">Movimento</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="qtd" data-col="qtd">Qtd</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="valor" data-col="valor">Valor</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="motivo" data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
           <tbody id="movTbody"></tbody>
         </table></div>
       </div>
@@ -1198,10 +1225,13 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vlSearch" placeholder="Veterinário, medicamento, animal..."></div>
           <div class="f"><label>Data de</label><input type="date" id="vlFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="vlFiltroAte"></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas</button></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetLista">
-          <thead><tr><th>Data</th><th data-col="tipo">Tipo</th><th data-col="resumo">Resumo</th><th data-col="animais">Animais</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="vetLista" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetLista" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="resumo" data-col="resumo">Resumo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="animais" data-col="animais">Animais</th><th></th></tr></thead>
           <tbody id="vlTbody"></tbody>
         </table></div>
       </div>
@@ -1216,10 +1246,13 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vsSearch" placeholder="Veterinário, animal, observações..."></div>
           <div class="f"><label>Data de</label><input type="date" id="vsFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="vsFiltroAte"></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas</button></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetVisitas">
-          <thead><tr><th>Data</th><th data-col="veterinario">Veterinário</th><th data-col="animais">Animais revisados</th><th data-col="obsGeral">Observação geral</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="vetVisitas" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="veterinario" data-col="veterinario">Veterinário</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="animais" data-col="animais">Animais revisados</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="obsGeral" data-col="obsGeral">Observação geral</th><th></th></tr></thead>
           <tbody id="vsTbody"></tbody>
         </table></div>
       </div>
@@ -1234,7 +1267,6 @@
             <span class="hint-text" id="tratSelCount">0 selecionado(s)</span>
           </div>
           <button type="button" class="btn btn-sm btn-danger" id="btnTratDelSel" style="display:none;">🗑 Excluir selecionados</button>
-          <button type="button" class="btn btn-sm btn-ghost" data-colpicker="vetTratamentos">⚙ Colunas</button>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
         <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -1242,8 +1274,12 @@
           <span class="chip" data-trstatus="concluido" id="trstat_concluido">Histórico (concluídos)</span>
           <span class="chip" data-trstatus="" id="trstat_todos">Todos</span>
         </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_tratamento [data-lista="vetTratamentos"]' data-pdftitulo="Tratamentos" data-pdfarquivo="Tratamentos">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetTratamentos">⚙ Colunas</button>
+        </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetTratamentos">
-          <thead><tr><th style="width:34px;"></th><th>Medicamento</th><th data-col="animais">Animais</th><th data-col="periodo">Período</th><th data-col="meio">Meio</th><th data-col="status">Status</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"></th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="medicamento">Medicamento</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="periodo" data-col="periodo">Período</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="status" data-col="status">Status</th><th></th></tr></thead>
           <tbody id="trTbody"></tbody>
         </table></div>
 
@@ -1283,11 +1319,14 @@
           <div class="f"><label>Tipo</label><select id="finFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
           <div class="f"><label>Categoria</label><select id="finFiltroCategoria"><option value="">Todas</option></select></div>
           <div class="f"><label>Período</label><div id="finFiltroPeriodo"></div></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button></div>
         </div>
         <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#finview_lancamentos [data-lista="financeiro"]' data-pdftitulo="Financeiro — Lançamentos" data-pdfarquivo="Financeiro_Lancamentos">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button>
+        </div>
         <div class="grid-wrap"><table class="grid" data-lista="financeiro">
-          <thead><tr><th>Data</th><th data-col="origem">Origem</th><th data-col="tipo">Tipo</th><th data-col="categoria">Categoria</th><th data-col="descricao">Descrição</th><th>Valor</th><th></th></tr></thead>
+          <thead><tr><th class="sortable" data-ordlista="financeiro" data-ordcol="data">Data</th><th class="sortable" data-ordlista="financeiro" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="financeiro" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="financeiro" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="financeiro" data-ordcol="descricao" data-col="descricao">Descrição</th><th class="sortable" data-ordlista="financeiro" data-ordcol="valor">Valor</th><th></th></tr></thead>
           <tbody id="finTbody"></tbody>
         </table></div>
       </div>
@@ -1330,10 +1369,13 @@
       <div class="stats" id="funcStats"></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 10px;">
         <div class="hint-text" style="margin:0;flex:1;">Cadastro só de identificação. Todo dia 5, o Calendário do Início lembra de confirmar o pagamento do salário de cada funcionário — clique lá pra confirmar (e ajustar o valor se precisar). Outros custos (vale, adiantamento...) entram por "Lançar custo".</div>
+      </div>
+      <div class="lista-toolbar">
+        <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-funcionarios [data-lista="funcionarios"]' data-pdftitulo="Funcionários" data-pdfarquivo="Funcionarios">📄 Baixar PDF</button>
         <button type="button" class="btn btn-ghost btn-sm" data-colpicker="funcionarios">⚙ Colunas</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="funcionarios">
-        <thead><tr><th>Nome</th><th data-col="documento">Documento</th><th data-col="nascimento">Nascimento</th><th data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
+        <thead><tr><th class="sortable" data-ordlista="funcionarios" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="documento" data-col="documento">Documento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nascimento" data-col="nascimento">Nascimento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="ultimoSalario" data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
         <tbody id="funcTbody"></tbody>
       </table></div>
     </div>
@@ -4608,6 +4650,74 @@ function atualizarTelasQueDependemDeAnimais(){
   if(document.getElementById('view-calendario').classList.contains('active')) renderCalendar();
 }
 
+/* ===== ORDENAÇÃO GENÉRICA DAS TABELAS DE LISTA (clicar no cabeçalho) =====
+   Mesmo comportamento da tabela de Animais/Visitas: clicar ordena, clicar de novo inverte.
+   No HTML: <th class="sortable" data-ordlista="X" data-ordcol="chave">. Na render: ordena o array com
+   ordenarListaGenerica('X', arr, getVal) e chama marcarSetasOrdenacao('X', seletor). */
+const ordListaEstado = {}; // { listaId: {col, dir} }
+const ORD_RENDERERS = {};  // listaId -> função de re-render
+function ordenarListaGenerica(listaId, arr, getVal){
+  const st = ordListaEstado[listaId];
+  if(!st || !st.col) return arr;
+  const out = arr.slice();
+  out.sort((a,b)=>{
+    let va = getVal(a, st.col), vb = getVal(b, st.col);
+    if(va===undefined || va===null) va = '';
+    if(vb===undefined || vb===null) vb = '';
+    const cmp = (typeof va==='number' && typeof vb==='number')
+      ? (va - vb)
+      : String(va).localeCompare(String(vb), 'pt', { numeric:true, sensitivity:'base' });
+    return st.dir==='asc' ? cmp : -cmp;
+  });
+  return out;
+}
+// Exporta pra PDF a tabela que está na tela (do jeito que está: filtro, ordem, colunas visíveis).
+// Genérico: lê o <table> renderizado, tira colunas de ação (cabeçalho vazio), botões e checkboxes.
+function baixarPdfTabela(tableEl, titulo, nomeArquivo){
+  if(!tableEl){ showAlert('Nada pra exportar nesta lista.'); return; }
+  const clone = tableEl.cloneNode(true);
+  clone.removeAttribute('class'); clone.removeAttribute('data-lista'); clone.removeAttribute('id');
+  clone.querySelectorAll('button, input, .sort-arrow').forEach(el=>el.remove());
+  const ths = [...clone.querySelectorAll('thead th')];
+  const remover = ths.map((th,i)=> th.textContent.trim()==='' ? i : -1).filter(i=>i>=0);
+  if(remover.length){
+    clone.querySelectorAll('tr').forEach(tr=>{
+      [...tr.children].forEach((cell,i)=>{ if(remover.includes(i)) cell.remove(); });
+    });
+  }
+  clone.querySelectorAll('th,td').forEach(c=>{ c.removeAttribute('class'); c.removeAttribute('style'); c.removeAttribute('data-col'); c.removeAttribute('data-ordcol'); c.removeAttribute('data-ordlista'); });
+  const linhasCorpo = clone.querySelectorAll('tbody tr').length;
+  if(linhasCorpo===0 || clone.querySelector('tbody .empty')){ showAlert('A lista está vazia — não há o que exportar.'); return; }
+  const nCols = (clone.querySelector('thead tr')||{children:[]}).children.length;
+  if(nCols>=13) clone.className = 'mais-compacta'; else if(nCols>=9) clone.className = 'compacta';
+  const html = `<h1>${titulo}</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${linhasCorpo} linha(s)</div>${clone.outerHTML}`;
+  abrirPreviaRelatorio(html, (nomeArquivo||'Relatorio')+'.pdf', titulo, {orientation:'landscape'});
+}
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest && e.target.closest('[data-pdftabela]');
+  if(!btn) return;
+  baixarPdfTabela(document.querySelector(btn.dataset.pdftabela), btn.dataset.pdftitulo||'Relatório', btn.dataset.pdfarquivo||'Relatorio');
+});
+function marcarSetasOrdenacao(listaId, scopeSelector){
+  const st = ordListaEstado[listaId] || {};
+  document.querySelectorAll(scopeSelector + ' th.sortable[data-ordcol]').forEach(th=>{
+    const ativo = th.dataset.ordcol === st.col;
+    th.classList.toggle('sort-active', ativo);
+    const a = th.querySelector('.sort-arrow'); if(a) a.remove();
+    if(ativo) th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${st.dir==='asc'?'▲':'▼'}</span>`);
+  });
+}
+document.addEventListener('click', (e)=>{
+  const th = e.target.closest && e.target.closest('th.sortable[data-ordlista]');
+  if(!th) return;
+  const lista = th.dataset.ordlista, col = th.dataset.ordcol;
+  const st = ordListaEstado[lista] || (ordListaEstado[lista] = { col:null, dir:'asc' });
+  if(st.col === col) st.dir = st.dir==='asc' ? 'desc' : 'asc';
+  else { st.col = col; st.dir = 'asc'; }
+  const fn = ORD_RENDERERS[lista];
+  if(fn) fn();
+});
+
 /* ================= MANEJOS ================= */
 const manejoSelecionados = new Set();
 const mFiltroPeriodo = createDateRangePicker(document.getElementById('mFiltroPeriodo'), {onChange: renderManejos});
@@ -4650,7 +4760,19 @@ function renderManejos(){
   };
   const podeEditarManejo = temPermissao('manejos','editar');
   const podeExcluirManejo = temPermissao('manejos','excluir');
-  tbody.innerHTML = filtered.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
+  const linhasM = ordenarListaGenerica('manejos', filtered, (m,col)=>{
+    if(col==='data') return m.data||'';
+    if(col==='tipo') return (m.tipo||'').toLowerCase();
+    if(col==='subtipo') return (m.subtipoCasco||'').toLowerCase();
+    if(col==='ferrador') return (m.ferrador||'').toLowerCase();
+    if(col==='totalBase') return calcTotalBase(m)||0;
+    if(col==='totalExtras') return calcTotal(m)||0;
+    if(col==='deslocamento') return Number(m.deslocamento)||0;
+    if(col==='qtdAnimais') return m.animais.length;
+    if(col==='obs') return (m.obs||'').toLowerCase();
+    return '';
+  });
+  tbody.innerHTML = linhasM.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
     <td><input type="checkbox" data-selid="${m.id}" ${manejoSelecionados.has(m.id)?'checked':''}></td>
     <td>${fmtDate(m.data)}</td><td data-col="tipo">${m.tipo}</td><td data-col="subtipo">${m.subtipoCasco||''}</td><td data-col="ferrador">${m.ferrador||''}</td><td data-col="totalBase">${fmtValor(calcTotalBase(m))}</td><td data-col="totalExtras">${fmtValor(calcTotal(m))}</td><td data-col="deslocamento">${fmtValor(m.deslocamento)}</td><td data-col="qtdAnimais">${m.animais.length}</td><td data-col="obs">${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${m.obs||''}</td>
     <td style="white-space:nowrap;">${m.pendenteEstoque&&podeEditarManejo?`<button type="button" class="btn btn-sm" data-confirmarbaixa="${m.id}" title="Dar baixa no estoque e gerar o custo por animal">✅ Confirmar baixa</button> `:''}<button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
@@ -4708,7 +4830,9 @@ function renderManejos(){
     });
   });
   updateManejoSelUI();
+  marcarSetasOrdenacao('manejos', '#view-manejos [data-lista="manejos"]');
 }
+ORD_RENDERERS.manejos = renderManejos;
 function updateManejoSelUI(){
   const n = manejoSelecionados.size;
   document.getElementById('manejoSelCount').textContent = n+' selecionado(s)';
@@ -6586,7 +6710,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
-const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:8px;text-align:left;font-size:12px;word-wrap:break-word;overflow-wrap:break-word;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11.5px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;}
+const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
 /* Tabela de Presença (Relatório 2 de Treinos): não usar table-layout fixo, células compactas e centradas,
    nome do animal à esquerda, 👁 escondido no PDF, marca de presença destacada. */
 .rel-manejo-pdf table.matrix{table-layout:auto;margin-top:6px;}
@@ -7652,7 +7776,19 @@ function renderTransportes(){
     }
     return true;
   }).sort((a,b)=> b.data.localeCompare(a.data));
-  document.getElementById('tpTbody').innerHTML = filtered.length===0 ? `<tr><td colspan="9" class="empty">Nenhum transporte encontrado.</td></tr>` : filtered.map(t=>{
+  const listaTp = ordenarListaGenerica('transporte', filtered, (t,col)=>{
+    if(col==='data') return t.data||'';
+    if(col==='origemDestino') return ((t.origem||'')+' '+(t.destino||'')).toLowerCase();
+    if(col==='meio') return (t.meioTransporte||'').toLowerCase();
+    if(col==='motorista') return (t.motorista||'').toLowerCase();
+    if(col==='motivo') return (t.motivo||'').toLowerCase();
+    if(col==='qtdAnimais') return (t.animais||[]).length;
+    if(col==='valorFrete') return Number(t.valorFrete)||0;
+    if(col==='situacao') return t.realizado==='S'?'Realizado':'Planejado';
+    return '';
+  });
+  marcarSetasOrdenacao('transporte', '#view-transporte [data-lista="transporte"]');
+  document.getElementById('tpTbody').innerHTML = listaTp.length===0 ? `<tr><td colspan="9" class="empty">Nenhum transporte encontrado.</td></tr>` : listaTp.map(t=>{
     const nAnimais = (t.animais||[]).length;
     const situ = t.realizado==='S';
     return `<tr data-id="${t.id}">
@@ -7684,6 +7820,7 @@ function renderTransportes(){
     showAlert('Transporte marcado como realizado.'+(count>0?(' Localização atualizada em '+count+' animal(is).'):''));
   }));
 }
+ORD_RENDERERS.transporte = renderTransportes;
 document.getElementById('tpSearch').addEventListener('input', debounce(renderTransportes));
 document.getElementById('tpFiltroSituacao').addEventListener('change', renderTransportes);
 document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
@@ -7922,9 +8059,19 @@ function renderTreinos(){
   const de=document.getElementById('tFiltroDe').value;
   const ate=document.getElementById('tFiltroAte').value;
   const filtered = treinos.filter(t=> (!tipo||t.tipo===tipo) && (!de||t.data>=de) && (!ate||t.data<=ate) ).sort((a,b)=> b.data.localeCompare(a.data));
+  const listaT = ordenarListaGenerica('treinos', filtered, (t,col)=>{
+    if(col==='data') return t.data||'';
+    if(col==='local') return (t.local||'').toLowerCase();
+    if(col==='tipo') return (t.tipo||'').toLowerCase();
+    if(col==='quemTreinou') return (t.treinadores||'').toLowerCase();
+    if(col==='qtdAnimais') return (t.animais||[]).length;
+    if(col==='obs') return (t.obs||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('treinos', '#view-treinos [data-lista="treinos"]');
   const tbody=document.getElementById('tTbody');
-  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhum treino encontrado.</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
+  if(listaT.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhum treino encontrado.</td></tr>`; return; }
+  tbody.innerHTML = listaT.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
     <td>${fmtDate(t.data)}</td><td data-col="local">${t.local||''}</td><td data-col="tipo">${t.tipo||''}</td><td data-col="quemTreinou">${t.treinadores||''}</td><td data-col="qtdAnimais">${t.animais.length}</td><td data-col="obs">${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">Excluir</button></td>
   </tr>`).join('');
@@ -7942,6 +8089,7 @@ function renderTreinos(){
     await storeSet('treinos_list', treinos, true); renderTreinos(); renderFinanceiro();
   }));
 }
+ORD_RENDERERS.treinos = renderTreinos;
 ['tFiltroTipo','tFiltroDe','tFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderTreinos));
 function openTreinoNew(){
   editingTreinoId = null;
@@ -8653,6 +8801,20 @@ function renderNascimentos(){
     const matchTerm = !term || (n.matriz||'').toLowerCase().includes(term) || (n.pai||'').toLowerCase().includes(term) || (n.receptora||'').toLowerCase().includes(term) || (n.obs||'').toLowerCase().includes(term);
     return matchConf && matchAno && matchAnoNasc && matchTerm;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
+  const filteredOrd = ordenarListaGenerica('coberturas', filtered, (n,col)=>{
+    if(col==='matriz') return (n.matriz||'').toLowerCase();
+    if(col==='pai') return (n.pai||'').toLowerCase();
+    if(col==='receptora') return (n.receptora||'').toLowerCase();
+    if(col==='dtCobertura') return refCobertura(n)||'';
+    if(col==='provavelNasc') return (!n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '')||'';
+    if(col==='dtNasc') return n.datanasc||'';
+    if(col==='confirm') return n.confirm==='S'?'Sim':'Não';
+    if(col==='prenhez') return n.prenhezConfirmada==='S'?('1 '+(n.prenhezUltima||'')):'0';
+    if(col==='confirmado') return n.confirm==='S'?'Sim':'Não';
+    if(col==='obs') return (n.obs||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('coberturas', '#view-nascimentos [data-lista="coberturas"]');
 
   // Cada cobertura conta em UMA classificação só (mutuamente exclusivas): já nasceu, prenhez confirmada,
   // ou ainda em aberto. Uma égua confirmada prenhe NÃO conta como "não confirmada" nem entra na taxa de
@@ -8699,13 +8861,13 @@ function renderNascimentos(){
   });
 
   const tbody=document.getElementById('nTbody');
-  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="11" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
+  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="11" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
     return h ? `<span class="animal-eye-wrap">${nome}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : nome;
   };
-  tbody.innerHTML = filtered.map(n=>{
+  tbody.innerHTML = filteredOrd.map(n=>{
     const animal = n.animalId ? horses.find(h=>h.id===n.animalId) : null;
     const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
     const cobsN = todasCoberturas(n);
@@ -8730,6 +8892,7 @@ function renderNascimentos(){
   tbody.querySelectorAll('[data-nconfirmprenhez]').forEach(b=>b.addEventListener('click', ()=>confirmarPrenhez(b.dataset.nconfirmprenhez)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
 }
+ORD_RENDERERS.coberturas = renderNascimentos;
 ['nFiltroConf','nFiltroAno','nFiltroAnoNasc'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
@@ -8945,7 +9108,7 @@ document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
   const filtroTxt = [conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas';
   const html = `<h1>Relatório de Coberturas</h1>
     <div class="sub">${filtroTxt} · ${lista.length} registro(s)</div>
-    <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovulação</th><th>Coleta embrião</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Prenhez</th><th>Nasceu</th><th>Obs.</th></tr></thead>
+    <table class="compacta"><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovulação</th><th>Coleta embrião</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Prenhez</th><th>Nasceu</th><th>Obs.</th></tr></thead>
     <tbody>${lista.map(n=>{
       const prov = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
       return `<tr>
@@ -10362,7 +10525,16 @@ function renderDietas(){
   renderDietasMedidores();
   if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="6" class="empty">Nenhuma dieta cadastrada.</td></tr>`; return; }
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-  tbody.innerHTML = dietas.map(d=>{
+  const listaD = ordenarListaGenerica('dietas', dietas, (d,col)=>{
+    if(col==='nome') return (d.nome||'').toLowerCase();
+    if(col==='animais') return (d.animais||[]).length;
+    if(col==='itens') return (d.itens||[]).length;
+    if(col==='custoMes') return custoDietaResumo(d).mensalTotal||0;
+    if(col==='obs') return (d.obs||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('dietas', '#eview_dietas [data-lista="dietas"]');
+  tbody.innerHTML = listaD.map(d=>{
     const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
     const nAnimais = (d.animais||[]).length;
     const hoje = toISODate(new Date());
@@ -10390,6 +10562,7 @@ function renderDietas(){
   tbody.querySelectorAll('[data-animais]').forEach(b=>b.addEventListener('click', ()=>openDietaAnimais(b.dataset.animais)));
   tbody.querySelectorAll('[data-consumir]').forEach(b=>b.addEventListener('click', ()=>registrarConsumoDieta(b.dataset.consumir)));
 }
+ORD_RENDERERS.dietas = renderDietas;
 
 // Confere se tem estoque suficiente de TODOS os itens da dieta ANTES de dar qualquer baixa.
 // Mesmo padrão da Veterinária: tudo-ou-nada. Retorna {ok:true} ou {ok:false, faltando:[nomes]}.
@@ -11059,10 +11232,18 @@ function renderVisitas(){
     return matchData && matchTerm;
   }).sort((a,b)=> b.data.localeCompare(a.data));
   visitasFiltradasAtual = filtered;
+  const listaVs = ordenarListaGenerica('vetVisitas', filtered, (v,col)=>{
+    if(col==='data') return v.data||'';
+    if(col==='veterinario') return (v.veterinario||'').toLowerCase();
+    if(col==='animais') return (v.animais||[]).map(a=>a.nome||'').join(', ').toLowerCase();
+    if(col==='obsGeral') return (v.obsGeral||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('vetVisitas', '#vtrview_visitas [data-lista="vetVisitas"]');
   const tbody = document.getElementById('vsTbody');
-  document.getElementById('btnRelVisitasFiltro').style.display = filtered.length ? 'inline-block' : 'none';
-  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(v=>{
+  document.getElementById('btnRelVisitasFiltro').style.display = listaVs.length ? 'inline-block' : 'none';
+  if(listaVs.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhuma visita registrada.</td></tr>`; return; }
+  tbody.innerHTML = listaVs.map(v=>{
     const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
     <td>${fmtDate(v.data)}</td><td data-col="veterinario">${v.veterinario||'—'}</td>
@@ -11083,6 +11264,7 @@ function renderVisitas(){
   }));
   if(typeof renderVetLista==='function') renderVetLista();
 }
+ORD_RENDERERS.vetVisitas = renderVisitas;
 let visitasFiltradasAtual = [];
 ['vsFiltroDe','vsFiltroAte'].forEach(id=>{
   const el = document.getElementById(id);
@@ -11520,9 +11702,10 @@ document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
   const de = document.getElementById('vrFiltroDe')?.value, ate = document.getElementById('vrFiltroAte')?.value;
   const vet = document.getElementById('vrFiltroVet')?.value;
   const periodo = [de&&('de '+fmtDate(de)), ate&&('até '+fmtDate(ate)), vet&&('vet.: '+vet)].filter(Boolean).join(' · ') || 'todos os registros';
+  const classe = cabecalho.length>=13 ? 'mais-compacta' : (cabecalho.length>=9 ? 'compacta' : '');
   const html = `<h1>Relatório de Visitas / Exames Reprodutivos</h1>
     <div class="sub">${periodo} · ${vrLinhasAtual.length} linha(s)</div>
-    <table><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <table class="${classe}"><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${vrLinhasAtual.map(({v,e})=>`<tr>
       <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td><td>${e.nome||'—'}</td>
       ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
@@ -11602,12 +11785,21 @@ function renderTratamentos(){
     const st = statusTratamento(t);
     return tratamentoFiltroStatus==='ativo' ? st!=='concluido' : st===tratamentoFiltroStatus;
   });
-  if(filtrados.length===0){
+  const filtradosOrd = ordenarListaGenerica('vetTratamentos', filtrados, (t,col)=>{
+    if(col==='medicamento') return (t.medicamentoNome||'').toLowerCase();
+    if(col==='animais') return (t.animais||[]).map(a=>a.nome||'').join(', ').toLowerCase();
+    if(col==='periodo') return t.dataInicio||'';
+    if(col==='meio') return (t.meioAplicacao||'').toLowerCase();
+    if(col==='status') return (rotuloStatusTratamento(t).label||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('vetTratamentos', '#vtrview_tratamento [data-lista="vetTratamentos"]');
+  if(filtradosOrd.length===0){
     tbody.innerHTML = `<tr><td colspan="7" class="empty">${tratamentos.length===0 ? 'Nenhuma aplicação cadastrada.' : (tratamentoFiltroStatus==='ativo' ? 'Nenhum tratamento em andamento — os concluídos ficam em "Histórico".' : 'Nenhum tratamento concluído ainda.')}</td></tr>`;
     updateTratSelUI();
     return;
   }
-  tbody.innerHTML = filtrados.map(t=>{
+  tbody.innerHTML = filtradosOrd.map(t=>{
     const periodosTxt = PERIODOS_TRATAMENTO.filter(p=>t.periodos&&t.periodos[p]).join(', ');
     const termino = calcDataTermino(t.dataInicio, t.diasTratamento, t.intervaloDias);
     const rot = rotuloStatusTratamento(t);
@@ -11657,6 +11849,7 @@ function renderTratamentos(){
   updateTratSelUI();
   if(typeof renderVetLista==='function') renderVetLista();
 }
+ORD_RENDERERS.vetTratamentos = renderTratamentos;
 function updateTratSelUI(){
   const n = tratSelecionados.size;
   document.getElementById('tratSelCount').textContent = n+' selecionado(s)';
@@ -11698,9 +11891,17 @@ function renderVetLista(){
   if(!tbody) return;
   const termo = (document.getElementById('vlSearch').value||'').toLowerCase();
   const de = document.getElementById('vlFiltroDe').value, ate = document.getElementById('vlFiltroAte').value;
-  const lista = combinedVetHistorico().filter(r=>
+  const lista0 = combinedVetHistorico().filter(r=>
     (!termo || r.buscaTxt.includes(termo)) && (!de || r.data>=de) && (!ate || r.data<=ate)
   );
+  const lista = ordenarListaGenerica('vetLista', lista0, (r,col)=>{
+    if(col==='data') return r.data||'';
+    if(col==='tipo') return (r.origemTipo==='visita'?'Visita':'Tratamento')+' '+(r.statusRot?r.statusRot.label:'');
+    if(col==='resumo') return (r.resumo||'').replace(/<[^>]+>/g,'').toLowerCase();
+    if(col==='animais') return (r.animais||[]).map(a=>a.nome||a).join(', ').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('vetLista', '#vtrview_lista [data-lista="vetLista"]');
   if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
   tbody.innerHTML = lista.map(r=>`<tr>
     <td>${fmtDate(r.data)}</td>
@@ -11721,6 +11922,7 @@ function renderVetLista(){
     if(tipo==='visita') openVisitaEdit(id); else openTratamentoEdit(id);
   }));
 }
+ORD_RENDERERS.vetLista = renderVetLista;
 ['vlFiltroDe','vlFiltroAte'].forEach(id=> document.getElementById(id).addEventListener('input', renderVetLista));
 document.getElementById('vlSearch').addEventListener('input', debounce(renderVetLista));
 function showVetTab(tab){
@@ -12055,8 +12257,15 @@ function verAtrasadosNoFront(tipoFiltro){
 
 function renderGrupos(){
   const term = (document.getElementById('gSearch').value||'').toLowerCase();
-  const filtered = grupos.filter(g=> !term || (g.nome||'').toLowerCase().includes(term) || (g.animais||[]).some(a=>(a.nome||'').toLowerCase().includes(term)) )
+  const filtered0 = grupos.filter(g=> !term || (g.nome||'').toLowerCase().includes(term) || (g.animais||[]).some(a=>(a.nome||'').toLowerCase().includes(term)) )
     .sort((a,b)=> (a.nome||'').localeCompare(b.nome||'','pt'));
+  const filtered = ordenarListaGenerica('grupos', filtered0, (g,col)=>{
+    if(col==='nome') return (g.nome||'').toLowerCase();
+    if(col==='qtd') return (g.animais||[]).length;
+    if(col==='obs') return (g.obs||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('grupos', '#grview_lista [data-lista="grupos"]');
   const tbody = document.getElementById('gTbody');
   if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="4" class="empty">${grupos.length===0?'Nenhum grupo criado ainda.':'Nenhum grupo encontrado.'}</td></tr>`; return; }
   tbody.innerHTML = filtered.map(g=>`<tr>
@@ -12071,6 +12280,7 @@ function renderGrupos(){
   tbody.querySelectorAll('[data-editar]').forEach(b=>b.addEventListener('click', ()=>openGrupoEdit(b.dataset.editar)));
   tbody.querySelectorAll('[data-vergrupo]').forEach(b=>b.addEventListener('click', ()=>verGrupoNoFront(b.dataset.vergrupo)));
 }
+ORD_RENDERERS.grupos = renderGrupos;
 document.getElementById('gSearch').addEventListener('input', debounce(renderGrupos));
 
 function showGrupoTab(tab){
@@ -12108,8 +12318,19 @@ function renderMovimentos(){
   const origem = document.getElementById('movFiltroOrigem').value;
   const de = document.getElementById('movFiltroDe').value;
   const ate = document.getElementById('movFiltroAte').value;
-  const filtered = estoqueMovimentos.filter(m=> (!tipo||m.tipoMov===tipo) && (!origem||m.origem===origem) && (!de||m.data>=de) && (!ate||m.data<=ate) )
+  const filtered0 = estoqueMovimentos.filter(m=> (!tipo||m.tipoMov===tipo) && (!origem||m.origem===origem) && (!de||m.data>=de) && (!ate||m.data<=ate) )
     .sort((a,b)=> b.data.localeCompare(a.data));
+  const filtered = ordenarListaGenerica('estoqueMov', filtered0, (m,col)=>{
+    if(col==='data') return m.data||'';
+    if(col==='produto') return (m.produtoNome||'').toLowerCase();
+    if(col==='movimento') return m.tipoMov==='entrada'?'Entrada':'Saída';
+    if(col==='qtd') return Number(m.quantidade)||0;
+    if(col==='valor') return Number(String(m.valor||'').replace(/[^\d.,-]/g,'').replace(',','.'))||0;
+    if(col==='origem') return (ORIGEM_MOV_LABEL[m.origem]||m.origem||'').toLowerCase();
+    if(col==='motivo') return (m.motivo||'').toLowerCase();
+    return '';
+  });
+  marcarSetasOrdenacao('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]');
   const tbody = document.getElementById('movTbody');
   if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhuma movimentação encontrada.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(m=>`<tr>
@@ -12124,6 +12345,7 @@ function renderMovimentos(){
   </tr>`).join('');
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
 }
+ORD_RENDERERS.estoqueMov = renderMovimentos;
 ['movFiltroTipo','movFiltroOrigem','movFiltroDe','movFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
 
 /* ================= ANIMAIS: Lista / Relatórios ================= */
@@ -12711,9 +12933,19 @@ function renderFinanceiro(){
     (!de || !l.data || l.data>=de) && (!ate || !l.data || l.data<=ate)
   ).sort((a,b)=> b.data.localeCompare(a.data));
   renderFinanceiroStats(filtered);
+  const listaFin = ordenarListaGenerica('financeiro', filtered, (l,col)=>{
+    if(col==='data') return l.data||'';
+    if(col==='origem') return (ORIGEM_FIN_LABEL[l.origem]||l.origem||'').toLowerCase();
+    if(col==='tipo') return l.tipo==='entrada'?'Entrada':'Saída';
+    if(col==='categoria') return (l.categoria||'').toLowerCase();
+    if(col==='descricao') return (l.descricao||'').toLowerCase();
+    if(col==='valor') return (l.tipo==='saida'?-1:1) * (Number(l.valor)||0);
+    return '';
+  });
+  marcarSetasOrdenacao('financeiro', '#finview_lancamentos [data-lista="financeiro"]');
   const tbody = document.getElementById('finTbody');
-  if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">${todos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; return; }
-  tbody.innerHTML = filtered.map(l=>{
+  if(listaFin.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">${todos.length===0?'Nenhum lançamento ainda.':'Nenhum lançamento encontrado.'}</td></tr>`; return; }
+  tbody.innerHTML = listaFin.map(l=>{
     const acoes = l.origem==='manual'
       ? `<button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button>`
       : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
@@ -12739,6 +12971,7 @@ function renderFinanceiro(){
   }));
   if(finTabAtiva==='custoanimal') renderCustoPorAnimalTab();
 }
+ORD_RENDERERS.financeiro = renderFinanceiro;
 // Vai pra tela/aba/registro de origem de um lançamento derivado — usado tanto no "Ver em X" da lista
 // de Lançamentos quanto no drill-down de Financeiro → Custo por Animal (clicar no valor Direto).
 function navegarParaOrigemFinanceiro(tipoOrigem, id){
@@ -13442,7 +13675,15 @@ function renderFuncionarios(){
     <div class="stat"><div class="stat-num">${funcionarios.length-pendentes}</div><div class="stat-label">Salário já confirmado (${MESES_LABEL[hoje.getMonth()]})</div></div>`;
   const tbody = document.getElementById('funcTbody');
   if(funcionarios.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum funcionário cadastrado ainda.</td></tr>`; return; }
-  const lista = [...funcionarios].sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+  const lista0 = [...funcionarios].sort((a,b)=> (a.nome||'').localeCompare(b.nome||''));
+  const lista = ordenarListaGenerica('funcionarios', lista0, (fu,col)=>{
+    if(col==='nome') return (fu.nome||'').toLowerCase();
+    if(col==='documento') return (fu.documento||'').toLowerCase();
+    if(col==='nascimento') return fu.dataNascimento||'';
+    if(col==='ultimoSalario') return Number(fu.ultimoSalarioValor)||0;
+    return '';
+  });
+  marcarSetasOrdenacao('funcionarios', '#view-funcionarios [data-lista="funcionarios"]');
   tbody.innerHTML = lista.map(fu=>{
     const qtdLancamentos = lancamentos.filter(l=>l.origemFuncionarioId===fu.id).length;
     const pago = salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth());
@@ -13471,6 +13712,7 @@ function renderFuncionarios(){
     setTimeout(()=>{ document.getElementById('finSearch').value = b.dataset.verlancfunc; renderFinanceiro(); }, 30);
   }));
 }
+ORD_RENDERERS.funcionarios = renderFuncionarios;
 function openFuncionarioNew(){
   editingFuncionarioId = null;
   document.getElementById('funcModalTitle').textContent = 'Novo Funcionário';
