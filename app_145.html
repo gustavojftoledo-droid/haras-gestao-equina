@@ -916,8 +916,7 @@
         <div class="filters">
           <div class="f"><label>Tipo</label><select id="pFiltroTipo"><option value="">Todos</option><option>Casco</option><option>Vacina</option><option>Vermífugo</option><option>Dente</option></select></div>
           <div class="f"><label>Situação</label><select id="pFiltroSituacao"><option value="">Todas</option><option value="atrasado">Atrasado</option><option value="proximo">Próximo (7 dias)</option><option value="emdia">Em dia</option><option value="nunca">Nunca registrado</option></select></div>
-          <div class="f"><label>Próxima prevista de</label><input type="date" id="pFiltroDataDe"></div>
-          <div class="f"><label>Próxima prevista até</label><input type="date" id="pFiltroDataAte"></div>
+          <div class="f"><label>Próxima prevista — período</label><div id="pFiltroDataPeriodo"></div></div>
         </div>
         <div class="toolbar-row">
           <div></div>
@@ -990,8 +989,7 @@
       <div id="tview_historico">
         <div class="filters">
           <div class="f"><label>Tipo</label><select id="tFiltroTipo"><option value="">Todos</option></select></div>
-          <div class="f"><label>Data de</label><input type="date" id="tFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="tFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="tFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
@@ -1065,8 +1063,7 @@
         <div class="filters">
           <div class="f grow"><label>Buscar égua</label><input type="text" id="vrSearch" placeholder="Nome da égua..."></div>
           <div class="f"><label>Veterinário</label><input type="text" id="vrFiltroVet" placeholder="Nome"></div>
-          <div class="f"><label>De</label><input type="date" id="vrFiltroDe"></div>
-          <div class="f"><label>Até</label><input type="date" id="vrFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="vrFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
           <div class="lista-toolbar-info">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
@@ -1175,8 +1172,7 @@
         <div class="filters">
           <div class="f"><label>Movimento</label><select id="movFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
           <div class="f"><label>Origem</label><select id="movFiltroOrigem"><option value="">Todas</option><option value="manual">Manual</option><option value="dieta">Dieta</option><option value="veterinaria">Veterinária</option><option value="ajuste">Reajuste</option></select></div>
-          <div class="f"><label>Data de</label><input type="date" id="movFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="movFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="movFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF</button>
@@ -1224,8 +1220,7 @@
       <div id="vtrview_lista">
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="vlSearch" placeholder="Veterinário, medicamento, animal..."></div>
-          <div class="f"><label>Data de</label><input type="date" id="vlFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="vlFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="vlFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF</button>
@@ -1245,8 +1240,7 @@
         </div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="vsSearch" placeholder="Veterinário, animal, observações..."></div>
-          <div class="f"><label>Data de</label><input type="date" id="vsFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="vsFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="vsFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF</button>
@@ -1287,8 +1281,7 @@
         <div class="section-label" style="margin-top:20px;">📄 Relatório de Tratamentos</div>
         <div class="filters">
           <div class="f"><label>Status</label><select id="vrFiltroStatus"><option value="">Todos</option><option value="ativo">Em andamento</option><option value="atrasado">Com dose(s) atrasada(s)</option><option value="concluido">Concluído</option></select></div>
-          <div class="f"><label>Início de</label><input type="date" id="vrFiltroDe"></div>
-          <div class="f"><label>Início até</label><input type="date" id="vrFiltroAte"></div>
+          <div class="f"><label>Período de início</label><div id="trRelFiltroPeriodo"></div></div>
         </div>
         <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="vetRelSelectorHost" style="margin:10px 0 16px;"></div>
@@ -6431,12 +6424,12 @@ document.getElementById('calBtnNext').addEventListener('click', ()=>{
 });
 document.getElementById('calBtnHoje').addEventListener('click', ()=>{ calDate = new Date(); calDate.setHours(0,0,0,0); renderCalendar(); });
 
+const pFiltroDataPeriodo = createDateRangePicker(document.getElementById('pFiltroDataPeriodo'), {onChange: renderProgramacao});
 function renderProgramacao(){
   const rows = computeProgramacao();
   const tipoF = document.getElementById('pFiltroTipo').value;
   const sitF = document.getElementById('pFiltroSituacao').value;
-  const de = document.getElementById('pFiltroDataDe').value;
-  const ate = document.getElementById('pFiltroDataAte').value;
+  const { de, ate } = pFiltroDataPeriodo.getRange();
   const filtered = rows.filter(r=>{
     if(tipoF && r.tipo!==tipoF) return false;
     if(sitF && r.situacao!==sitF) return false;
@@ -6466,12 +6459,10 @@ function renderProgramacao(){
   }).join('');
 }
 let programacaoFiltradaAtual = [];
-['pFiltroDataDe','pFiltroDataAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderProgramacao));
 document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   if(programacaoFiltradaAtual.length===0){ showAlert('Nenhum registro na lista filtrada pra gerar relatório.'); return; }
   const badge = { atrasado:'Atrasado', proximo:'Próximo (7 dias)', emdia:'Em dia', nunca:'Nunca registrado' };
-  const de = document.getElementById('pFiltroDataDe').value;
-  const ate = document.getElementById('pFiltroDataAte').value;
+  const { de, ate } = pFiltroDataPeriodo.getRange();
   const intervaloTxt = (de||ate) ? ` · Próxima prevista entre ${de?fmtDate(de):'—'} e ${ate?fmtDate(ate):'—'}` : '';
   const htmlConteudo = `<h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
@@ -8135,11 +8126,11 @@ document.getElementById('btnRatearTreino').addEventListener('click', ()=>{
   atualizarValorTotalTreino();
 });
 
+const tFiltroPeriodo = createDateRangePicker(document.getElementById('tFiltroPeriodo'), {onChange: renderTreinos});
 function renderTreinos(){
   populateSelectFilter('tFiltroTipo', treinos.map(t=>t.tipo));
   const tipo=document.getElementById('tFiltroTipo').value;
-  const de=document.getElementById('tFiltroDe').value;
-  const ate=document.getElementById('tFiltroAte').value;
+  const { de, ate } = tFiltroPeriodo.getRange();
   const filtered = treinos.filter(t=> (!tipo||t.tipo===tipo) && (!de||t.data>=de) && (!ate||t.data<=ate) ).sort((a,b)=> b.data.localeCompare(a.data));
   const listaT = ordenarListaGenerica('treinos', filtered, (t,col)=>{
     if(col==='data') return t.data||'';
@@ -8175,7 +8166,7 @@ function renderTreinos(){
   }));
 }
 ORD_RENDERERS.treinos = renderTreinos;
-['tFiltroTipo','tFiltroDe','tFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderTreinos));
+document.getElementById('tFiltroTipo').addEventListener('input', renderTreinos);
 function openTreinoNew(){
   editingTreinoId = null;
   document.getElementById('trModalTitle').textContent = 'Novo Treino';
@@ -11340,10 +11331,12 @@ document.getElementById('btnDeleteVisita').addEventListener('click', async ()=>{
 });
 bindSaveShortcut('overlayVisita','btnSaveVisita');
 
+const vsFiltroPeriodo = createDateRangePicker(document.getElementById('vsFiltroPeriodo'), {onChange: renderVisitas});
 function renderVisitas(){
-  const deEl = document.getElementById('vsFiltroDe'), ateEl = document.getElementById('vsFiltroAte'), searchEl = document.getElementById('vsSearch');
-  if(!deEl) return; // ainda não renderizou essa aba
-  const de = deEl.value, ate = ateEl.value, term = (searchEl.value||'').toLowerCase();
+  const searchEl = document.getElementById('vsSearch');
+  if(!searchEl) return; // ainda não renderizou essa aba
+  const { de, ate } = vsFiltroPeriodo.getRange();
+  const term = (searchEl.value||'').toLowerCase();
   const filtered = visitas.filter(v=>{
     const matchData = (!de||v.data>=de) && (!ate||v.data<=ate);
     const matchTerm = !term || (v.veterinario||'').toLowerCase().includes(term) || (v.obsGeral||'').toLowerCase().includes(term) ||
@@ -11387,10 +11380,6 @@ function renderVisitas(){
 }
 ORD_RENDERERS.vetVisitas = renderVisitas;
 let visitasFiltradasAtual = [];
-['vsFiltroDe','vsFiltroAte'].forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('input', renderVisitas);
-});
 (function(){ const el=document.getElementById('vsSearch'); if(el) el.addEventListener('input', debounce(renderVisitas)); })();
 
 // Relatório em PDF de uma visita — mesmo esquema já usado em Manejos, Treinos e Nascimentos:
@@ -11769,12 +11758,12 @@ function vrValorOrdenacao(l, key){
   const raw = l.e[key];
   return (raw==null?'':String(raw)).trim().toLowerCase();
 }
+const vrFiltroPeriodo = createDateRangePicker(document.getElementById('vrFiltroPeriodo'), {onChange: renderVisitasRepro});
 function renderVisitasRepro(){
   const tbody = document.getElementById('vrTbody');
   const thead = document.getElementById('vrThead');
   if(!tbody || !thead) return;
-  const deEl = document.getElementById('vrFiltroDe'), ateEl = document.getElementById('vrFiltroAte');
-  const de = deEl?deEl.value:'', ate = ateEl?ateEl.value:'';
+  const { de, ate } = vrFiltroPeriodo.getRange();
   const vet = (document.getElementById('vrFiltroVet')?.value||'').toLowerCase();
   const term = (document.getElementById('vrSearch')?.value||'').toLowerCase();
   const cols = getColunasVisitaReproVisiveis();
@@ -11851,7 +11840,7 @@ document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
   if(linhasRel.length===0){ showAlert('Nenhum exame na lista pra gerar o relatório.'); return; }
   const cols = vrColsAtual;
   const cabecalho = ['Data','Veterinário','Égua', ...cols.map(c=>c.label)];
-  const de = document.getElementById('vrFiltroDe')?.value, ate = document.getElementById('vrFiltroAte')?.value;
+  const { de, ate } = vrFiltroPeriodo.getRange();
   const vet = document.getElementById('vrFiltroVet')?.value;
   const periodo = visitaExameSel.size ? (visitaExameSel.size+' selecionado(s)')
     : ([de&&('de '+fmtDate(de)), ate&&('até '+fmtDate(ate)), vet&&('vet.: '+vet)].filter(Boolean).join(' · ') || 'todos os registros');
@@ -11865,10 +11854,7 @@ document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
   abrirPreviaRelatorio(html, 'Relatorio_Visitas_Exames_Reprodutivos.pdf', 'Visitas / Exames Reprodutivos', {orientation:'landscape'});
 });
 (function(){ const el=document.getElementById('vrSearch'); if(el) el.addEventListener('input', debounce(renderVisitasRepro)); })();
-['vrFiltroDe','vrFiltroAte','vrFiltroVet'].forEach(id=>{
-  const el = document.getElementById(id);
-  if(el) el.addEventListener('input', renderVisitasRepro);
-});
+(function(){ const el=document.getElementById('vrFiltroVet'); if(el) el.addEventListener('input', renderVisitasRepro); })();
 
 function blocoExameEgua(e){
   const linhas = [
@@ -12038,11 +12024,12 @@ function combinedVetHistorico(){
     buscaTxt: [x.medicamentoNome, x.responsavel, ...(x.animais||[]).map(a=>a.nome)].filter(Boolean).join(' ').toLowerCase() }));
   return [...v, ...t].sort((a,b)=> (b.data||'').localeCompare(a.data||''));
 }
+const vlFiltroPeriodo = createDateRangePicker(document.getElementById('vlFiltroPeriodo'), {onChange: ()=>renderVetLista()});
 function renderVetLista(){
   const tbody = document.getElementById('vlTbody');
   if(!tbody) return;
   const termo = (document.getElementById('vlSearch').value||'').toLowerCase();
-  const de = document.getElementById('vlFiltroDe').value, ate = document.getElementById('vlFiltroAte').value;
+  const { de, ate } = vlFiltroPeriodo.getRange();
   const lista0 = combinedVetHistorico().filter(r=>
     (!termo || r.buscaTxt.includes(termo)) && (!de || r.data>=de) && (!ate || r.data<=ate)
   );
@@ -12077,7 +12064,6 @@ function renderVetLista(){
   }));
 }
 ORD_RENDERERS.vetLista = renderVetLista;
-['vlFiltroDe','vlFiltroAte'].forEach(id=> document.getElementById(id).addEventListener('input', renderVetLista));
 document.getElementById('vlSearch').addEventListener('input', debounce(renderVetLista));
 function showVetTab(tab){
   ['lista','visitas','tratamento'].forEach(t=>{
@@ -12095,10 +12081,10 @@ document.getElementById('vtrtab_tratamento').addEventListener('click', ()=>showV
 const vetRelHost = document.getElementById('vetRelSelectorHost');
 const vetRelSelector = createAnimalSelector(vetRelHost, {extraPlaceholder:'', reportFilter:true, persistKey:'veterinaria'});
 
+const trRelFiltroPeriodo = createDateRangePicker(document.getElementById('trRelFiltroPeriodo'), {});
 function gerarRelatorioVeterinaria(){
   const statusF = document.getElementById('vrFiltroStatus').value;
-  const de = document.getElementById('vrFiltroDe').value;
-  const ate = document.getElementById('vrFiltroAte').value;
+  const { de, ate } = trRelFiltroPeriodo.getRange();
   const selecionados = vetRelSelector.getSelected();
   const idsSelecionados = selecionados.length ? new Set(selecionados.map(s=>s.id)) : null;
   if(!idsSelecionados){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
@@ -12469,11 +12455,11 @@ document.getElementById('btnGerarRelGrupo').addEventListener('click', gerarRelat
 document.getElementById('btnPrintRelGrupo').addEventListener('click', ()=>window.print());
 
 /* ================= MOVIMENTAÇÕES ================= */
+const movFiltroPeriodo = createDateRangePicker(document.getElementById('movFiltroPeriodo'), {onChange: renderMovimentos});
 function renderMovimentos(){
   const tipo = document.getElementById('movFiltroTipo').value;
   const origem = document.getElementById('movFiltroOrigem').value;
-  const de = document.getElementById('movFiltroDe').value;
-  const ate = document.getElementById('movFiltroAte').value;
+  const { de, ate } = movFiltroPeriodo.getRange();
   const filtered0 = estoqueMovimentos.filter(m=> (!tipo||m.tipoMov===tipo) && (!origem||m.origem===origem) && (!de||m.data>=de) && (!ate||m.data<=ate) )
     .sort((a,b)=> b.data.localeCompare(a.data));
   const filtered = ordenarListaGenerica('estoqueMov', filtered0, (m,col)=>{
@@ -12504,7 +12490,7 @@ function renderMovimentos(){
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
 }
 ORD_RENDERERS.estoqueMov = renderMovimentos;
-['movFiltroTipo','movFiltroOrigem','movFiltroDe','movFiltroAte'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
+['movFiltroTipo','movFiltroOrigem'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
 
 /* ================= ANIMAIS: Lista / Relatórios ================= */
 function showAnimaisTab(tab){
