@@ -11278,10 +11278,10 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     for(const e of eguas){
       const txt = (e.medicacao||'').trim();
       if(!txt) continue;
-      const mNum = txt.match(/(\d+(?:[.,]\d+)?)/);
-      const qtd = mNum ? (Number(mNum[1].replace(',','.'))||1) : 1;
-      const nomeBusca = txt.replace(/\d+(?:[.,]\d+)?\s*(ml|mg|g|kg|l|cc|un|und|unidades?|doses?|amp(?:olas?)?)?/gi,' ').replace(/\s+/g,' ').trim() || txt;
-      const med = acharMedicamentoEstoque(nomeBusca);
+      // O texto é o NOME do medicamento (pode ter número no nome, ex: "Lexington Gold 10") — não
+      // tentar tirar dose dele. Baixa sempre 1 unidade por égua.
+      const qtd = 1;
+      const med = acharMedicamentoEstoque(txt);
       if(!med){
         if(!(await showConfirm('Não achei "'+txt+'" no Estoque (Medicamentos) para '+e.nome+'. Seguir com a visita SEM dar baixa no estoque e SEM gerar custo?'))) return;
         continue;
