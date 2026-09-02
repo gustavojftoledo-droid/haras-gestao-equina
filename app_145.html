@@ -1055,7 +1055,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
-          <thead><tr><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -8879,7 +8879,10 @@ function renderNascimentos(){
   });
 
   const tbody=document.getElementById('nTbody');
-  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="11" class="empty">Nenhum registro encontrado.</td></tr>`; return; }
+  // Tira da seleção o que não está mais na lista filtrada
+  const idsVis = new Set(filteredOrd.map(n=>n.id));
+  [...coberturaSel].forEach(id=>{ if(!idsVis.has(id)) coberturaSel.delete(id); });
+  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="12" class="empty">Nenhum registro encontrado.</td></tr>`; atualizarCoberturaSelAll(); return; }
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
@@ -8894,6 +8897,7 @@ function renderNascimentos(){
       ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
       : `<span class="pill st-descarte">Não</span>`;
     return `<tr>
+      <td><input type="checkbox" data-nselid="${n.id}" ${coberturaSel.has(n.id)?'checked':''}></td>
       <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
       <td data-col="dtCobertura">${dtCobCell}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
       <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
@@ -8909,7 +8913,31 @@ function renderNascimentos(){
   tbody.querySelectorAll('[data-nedit]').forEach(b=>b.addEventListener('click', ()=>openNascEdit(b.dataset.nedit)));
   tbody.querySelectorAll('[data-nconfirmprenhez]').forEach(b=>b.addEventListener('click', ()=>confirmarPrenhez(b.dataset.nconfirmprenhez)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
+  tbody.querySelectorAll('[data-nselid]').forEach(cb=>cb.addEventListener('change', ()=>{
+    if(cb.checked) coberturaSel.add(cb.dataset.nselid); else coberturaSel.delete(cb.dataset.nselid);
+    atualizarCoberturaSelAll();
+  }));
+  atualizarCoberturaSelAll();
 }
+const coberturaSel = new Set();
+function atualizarCoberturaSelAll(){
+  const all = document.getElementById('nSelAll'); if(!all) return;
+  const cbs = document.querySelectorAll('#nTbody [data-nselid]');
+  const marcados = [...cbs].filter(c=>c.checked).length;
+  all.checked = cbs.length>0 && marcados===cbs.length;
+  all.indeterminate = marcados>0 && marcados<cbs.length;
+  const btn = document.getElementById('btnPdfCoberturas');
+  if(btn) btn.textContent = coberturaSel.size ? `📄 Baixar PDF (${coberturaSel.size})` : '📄 Baixar PDF';
+}
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id==='nSelAll'){
+    document.querySelectorAll('#nTbody [data-nselid]').forEach(cb=>{
+      cb.checked = e.target.checked;
+      if(cb.checked) coberturaSel.add(cb.dataset.nselid); else coberturaSel.delete(cb.dataset.nselid);
+    });
+    atualizarCoberturaSelAll();
+  }
+});
 ORD_RENDERERS.coberturas = renderNascimentos;
 ['nFiltroConf','nFiltroAno','nFiltroAnoNasc'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
@@ -9122,12 +9150,14 @@ document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
     const mt = !term || [n.matriz,n.pai,n.receptora,n.obs].some(x=>(x||'').toLowerCase().includes(term));
     return mc && ma && man && mt;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
-  if(lista.length===0){ showAlert('Nenhuma cobertura na lista pra gerar o relatório.'); return; }
-  const filtroTxt = [conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas';
+  const selecionadas = coberturaSel.size ? lista.filter(n=>coberturaSel.has(n.id)) : lista;
+  if(selecionadas.length===0){ showAlert('Nenhuma cobertura na lista pra gerar o relatório.'); return; }
+  const filtroTxt = coberturaSel.size ? (coberturaSel.size+' selecionada(s)')
+    : ([conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas');
   const html = `<h1>Relatório de Coberturas</h1>
-    <div class="sub">${filtroTxt} · ${lista.length} registro(s)</div>
+    <div class="sub">${filtroTxt} · ${selecionadas.length} registro(s)</div>
     <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovul. / Coleta</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Situação</th><th>Obs.</th></tr></thead>
-    <tbody>${lista.map(n=>{
+    <tbody>${selecionadas.map(n=>{
       const prov = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
       const ovulColeta = [n.dataOvulacao&&fmtDate(n.dataOvulacao), n.dataColetaEmbriao&&('→ '+fmtDate(n.dataColetaEmbriao))].filter(Boolean).join(' ') || '—';
       const situacao = n.confirm==='S' ? 'Nasceu' + (n.datanasc?(' '+fmtDate(n.datanasc)):'')
@@ -11649,6 +11679,16 @@ document.getElementById('btnColunasVisitaRepro').addEventListener('click', ()=>{
 // coluna visível) ordena; clicar de novo inverte. Padrão: Data, do mais novo pro mais velho.
 let vrSortCol = 'data', vrSortDir = 'desc';
 let vrLinhasAtual = [], vrColsAtual = [];
+const visitaExameSel = new Set();
+function atualizarVisitaExameSelAll(){
+  const all = document.getElementById('vrSelAll'); if(!all) return;
+  const cbs = document.querySelectorAll('#vrTbody [data-vrselk]');
+  const marc = [...cbs].filter(c=>c.checked).length;
+  all.checked = cbs.length>0 && marc===cbs.length;
+  all.indeterminate = marc>0 && marc<cbs.length;
+  const btn = document.getElementById('btnPdfVisitasRepro');
+  if(btn) btn.textContent = visitaExameSel.size ? `📄 Baixar PDF (${visitaExameSel.size})` : '📄 Baixar PDF';
+}
 function vrValorOrdenacao(l, key){
   if(key==='data') return l.v.data||'';
   if(key==='veterinario') return (l.v.veterinario||'').toLowerCase();
@@ -11669,7 +11709,7 @@ function renderVisitasRepro(){
   const cols = getColunasVisitaReproVisiveis();
   const seta = k => vrSortCol===k ? `<span class="sort-arrow">${vrSortDir==='asc'?'▲':'▼'}</span>` : '';
   const thOrd = (k,label) => `<th class="sortable ${vrSortCol===k?'sort-active':''}" data-vrsort="${k}">${label} ${seta(k)}</th>`;
-  thead.innerHTML = thOrd('data','Data')+thOrd('veterinario','Veterinário')+thOrd('egua','Égua')+cols.map(c=>thOrd(c.key,c.label)).join('')+`<th></th>`;
+  thead.innerHTML = `<th style="width:34px;"><input type="checkbox" id="vrSelAll" title="Selecionar todos"></th>`+thOrd('data','Data')+thOrd('veterinario','Veterinário')+thOrd('egua','Égua')+cols.map(c=>thOrd(c.key,c.label)).join('')+`<th></th>`;
   // uma linha por égua examinada
   const linhas = [];
   visitasRepro.forEach(v=>{
@@ -11690,11 +11730,15 @@ function renderVisitasRepro(){
     return vrSortDir==='asc' ? cmp : -cmp;
   });
   vrLinhasAtual = linhas; vrColsAtual = cols; // pro botão "Baixar PDF" desta aba
-  const nColunas = 4 + cols.length;
-  if(linhas.length===0){ tbody.innerHTML = `<tr><td colspan="${nColunas}" class="empty">Nenhum exame registrado.</td></tr>`; return; }
+  const chavesVis = new Set(linhas.map(l=>l.v.id+'::'+(l.e.animalId||l.e.nome)));
+  [...visitaExameSel].forEach(k=>{ if(!chavesVis.has(k)) visitaExameSel.delete(k); });
+  const nColunas = 5 + cols.length;
+  if(linhas.length===0){ tbody.innerHTML = `<tr><td colspan="${nColunas}" class="empty">Nenhum exame registrado.</td></tr>`; atualizarVisitaExameSelAll(); return; }
   tbody.innerHTML = linhas.map(({v,e})=>{
     const prenhe = e.diagnostico==='prenhe' || e.diagnostico==='gemelar';
+    const kSel = v.id+'::'+(e.animalId||e.nome);
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra abrir a visita">
+      <td><input type="checkbox" data-vrselk="${kSel.replace(/"/g,'&quot;')}" ${visitaExameSel.has(kSel)?'checked':''}></td>
       <td style="white-space:nowrap;">${fmtDate(v.data)}</td>
       <td>${v.veterinario||'—'}</td>
       <td><strong>${e.nome||'—'}</strong>${prenhe?' <span class="pill st-ativo">prenhe</span>':''}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
@@ -11703,9 +11747,23 @@ function renderVisitasRepro(){
     </tr>`;
   }).join('');
   tbody.querySelectorAll('tr[data-id]').forEach(row=>{
-    row.addEventListener('click', e=>{ if(e.target.closest('button')) return; openVisitaReproEdit(row.dataset.id); });
+    row.addEventListener('click', e=>{ if(e.target.closest('button,input')) return; openVisitaReproEdit(row.dataset.id); });
   });
   tbody.querySelectorAll('[data-relvisitarepro]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); gerarRelatorioVisitaReproUnica(b.dataset.relvisitarepro); }));
+  tbody.querySelectorAll('[data-vrselk]').forEach(cb=>cb.addEventListener('change', e=>{
+    e.stopPropagation();
+    if(cb.checked) visitaExameSel.add(cb.dataset.vrselk); else visitaExameSel.delete(cb.dataset.vrselk);
+    atualizarVisitaExameSelAll();
+  }));
+  const selAll = document.getElementById('vrSelAll');
+  if(selAll) selAll.addEventListener('change', ()=>{
+    tbody.querySelectorAll('[data-vrselk]').forEach(cb=>{
+      cb.checked = selAll.checked;
+      if(cb.checked) visitaExameSel.add(cb.dataset.vrselk); else visitaExameSel.delete(cb.dataset.vrselk);
+    });
+    atualizarVisitaExameSelAll();
+  });
+  atualizarVisitaExameSelAll();
   thead.querySelectorAll('th.sortable').forEach(h=>h.addEventListener('click', ()=>{
     const k = h.dataset.vrsort;
     if(vrSortCol===k){ vrSortDir = vrSortDir==='asc' ? 'desc' : 'asc'; }
@@ -11716,17 +11774,20 @@ function renderVisitasRepro(){
 // "Baixar PDF" da aba Visitas / Exames — usa o que está na tela agora (filtro + ordem + colunas visíveis).
 document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
   renderVisitasRepro();
-  if(vrLinhasAtual.length===0){ showAlert('Nenhum exame na lista pra gerar o relatório.'); return; }
+  const linhasRel = visitaExameSel.size
+    ? vrLinhasAtual.filter(l=>visitaExameSel.has(l.v.id+'::'+(l.e.animalId||l.e.nome)))
+    : vrLinhasAtual;
+  if(linhasRel.length===0){ showAlert('Nenhum exame na lista pra gerar o relatório.'); return; }
   const cols = vrColsAtual;
   const cabecalho = ['Data','Veterinário','Égua', ...cols.map(c=>c.label)];
   const de = document.getElementById('vrFiltroDe')?.value, ate = document.getElementById('vrFiltroAte')?.value;
   const vet = document.getElementById('vrFiltroVet')?.value;
-  const periodo = [de&&('de '+fmtDate(de)), ate&&('até '+fmtDate(ate)), vet&&('vet.: '+vet)].filter(Boolean).join(' · ') || 'todos os registros';
-  const classe = cabecalho.length>=13 ? 'mais-compacta' : (cabecalho.length>=9 ? 'compacta' : '');
+  const periodo = visitaExameSel.size ? (visitaExameSel.size+' selecionado(s)')
+    : ([de&&('de '+fmtDate(de)), ate&&('até '+fmtDate(ate)), vet&&('vet.: '+vet)].filter(Boolean).join(' · ') || 'todos os registros');
   const html = `<h1>Relatório de Visitas / Exames Reprodutivos</h1>
-    <div class="sub">${periodo} · ${vrLinhasAtual.length} linha(s)</div>
-    <table class="${classe}"><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${vrLinhasAtual.map(({v,e})=>`<tr>
+    <div class="sub">${periodo} · ${linhasRel.length} linha(s)</div>
+    <table><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${linhasRel.map(({v,e})=>`<tr>
       <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td><td>${e.nome||'—'}</td>
       ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
     </tr>`).join('')}</tbody></table>`;
