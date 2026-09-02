@@ -1046,15 +1046,14 @@
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="nSearch" placeholder="Matriz, pai, receptora, observações..."></div>
           <div class="f"><label>Confirmação</label><select id="nFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
-          <div class="f"><label>Ano cobertura</label><input type="text" id="nFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
-          <div class="f"><label>Ano nascimento</label><input type="text" id="nFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
+          <div class="f"><label>Estação reprodutiva</label><select id="nFiltroEstacao"><option value="">Todas</option></select></div>
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button>
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
-          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -1107,8 +1106,7 @@
       <div id="nview_relatorio" style="display:none;">
         <div class="filters">
           <div class="f"><label>Confirmação</label><select id="nrFiltroConf"><option value="">Todas</option><option value="S">Já nasceram</option><option value="P">Prenhez confirmada</option><option value="N">Em aberto</option></select></div>
-          <div class="f"><label>Ano cobertura</label><input type="text" id="nrFiltroAno" placeholder="Ex: 2026" style="width:90px;"></div>
-          <div class="f"><label>Ano nascimento</label><input type="text" id="nrFiltroAnoNasc" placeholder="Ex: 2026" style="width:90px;"></div>
+          <div class="f"><label>Estação reprodutiva</label><select id="nrFiltroEstacao"><option value="">Todas</option></select></div>
         </div>
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelNasc">Gerar Relatório</button>
@@ -8452,6 +8450,17 @@ function todasCoberturas(n){
   return [...new Set(out)].sort();
 }
 function refCobertura(n){ const c = todasCoberturas(n); return c.length ? c[c.length-1] : ((n&&n.datacob)||''); }
+// Estação reprodutiva de uma data: a temporada vai de julho a junho. Julho–Dezembro → "AA/AA+1";
+// Janeiro–Junho → "AA-1/AA". Ex: 15/08/2024 e 20/01/2025 → "24/25".
+function estacaoReprodutiva(dataISO){
+  if(!dataISO || !/^\d{4}-\d{2}/.test(dataISO)) return '';
+  const y = +dataISO.slice(0,4), m = +dataISO.slice(5,7);
+  const ini = m>=7 ? y : y-1;
+  const p2 = n => String(((n%100)+100)%100).padStart(2,'0');
+  return p2(ini)+'/'+p2(ini+1);
+}
+// Estação de uma cobertura (usa a última monta).
+function estacaoDaCobertura(n){ return estacaoReprodutiva(refCobertura(n)); }
 // Data provável de nascimento = Data Cobertura + tempo de gestação configurado (em dias).
 function calcProvavelNascimento(datacob){
   if(!datacob) return '';
@@ -8847,7 +8856,7 @@ function blocoRelatorioNascimento(n){
     <div class="sub">Pai: ${n.pai||'—'} ${n.receptora?(' · Receptora: '+n.receptora):''}</div>
     <div class="report-tipo-titulo">Datas</div>
     <ul class="animais-simples">
-      <li>Cobertura${cobs.length>1?'s':''}: ${cobs.length ? cobs.map(fmtDate).join(', ') : '—'}</li>
+      <li>Cobertura${cobs.length>1?'s':''}: ${cobs.length ? cobs.map(fmtDate).join(', ') : '—'}${estacaoDaCobertura(n)?` <span style="color:#666;">(estação ${estacaoDaCobertura(n)})</span>`:''}</li>
       ${n.dataOvulacao?`<li>Ovulação: ${fmtDate(n.dataOvulacao)}</li>`:''}
       ${n.dataColetaEmbriao?`<li>Coleta do embrião: ${fmtDate(n.dataColetaEmbriao)}</li>`:''}
       <li>Provável nascimento: ${provavel?fmtDate(provavel):'—'}</li>
@@ -8864,24 +8873,31 @@ function gerarRelatorioNascimentoUnico(id){
 
 function renderNascimentos(){
   const conf=document.getElementById('nFiltroConf').value;
-  const ano=document.getElementById('nFiltroAno').value;
-  const anoNasc=document.getElementById('nFiltroAnoNasc').value;
+  const estacaoSel=document.getElementById('nFiltroEstacao').value;
   const term=(document.getElementById('nSearch').value||'').toLowerCase();
+  // Preenche o menu de estações com as que existem nos registros (mais nova primeiro).
+  {
+    const estSel = document.getElementById('nFiltroEstacao');
+    const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
+    const atual = estSel.value;
+    estSel.innerHTML = '<option value="">Todas</option>' + ests.map(e=>`<option value="${e}">${e}</option>`).join('');
+    if(ests.includes(atual)) estSel.value = atual;
+  }
   const filtered = nascimentos.filter(n=>{
     const matchConf = !conf
       || (conf==='S' && n.confirm==='S')
       || (conf==='P' && n.prenhezConfirmada==='S' && n.confirm!=='S')
       || (conf==='N' && n.confirm!=='S' && n.prenhezConfirmada!=='S');
-    const matchAno = !ano || (n.datacob||'').startsWith(ano);
-    const matchAnoNasc = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
+    const matchEstacao = !estacaoSel || estacaoDaCobertura(n)===estacaoSel;
     const matchTerm = !term || (n.matriz||'').toLowerCase().includes(term) || (n.pai||'').toLowerCase().includes(term) || (n.receptora||'').toLowerCase().includes(term) || (n.obs||'').toLowerCase().includes(term);
-    return matchConf && matchAno && matchAnoNasc && matchTerm;
+    return matchConf && matchEstacao && matchTerm;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
   const filteredOrd = ordenarListaGenerica('coberturas', filtered, (n,col)=>{
     if(col==='matriz') return (n.matriz||'').toLowerCase();
     if(col==='pai') return (n.pai||'').toLowerCase();
     if(col==='receptora') return (n.receptora||'').toLowerCase();
     if(col==='dtCobertura') return refCobertura(n)||'';
+    if(col==='estacao') return estacaoDaCobertura(n);
     if(col==='provavelNasc') return (!n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '')||'';
     if(col==='dtNasc') return n.datanasc||'';
     if(col==='confirm') return n.confirm==='S'?'Sim':'Não';
@@ -8914,8 +8930,8 @@ function renderNascimentos(){
   // tela (a Taxa de perda é calculada em cima do mesmo grupo de "Não confirmadas"), e "Prenhezes
   // confirmadas" continua abrindo a lista dedicada, como já era.
   document.getElementById('statCardTotalNasc').addEventListener('click', ()=>{
-    document.getElementById('nFiltroConf').value=''; document.getElementById('nFiltroAno').value='';
-    document.getElementById('nFiltroAnoNasc').value=''; document.getElementById('nSearch').value='';
+    document.getElementById('nFiltroConf').value=''; document.getElementById('nFiltroEstacao').value='';
+    document.getElementById('nSearch').value='';
     renderNascimentos();
     document.getElementById('nTbody').scrollIntoView({behavior:'smooth', block:'nearest'});
   });
@@ -8940,7 +8956,7 @@ function renderNascimentos(){
   // Tira da seleção o que não está mais na lista filtrada
   const idsVis = new Set(filteredOrd.map(n=>n.id));
   [...coberturaSel].forEach(id=>{ if(!idsVis.has(id)) coberturaSel.delete(id); });
-  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="12" class="empty">Nenhum registro encontrado.</td></tr>`; atualizarCoberturaSelAll(); return; }
+  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="13" class="empty">Nenhum registro encontrado.</td></tr>`; atualizarCoberturaSelAll(); return; }
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
@@ -8957,7 +8973,7 @@ function renderNascimentos(){
     return `<tr>
       <td><input type="checkbox" data-nselid="${n.id}" ${coberturaSel.has(n.id)?'checked':''}></td>
       <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
-      <td data-col="dtCobertura">${dtCobCell}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
+      <td data-col="dtCobertura">${dtCobCell}</td><td data-col="estacao">${estacaoDaCobertura(n)||'—'}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
       <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
       <td data-col="prenhez">${prenhezPill}</td>
       <td data-col="confirmado">${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${n.obs||''}</td>
@@ -8997,7 +9013,7 @@ document.addEventListener('change', e=>{
   }
 });
 ORD_RENDERERS.coberturas = renderNascimentos;
-['nFiltroConf','nFiltroAno','nFiltroAnoNasc'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
+['nFiltroConf','nFiltroEstacao'].forEach(id=>document.getElementById(id).addEventListener('input', renderNascimentos));
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
 function showNascTab(tab){
@@ -9007,6 +9023,13 @@ function showNascTab(tab){
   });
   if(tab==='protocolo') renderProtocoloVacinas();
   if(tab==='visitas') renderVisitasRepro();
+  if(tab==='relatorio'){
+    const estSel = document.getElementById('nrFiltroEstacao');
+    const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
+    const atual = estSel.value;
+    estSel.innerHTML = '<option value="">Todas</option>' + ests.map(e=>`<option value="${e}">${e}</option>`).join('');
+    if(ests.includes(atual)) estSel.value = atual;
+  }
 }
 document.getElementById('nvtab_lista').addEventListener('click', ()=>showNascTab('lista'));
 document.getElementById('nvtab_visitas').addEventListener('click', ()=>showNascTab('visitas'));
@@ -9158,16 +9181,19 @@ document.getElementById('btnDeleteRegraProtocolo').addEventListener('click', asy
 
 function gerarRelatorioNascimentos(){
   const conf = document.getElementById('nrFiltroConf').value;
-  const ano = document.getElementById('nrFiltroAno').value;
-  const anoNasc = document.getElementById('nrFiltroAnoNasc').value;
+  const estSel = document.getElementById('nrFiltroEstacao');
+  const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
+  const atual = estSel.value;
+  estSel.innerHTML = '<option value="">Todas</option>' + ests.map(e=>`<option value="${e}">${e}</option>`).join('');
+  if(ests.includes(atual)) estSel.value = atual;
+  const estacaoF = estSel.value;
   const filtered = nascimentos.filter(n=>{
     const matchConf = !conf
       || (conf==='S' && n.confirm==='S')
       || (conf==='P' && n.prenhezConfirmada==='S' && n.confirm!=='S')
       || (conf==='N' && n.confirm!=='S' && n.prenhezConfirmada!=='S');
-    const matchAno = !ano || (n.datacob||'').startsWith(ano);
-    const matchAnoNasc = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
-    return matchConf && matchAno && matchAnoNasc;
+    const matchEstacao = !estacaoF || estacaoDaCobertura(n)===estacaoF;
+    return matchConf && matchEstacao;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
 
   const host = document.getElementById('relNascResult');
@@ -9198,23 +9224,21 @@ document.getElementById('btnGerarRelNasc').addEventListener('click', gerarRelato
 // "Baixar PDF" da aba Coberturas — mesma lista que está na tela (com os filtros aplicados).
 document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
   const conf=document.getElementById('nFiltroConf').value;
-  const ano=document.getElementById('nFiltroAno').value;
-  const anoNasc=document.getElementById('nFiltroAnoNasc').value;
+  const estacaoSel=document.getElementById('nFiltroEstacao').value;
   const term=(document.getElementById('nSearch').value||'').toLowerCase();
   const lista = nascimentos.filter(n=>{
     const mc = !conf || (conf==='S'&&n.confirm==='S') || (conf==='P'&&n.prenhezConfirmada==='S'&&n.confirm!=='S') || (conf==='N'&&n.confirm!=='S'&&n.prenhezConfirmada!=='S');
-    const ma = !ano || (n.datacob||'').startsWith(ano);
-    const man = !anoNasc || (n.datanasc||'').startsWith(anoNasc);
+    const me = !estacaoSel || estacaoDaCobertura(n)===estacaoSel;
     const mt = !term || [n.matriz,n.pai,n.receptora,n.obs].some(x=>(x||'').toLowerCase().includes(term));
-    return mc && ma && man && mt;
+    return mc && me && mt;
   }).sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''));
   const selecionadas = coberturaSel.size ? lista.filter(n=>coberturaSel.has(n.id)) : lista;
   if(selecionadas.length===0){ showAlert('Nenhuma cobertura na lista pra gerar o relatório.'); return; }
   const filtroTxt = coberturaSel.size ? (coberturaSel.size+' selecionada(s)')
-    : ([conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', ano&&('cobertura '+ano), anoNasc&&('nasc. '+anoNasc), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas');
+    : ([conf==='S'&&'já nasceram', conf==='P'&&'prenhez confirmada', conf==='N'&&'em aberto', estacaoSel&&('estação '+estacaoSel), term&&('"'+term+'"')].filter(Boolean).join(' · ') || 'todas');
   const html = `<h1>Relatório de Coberturas</h1>
     <div class="sub">${filtroTxt} · ${selecionadas.length} registro(s)</div>
-    <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Ovul. / Coleta</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Situação</th><th>Obs.</th></tr></thead>
+    <table><thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Cobertura(s)</th><th>Estação</th><th>Ovul. / Coleta</th><th>Provável nasc.</th><th>Dt nascimento</th><th>Situação</th><th>Obs.</th></tr></thead>
     <tbody>${selecionadas.map(n=>{
       const prov = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
       const ovulColeta = [n.dataOvulacao&&fmtDate(n.dataOvulacao), n.dataColetaEmbriao&&('→ '+fmtDate(n.dataColetaEmbriao))].filter(Boolean).join(' ') || '—';
@@ -9224,6 +9248,7 @@ document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
       return `<tr>
         <td>${n.matriz||'—'}</td><td>${n.pai||'—'}</td><td>${n.receptora||'—'}</td>
         <td>${todasCoberturas(n).map(fmtDate).join(', ')||'—'}</td>
+        <td>${estacaoDaCobertura(n)||'—'}</td>
         <td>${ovulColeta}</td>
         <td>${prov?fmtDate(prov):'—'}</td>
         <td>${n.datanasc?fmtDate(n.datanasc):'—'}</td>
