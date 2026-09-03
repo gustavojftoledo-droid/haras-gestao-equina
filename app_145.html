@@ -533,6 +533,8 @@
       <div class="field" style="margin-bottom:10px;"><label>Senha</label><input type="password" id="fbSenha" placeholder="••••••••" autocomplete="current-password"></div>
       <div id="loginFirebaseErro" style="color:var(--burgundy);font-size:12px;margin-bottom:8px;display:none;"></div>
       <button type="button" class="btn" id="btnLoginEntrar" style="width:100%;">Entrar</button>
+      <button type="button" id="btnLoginOffline" style="width:100%;margin-top:8px;background:none;border:1px solid var(--line);color:var(--muted);padding:8px 10px;border-radius:6px;font-size:12.5px;cursor:pointer;">📴 Trabalhar offline (sem internet)</button>
+      <div class="login-subtitle" style="margin-top:8px;font-size:11px;">Offline: usa os dados já baixados neste aparelho. O que você digitar entra numa fila e sobe sozinho quando você sair (logoff) com internet. Só funciona se você já entrou aqui antes.</div>
     </div>
   </div>
 </div>
@@ -6203,8 +6205,8 @@ async function concluirTarefaManejo(animalId, tipo, subtipoCasco, dataConclusao)
     registro.animais[0].valorBase = valorBaseParaTipo(subtipoCasco);
   }
   manejos.push(registro);
-  await storeSet('manejos_list', manejos);
-  renderManejos(); renderCalendar(); renderInicio();
+  renderCalendar(); renderInicio(); // atualiza na hora — a gravação vai em segundo plano
+  salvarEmSegundoPlano('manejos_list', manejos, ()=>{ renderManejos(); renderCalendar(); renderInicio(); });
 }
 // Marca a mesma tarefa (Casco/Dente/Vacina/Vermífugo) como concluída pra vários animais de uma vez —
 // evita ter que clicar animal por animal quando o dia inteiro precisa do mesmo manejo.
@@ -6245,8 +6247,8 @@ async function concluirTarefaManejoEmLote(animalIds, tipo, subtiposPorAnimal, da
     if(maisComum) registro.subtipoCasco = maisComum[0];
   }
   manejos.push(registro);
-  await storeSet('manejos_list', manejos);
-  renderManejos(); renderCalendar(); renderInicio();
+  renderCalendar(); renderInicio();
+  salvarEmSegundoPlano('manejos_list', manejos, ()=>{ renderManejos(); renderCalendar(); renderInicio(); });
 }
 // Marca várias doses de Tratamento como aplicadas de uma vez (ex: dois tratamentos diferentes marcados pro mesmo dia).
 // Pula (e avisa) qualquer item sem estoque suficiente, em vez de travar o lote inteiro.
@@ -6311,10 +6313,11 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
     const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
+    const btnConcluirSel = (ehManejo && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${tipo}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirTodos}${btnExcluirTodos}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirSel}${btnConcluirTodos}${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -6326,7 +6329,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</div>
+        <div style="display:flex;align-items:center;gap:8px;">${(ehManejo && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selanimal="${t.animalId}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
         ${ehTransporte
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-abrirtransporte="${t.transporteId}">👁 Abrir / marcar realizado</button></div>`
           : ehTratamento
@@ -6500,6 +6503,28 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       closeModal('overlayCalDetalhe');
     });
   });
+  // Seleção parcial de manejos: marca só os que você escolheu (mais rápido que um por um).
+  const body = document.getElementById('calDetBody');
+  body.querySelectorAll('.cal-manejo-sel').forEach(cb=> cb.addEventListener('change', ()=>{
+    const tipo = cb.dataset.seltipo;
+    const marcados = [...body.querySelectorAll(`.cal-manejo-sel[data-seltipo="${tipo}"]:checked`)];
+    const btn = body.querySelector(`[data-concluirsel="${tipo}"]`);
+    if(btn){ btn.style.display = marcados.length ? 'inline-block' : 'none'; const c = btn.querySelector('[data-selcount]'); if(c) c.textContent = marcados.length; }
+  }));
+  body.querySelectorAll('[data-concluirsel]').forEach(btn=> btn.addEventListener('click', async ()=>{
+    const tipo = btn.dataset.concluirsel;
+    const marcados = [...body.querySelectorAll(`.cal-manejo-sel[data-seltipo="${tipo}"]:checked`)].map(cb=>cb.dataset.selanimal);
+    if(marcados.length===0) return;
+    const inputDataMestre = body.querySelector('[data-caldet-datamaster]');
+    const dataMestre = (inputDataMestre && inputDataMestre.value) ? inputDataMestre.value : undefined;
+    if(tipo==='Casco'){
+      const sub = {}; marcados.forEach(id=>{ const s = body.querySelector(`[data-caldet-subtipo="${id}"]`); if(s) sub[id] = s.value; });
+      await concluirTarefaManejoEmLote(marcados, tipo, sub, dataMestre);
+    } else {
+      await concluirTarefaManejoEmLote(marcados, tipo, undefined, dataMestre);
+    }
+    closeModal('overlayCalDetalhe');
+  }));
   document.getElementById('calDetBody').querySelectorAll('[data-verfrontgrupo]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const tipo = btn.dataset.verfrontgrupo;
@@ -8896,7 +8921,7 @@ async function aplicarVacinaProtocolo({ animalId, animalNome, nomeItem, tipoMane
     medicamentoNome: medicamento ? medicamento.nome : nomeMed, medQuantidade: quantidade,
     valor: valorBase, animais:[{ id:h.id, nome:h.nome, valorBase }]
   });
-  await storeSet('manejos_list', manejos);
+  salvarEmSegundoPlano('manejos_list', manejos, ()=>renderManejos());
   renderManejos();
   return { ok:true };
 }
@@ -14426,14 +14451,45 @@ function tentarLoginFirebase(){
 }
 document.getElementById('btnLoginEntrar').addEventListener('click', tentarLoginFirebase);
 document.getElementById('fbSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLoginFirebase(); });
+// ---- Modo offline: usa só o cache do aparelho; escritas ficam na fila e sobem no logoff ----
+function atualizarBadgeOffline(){
+  let el = document.getElementById('offlineBadge');
+  if(localStorage.getItem('haras_modo_offline')==='1'){
+    if(!el){
+      el = document.createElement('div'); el.id='offlineBadge';
+      el.style.cssText='position:fixed;left:14px;bottom:14px;z-index:200;background:var(--burgundy,#5E1B26);color:#fff;font-size:11.5px;padding:6px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;';
+      document.body.appendChild(el);
+    }
+    el.textContent = '📴 Modo offline — sincroniza quando você sair (logoff)';
+  } else if(el){ el.remove(); }
+}
+document.getElementById('btnLoginOffline').addEventListener('click', async ()=>{
+  if(!HAS_FIRESTORE || !firebase.auth().currentUser){
+    mostrarErroLogin('Pra trabalhar offline você precisa ter entrado neste aparelho pelo menos uma vez com internet.');
+    return;
+  }
+  localStorage.setItem('haras_modo_offline','1');
+  try{ await db.disableNetwork(); }catch(e){}
+  atualizarBadgeOffline();
+  iniciarAppLogado(firebase.auth().currentUser);
+});
 document.getElementById('fbEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('fbSenha').focus(); });
 function entrarNoApp(){
   document.getElementById('loginGate').style.display='none';
   document.getElementById('appRoot').style.display='';
   aplicarPermissoes();
 }
-document.getElementById('btnLogout').addEventListener('click', ()=>{
-  if(HAS_FIRESTORE) firebase.auth().signOut();
+document.getElementById('btnLogout').addEventListener('click', async ()=>{
+  const eraOffline = localStorage.getItem('haras_modo_offline')==='1';
+  localStorage.removeItem('haras_modo_offline');
+  atualizarBadgeOffline();
+  if(HAS_FIRESTORE){
+    if(eraOffline){
+      // Reconecta e deixa o Firestore mandar a fila de escritas antes de deslogar.
+      try{ await db.enableNetwork(); await new Promise(r=>setTimeout(r,1200)); }catch(e){}
+    }
+    firebase.auth().signOut();
+  }
 });
 
 /* ---- Auditoria (só Administrador) ---- */
@@ -15623,6 +15679,9 @@ function iniciarAppLogado(authUser){
   });
 }
 if(HAS_FIRESTORE){
+  // Se o app foi fechado em "modo offline", já desconecta o Firestore antes de carregar — assim tudo
+  // vem do cache na hora, sem esperar a nuvem, e as escritas ficam na fila.
+  if(localStorage.getItem('haras_modo_offline')==='1'){ try{ db.disableNetwork(); }catch(e){} atualizarBadgeOffline(); }
   firebase.auth().onAuthStateChanged((user)=>{
     if(user){
       iniciarAppLogado(user);
