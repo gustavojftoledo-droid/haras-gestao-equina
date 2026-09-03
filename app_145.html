@@ -400,8 +400,10 @@
   .perfil-card-body{padding:18px 20px;}
   .perfil-photo{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--chip-bg);display:block;}
   .perfil-photo-placeholder{width:100%;aspect-ratio:4/3;border-radius:6px;border:1px dashed var(--line);background:var(--chip-bg);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:14px;}
-  .perfil-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;}
-  .perfil-fields.full{grid-template-columns:1fr;}
+  .perfil-fields{display:flex;flex-wrap:wrap;gap:12px 34px;}
+  .perfil-fields.full{display:block;}
+  .perfil-field{min-width:104px;}
+  .perfil-fields.full .perfil-field{min-width:0;}
   .perfil-field label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:3px;}
   .perfil-field .val{font-size:14.5px;color:var(--ink);}
   .perfil-subsection{font-size:10.5px;color:var(--brass);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin:20px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line);}
@@ -12998,18 +13000,18 @@ function _ehAncestralDe(anc, desc, prof){
   return _ehAncestralDe(anc, p, prof+1) || _ehAncestralDe(anc, m, prof+1);
 }
 function _caminhosAncestrais(nomeRaiz){
-  const set = new Set();
-  (function rec(nome, prof, visit){
-    if(!nome || prof>8) return;
+  const prof = {}; // nomeNormalizado -> menor profundidade encontrada
+  (function rec(nome, d, visit){
+    if(!nome || d>10) return;
     const nn = normNomeParentesco(nome);
     if(!nn || visit.has(nn)) return;
-    if(prof>0) set.add(nn);
+    if(d>0 && (prof[nn]===undefined || d<prof[nn])) prof[nn] = d;
     const hh = findHorseByName(nome);
     if(!hh) return;
     const v2 = new Set(visit); v2.add(nn);
-    rec(hh.pai, prof+1, v2); rec(hh.mae, prof+1, v2);
+    rec(hh.pai, d+1, v2); rec(hh.mae, d+1, v2);
   })(nomeRaiz, 0, new Set());
-  return set;
+  return prof;
 }
 function coeficienteEndogamia(h){
   if(!h || !h.pai || !h.mae) return null;
@@ -13035,7 +13037,12 @@ function coeficienteEndogamia(h){
   }
   const F = f(h.pai, h.mae, 0);
   const cS = _caminhosAncestrais(h.pai), cD = _caminhosAncestrais(h.mae);
-  const comuns = [...cS].filter(x=>cD.has(x)).map(nome=>({ nome }));
+  // Só interessa mostrar o ancestral comum MAIS RECENTE de cada ramo: os mais distantes que só são
+  // comuns porque descendem de um mais próximo são "filhos" da mesma linha e confundem a leitura.
+  let comuns = Object.keys(cS).filter(x=>cD[x]!==undefined)
+    .map(nome=>({ nome, gerPai: cS[nome]+1, gerMae: cD[nome]+1, soma: cS[nome]+cD[nome] }));
+  comuns = comuns.filter(a => !comuns.some(b => b!==a && _ehAncestralDe(b.nome, a.nome, 0)));
+  comuns.sort((a,b)=> a.soma-b.soma);
   return { F, comuns };
 }
 function blocoEndogamia(h){
@@ -13044,17 +13051,20 @@ function blocoEndogamia(h){
   const pct = (r.F*100);
   const cor = pct>=12.5 ? 'var(--burgundy)' : pct>=6.25 ? 'var(--warn)' : 'var(--green)';
   const nomeCap = s => s.replace(/\b\w/g, c=>c.toUpperCase());
-  const lista = r.comuns.slice(0,5).map(c=>nomeCap(c.nome)).join(', ');
+  const ord = n => n+'ª';
+  const linhas = r.comuns.slice(0,6).map(c=>
+    `<div style="font-size:11.5px;">• <strong>${nomeCap(c.nome)}</strong> — ${ord(c.gerPai)} geração pelo pai, ${ord(c.gerMae)} pela mãe</div>`).join('');
   return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
     <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);">Coeficiente de endogamia (estimado)</span>
-      <strong style="font-family:'Fraunces',serif;font-size:17px;color:${cor};">${pct<0.05?'~0%':('≈ '+pct.toFixed(1).replace('.',',')+'%')}</strong>
+      <span style="font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);">Coeficiente de endogamia</span>
+      <strong style="font-family:'Fraunces',serif;font-size:17px;color:${cor};">${pct<0.05?'~0%':('≈ '+pct.toFixed(2).replace('.',',')+'%')}</strong>
     </div>
     <div class="hint-text" style="margin-top:4px;">${
       r.comuns.length===0
         ? 'Sem parentesco entre pai e mãe nas gerações cadastradas.'
-        : ('Ancestral(is) em comum: '+lista+(r.comuns.length>5?' e mais '+(r.comuns.length-5):'')+'. Mais completo quanto mais gerações (avós, bisavós) estiverem preenchidas.')
+        : ('Fórmula de Wright — soma de (½)^(gerações do pai + gerações da mãe + 1) por ancestral comum. Vale o que está no pedigree; quanto mais gerações preenchidas, mais fiel.')
     }</div>
+    ${linhas ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">${linhas}${r.comuns.length>6?`<div style="font-size:11px;color:var(--muted);">e mais ${r.comuns.length-6}…</div>`:''}</div>` : ''}
   </div>`;
 }
 function buildPedigreeTree(h){
