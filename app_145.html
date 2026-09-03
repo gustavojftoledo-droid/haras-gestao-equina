@@ -2372,10 +2372,42 @@ function showConfirm(msg, opts){
 // Grava sem travar a tela: o modal já foi fechado / a lista já foi redesenhada com o dado novo em
 // memória; aqui só empurra pro Firestore em segundo plano. Se der erro, storeSet já mostra o aviso
 // (toast). `aoTerminar(ok)` (opcional) roda depois — útil pra re-render refletir a fusão que voltou.
+let _savesPendentes = 0;
+let _syncOkTimer = null;
+function atualizarSyncDot(estado){
+  let el = document.getElementById('syncDot');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'syncDot';
+    el.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:200;display:none;align-items:center;gap:7px;'
+      + 'background:var(--green,#15271E);color:#EDE7D6;font-size:12px;padding:6px 12px;border-radius:20px;'
+      + 'box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  if(estado==='salvando'){
+    clearTimeout(_syncOkTimer);
+    el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#C99A46;display:inline-block;animation:syncPulse 1s infinite;"></span> Sincronizando…';
+    el.style.display = 'flex';
+  } else if(estado==='ok'){
+    el.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#7CB08A;display:inline-block;"></span> Salvo';
+    el.style.display = 'flex';
+    clearTimeout(_syncOkTimer);
+    _syncOkTimer = setTimeout(()=>{ if(_savesPendentes===0) el.style.display='none'; }, 1800);
+  } else {
+    el.style.display = 'none';
+  }
+}
+if(!document.getElementById('syncDotStyle')){
+  const st = document.createElement('style'); st.id='syncDotStyle';
+  st.textContent = '@keyframes syncPulse{0%,100%{opacity:1}50%{opacity:.3}}';
+  document.head.appendChild(st);
+}
 function salvarEmSegundoPlano(chave, dados, aoTerminar){
+  _savesPendentes++; atualizarSyncDot('salvando');
   Promise.resolve().then(()=> storeSet(chave, dados))
     .then(ok=>{ if(aoTerminar) try{ aoTerminar(ok); }catch(e){ console.error(e); } })
-    .catch(e=> console.error('salvarEmSegundoPlano('+chave+'):', e));
+    .catch(e=> console.error('salvarEmSegundoPlano('+chave+'):', e))
+    .finally(()=>{ _savesPendentes = Math.max(0, _savesPendentes-1); atualizarSyncDot(_savesPendentes>0 ? 'salvando' : 'ok'); });
 }
 function showPrompt(msg, placeholder){
   return new Promise(resolve=>{
@@ -2423,6 +2455,13 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[], visitasRepro=[];
 let auditoria=[];
+let auditoriaCarregada=false; // o log só é lido do banco quando a aba Auditoria (ou um backup) precisa
+async function garantirAuditoriaCarregada(){
+  if(auditoriaCarregada) return;
+  const r = await storeGet('auditoria_log');
+  auditoria = Array.isArray(r.value) ? r.value : [];
+  auditoriaCarregada = true;
+}
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
 let dismissedDuplicates = new Set();
 let dismissedAnomaliasEstoque = new Set();
@@ -2854,17 +2893,21 @@ async function loadAll(){
   // Todas as leituras em PARALELO — antes eram ~24 idas ao Firestore uma depois da outra (abertura
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
-         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rAD, rEx] = await Promise.all([
+         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
     storeGet('dietas_list'), storeGet('grupos_list'), storeGet('config'), storeGet('usuarios_list'),
     storeGet('tratamentos_list'), storeGet('visitas_list'), storeGet('visitas_repro_list'),
     storeGet('transportes_list'), storeGet('rel_selecoes'), storeGet('nf_aprendizado'),
-    storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'), storeGet('auditoria_log'),
+    storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais')
   ]);
-  auditoria = Array.isArray(rAD.value) ? rAD.value : [];
+  // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
+  // Começa vazio; o storeSet('auditoria_log') funde com o disco (união), então nada se perde. É
+  // carregado de verdade quando a aba Auditoria abre (ver garantirAuditoriaCarregada).
+  auditoria = [];
+  auditoriaCarregada = false;
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
   usuarios = rU.value;
   examesPorAnimal = (rEx.value && typeof rEx.value==='object' && !Array.isArray(rEx.value)) ? rEx.value : {};
@@ -3395,7 +3438,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios') renderUsuarios();
-      if(view==='auditoria') renderAuditoria();
+      if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
     }else{
       document.getElementById('view-other').classList.add('active');
       document.getElementById('otherTitle').textContent = item.textContent.trim().replace('em breve','');
@@ -4693,7 +4736,15 @@ function baixarPdfTabela(tableEl, titulo, nomeArquivo){
   clone.removeAttribute('class'); clone.removeAttribute('data-lista'); clone.removeAttribute('id');
   clone.querySelectorAll('button, input, .sort-arrow').forEach(el=>el.remove());
   const ths = [...clone.querySelectorAll('thead th')];
-  const remover = ths.map((th,i)=> th.textContent.trim()==='' ? i : -1).filter(i=>i>=0);
+  // Colunas a tirar do PDF: as de cabeçalho vazio (ações/checkbox) E as que você escondeu na tela
+  // pelo "⚙ Colunas" (ficam display:none na tabela real).
+  const thsLive = [...tableEl.querySelectorAll('thead th')];
+  const remover = ths.map((th,i)=>{
+    if(th.textContent.trim()==='') return i;
+    const live = thsLive[i];
+    if(live && getComputedStyle(live).display==='none') return i;
+    return -1;
+  }).filter(i=>i>=0);
   if(remover.length){
     clone.querySelectorAll('tr').forEach(tr=>{
       [...tr.children].forEach((cell,i)=>{ if(remover.includes(i)) cell.remove(); });
@@ -12695,6 +12746,78 @@ function pedResolveLevels(h){
   ];
   return [nivel1, nivel2, nivel3];
 }
+// Coeficiente de endogamia (F de Wright) pelo método do parentesco recursivo (kinship coefficient):
+// F do animal = f(pai, mãe), onde f(A,B) = 0,5·(1+F_A) se A=B, senão 0,5·[f(pais de X, Y)] expandindo
+// o mais recente. É o cálculo correto do que está cadastrado — fica mais completo quanto mais
+// gerações (avós, bisavós...) estiverem preenchidas.
+function _paisDe(nome){ const hh = findHorseByName(nome); return hh ? [hh.pai||null, hh.mae||null] : [null,null]; }
+function _ehAncestralDe(anc, desc, prof){
+  if(!desc || !anc || prof>16) return false;
+  const nn = normNomeParentesco, alvo = nn(anc);
+  const [p,m] = _paisDe(desc);
+  if((p && nn(p)===alvo) || (m && nn(m)===alvo)) return true;
+  return _ehAncestralDe(anc, p, prof+1) || _ehAncestralDe(anc, m, prof+1);
+}
+function _caminhosAncestrais(nomeRaiz){
+  const set = new Set();
+  (function rec(nome, prof, visit){
+    if(!nome || prof>8) return;
+    const nn = normNomeParentesco(nome);
+    if(!nn || visit.has(nn)) return;
+    if(prof>0) set.add(nn);
+    const hh = findHorseByName(nome);
+    if(!hh) return;
+    const v2 = new Set(visit); v2.add(nn);
+    rec(hh.pai, prof+1, v2); rec(hh.mae, prof+1, v2);
+  })(nomeRaiz, 0, new Set());
+  return set;
+}
+function coeficienteEndogamia(h){
+  if(!h || !h.pai || !h.mae) return null;
+  const nn = normNomeParentesco;
+  const memo = new Map();
+  function f(A, B, prof){
+    if(!A || !B || prof>18) return 0;
+    let a=nn(A), b=nn(B);
+    const key = a<b ? a+'|'+b : b+'|'+a;
+    if(memo.has(key)) return memo.get(key);
+    let val;
+    if(a===b){
+      const [pA,mA] = _paisDe(A);
+      val = 0.5 * (1 + f(pA, mA, prof+1));
+    } else {
+      let X=A, Y=B;
+      if(_ehAncestralDe(A, B, 0)){ X=B; Y=A; }
+      const [pX,mX] = _paisDe(X);
+      val = 0.5 * (f(pX, Y, prof+1) + f(mX, Y, prof+1));
+    }
+    memo.set(key, val);
+    return val;
+  }
+  const F = f(h.pai, h.mae, 0);
+  const cS = _caminhosAncestrais(h.pai), cD = _caminhosAncestrais(h.mae);
+  const comuns = [...cS].filter(x=>cD.has(x)).map(nome=>({ nome }));
+  return { F, comuns };
+}
+function blocoEndogamia(h){
+  const r = coeficienteEndogamia(h);
+  if(!r) return '';
+  const pct = (r.F*100);
+  const cor = pct>=12.5 ? 'var(--burgundy)' : pct>=6.25 ? 'var(--warn)' : 'var(--green)';
+  const nomeCap = s => s.replace(/\b\w/g, c=>c.toUpperCase());
+  const lista = r.comuns.slice(0,5).map(c=>nomeCap(c.nome)).join(', ');
+  return `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);">Coeficiente de endogamia (estimado)</span>
+      <strong style="font-family:'Fraunces',serif;font-size:17px;color:${cor};">${pct<0.05?'~0%':('≈ '+pct.toFixed(1).replace('.',',')+'%')}</strong>
+    </div>
+    <div class="hint-text" style="margin-top:4px;">${
+      r.comuns.length===0
+        ? 'Sem parentesco entre pai e mãe nas gerações cadastradas.'
+        : ('Ancestral(is) em comum: '+lista+(r.comuns.length>5?' e mais '+(r.comuns.length-5):'')+'. Mais completo quanto mais gerações (avós, bisavós) estiverem preenchidas.')
+    }</div>
+  </div>`;
+}
 function buildPedigreeTree(h){
   if(!h.pai && !h.mae) return '<div class="hint-text">Sem filiação cadastrada.</div>';
   const [nivel1, nivel2, nivel3] = pedResolveLevels(h);
@@ -14138,6 +14261,12 @@ function descreverMudancas(e){
   return e.mudancas.map(m=>`<div style="font-size:11.5px;"><strong>${auditNomeCampo(m.campo)}</strong>: <span style="color:var(--muted);">${m.de}</span> → ${m.para}</div>`).join('');
 }
 function renderAuditoria(){
+  if(!auditoriaCarregada){
+    const tb = document.getElementById('audTbody');
+    if(tb) tb.innerHTML = '<tr><td colspan="6" class="empty">Carregando o histórico…</td></tr>';
+    garantirAuditoriaCarregada().then(renderAuditoria);
+    return;
+  }
   populateSelectFilter('audFiltroUsuario', auditoria.map(e=>e.usuario));
   populateSelectFilter('audFiltroModulo', auditoria.map(e=>e.modulo));
   const termo = (document.getElementById('audSearch').value||'').toLowerCase();
@@ -14523,7 +14652,7 @@ function renderAnimalPerfil(id){
 
     <div class="perfil-card">
       <div class="perfil-card-head">🌳 Genealogia</div>
-      <div class="perfil-card-body">${buildPedigreeTree(h)}</div>
+      <div class="perfil-card-body">${buildPedigreeTree(h)}${blocoEndogamia(h)}</div>
     </div>
 
     ${gruposDoAnimal.length>0?`<div class="perfil-card">
@@ -15349,6 +15478,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
   atualizarBackupPastaStatus();
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
+  await garantirAuditoriaCarregada(); // o log não é carregado na abertura; o backup precisa dele inteiro
   const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, auditoria, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
