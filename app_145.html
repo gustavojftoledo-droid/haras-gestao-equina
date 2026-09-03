@@ -14868,6 +14868,38 @@ function renderAnimalPerfil(id){
       </div>
     </div>
 
+    <div class="perfil-card">
+      <div class="perfil-card-head">🩺 Exames com validade — AIE · Mormo</div>
+      <div class="perfil-card-body">
+        ${['AIE','Mormo'].map(tp=>{
+          const e = (h.examesSaude||{})[tp];
+          if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span></div>`;
+          const dias = Number(e.dias)||60;
+          const venc = toISODate(addToDate(e.data, dias, 'dias'));
+          const restante = Math.round((new Date(venc+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
+          const pct = Math.max(0, Math.min(100, restante/dias*100));
+          const cor = restante<=0 ? 'var(--burgundy)' : restante <= dias*0.2 ? 'var(--warn)' : 'var(--ok)';
+          const txt = restante<=0 ? `VENCIDO há ${-restante} dia(s)` : `faltam ${restante} dia(s)`;
+          return `<div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px;flex-wrap:wrap;">
+              <span><strong>${tp}</strong> — feito ${fmtDate(e.data)}</span>
+              <span style="color:${cor};font-weight:600;">vence ${fmtDate(venc)} · ${txt}</span>
+            </div>
+            <div style="height:14px;background:var(--line);border-radius:7px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:${cor};transition:width .2s;"></div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+          <select id="exs_tipo" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;"><option>AIE</option><option>Mormo</option></select>
+          <input type="date" id="exs_data" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
+          <input type="number" id="exs_dias" value="60" min="1" title="Validade em dias" style="width:64px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
+          <span style="font-size:11px;color:var(--muted);">dias de validade</span>
+          <button type="button" class="btn btn-sm" id="btnAddExameSaude">Registrar exame</button>
+        </div>
+      </div>
+    </div>
+
     ${gruposDoAnimal.length>0?`<div class="perfil-card">
       <div class="perfil-card-head">📁 Grupos</div>
       <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${g.nome}</span>`).join('')}</div>
@@ -15050,6 +15082,16 @@ function renderAnimalPerfil(id){
       await storeSet('horses_list', horses);
       renderAnimalPerfil(h.id);
     });
+  });
+  document.getElementById('btnAddExameSaude').addEventListener('click', async ()=>{
+    const tp = document.getElementById('exs_tipo').value;
+    const data = document.getElementById('exs_data').value;
+    if(!data){ showAlert('Informe a data do exame.'); return; }
+    const dias = Math.max(1, Math.round(Number(document.getElementById('exs_dias').value)||60));
+    if(!h.examesSaude) h.examesSaude = {};
+    h.examesSaude[tp] = { data, dias };
+    await storeSet('horses_list', horses);
+    renderAnimalPerfil(h.id);
   });
 }
 
