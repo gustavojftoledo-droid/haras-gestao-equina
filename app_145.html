@@ -3080,6 +3080,14 @@ async function loadAll(){
   if(!aux.nomeProduto) { aux.nomeProduto=[]; auxChanged=true; }
   if(!aux.localizacao) { aux.localizacao=[]; auxChanged=true; }
   if(!aux.raca) { aux.raca=[]; auxChanged=true; }
+  // Valores de status/categoria/raça/localização que o Gustavo quer ter na lista (só acrescenta os
+  // que faltam; não apaga nem renomeia nada que já exista). A ORDEM na tela vem de ORDEM_FILTRO_ANIMAIS.
+  Object.entries(ORDEM_FILTRO_ANIMAIS).forEach(([campo, valores])=>{
+    if(!aux[campo]) aux[campo] = [];
+    valores.forEach(v=>{
+      if(!aux[campo].some(x=>(x||'').trim().toLowerCase()===v.toLowerCase())){ aux[campo].push(v); auxChanged=true; }
+    });
+  });
   if(!aux.ferrador) { aux.ferrador=[]; auxChanged=true; }
   if(!aux.veterinario) { aux.veterinario=[]; auxChanged=true; }
   if(!aux.subtipoFerrageamento || aux.subtipoFerrageamento.length===0) { aux.subtipoFerrageamento=['Casqueado mãos','Casqueado completo','Casqueado pés','Ferrado mãos','Ferrado completo']; auxChanged=true; }
@@ -3175,9 +3183,10 @@ document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
 function populateAuxSelects(){
   const fill=(id,list,current)=>{ const el=document.getElementById(id); const cur = current!==undefined?current:el.value;
     el.innerHTML = '<option value="">—</option>' + list.map(v=>`<option value="${v}">${v}</option>`).join(''); el.value=cur||''; };
-  fill('f_status', aux.status||[]); fill('f_pelagem', aux.pelagem||[]); fill('f_categoria', sortCategorias(aux.categoria||[])); fill('f_proprietario', aux.proprietarios||[]);
-  fill('f_localizacao', aux.localizacao||[]);
-  fill('f_raca', aux.raca||[]);
+  fill('f_status', ordenarComPreferencia('status', aux.status||[])); fill('f_pelagem', aux.pelagem||[]);
+  fill('f_categoria', ordenarComPreferencia('categoria', aux.categoria||[])); fill('f_proprietario', aux.proprietarios||[]);
+  fill('f_localizacao', ordenarComPreferencia('localizacao', aux.localizacao||[]));
+  fill('f_raca', ordenarComPreferencia('raca', aux.raca||[]));
   fill('pd_unidade', aux.unidade||[]); fill('pd_tipo_aux', aux.tipoProduto||[]);
   fill('tr_meio_sel', aux.meioAplicacao||[]);
   fill('pd_nome_sel', [...(aux.nomeProduto||[])].sort((a,b)=>a.localeCompare(b,'pt')));
@@ -4228,6 +4237,21 @@ document.getElementById('btnNormalizeCasing').addEventListener('click', async ()
 // Set, então dá pra marcar várias opções ao mesmo tempo no mesmo filtro (ex: Categoria "3° Ano" +
 // "4° Ano" juntas). Mesmo padrão de chip-toggle já usado nos seletores de animais dos outros módulos.
 let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set(), doador:new Set() };
+// Ordem preferida dos filtros de Animais (definida pelo Gustavo). Valores que existem nos animais mas
+// não estão nesta lista vão pro fim, em ordem alfabética.
+const ORDEM_FILTRO_ANIMAIS = {
+  status: ['Polo','Cria','Venda','Descarte'],
+  categoria: ['Potro','Potro 1','Potro 2','Doma/1° polo','2° polo','3° polo','4° polo','5° polo','Mestre','Matriz','Receptora','Garanhão','Lida','Cachorro'],
+  raca: ['Polo Argentino','PSI'],
+  localizacao: ['Água Comprida','Barreiro','Los Pingos del Taita'],
+};
+function ordenarComPreferencia(campo, valores){
+  const pref = ORDEM_FILTRO_ANIMAIS[campo];
+  if(!pref) return [...valores].sort((a,b)=>a.localeCompare(b,'pt'));
+  const norm = s => (s||'').toString().trim().toLowerCase();
+  const rank = v => { const i = pref.findIndex(p=>norm(p)===norm(v)); return i<0 ? 1e6 : i; };
+  return [...valores].sort((a,b)=> (rank(a)-rank(b)) || a.localeCompare(b,'pt'));
+}
 function renderFiltrosAnimaisChips(){
   const host = document.getElementById('hFiltrosChips');
   const chipGrupo = (chave, label, opcoes)=>{
@@ -4239,9 +4263,9 @@ function renderFiltrosAnimaisChips(){
     </div>`;
   };
   const sexoOpts = [{value:'MASCULINO',label:'Macho'},{value:'FEMININO',label:'Fêmea'}];
-  const dedupOrdenado = campo => [...new Set(horses.map(h=>h[campo]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt')).map(v=>({value:v,label:v}));
+  const dedupOrdenado = campo => ordenarComPreferencia(campo, [...new Set(horses.map(h=>h[campo]).filter(Boolean))]).map(v=>({value:v,label:v}));
   const statusOpts = dedupOrdenado('status');
-  const categoriaOpts = sortCategorias([...new Set(horses.map(h=>h.categoria).filter(Boolean))]).map(v=>({value:v,label:v}));
+  const categoriaOpts = dedupOrdenado('categoria');
   const pelagemOpts = dedupOrdenado('pelagem');
   const racaOpts = dedupOrdenado('raca');
   const localizacaoOpts = dedupOrdenado('localizacao');
@@ -15531,11 +15555,17 @@ document.getElementById('btnPrintRelFicha').addEventListener('click', ()=>window
 
 // Baixar PDF de verdade (não só imprimir) pros relatórios que hoje só tinham "🖨 Imprimir" — reaproveita
 // o mesmo conteúdo já montado na tela e usa o mesmo gerador de PDF (html2pdf.js) usado em Manejos/Treinos.
-function wireBaixarPdfBtn(btnId, hostId, nomeArquivo){
+function wireBaixarPdfBtn(btnId, hostId, nomeArquivo, opts){
   document.getElementById(btnId).addEventListener('click', ()=>{
     const host = document.getElementById(hostId);
     if(!host || !host.innerHTML.trim()) return;
-    baixarRelatorioManejoPDF(host.innerHTML, typeof nomeArquivo==='function' ? nomeArquivo() : nomeArquivo);
+    // Tabela larga (muitas colunas) sai deitada pra caber na folha.
+    let o = opts;
+    if(!o){
+      const th = host.querySelectorAll('table thead th').length;
+      if(th >= 6) o = {orientation:'landscape'};
+    }
+    baixarRelatorioManejoPDF(host.innerHTML, typeof nomeArquivo==='function' ? nomeArquivo() : nomeArquivo, o);
   });
 }
 wireBaixarPdfBtn('btnPdfRelFicha', 'relFichaResult', 'Relatorio_Fichas_Animais.pdf');
