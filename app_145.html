@@ -1042,6 +1042,7 @@
         <span class="chip active" data-nvtab="lista" id="nvtab_lista">Coberturas</span>
         <span class="chip" data-nvtab="visitas" id="nvtab_visitas">🩺 Visitas / Exames</span>
         <span class="chip" data-nvtab="protocolo" id="nvtab_protocolo">💉 Protocolo de Vacinas</span>
+        <span class="chip" data-nvtab="semen" id="nvtab_semen">🧊 Sêmen</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
       </div>
 
@@ -1105,6 +1106,29 @@
             </table></div>
           </div>
         </div>
+      </div>
+
+      <div id="nview_semen" style="display:none;">
+        <div class="stats" id="semenStats"></div>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="semenSearch" placeholder="Garanhão, lote, observação..."></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#nview_semen [data-lista="semen"]' data-pdftitulo="Estoque de Sêmen" data-pdfarquivo="Estoque_Semen">📄 Baixar PDF</button>
+          <button type="button" class="btn btn-sm" id="btnNewSemen">+ Novo lote</button>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="semen">
+          <thead><tr>
+            <th class="sortable" data-ordlista="semen" data-ordcol="garanhao">Garanhão</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="lote">Lote / partida</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="tipo">Tipo</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="qtd">Doses em estoque</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="minimo">Mínimo</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="validade">Validade</th>
+            <th>Observações</th><th></th>
+          </tr></thead>
+          <tbody id="semenTbody"></tbody>
+        </table></div>
       </div>
 
       <div id="nview_relatorio" style="display:none;">
@@ -2056,6 +2080,30 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
+<!-- LOTE DE SÊMEN MODAL -->
+<div class="overlay" id="overlaySemen">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="semenModalTitle">Novo lote de sêmen</div><button class="modal-close" data-close="overlaySemen">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Garanhão</label><input type="text" id="sm_garanhao" list="dl_machos" required placeholder="Nome do garanhão"></div>
+      <div class="field"><label>Lote / partida <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="sm_lote" placeholder="Ex: 03/2026"></div>
+      <div class="field"><label>Tipo</label><select id="sm_tipo"><option value="Congelado">Congelado</option><option value="Resfriado">Resfriado</option><option value="Fresco">Fresco</option></select></div>
+      <div class="field"><label>Doses / palhetas em estoque</label><input type="number" step="1" min="0" id="sm_quantidade" placeholder="0"></div>
+      <div class="field"><label>Estoque mínimo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(dispara alerta)</span></label><input type="number" step="1" min="0" id="sm_minimo" placeholder="Opcional"></div>
+      <div class="field"><label>Validade <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="date" id="sm_validade"></div>
+      <div class="field full"><label>Observações</label><input type="text" id="sm_obs" placeholder="Central, botijão, nº do canister..."></div>
+    </div>
+    <div id="sm_historicoWrap" style="display:none;margin-top:6px;">
+      <div class="section-label" style="margin-bottom:6px;">Movimentações</div>
+      <div id="sm_historico" style="max-height:160px;overflow:auto;font-size:12px;"></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteSemen" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlaySemen">Cancelar</button><button type="button" class="btn" id="btnSaveSemen">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
 <!-- PRODUTO MODAL -->
 <div class="overlay" id="overlayProduto">
   <div class="modal">
@@ -2454,6 +2502,7 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 /* ---------- STATE ---------- */
 let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[], visitasRepro=[];
+let semenLotes=[]; // estoque de sêmen por garanhão/lote — cada um com .movimentos embutidos
 let auditoria=[];
 let auditoriaCarregada=false; // o log só é lido do banco quando a aba Auditoria (ou um backup) precisa
 async function garantirAuditoriaCarregada(){
@@ -2596,6 +2645,7 @@ const AUDIT_KEYS = {
   funcionarios_list:  { modulo:'Funcionários',nome: r=>r.nome },
   transportes_list:   { modulo:'Transporte',  nome: r=>[r.origem, r.destino].filter(Boolean).join(' → ') },
   usuarios_list:      { modulo:'Usuários',    nome: r=>r.nome },
+  semen_lotes:        { modulo:'Reprodução', nome: r=>['Sêmen', r.garanhao, r.lote].filter(Boolean).join(' · ') },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -2674,6 +2724,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'visitas_repro_list': visitasRepro = val; break;
     case 'funcionarios_list': funcionarios = val; break;
     case 'transportes_list': transportes = val; break;
+    case 'semen_lotes': semenLotes = val; break;
     case 'usuarios_list': usuarios = val; break;
     case 'config': config = val; break;
     case 'aux_lists': aux = val; break;
@@ -2893,7 +2944,7 @@ async function loadAll(){
   // Todas as leituras em PARALELO — antes eram ~24 idas ao Firestore uma depois da outra (abertura
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
-         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx] = await Promise.all([
+         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -2901,8 +2952,9 @@ async function loadAll(){
     storeGet('tratamentos_list'), storeGet('visitas_list'), storeGet('visitas_repro_list'),
     storeGet('transportes_list'), storeGet('rel_selecoes'), storeGet('nf_aprendizado'),
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
-    storeGet('exames_animais')
+    storeGet('exames_animais'), storeGet('semen_lotes')
   ]);
+  semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
   // Começa vazio; o storeSet('auditoria_log') funde com o disco (união), então nada se perde. É
   // carregado de verdade quando a aba Auditoria abre (ver garantirAuditoriaCarregada).
@@ -2921,7 +2973,7 @@ async function loadAll(){
     horses_list:horses, manejos_list:manejos, treinos_list:treinos, nascimentos_list:nascimentos,
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
-    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios
+    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -9105,12 +9157,13 @@ ORD_RENDERERS.coberturas = renderNascimentos;
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
 function showNascTab(tab){
-  ['lista','visitas','protocolo','relatorio'].forEach(t=>{
+  ['lista','visitas','protocolo','semen','relatorio'].forEach(t=>{
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
   if(tab==='protocolo') renderProtocoloVacinas();
   if(tab==='visitas') renderVisitasRepro();
+  if(tab==='semen') renderSemen();
   if(tab==='relatorio'){
     const estSel = document.getElementById('nrFiltroEstacao');
     const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
@@ -9122,7 +9175,144 @@ function showNascTab(tab){
 document.getElementById('nvtab_lista').addEventListener('click', ()=>showNascTab('lista'));
 document.getElementById('nvtab_visitas').addEventListener('click', ()=>showNascTab('visitas'));
 document.getElementById('nvtab_protocolo').addEventListener('click', ()=>showNascTab('protocolo'));
+document.getElementById('nvtab_semen').addEventListener('click', ()=>showNascTab('semen'));
 document.getElementById('nvtab_relatorio').addEventListener('click', ()=>showNascTab('relatorio'));
+
+/* ===== ESTOQUE DE SÊMEN ===== */
+let editingSemenId = null;
+function semenSituacao(l){
+  const q = Number(l.quantidade)||0, min = l.minimo!=null&&l.minimo!=='' ? Number(l.minimo) : null;
+  const venc = l.validade && l.validade < toISODate(new Date());
+  if(q<=0) return {cls:'st-descarte', txt:'Zerado'};
+  if(venc) return {cls:'st-descarte', txt:'Vencido'};
+  if(min!=null && q<=min) return {cls:'st-warn', txt:'Abaixo do mínimo'};
+  return {cls:'st-ativo', txt:'OK'};
+}
+function renderSemen(){
+  const tbody = document.getElementById('semenTbody'); if(!tbody) return;
+  const termo = (document.getElementById('semenSearch').value||'').toLowerCase();
+  const hoje = toISODate(new Date());
+  const totalDoses = semenLotes.reduce((s,l)=>s+(Number(l.quantidade)||0),0);
+  const garanhoes = new Set(semenLotes.map(l=>(l.garanhao||'').toLowerCase()).filter(Boolean)).size;
+  const abaixoMin = semenLotes.filter(l=> l.minimo!=null&&l.minimo!=='' && (Number(l.quantidade)||0) <= Number(l.minimo)).length;
+  const vencidos = semenLotes.filter(l=> l.validade && l.validade < hoje).length;
+  document.getElementById('semenStats').innerHTML =
+    `<div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Doses em estoque</div></div>`
+    + `<div class="stat"><div class="stat-num">${garanhoes}</div><div class="stat-label">Garanhões</div></div>`
+    + `<div class="stat"><div class="stat-num" style="color:${abaixoMin>0?'var(--warn-ink)':'inherit'};">${abaixoMin}</div><div class="stat-label">Abaixo do mínimo</div></div>`
+    + `<div class="stat"><div class="stat-num" style="color:${vencidos>0?'var(--burgundy)':'inherit'};">${vencidos}</div><div class="stat-label">Vencidos</div></div>`;
+  const filtrada = semenLotes.filter(l=> !termo || [l.garanhao,l.lote,l.tipo,l.obs].some(x=>(x||'').toLowerCase().includes(termo)));
+  const lista = ordenarListaGenerica('semen', filtrada, (l,col)=>{
+    if(col==='garanhao') return (l.garanhao||'').toLowerCase();
+    if(col==='lote') return (l.lote||'').toLowerCase();
+    if(col==='tipo') return (l.tipo||'').toLowerCase();
+    if(col==='qtd') return Number(l.quantidade)||0;
+    if(col==='minimo') return l.minimo!=null&&l.minimo!=='' ? Number(l.minimo) : -1;
+    if(col==='validade') return l.validade||'';
+    return '';
+  });
+  marcarSetasOrdenacao('semen', '#nview_semen [data-lista="semen"]');
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="8" class="empty">${semenLotes.length===0?'Nenhum lote de sêmen cadastrado. Clique em "+ Novo lote".':'Nenhum lote encontrado.'}</td></tr>`; return; }
+  tbody.innerHTML = lista.map(l=>{
+    const s = semenSituacao(l);
+    const q = Number(l.quantidade)||0;
+    const validadeCel = l.validade
+      ? `${fmtDate(l.validade)}${l.validade < hoje ? ' <span class="pill st-descarte">vencido</span>' : ''}`
+      : '—';
+    return `<tr data-id="${l.id}" style="cursor:pointer;" title="Clique pra editar">
+      <td><strong>${l.garanhao||'—'}</strong></td>
+      <td>${l.lote||'—'}</td>
+      <td>${l.tipo||'—'}</td>
+      <td>${q} <span class="pill ${s.cls}">${s.txt}</span></td>
+      <td>${l.minimo!=null&&l.minimo!==''?l.minimo:'—'}</td>
+      <td style="white-space:nowrap;">${validadeCel}</td>
+      <td>${l.obs||''}</td>
+      <td style="white-space:nowrap;">
+        <button type="button" class="btn btn-sm" data-semenusar="${l.id}" title="Registrar uso numa inseminação (dá baixa)">− Usar</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-semenentrada="${l.id}" title="Entrada de doses">+ Entrada</button>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    openSemenEdit(tr.dataset.id);
+  }));
+  tbody.querySelectorAll('[data-semenusar]').forEach(b=>b.addEventListener('click', ()=>movimentarSemen(b.dataset.semenusar, 'saida')));
+  tbody.querySelectorAll('[data-semenentrada]').forEach(b=>b.addEventListener('click', ()=>movimentarSemen(b.dataset.semenentrada, 'entrada')));
+}
+ORD_RENDERERS.semen = renderSemen;
+document.getElementById('semenSearch').addEventListener('input', debounce(renderSemen));
+async function movimentarSemen(id, tipoMov){
+  const l = semenLotes.find(x=>x.id===id); if(!l) return;
+  const acao = tipoMov==='saida' ? 'usar (baixa)' : 'dar entrada de';
+  const qtxt = await showPrompt('Quantas doses/palhetas ' + acao + ' — '+l.garanhao+(l.lote?(' · '+l.lote):'')+'?', 'Ex: 1');
+  if(qtxt===null) return;
+  const q = Math.round(Number(String(qtxt).replace(',','.'))||0);
+  if(q<=0){ showAlert('Informe uma quantidade válida.'); return; }
+  const atual = Number(l.quantidade)||0;
+  if(tipoMov==='saida' && q>atual){
+    if(!(await showConfirm('Só tem '+atual+' dose(s) em estoque. Registrar a baixa mesmo assim (fica negativo/zerado)?'))) return;
+  }
+  let motivo = '';
+  if(tipoMov==='saida'){ motivo = (await showPrompt('Égua / observação (opcional):', 'Ex: Estrela') || '').trim(); }
+  l.quantidade = tipoMov==='saida' ? Math.max(0, atual - q) : atual + q;
+  if(!l.movimentos) l.movimentos = [];
+  l.movimentos.push({ data: toISODate(new Date()), tipo: tipoMov, qtd: q, motivo, por: currentUser?currentUser.nome:'' });
+  semenLotes = semenLotes.map(x=>x.id===l.id?l:x);
+  renderSemen();
+  salvarEmSegundoPlano('semen_lotes', semenLotes, renderSemen);
+}
+function openSemenNew(){
+  editingSemenId = null;
+  document.getElementById('semenModalTitle').textContent = 'Novo lote de sêmen';
+  document.getElementById('btnDeleteSemen').style.display = 'none';
+  document.getElementById('sm_historicoWrap').style.display = 'none';
+  ['sm_garanhao','sm_lote','sm_quantidade','sm_minimo','sm_validade','sm_obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sm_tipo').value = 'Congelado';
+  openModal('overlaySemen');
+}
+function openSemenEdit(id){
+  const l = semenLotes.find(x=>x.id===id); if(!l) return;
+  editingSemenId = id;
+  document.getElementById('semenModalTitle').textContent = 'Editar lote — '+(l.garanhao||'');
+  document.getElementById('btnDeleteSemen').style.display = 'inline-block';
+  document.getElementById('sm_garanhao').value = l.garanhao||'';
+  document.getElementById('sm_lote').value = l.lote||'';
+  document.getElementById('sm_tipo').value = l.tipo||'Congelado';
+  document.getElementById('sm_quantidade').value = l.quantidade!=null ? l.quantidade : '';
+  document.getElementById('sm_minimo').value = l.minimo!=null ? l.minimo : '';
+  document.getElementById('sm_validade').value = l.validade||'';
+  document.getElementById('sm_obs').value = l.obs||'';
+  const movs = (l.movimentos||[]).slice().reverse();
+  document.getElementById('sm_historicoWrap').style.display = movs.length ? 'block' : 'none';
+  document.getElementById('sm_historico').innerHTML = movs.map(m=>
+    `<div style="padding:3px 0;border-bottom:1px solid var(--line);">${fmtDate(m.data)} · <strong>${m.tipo==='saida'?'−':'+'}${m.qtd}</strong>${m.motivo?(' · '+m.motivo):''}${m.por?(' · '+m.por):''}</div>`).join('');
+  openModal('overlaySemen');
+}
+document.getElementById('btnNewSemen').addEventListener('click', openSemenNew);
+document.getElementById('btnSaveSemen').addEventListener('click', ()=>{
+  const garanhao = titleCase(f('sm_garanhao'));
+  if(!garanhao){ showAlert('Informe o garanhão.'); return; }
+  const existente = editingSemenId ? semenLotes.find(x=>x.id===editingSemenId) : null;
+  const registro = { ...(existente||{}), id: editingSemenId || ('sl_'+Date.now()),
+    garanhao, lote: f('sm_lote').trim(), tipo: f('sm_tipo'),
+    quantidade: Math.max(0, Math.round(Number(f('sm_quantidade'))||0)),
+    minimo: f('sm_minimo').trim()==='' ? '' : Math.max(0, Math.round(Number(f('sm_minimo'))||0)),
+    validade: f('sm_validade'), obs: f('sm_obs').trim(),
+    movimentos: existente ? (existente.movimentos||[]) : [] };
+  if(garanhao) ensureExternalAnimal(garanhao, 'MASCULINO');
+  semenLotes = editingSemenId ? semenLotes.map(x=>x.id===editingSemenId?registro:x) : [...semenLotes, registro];
+  closeModal('overlaySemen'); renderSemen(); refreshDatalists();
+  salvarEmSegundoPlano('horses_list', horses);
+  salvarEmSegundoPlano('semen_lotes', semenLotes, renderSemen);
+});
+document.getElementById('btnDeleteSemen').addEventListener('click', async ()=>{
+  if(!editingSemenId || !(await showConfirm('Excluir este lote de sêmen do estoque?'))) return;
+  semenLotes = semenLotes.filter(x=>x.id!==editingSemenId);
+  await storeSet('semen_lotes', semenLotes, true);
+  closeModal('overlaySemen'); renderSemen();
+});
+bindSaveShortcut('overlaySemen','btnSaveSemen');
 
 /* ---- Tela "Protocolo de Vacinas" — lista as regras (editáveis) e a agenda calculada ---- */
 function renderRegrasProtocolo(){
@@ -14655,6 +14845,29 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body">${buildPedigreeTree(h)}${blocoEndogamia(h)}</div>
     </div>
 
+    <div class="perfil-card">
+      <div class="perfil-card-head">🏆 Premiações</div>
+      <div class="perfil-card-body">
+        <div id="perfilPremiacoesLista">${(h.premiacoes||[]).length===0 ? '<div class="hint-text">Nenhuma premiação registrada.</div>' :
+          (h.premiacoes||[]).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).map(p=>`
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">
+            <div style="font-size:12.7px;">
+              <strong>${p.evento||'—'}</strong>${p.colocacao?` — ${p.colocacao}`:''}
+              <div style="color:var(--muted);font-size:11.5px;">${[p.data&&fmtDate(p.data), p.premio, p.obs].filter(Boolean).join(' · ')}</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-ghost" data-delpremiacao="${p.id}" title="Remover">✕</button>
+          </div>`).join('')}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
+          <input type="date" id="prem_data" title="Data" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <input type="text" id="prem_evento" placeholder="Evento / prova" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <input type="text" id="prem_colocacao" placeholder="Colocação (ex: 1º lugar)" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <input type="text" id="prem_premio" placeholder="Prêmio / valor" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <input type="text" id="prem_obs" placeholder="Observação (opcional)" style="grid-column:1/-1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+        </div>
+        <button type="button" class="btn btn-sm" id="btnAddPremiacao" style="margin-top:8px;">+ Adicionar premiação</button>
+      </div>
+    </div>
+
     ${gruposDoAnimal.length>0?`<div class="perfil-card">
       <div class="perfil-card-head">📁 Grupos</div>
       <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${g.nome}</span>`).join('')}</div>
@@ -14814,6 +15027,26 @@ function renderAnimalPerfil(id){
   document.querySelectorAll('[data-delvideo]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       h.videos.splice(Number(btn.dataset.delvideo),1);
+      await storeSet('horses_list', horses);
+      renderAnimalPerfil(h.id);
+    });
+  });
+  document.getElementById('btnAddPremiacao').addEventListener('click', async ()=>{
+    const evento = document.getElementById('prem_evento').value.trim();
+    if(!evento){ showAlert('Informe ao menos o evento / prova.'); return; }
+    if(!h.premiacoes) h.premiacoes = [];
+    h.premiacoes.push({ id:'pr_'+Date.now(),
+      data: document.getElementById('prem_data').value,
+      evento,
+      colocacao: document.getElementById('prem_colocacao').value.trim(),
+      premio: document.getElementById('prem_premio').value.trim(),
+      obs: document.getElementById('prem_obs').value.trim() });
+    await storeSet('horses_list', horses);
+    renderAnimalPerfil(h.id);
+  });
+  document.querySelectorAll('[data-delpremiacao]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      h.premiacoes = (h.premiacoes||[]).filter(p=>p.id!==btn.dataset.delpremiacao);
       await storeSet('horses_list', horses);
       renderAnimalPerfil(h.id);
     });
@@ -15479,7 +15712,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   await garantirAuditoriaCarregada(); // o log não é carregado na abertura; o backup precisa dele inteiro
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, auditoria, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, auditoria, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -15555,6 +15788,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     funcionarios = [...funcionarios, ...((backup.funcionarios||[]).filter(fu=>!existingFuncIds.has(fu.id)))];
     const existingTranspIds = new Set(transportes.map(t=>t.id));
     transportes = [...transportes, ...((backup.transportes||[]).filter(t=>!existingTranspIds.has(t.id)))];
+    const existingSemenIds = new Set(semenLotes.map(l=>l.id));
+    semenLotes = [...semenLotes, ...((backup.semenLotes||[]).filter(l=>!existingSemenIds.has(l.id)))];
     if(backup.aux){
       Object.keys(backup.aux).forEach(k=>{
         if(!aux[k]) aux[k]=[];
@@ -15569,6 +15804,7 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
       await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
       await storeSet('transportes_list', transportes); await storeSet('visitas_repro_list', visitasRepro);
+      await storeSet('semen_lotes', semenLotes);
     });
     refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
