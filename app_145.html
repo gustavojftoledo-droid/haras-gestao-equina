@@ -5310,7 +5310,7 @@ function gerarRelatorioManejosFinanceiro(){
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   host.innerHTML = `<div class="report-card print-block">
     <h1 style="border:none;">Relatório Financeiro de Manejos — ${ordenados.length} lançamento(s)</h1>
-    ${ordenados.map(m=>blocoRelatorioManejo(m, false)).join('')}
+    ${ordenados.map(m=>`<div class="pdf-item-block">${blocoRelatorioManejo(m, false)}</div>`).join('')}
     <h2 style="border-top:2px solid #333;">TOTAL GERAL DO PERÍODO: ${fmtR(totalGeralPeriodo)}</h2>
   </div>`;
   btnPdf.style.display='inline-block';
@@ -6990,7 +6990,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
-const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
+const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* Cada bloco (1 animal, 1 manejo, 1 visita...) fica inteiro na mesma folha — nunca corta um no meio pra começar o de baixo na próxima. */ .rel-manejo-pdf .report-animal-block,.rel-manejo-pdf .pdf-item-block{page-break-inside:avoid;break-inside:avoid;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
 /* Tabela de Presença (Relatório 2 de Treinos): não usar table-layout fixo, células compactas e centradas,
    nome do animal à esquerda, 👁 escondido no PDF, marca de presença destacada. */
 .rel-manejo-pdf table.matrix{table-layout:auto;margin-top:6px;}
@@ -7002,6 +7002,51 @@ const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;pa
 .rel-manejo-pdf .matrix td.hit{background:#e4efe4;font-weight:bold;color:#2f4a37;}
 .rel-manejo-pdf .matrix .eye-inline{display:none;}
 .rel-manejo-pdf .matrix-block-title{font-weight:bold;font-size:13px;margin:14px 0 4px;color:#2f4a37;}`;
+// O page-break-inside:avoid do CSS (e a opção "avoid" do próprio html2pdf) não bastaram pra impedir
+// que um bloco (1 animal, 1 manejo...) comece numa folha e continue na próxima — testado e confirmado
+// que nenhum dos dois pega aqui, e um espaçador calculado na mão também não bateu direito com a
+// altura que o html2canvas realmente usa por página (funcionou pros 3 primeiros blocos e falhou no
+// último, numa conta que deveria ter sobrado). Solução à prova de erro: cada bloco vira a PRÓPRIA
+// página do PDF — sem tentar adivinhar quantos blocos cabem numa folha, cada um simplesmente é
+// capturado e colado sozinho, impossível de cortar no meio.
+async function gerarPdfUmBlocoPorPagina(itens, larguraConteudo, pdfOpts){
+  const primeiroCard = itens[0].closest('.report-card');
+  // Tudo que vem ANTES do primeiro bloco dentro do card (o título "Relatório X — ...") — repete só na 1ª página.
+  let preambuloHtml = '';
+  if(primeiroCard){
+    let no = primeiroCard.firstChild;
+    while(no && no !== itens[0]){ preambuloHtml += no.outerHTML || ''; no = no.nextSibling; }
+  }
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#fff;z-index:99998;overflow:visible;';
+  document.body.appendChild(host);
+  function montarPagina(item, comPreambulo){
+    host.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style>`;
+    const pag = document.createElement('div');
+    pag.className = 'rel-manejo-pdf';
+    pag.style.cssText = `max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;`;
+    const card = document.createElement('div');
+    card.className = 'report-card print-block';
+    if(comPreambulo) card.insertAdjacentHTML('afterbegin', preambuloHtml);
+    card.appendChild(item.cloneNode(true));
+    pag.appendChild(card);
+    host.appendChild(pag);
+    return pag;
+  }
+  try{
+    const pag0 = montarPagina(itens[0], true);
+    await new Promise(r=>setTimeout(r, 40));
+    let worker = html2pdf().set(pdfOpts).from(pag0).toPdf();
+    for(let i=1;i<itens.length;i++){
+      const pagN = montarPagina(itens[i], false);
+      await new Promise(r=>setTimeout(r, 40));
+      worker = worker.get('pdf').then(pdf=>{ pdf.addPage(); }).from(pagN).toContainer().toCanvas().toPdf();
+    }
+    await worker.save();
+  } finally {
+    document.body.removeChild(host);
+  }
+}
 // Gera um arquivo .pdf de verdade a partir de um trecho de HTML de relatório (usa html2pdf.js, que
 // precisa de internet). Monta o conteúdo escondido fora da tela, exporta e depois remove — o usuário
 // só vê o arquivo .pdf sendo baixado, sem passar por janela de impressão.
@@ -7028,20 +7073,26 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   // Pequena espera pra garantir que o navegador terminou de desenhar o conteúdo antes de capturar.
   await new Promise(r=>setTimeout(r, 60));
   const conteudoEl = wrapper.querySelector('.rel-manejo-pdf');
+  const itensPorBloco = conteudoEl.querySelectorAll('.report-animal-block, .pdf-item-block');
   // "windowWidth/windowHeight" simulam o tamanho da JANELA do navegador pro html2canvas — em telas
   // bem maiores que o conteúdo (ex: monitor grande), isso descentraliza a captura e corta um pedaço
-  // do conteúdo de um dos lados. O elemento já tem largura fixa no próprio CSS (max-width/width acima)
-  // e agora nenhuma altura de tela — então nem precisa dizer o tamanho da janela: deixa o html2canvas
-  // medir o elemento (conteudoEl) do jeito dele, do tamanho real que ele renderizou.
+  // do conteúdo de um dos lados. Nem o elemento nem a janela virtual precisam ser ditos: sem eles,
+  // o html2canvas mede sozinho o tamanho real de cada elemento que captura, não importa a tela.
+  const pdfOptsBase = {
+    margin: 10,
+    filename: nomeArquivo,
+    image: { type:'jpeg', quality:0.98 },
+    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
+    jsPDF: { unit:'mm', format:'a4', orientation: paisagem ? 'landscape' : 'portrait' },
+    pagebreak: { mode:'css' }
+  };
   try{
-    await html2pdf().set({
-      margin: 10,
-      filename: nomeArquivo,
-      image: { type:'jpeg', quality:0.98 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, width: conteudoEl.scrollWidth, height: conteudoEl.scrollHeight },
-      jsPDF: { unit:'mm', format:'a4', orientation: paisagem ? 'landscape' : 'portrait' },
-      pagebreak: { mode:'css' }
-    }).from(wrapper.querySelector('.rel-manejo-pdf')).save();
+    if(itensPorBloco.length>1){
+      // Vários blocos (animais, manejos...) — cada um vira a própria página, nunca corta um no meio.
+      await gerarPdfUmBlocoPorPagina(itensPorBloco, larguraConteudo, pdfOptsBase);
+    } else {
+      await html2pdf().set(pdfOptsBase).from(conteudoEl).save();
+    }
   } catch(err){
     showAlert('Não consegui gerar o PDF. Verifique sua conexão com a internet e tente de novo.');
   } finally {
@@ -7131,7 +7182,7 @@ function gerarRelatorioManejosMultiplos(ids){
   if(lista.length===0) return;
   const conteudo = `<h1 style="border:none;">Relatório de Manejos — ${lista.length} lançamento(s)</h1>
     <div class="sub">Do mais antigo pro mais novo.</div>
-    ${lista.map(m=>blocoRelatorioManejo(m, false)).join('')}`;
+    ${lista.map(m=>`<div class="pdf-item-block">${blocoRelatorioManejo(m, false)}</div>`).join('')}`;
   abrirPreviaRelatorio(conteudo, `Relatorio_Manejos_${lista.length}_lancamentos.pdf`, `Relatório de Manejos — ${lista.length} lançamento(s)`);
 }
 document.getElementById('btnEditarValoresCasco').addEventListener('click', ()=>{
@@ -11827,7 +11878,7 @@ function gerarRelatorioVisitasFiltro(){
   const ordenadas = [...visitasFiltradasAtual].sort((a,b)=> a.data.localeCompare(b.data));
   const conteudo = `<h1 style="border:none;">Relatório de Visitas Veterinárias — ${ordenadas.length} visita(s)</h1>
     <div class="sub">Do mais antigo pro mais novo.</div>
-    ${ordenadas.map(v=>blocoRelatorioVisita(v)).join('<div style="border-top:1px solid #ddd;margin:18px 0;"></div>')}`;
+    ${ordenadas.map(v=>`<div class="pdf-item-block">${blocoRelatorioVisita(v)}</div>`).join('<div style="border-top:1px solid #ddd;margin:18px 0;"></div>')}`;
   abrirPreviaRelatorio(conteudo, `Relatorio_Visitas_${ordenadas.length}.pdf`, `Relatório de Visitas — ${ordenadas.length} visita(s)`);
 }
 document.getElementById('btnRelVisitasFiltro').addEventListener('click', gerarRelatorioVisitasFiltro);
