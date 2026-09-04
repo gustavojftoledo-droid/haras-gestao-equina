@@ -392,7 +392,7 @@
   .animal-eye-wrap{white-space:nowrap;}
   .eye-inline{background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;border-radius:3px;vertical-align:middle;opacity:.65;}
   .eye-inline:hover{opacity:1;background:var(--paper);}
-  .perfil-wrap{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+  .perfil-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start;}
   .perfil-wrap>div{min-width:0;} /* mesmo remendo do .main — sem isso a árvore de genealogia larga empurra a coluna (e a página) mais larga que a tela */
   @media (max-width:900px){ .perfil-wrap{grid-template-columns:1fr;} }
   .perfil-card{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(30,23,16,0.06);}
@@ -4243,6 +4243,13 @@ function titleCase(str){
   if(!str) return str;
   return str.trim().split(/\s+/).map(w=> w.length ? w.charAt(0).toUpperCase()+w.slice(1).toLowerCase() : w).join(' ');
 }
+// Escapa texto digitado pelo usuário antes de jogar dentro de HTML montado por template string (nome de
+// produto, observação...). Sem isso, um "<" ou "&" no meio do texto (ex: observação "aplicar < 5kg")
+// quebra a tag/tabela e some com o resto da linha — parece "relatório com formatação errada" mas é o
+// próprio texto do usuário virando HTML sem querer.
+function escHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 // Normaliza um nome pra COMPARAR parentesco (irmãos/filhos, ou nascimento x.pai/x.mae) — tira espaços
 // nas pontas e colapsa espaço duplo no meio, além de ignorar maiúsculo/minúsculo. Sem isso, um registro
 // gravado como "Estrela " (com espaço a mais) e outro como "Estrela" contavam como mães diferentes, e
@@ -6983,7 +6990,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
-const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
+const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
 /* Tabela de Presença (Relatório 2 de Treinos): não usar table-layout fixo, células compactas e centradas,
    nome do animal à esquerda, 👁 escondido no PDF, marca de presença destacada. */
 .rel-manejo-pdf table.matrix{table-layout:auto;margin-top:6px;}
@@ -10083,9 +10090,9 @@ document.getElementById('btnPedidoGerar').addEventListener('click', ()=>{
   const htmlConteudo = `<h1>Pedido de Compra</h1>
     <div class="sub">Gerado em ${fmtDate(toISODate(new Date()))} · ${comQtd.length} item(ns)</div>
     <table><thead><tr><th>Produto</th><th>Quantidade</th><th>Observação</th></tr></thead>
-    <tbody>${comQtd.map(it=>`<tr><td>${it.nome||''}</td><td>${it.quantidade} unidade(s)</td><td>${it.obs||''}</td></tr>`).join('')}</tbody>
+    <tbody>${comQtd.map(it=>`<tr><td>${escHtml(it.nome)}</td><td>${escHtml(it.quantidade)} unidade(s)</td><td>${escHtml(it.obs)}</td></tr>`).join('')}</tbody>
     </table>
-    ${obsGeral ? `<div style="margin-top:16px;font-size:13px;"><strong>Observação geral:</strong> ${obsGeral}</div>` : ''}`;
+    ${obsGeral ? `<div style="margin-top:16px;font-size:13px;"><strong>Observação geral:</strong> ${escHtml(obsGeral)}</div>` : ''}`;
   abrirPreviaRelatorio(htmlConteudo, 'Pedido_de_Compra.pdf', 'Pedido de Compra');
   closeModal('overlayPedido');
 });
@@ -15074,14 +15081,14 @@ function renderAnimalPerfil(id){
             </div>
             <button type="button" class="btn btn-sm btn-ghost" data-delpremiacao="${p.id}" title="Remover">✕</button>
           </div>`).join('')}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
+        <div class="no-print" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
           <input type="date" id="prem_data" title="Data" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <input type="text" id="prem_evento" placeholder="Evento / prova" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <input type="text" id="prem_colocacao" placeholder="Colocação (ex: 1º lugar)" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <input type="text" id="prem_premio" placeholder="Prêmio / valor" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <input type="text" id="prem_obs" placeholder="Observação (opcional)" style="grid-column:1/-1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
         </div>
-        <button type="button" class="btn btn-sm" id="btnAddPremiacao" style="margin-top:8px;">+ Adicionar premiação</button>
+        <button type="button" class="btn btn-sm no-print" id="btnAddPremiacao" style="margin-top:8px;">+ Adicionar premiação</button>
       </div>
     </div>
 
@@ -15107,7 +15114,7 @@ function renderAnimalPerfil(id){
             </div>
           </div>`;
         }).join('')}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+        <div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
           <select id="exs_tipo" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;"><option>AIE</option><option>Mormo</option></select>
           <input type="date" id="exs_data" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
           <input type="number" id="exs_dias" value="60" min="1" title="Validade em dias" style="width:64px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
@@ -15127,7 +15134,7 @@ function renderAnimalPerfil(id){
     <div class="perfil-card">
       <div class="perfil-card-body">
         ${h.fotoUrl ? `<img class="perfil-photo" src="${h.fotoUrl}" alt="Foto de ${h.nome}" onerror="this.outerHTML='<div class=perfil-photo-placeholder>Não consegui carregar essa imagem. Confira se o link é público e aponta direto pro arquivo.</div>';">`
-          : `<div class="perfil-photo-placeholder">Sem foto ainda.<br>Cole um link (Google Drive, Imgur...) no cadastro do animal.</div>`}
+          : `<div class="perfil-photo-placeholder no-print">Sem foto ainda.<br>Cole um link (Google Drive, Imgur...) no cadastro do animal.</div>`}
       </div>
     </div>
 
@@ -15151,7 +15158,7 @@ function renderAnimalPerfil(id){
             <a href="${v}" target="_blank" rel="noopener" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delvideo="${i}" title="Remover">✕</button>
           </div>`).join('')}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;">
+        <div class="no-print" style="display:flex;gap:6px;margin-top:8px;">
           <input type="text" id="perfilNovoVideo" placeholder="Link do vídeo (YouTube, Drive...)" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
           <button type="button" class="btn btn-sm" id="btnAddVideoPerfil">+ Adicionar</button>
         </div>
@@ -15166,11 +15173,11 @@ function renderAnimalPerfil(id){
             <a href="${e.dataUrl}" target="_blank" rel="noopener" download="${e.nome}" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">📄 ${e.nome}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
           </div>`).join('')}</div>
-        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;">
+        <div class="no-print" style="display:flex;gap:6px;margin-top:8px;align-items:center;">
           <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
           <button type="button" class="btn btn-sm" id="btnAddExamePerfil">+ Anexar</button>
         </div>
-        <div class="hint-text" style="margin-top:6px;">Arquivo fica salvo num cadastro próprio de exames, separado do resto do cadastro do animal — anexe até 1 MB por arquivo (comprima o PDF/foto se precisar).</div>
+        <div class="hint-text no-print" style="margin-top:6px;">Arquivo fica salvo num cadastro próprio de exames, separado do resto do cadastro do animal — anexe até 1 MB por arquivo (comprima o PDF/foto se precisar).</div>
       </div>
     </div>
 
@@ -15696,11 +15703,13 @@ function wireBaixarPdfBtn(btnId, hostId, nomeArquivo, opts){
   document.getElementById(btnId).addEventListener('click', ()=>{
     const host = document.getElementById(hostId);
     if(!host || !host.innerHTML.trim()) return;
-    // Tabela larga (muitas colunas) sai deitada pra caber na folha.
+    // Tabela larga (muitas colunas) ou árvore de pedigree (4 gerações, largura fixa) sai deitada pra caber na folha.
     let o = opts;
     if(!o){
       const th = host.querySelectorAll('table thead th').length;
-      if(th >= 6) o = {orientation:'landscape'};
+      const pedSvg = host.querySelector('.pedigree-tree-svg');
+      const pedLarga = pedSvg && Number(pedSvg.getAttribute('width'))>700;
+      if(th >= 6 || pedLarga) o = {orientation:'landscape'};
     }
     baixarRelatorioManejoPDF(host.innerHTML, typeof nomeArquivo==='function' ? nomeArquivo() : nomeArquivo, o);
   });
