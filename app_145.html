@@ -6372,7 +6372,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
     const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
-    const btnConcluirSel = ((ehManejo||ehTratamento) && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${tipo}" data-concluirseltrat="${ehTratamento?'1':''}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
+    const btnConcluirSel = ((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${tipo}" data-concluirseltrat="${ehTratamento?'1':''}" data-concluirselproto="${(ehGestacao||ehPotro)?'1':''}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -6380,7 +6380,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          ${btnFront}
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${btnConcluirSel}</div>
         </div>`;
     const rows = arr.map(t=>{
       // Casco: mostra o procedimento como select, já pré-marcado com o último que esse animal teve
@@ -6388,7 +6388,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-selproto="${(ehGestacao||ehPotro)?((ehGestacao?'gestacao':'potro')+'|'+(ehGestacao?t.nascimentoId:t.animalId)+'|'+t.itemId):''}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
         ${ehTransporte
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-abrirtransporte="${t.transporteId}">👁 Abrir / marcar realizado</button></div>`
           : ehTratamento
@@ -6578,6 +6578,17 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const doses = checados.map(cb=>({tratamentoId:cb.dataset.seltrat, doseKey:cb.dataset.seldose}));
       if(!(await showConfirm(`Marcar ${doses.length} dose(ns) como aplicada(s)? Isso baixa estoque e lança o custo de cada uma.`))) return;
       await concluirDosesTratamentoEmLote(doses);
+      closeModal('overlayCalDetalhe');
+      return;
+    }
+    if(btn.dataset.concluirselproto==='1'){
+      const itens = checados.map(cb=>cb.dataset.selproto);
+      if(!(await showConfirm(`Marcar ${itens.length} vacina(s) do protocolo como aplicada(s)?`))) return;
+      for(const s of itens){
+        const [cat, refId, itemId] = s.split('|');
+        if(cat==='gestacao') await marcarItemProtocoloGestacao(refId, itemId, true);
+        else await marcarItemProtocoloPotro(refId, itemId, true);
+      }
       closeModal('overlayCalDetalhe');
       return;
     }
