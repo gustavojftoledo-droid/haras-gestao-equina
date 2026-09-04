@@ -7028,17 +7028,17 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   // Pequena espera pra garantir que o navegador terminou de desenhar o conteúdo antes de capturar.
   await new Promise(r=>setTimeout(r, 60));
   const conteudoEl = wrapper.querySelector('.rel-manejo-pdf');
-  // O "windowHeight" é a altura da janela virtual que o html2canvas usa pra desenhar — se for menor que
-  // o conteúdo de verdade (ex: relatório com muitas linhas, maior que a tela do celular/janela), o PDF
-  // sai cortado bem no meio, faltando o resto das linhas. Por isso mede a altura REAL do conteúdo
-  // (scrollHeight) em vez de usar só o tamanho da janela do navegador.
-  const alturaReal = Math.max(conteudoEl.scrollHeight, conteudoEl.offsetHeight, document.documentElement.clientHeight);
+  // "windowWidth/windowHeight" simulam o tamanho da JANELA do navegador pro html2canvas — em telas
+  // bem maiores que o conteúdo (ex: monitor grande), isso descentraliza a captura e corta um pedaço
+  // do conteúdo de um dos lados. O elemento já tem largura fixa no próprio CSS (max-width/width acima)
+  // e agora nenhuma altura de tela — então nem precisa dizer o tamanho da janela: deixa o html2canvas
+  // medir o elemento (conteudoEl) do jeito dele, do tamanho real que ele renderizou.
   try{
     await html2pdf().set({
       margin: 10,
       filename: nomeArquivo,
       image: { type:'jpeg', quality:0.98 },
-      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, windowWidth: larguraConteudo, windowHeight: alturaReal },
+      html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, width: conteudoEl.scrollWidth, height: conteudoEl.scrollHeight },
       jsPDF: { unit:'mm', format:'a4', orientation: paisagem ? 'landscape' : 'portrait' },
       pagebreak: { mode:'css' }
     }).from(wrapper.querySelector('.rel-manejo-pdf')).save();

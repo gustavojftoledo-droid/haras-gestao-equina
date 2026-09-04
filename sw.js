@@ -4,7 +4,7 @@
 // realmente abrir e funcionar offline. Os DADOS ficam no cache offline do próprio Firestore
 // (enablePersistence no app): o que você digitar sem internet entra numa fila e sobe sozinho quando
 // reconectar. Só entra em ação servido por http/https (GitHub Pages etc.), não em file://.
-const CACHE_NAME = 'haras-gestao-equina-v7';
+const CACHE_NAME = 'haras-gestao-equina-v8';
 
 // Tudo que o app precisa pra abrir sem internet. As URLs externas (gstatic/cdnjs) mandam cabeçalho
 // CORS, então dá pra guardar uma cópia utilizável (não é "opaque").
