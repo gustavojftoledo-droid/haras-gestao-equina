@@ -523,6 +523,22 @@
     .mobile-tab.active{color:#fff;font-weight:600;}
     .main{padding-bottom:78px;}
   }
+
+  /* ---------- Tela de login: confirmação e caixa "trabalhar offline" ---------- */
+  #loginChecando{font-size:12.5px;color:var(--muted);padding:6px 0;}
+  .login-confirm-email{font-weight:700;color:var(--green);font-size:14px;word-break:break-all;margin:2px 0 12px;}
+  #btnTrocarConta{width:100%;margin-top:8px;background:none;border:none;color:var(--brass);text-decoration:underline;font-size:12.5px;cursor:pointer;padding:6px;}
+  .offline-check{display:flex;align-items:center;gap:11px;margin-top:16px;padding:11px 13px;border:2px solid var(--line);border-radius:9px;cursor:pointer;user-select:none;transition:border-color .15s,background .15s,box-shadow .15s;}
+  .offline-check input{position:absolute;opacity:0;width:0;height:0;}
+  .offline-check .offline-box{width:24px;height:24px;flex:0 0 auto;border:2px solid var(--muted);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;line-height:1;transition:background .15s,border-color .15s;}
+  .offline-check .offline-text{font-size:13px;color:var(--muted);line-height:1.35;}
+  .offline-check.is-on{border-color:var(--green);background:rgba(21,39,30,.06);box-shadow:inset 0 0 0 1px var(--green);}
+  .offline-check.is-on .offline-box{background:var(--green);border-color:var(--green);}
+  .offline-check.is-on .offline-box::after{content:"\2713";}
+  .offline-check.is-on .offline-text{color:var(--green);font-weight:600;}
+  #offlineHint{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.4;}
+  #offlineBadge button{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;font-size:11px;font-weight:600;padding:4px 9px;border-radius:14px;cursor:pointer;margin-left:9px;}
+  #offlineBadge button:hover{background:rgba(255,255,255,.3);}
 </style>
 </head>
 <body>
@@ -531,12 +547,29 @@
     <div class="login-title">🐴 Equinos Manager — Entrar</div>
     <div class="login-subtitle" id="loginSubtitle">Entre com seu e-mail e senha.</div>
     <div id="loginFirebaseBox">
-      <div class="field" style="margin-bottom:10px;"><label>E-mail</label><input type="email" id="fbEmail" placeholder="seu@email.com" autocomplete="username"></div>
-      <div class="field" style="margin-bottom:10px;"><label>Senha</label><input type="password" id="fbSenha" placeholder="••••••••" autocomplete="current-password"></div>
-      <div id="loginFirebaseErro" style="color:var(--burgundy);font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button type="button" class="btn" id="btnLoginEntrar" style="width:100%;">Entrar</button>
-      <button type="button" id="btnLoginOffline" style="width:100%;margin-top:8px;background:none;border:1px solid var(--line);color:var(--muted);padding:8px 10px;border-radius:6px;font-size:12.5px;cursor:pointer;">📴 Trabalhar offline (sem internet)</button>
-      <div class="login-subtitle" style="margin-top:8px;font-size:11px;">Offline: usa os dados já baixados neste aparelho. O que você digitar entra numa fila e sobe sozinho quando você sair (logoff) com internet. Só funciona se você já entrou aqui antes.</div>
+      <div id="loginChecando">Verificando sua sessão…</div>
+
+      <div id="loginConfirmBox" style="display:none;">
+        <div style="font-size:12.5px;color:var(--muted);">Você já entrou neste aparelho como:</div>
+        <div class="login-confirm-email" id="loginConfirmEmail">—</div>
+        <button type="button" class="btn" id="btnLoginConfirmar" style="width:100%;">Entrar</button>
+        <button type="button" id="btnTrocarConta">Entrar com outra conta</button>
+      </div>
+
+      <div id="loginFormBox" style="display:none;">
+        <div class="field" style="margin-bottom:10px;"><label>E-mail</label><input type="email" id="fbEmail" placeholder="seu@email.com" autocomplete="username"></div>
+        <div class="field" style="margin-bottom:10px;"><label>Senha</label><input type="password" id="fbSenha" placeholder="••••••••" autocomplete="current-password"></div>
+        <button type="button" class="btn" id="btnLoginEntrar" style="width:100%;">Entrar</button>
+      </div>
+
+      <div id="loginFirebaseErro" style="color:var(--burgundy);font-size:12px;margin-top:10px;display:none;"></div>
+
+      <label class="offline-check" id="offlineCheck">
+        <input type="checkbox" id="chkOffline">
+        <span class="offline-box"></span>
+        <span class="offline-text">📴 Trabalhar offline (usar só os dados já baixados neste aparelho)</span>
+      </label>
+      <div id="offlineHint">Marque só se estiver sem internet. O que você digitar fica numa fila e sobe sozinho quando você tocar em “Sair” (logoff) com internet — fechar o app não sincroniza.</div>
     </div>
   </div>
 </div>
@@ -14468,45 +14501,120 @@ function mostrarErroLogin(msg){
   const el = document.getElementById('loginFirebaseErro');
   el.textContent = msg; el.style.display = 'block';
 }
+// O app NUNCA entra sozinho: onAuthStateChanged só decide QUAL tela de login mostrar
+// (confirmar sessão salva x pedir e-mail/senha). Entrar de verdade só no clique do Gustavo.
+let _appJaIniciou = false;
+let _sessaoSalva = null;
+function loginMostrarChecando(){
+  document.getElementById('loginChecando').style.display='';
+  document.getElementById('loginConfirmBox').style.display='none';
+  document.getElementById('loginFormBox').style.display='none';
+}
+function loginMostrarConfirm(user){
+  _sessaoSalva = user;
+  document.getElementById('loginChecando').style.display='none';
+  document.getElementById('loginFormBox').style.display='none';
+  document.getElementById('loginConfirmBox').style.display='';
+  document.getElementById('loginConfirmEmail').textContent = (user && user.email) ? user.email : '(conta salva neste aparelho)';
+}
+function loginMostrarForm(){
+  document.getElementById('loginChecando').style.display='none';
+  document.getElementById('loginConfirmBox').style.display='none';
+  document.getElementById('loginFormBox').style.display='';
+}
+function offlineMarcado(){ const c=document.getElementById('chkOffline'); return !!(c && c.checked); }
+// Caixa "Trabalhar offline": marca visual clara (classe .is-on) + dica só quando ligada.
+(function initOfflineCheck(){
+  const chk = document.getElementById('chkOffline');
+  const wrap = document.getElementById('offlineCheck');
+  const hint = document.getElementById('offlineHint');
+  function sync(){
+    wrap.classList.toggle('is-on', chk.checked);
+    hint.style.display = chk.checked ? '' : 'none';
+  }
+  chk.addEventListener('change', sync);
+  if(localStorage.getItem('haras_modo_offline')==='1') chk.checked = true;
+  sync();
+})();
+async function prosseguirEntrar(user){
+  const offline = offlineMarcado();
+  if(offline){
+    const jaEntrouAqui = localStorage.getItem('haras_ja_entrou')==='1'
+      || (HAS_FIRESTORE && firebase.auth().currentUser) || user;
+    if(HAS_FIRESTORE && !jaEntrouAqui){
+      mostrarErroLogin('Pra trabalhar offline você precisa ter entrado neste aparelho pelo menos uma vez com internet.');
+      return;
+    }
+    localStorage.setItem('haras_modo_offline','1');
+    if(HAS_FIRESTORE){ try{ await db.disableNetwork(); }catch(e){} }
+    atualizarBadgeOffline();
+  }else{
+    localStorage.removeItem('haras_modo_offline');
+    if(HAS_FIRESTORE){ try{ await db.enableNetwork(); }catch(e){} }
+    atualizarBadgeOffline();
+  }
+  iniciarAppLogado(user || (HAS_FIRESTORE ? firebase.auth().currentUser : null));
+}
 function tentarLoginFirebase(){
   const email = document.getElementById('fbEmail').value.trim();
   const senha = document.getElementById('fbSenha').value;
   document.getElementById('loginFirebaseErro').style.display = 'none';
-  if(!HAS_FIRESTORE){ mostrarErroLogin('Não consegui conectar com o servidor de login. Verifique sua internet e recarregue a página.'); return; }
+  if(!HAS_FIRESTORE){ prosseguirEntrar(null); return; }
+  // Offline marcado + já entrou antes: não precisa reautenticar, entra com a sessão salva.
+  if(offlineMarcado() && (firebase.auth().currentUser || localStorage.getItem('haras_ja_entrou')==='1')){
+    prosseguirEntrar(firebase.auth().currentUser); return;
+  }
   if(!email || !senha){ mostrarErroLogin('Preencha e-mail e senha.'); return; }
   const btn = document.getElementById('btnLoginEntrar');
   btn.disabled = true; btn.textContent = 'Entrando...';
   firebase.auth().signInWithEmailAndPassword(email, senha)
+    .then(cred=>{ prosseguirEntrar(cred.user); })
     .catch(err=>{
       const semSenhaOuEmailErrado = ['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(err.code);
       mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.' : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
-    })
-    .finally(()=>{ btn.disabled = false; btn.textContent = 'Entrar'; });
+      btn.disabled = false; btn.textContent = 'Entrar';
+    });
 }
 document.getElementById('btnLoginEntrar').addEventListener('click', tentarLoginFirebase);
 document.getElementById('fbSenha').addEventListener('keydown', e=>{ if(e.key==='Enter') tentarLoginFirebase(); });
+document.getElementById('btnLoginConfirmar').addEventListener('click', ()=>{
+  const b = document.getElementById('btnLoginConfirmar');
+  b.disabled = true; b.textContent = 'Entrando...';
+  Promise.resolve(prosseguirEntrar(_sessaoSalva)).catch(()=>{ b.disabled=false; b.textContent='Entrar'; });
+});
+document.getElementById('btnTrocarConta').addEventListener('click', async ()=>{
+  document.getElementById('loginFirebaseErro').style.display = 'none';
+  try{ if(HAS_FIRESTORE) await firebase.auth().signOut(); }catch(e){}
+  _sessaoSalva = null;
+  loginMostrarForm();
+  document.getElementById('fbEmail').focus();
+});
 // ---- Modo offline: usa só o cache do aparelho; escritas ficam na fila e sobem no logoff ----
+async function sincronizarEVoltarOnline(){
+  const el = document.getElementById('offlineBadge');
+  if(el){ el.querySelector('span').textContent = '🔄 Sincronizando…'; const b=el.querySelector('button'); if(b) b.disabled=true; }
+  localStorage.removeItem('haras_modo_offline');
+  if(HAS_FIRESTORE){
+    try{ await db.enableNetwork(); await new Promise(r=>setTimeout(r,1500)); }catch(e){}
+  }
+  atualizarBadgeOffline();
+  location.reload();
+}
 function atualizarBadgeOffline(){
   let el = document.getElementById('offlineBadge');
   if(localStorage.getItem('haras_modo_offline')==='1'){
     if(!el){
       el = document.createElement('div'); el.id='offlineBadge';
-      el.style.cssText='position:fixed;left:14px;bottom:14px;z-index:200;background:var(--burgundy,#5E1B26);color:#fff;font-size:11.5px;padding:6px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;';
+      el.style.cssText='position:fixed;left:14px;bottom:14px;z-index:200;background:var(--burgundy,#5E1B26);color:#fff;font-size:11.5px;padding:6px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;display:flex;align-items:center;';
       document.body.appendChild(el);
     }
-    el.textContent = '📴 Modo offline — sincroniza quando você sair (logoff)';
+    el.innerHTML = '<span>📴 Modo offline — mudanças ainda não subiram</span>';
+    const btn = document.createElement('button');
+    btn.type='button'; btn.textContent='Sincronizar agora';
+    btn.addEventListener('click', sincronizarEVoltarOnline);
+    el.appendChild(btn);
   } else if(el){ el.remove(); }
 }
-document.getElementById('btnLoginOffline').addEventListener('click', async ()=>{
-  if(!HAS_FIRESTORE || !firebase.auth().currentUser){
-    mostrarErroLogin('Pra trabalhar offline você precisa ter entrado neste aparelho pelo menos uma vez com internet.');
-    return;
-  }
-  localStorage.setItem('haras_modo_offline','1');
-  try{ await db.disableNetwork(); }catch(e){}
-  atualizarBadgeOffline();
-  iniciarAppLogado(firebase.auth().currentUser);
-});
 document.getElementById('fbEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('fbSenha').focus(); });
 function entrarNoApp(){
   document.getElementById('loginGate').style.display='none';
@@ -15692,6 +15800,8 @@ async function resolverUsuarioAtual(authEmail){
 // o Firebase confirmar uma sessão válida — onAuthStateChanged dispara sozinho tanto na primeira
 // carga da página quanto depois de um login bem-sucedido.
 function iniciarAppLogado(authUser){
+  if(_appJaIniciou) return;
+  _appJaIniciou = true;
   loadAll().then(async ()=>{
     if(!HAS_FIRESTORE || !authUser){
       // Sem Firebase disponível (ver storeGet/storeSet): cai pro modo antigo, sem checar e-mail —
@@ -15703,11 +15813,13 @@ function iniciarAppLogado(authUser){
         document.getElementById('appRoot').style.display='none';
         document.getElementById('loginGate').style.display='flex';
         mostrarErroLogin('O e-mail '+authUser.email+' ainda não tem acesso configurado neste app. Peça para o administrador te cadastrar na tela de Usuários.');
+        _appJaIniciou = false;
         firebase.auth().signOut();
         return;
       }
       currentUser = resolvido.usuario;
     }
+    if(authUser) localStorage.setItem('haras_ja_entrou','1');
     manejoRelSelector.restoreFromSaved();
     treinoRelSelector.restoreFromSaved();
     vetRelSelector.restoreFromSaved();
@@ -15722,19 +15834,27 @@ if(HAS_FIRESTORE){
   // Se o app foi fechado em "modo offline", já desconecta o Firestore antes de carregar — assim tudo
   // vem do cache na hora, sem esperar a nuvem, e as escritas ficam na fila.
   if(localStorage.getItem('haras_modo_offline')==='1'){ try{ db.disableNetwork(); }catch(e){} atualizarBadgeOffline(); }
+  loginMostrarChecando();
+  // onAuthStateChanged só ESCOLHE a tela de login. Entrar no app é sempre no clique do Gustavo.
   firebase.auth().onAuthStateChanged((user)=>{
     if(user){
-      iniciarAppLogado(user);
+      if(_appJaIniciou) return;
+      loginMostrarConfirm(user);
     }else{
+      _appJaIniciou = false;
       document.getElementById('appRoot').style.display='none';
       document.getElementById('loginGate').style.display='flex';
       document.getElementById('fbSenha').value='';
+      const b=document.getElementById('btnLoginConfirmar'); if(b){ b.disabled=false; b.textContent='Entrar'; }
+      loginMostrarForm();
     }
   });
 }else{
-  // Firebase não inicializou (ver storeGet/storeSet) — cai pro modo antigo, sem login, com
-  // localStorage isolado nesse aparelho, pra não deixar a pessoa completamente na mão.
-  iniciarAppLogado(null);
+  // Firebase não inicializou (ver storeGet/storeSet) — cai pro modo antigo, sem login de verdade.
+  // Mesmo assim espera o Gustavo clicar em "Entrar".
+  document.getElementById('loginGate').style.display='flex';
+  document.getElementById('loginSubtitle').textContent = 'Sem conexão com o servidor — você vai entrar com os dados salvos neste aparelho.';
+  loginMostrarForm();
 }
 
 /* ================= DIAGNÓSTICO ================= */
