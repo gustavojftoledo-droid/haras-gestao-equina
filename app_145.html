@@ -537,8 +537,9 @@
   .offline-check.is-on .offline-box::after{content:"\2713";}
   .offline-check.is-on .offline-text{color:var(--green);font-weight:600;}
   #offlineHint{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.4;}
-  #offlineBadge button{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;font-size:11px;font-weight:600;padding:4px 9px;border-radius:14px;cursor:pointer;margin-left:9px;}
-  #offlineBadge button:hover{background:rgba(255,255,255,.3);}
+  #offlineBadge{position:fixed;right:10px;top:10px;z-index:150;width:30px;height:30px;border-radius:50%;background:var(--burgundy,#5E1B26);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);border:none;padding:0;line-height:1;}
+  #offlineBadge:hover{filter:brightness(1.15);}
+  @media (max-width:860px){ #offlineBadge{ right:8px; top:8px; width:26px; height:26px; font-size:12px; } }
 </style>
 </head>
 <body>
@@ -14675,7 +14676,7 @@ document.getElementById('btnTrocarConta').addEventListener('click', async ()=>{
 // ---- Modo offline: usa só o cache do aparelho; escritas ficam na fila e sobem no logoff ----
 async function sincronizarEVoltarOnline(){
   const el = document.getElementById('offlineBadge');
-  if(el){ el.querySelector('span').textContent = '🔄 Sincronizando…'; const b=el.querySelector('button'); if(b) b.disabled=true; }
+  if(el){ el.textContent = '🔄'; el.disabled = true; }
   localStorage.removeItem('haras_modo_offline');
   if(HAS_FIRESTORE){
     try{ await db.enableNetwork(); await new Promise(r=>setTimeout(r,1500)); }catch(e){}
@@ -14683,19 +14684,21 @@ async function sincronizarEVoltarOnline(){
   atualizarBadgeOffline();
   location.reload();
 }
+// Selo pequeno e discreto (um botão redondo no canto) — só avisa que está offline sem
+// atrapalhar a tela; toca pra perguntar se quer sincronizar e voltar online.
 function atualizarBadgeOffline(){
   let el = document.getElementById('offlineBadge');
   if(localStorage.getItem('haras_modo_offline')==='1'){
     if(!el){
-      el = document.createElement('div'); el.id='offlineBadge';
-      el.style.cssText='position:fixed;left:14px;bottom:14px;z-index:200;background:var(--burgundy,#5E1B26);color:#fff;font-size:11.5px;padding:6px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;display:flex;align-items:center;';
+      el = document.createElement('button');
+      el.type = 'button'; el.id = 'offlineBadge'; el.textContent = '📴';
+      el.title = 'Modo offline — as mudanças ainda não subiram. Toque pra sincronizar.';
+      el.addEventListener('click', async ()=>{
+        const ok = await showConfirm('Você está em modo offline. Sincronizar agora e voltar online?', {titulo:'Sincronizar', okLabel:'Sincronizar'});
+        if(ok) sincronizarEVoltarOnline();
+      });
       document.body.appendChild(el);
     }
-    el.innerHTML = '<span>📴 Modo offline — mudanças ainda não subiram</span>';
-    const btn = document.createElement('button');
-    btn.type='button'; btn.textContent='Sincronizar agora';
-    btn.addEventListener('click', sincronizarEVoltarOnline);
-    el.appendChild(btn);
   } else if(el){ el.remove(); }
 }
 document.getElementById('fbEmail').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('fbSenha').focus(); });
