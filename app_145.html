@@ -2384,6 +2384,10 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title">Possíveis Duplicados</div><button class="modal-close" data-close="overlayDuplicates">✕</button></div>
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">Encontrei animais com nome igual ou muito parecido. Isso pode ser: (1) o mesmo animal cadastrado duas vezes por engano, ou (2) animais diferentes que por acaso têm nome parecido, ou o mesmo nome de propósito (repetido entre gerações da família). Você decide — nada é unificado automaticamente.</div>
+    <div id="autoMergeBox" style="margin-bottom:14px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none;">
+      <div style="font-size:13px;margin-bottom:8px;"><strong id="autoMergeCount"></strong> <span id="autoMergeMsg"></span></div>
+      <button type="button" class="btn btn-sm" id="btnAutoMerge">🪄 Unificar automáticos</button>
+    </div>
     <div id="duplicatesListHost"></div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);">
       <button type="button" class="btn btn-ghost btn-sm" id="btnManualMerge">Unificar manualmente (buscar por nome)</button>
@@ -16204,6 +16208,7 @@ function computeDuplicatePairs(){
 function renderDuplicatesList(){
   const pairs = computeDuplicatePairs();
   const host = document.getElementById('duplicatesListHost');
+  atualizarCaixaAutoMerge();
   if(pairs.length===0){ host.innerHTML = '<div class="empty">Nenhum possível duplicado encontrado agora. 👍</div>'; return; }
   host.innerHTML = pairs.map(p=>`
     <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
@@ -16397,40 +16402,145 @@ function dedupeAnimais(arr){
   return out;
 }
 
-document.getElementById('btnConfirmMerge').addEventListener('click', async ()=>{
-  if(!mergeA || !mergeB) return;
-  const survivorId = mergeA.id, loserId = mergeB.id;
-  const oldNameA = mergeA.nome, oldNameB = mergeB.nome;
-  const merged = { ...mergeA, id: survivorId };
-  MERGE_FIELDS.forEach(([key])=>{
-    const chosen = document.querySelector(`input[name="mf_${key}"]:checked`);
-    const useB = chosen && chosen.value==='B';
-    merged[key] = useB ? (mergeB[key]||'') : (mergeA[key]||'');
-  });
+// Aplica UMA fusão (já decidida) em todas as coleções que apontam pro animal por id ou por nome.
+// `merged` é o registro final do sobrevivente (com id do sobrevivente). Muta os arrays em memória.
+function _aplicarFusaoAnimais(merged, survivorId, loserId, oldNameA, oldNameB){
   const finalName = merged.nome;
-
+  const bateNome = v => v && (v.toLowerCase()===oldNameA.toLowerCase() || v.toLowerCase()===oldNameB.toLowerCase());
   horses = horses.filter(h=>h.id!==loserId).map(h=> h.id===survivorId ? merged : h);
   horses.forEach(h=>{
-    ['pai','mae','avopat','avopatmat','avomatpat','avomat'].forEach(fld=>{
-      if(h[fld] && (h[fld].toLowerCase()===oldNameA.toLowerCase() || h[fld].toLowerCase()===oldNameB.toLowerCase())) h[fld]=finalName;
-    });
+    ['pai','mae','avopat','avopatmat','avomatpat','avomat'].forEach(fld=>{ if(bateNome(h[fld])) h[fld]=finalName; });
   });
-  manejos.forEach(m=>{ m.animais = dedupeAnimais(m.animais.map(a=> a.id===loserId ? {...a, id:survivorId, nome:finalName} : (a.id===survivorId ? {...a, nome:finalName} : a))); });
-  treinos.forEach(t=>{ t.animais = dedupeAnimais(t.animais.map(a=> a.id===loserId ? {...a, id:survivorId, nome:finalName} : (a.id===survivorId ? {...a, nome:finalName} : a))); });
-  nascimentos.forEach(n=>{
+  const remapAnimais = arr => dedupeAnimais((arr||[]).map(a=> a.id===loserId ? {...a, id:survivorId, nome:finalName} : (a.id===survivorId ? {...a, nome:finalName} : a)));
+  (typeof manejos!=='undefined'?manejos:[]).forEach(m=>{ if(m.animais) m.animais = remapAnimais(m.animais); });
+  (typeof treinos!=='undefined'?treinos:[]).forEach(t=>{ if(t.animais) t.animais = remapAnimais(t.animais); });
+  (typeof grupos!=='undefined'?grupos:[]).forEach(g=>{ if(g.animais) g.animais = remapAnimais(g.animais); });
+  (typeof dietas!=='undefined'?dietas:[]).forEach(d=>{ if(d.animais) d.animais = remapAnimais(d.animais); });
+  (typeof tratamentos!=='undefined'?tratamentos:[]).forEach(t=>{ if(t.animais) t.animais = remapAnimais(t.animais); });
+  (typeof visitas!=='undefined'?visitas:[]).forEach(v=>{ if(v.animais) v.animais = remapAnimais(v.animais); });
+  (typeof visitasRepro!=='undefined'?visitasRepro:[]).forEach(v=>{ if(v.animais) v.animais = remapAnimais(v.animais); if(v.eguas) v.eguas = remapAnimais(v.eguas); });
+  (typeof transportes!=='undefined'?transportes:[]).forEach(t=>{ if(t.animais) t.animais = remapAnimais(t.animais); });
+  (typeof lancamentos!=='undefined'?lancamentos:[]).forEach(l=>{ if(Array.isArray(l.rateio)) l.rateio.forEach(r=>{ if(r.animalId===loserId) r.animalId=survivorId; }); });
+  (typeof nascimentos!=='undefined'?nascimentos:[]).forEach(n=>{
     if(n.animalId===loserId) n.animalId=survivorId;
-    ['matriz','pai','receptora'].forEach(fld=>{
-      if(n[fld] && (n[fld].toLowerCase()===oldNameA.toLowerCase() || n[fld].toLowerCase()===oldNameB.toLowerCase())) n[fld]=finalName;
-    });
+    ['matriz','pai','receptora'].forEach(fld=>{ if(bateNome(n[fld])) n[fld]=finalName; });
   });
+}
 
+async function _salvarPosFusao(){
   await storeSet('horses_list', horses);
   await storeSet('manejos_list', manejos);
   await storeSet('treinos_list', treinos);
   await storeSet('nascimentos_list', nascimentos);
-  closeModal('overlayMerge');
+  if(typeof grupos!=='undefined') await storeSet('grupos_list', grupos);
+  if(typeof dietas!=='undefined') await storeSet('dietas_list', dietas);
+  if(typeof tratamentos!=='undefined') await storeSet('tratamentos_list', tratamentos);
+  if(typeof visitas!=='undefined') await storeSet('visitas_list', visitas);
+  if(typeof visitasRepro!=='undefined') await storeSet('visitas_repro_list', visitasRepro);
+  if(typeof transportes!=='undefined') await storeSet('transportes_list', transportes);
+  if(typeof lancamentos!=='undefined') await storeSet('financeiro_lancamentos', lancamentos);
   refreshDatalists(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos();
+  if(typeof renderGrupos==='function') renderGrupos();
+  if(typeof renderFinanceiro==='function') renderFinanceiro();
+}
+
+document.getElementById('btnConfirmMerge').addEventListener('click', async ()=>{
+  if(!mergeA || !mergeB) return;
+  const survivorId = mergeA.id, loserId = mergeB.id;
+  const merged = { ...mergeA, id: survivorId };
+  MERGE_FIELDS.forEach(([key])=>{
+    const chosen = document.querySelector(`input[name="mf_${key}"]:checked`);
+    merged[key] = (chosen && chosen.value==='B') ? (mergeB[key]||'') : (mergeA[key]||'');
+  });
+  _aplicarFusaoAnimais(merged, survivorId, loserId, mergeA.nome, mergeB.nome);
+  await _salvarPosFusao();
+  closeModal('overlayMerge');
   showAlert('Animais unificados com sucesso.');
+});
+
+/* ---- Unificar automáticos: só os casos 100% seguros ---- */
+// Junta num Set todos os ids de animal citados em qualquer coleção (calculado uma vez por passada).
+function _idsComVinculo(){
+  const s = new Set();
+  const add = arr => (arr||[]).forEach(x=>{ (x.animais||[]).forEach(a=>a&&s.add(a.id)); (x.eguas||[]).forEach(a=>a&&s.add(a.id)); });
+  add(typeof manejos!=='undefined'?manejos:[]);
+  add(typeof treinos!=='undefined'?treinos:[]);
+  add(typeof grupos!=='undefined'?grupos:[]);
+  add(typeof dietas!=='undefined'?dietas:[]);
+  add(typeof tratamentos!=='undefined'?tratamentos:[]);
+  add(typeof visitas!=='undefined'?visitas:[]);
+  add(typeof visitasRepro!=='undefined'?visitasRepro:[]);
+  add(typeof transportes!=='undefined'?transportes:[]);
+  (typeof nascimentos!=='undefined'?nascimentos:[]).forEach(n=>n.animalId&&s.add(n.animalId));
+  (typeof lancamentos!=='undefined'?lancamentos:[]).forEach(l=>Array.isArray(l.rateio)&&l.rateio.forEach(r=>r.animalId&&s.add(r.animalId)));
+  return s;
+}
+// Decide se um par pode ser fundido sem pedir nada. Retorna {surv, los, merged} ou null.
+function _fusaoAutomatica(a, b, idsVinculo){
+  if((a.nome||'').toLowerCase().trim() !== (b.nome||'').toLowerCase().trim()) return null;
+  const aExt = a.situacao==='E', bExt = b.situacao==='E';
+  let surv, los;
+  if(!aExt && bExt){ surv=a; los=b; }
+  else if(aExt && !bExt){ surv=b; los=a; }
+  else if(aExt && bExt){
+    const score = h => MERGE_FIELDS.filter(([k])=>String(h[k]||'').trim()).length;
+    if(score(a) >= score(b)){ surv=a; los=b; } else { surv=b; los=a; }
+  } else return null; // dois internos/vendidos com mesmo nome → decisão do Gustavo
+  if((idsVinculo||_idsComVinculo()).has(los.id)) return null;
+  const AUTO_OBS = /^cadastrad[ao] automaticamente/i; // texto que o próprio app põe ao criar ancestral/receptora
+  const merged = { ...surv, id: surv.id };
+  for(const [k] of MERGE_FIELDS){
+    if(k==='situacao') continue; // já decidido: sobrevivente é o não-externo (ou o mais completo)
+    const vs = String(surv[k]||'').trim(), vl = String(los[k]||'').trim();
+    if(k==='obs'){
+      // divergência de observação só bloqueia se pelo menos uma for uma nota de verdade (não o texto automático)
+      if(vs && vl && vs.toLowerCase()!==vl.toLowerCase() && !(AUTO_OBS.test(vs) && AUTO_OBS.test(vl))) return null;
+      if(!vs && vl && !AUTO_OBS.test(vl)) merged.obs = los.obs;
+      continue;
+    }
+    if(vs && vl && vs.toLowerCase()!==vl.toLowerCase()) return null;
+    if(!vs && vl) merged[k] = los[k]; // completa vazio do sobrevivente com o do perdedor
+  }
+  return { surv, los, merged };
+}
+function _paresAutomaticos(){
+  const idsV = _idsComVinculo();
+  return computeDuplicatePairs().filter(p=>p.exact).map(p=>_fusaoAutomatica(p.a, p.b, idsV)).filter(Boolean);
+}
+function atualizarCaixaAutoMerge(){
+  const box = document.getElementById('autoMergeBox');
+  const n = _paresAutomaticos().length;
+  if(n===0){ box.style.display='none'; return; }
+  box.style.display='';
+  document.getElementById('autoMergeCount').textContent = n + (n===1?' duplicado':' duplicados');
+  document.getElementById('autoMergeMsg').textContent = 'sem conflito e sem histórico preso — dá pra unificar de uma vez. O resto continua na lista pra você decidir.';
+}
+document.getElementById('btnAutoMerge').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btnAutoMerge');
+  const alvos = _paresAutomaticos();
+  if(alvos.length===0){ showAlert('Nada seguro pra unificar automaticamente agora.'); return; }
+  const ok = await showConfirm('Unificar '+alvos.length+' duplicado(s) automaticamente? Só entram os casos sem conflito de dados e sem manejo/treino/nascimento preso. Dá pra reverter pelo backup se precisar.', {titulo:'Unificar automáticos', okLabel:'Unificar'});
+  if(!ok) return;
+  btn.disabled = true; btn.textContent = 'Unificando…';
+  await new Promise(r=>setTimeout(r,30)); // deixa o "Unificando…" pintar
+  // Lista fixa: se 3+ têm o mesmo nome, pulo pares cujo lado já sumiu e re-decido o par ainda vivo.
+  const pares = computeDuplicatePairs().filter(p=>p.exact);
+  const idsV = _idsComVinculo();
+  const vivos = new Set(horses.map(h=>h.id));
+  let feitos = 0;
+  for(const p of pares){
+    if(!vivos.has(p.a.id) || !vivos.has(p.b.id)) continue;
+    const a = horses.find(h=>h.id===p.a.id), b = horses.find(h=>h.id===p.b.id);
+    const f = _fusaoAutomatica(a, b, idsV);
+    if(!f) continue;
+    _aplicarFusaoAnimais(f.merged, f.surv.id, f.los.id, f.surv.nome, f.los.nome);
+    vivos.delete(f.los.id);
+    feitos++;
+  }
+  await _salvarPosFusao();
+  btn.disabled = false; btn.textContent = '🪄 Unificar automáticos';
+  renderDuplicatesList();
+  showAlert(feitos + (feitos===1?' duplicado unificado.':' duplicados unificados.'));
 });
 
 /* ---- PWA: registra o service worker (só funciona quando o arquivo está sendo servido
