@@ -16186,7 +16186,9 @@ function computeDuplicatePairs(){
       let exact = an===bn;
       let similar = false;
       if(!exact && an.length>3 && bn.length>3 && Math.abs(an.length-bn.length)<=2){
-        similar = levenshtein(an,bn) <= 2;
+        const d = levenshtein(an,bn);
+        // lev<=1 sempre; lev==2 só se começarem igual (senão vira muito ruído: "Luna"/"Lucas")
+        similar = d<=1 || (d===2 && an.slice(0,3)===bn.slice(0,3));
       }
       if(!exact && !similar) continue;
       const key = [a.id,b.id].sort().join('|');
@@ -16194,6 +16196,8 @@ function computeDuplicatePairs(){
       pairs.push({a,b,key,exact});
     }
   }
+  // Nome idêntico primeiro — é o caso que mais importa e o que o "Comparar" resolve melhor.
+  pairs.sort((x,y)=> (y.exact?1:0) - (x.exact?1:0));
   return pairs;
 }
 
@@ -16211,7 +16215,7 @@ function renderDuplicatesList(){
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
         <button type="button" class="btn btn-sm btn-ghost" data-dismiss="${p.key}">Não é o mesmo</button>
-        <button type="button" class="btn btn-sm" data-compare-a="${p.a.nome}" data-compare-b="${p.b.nome}">Comparar e decidir</button>
+        <button type="button" class="btn btn-sm" data-compare-key="${p.key}">Comparar e decidir</button>
       </div>
     </div>`).join('');
   host.querySelectorAll('[data-dismiss]').forEach(btn=>{
@@ -16221,11 +16225,17 @@ function renderDuplicatesList(){
       renderDuplicatesList();
     });
   });
-  host.querySelectorAll('[data-compare-a]').forEach(btn=>{
+  host.querySelectorAll('[data-compare-key]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      const par = pairs.find(x=>x.key===btn.dataset.compareKey);
+      if(!par) return;
+      // Passa por ID, não por nome — dois duplicados de nome idêntico ("Durazno" x "Durazno")
+      // não davam pra distinguir por nome e o Comparar não abria nada.
+      _mergePendingIds = [par.a.id, par.b.id];
       closeModal('overlayDuplicates');
-      document.getElementById('merge_a').value = btn.dataset.compareA;
-      document.getElementById('merge_b').value = btn.dataset.compareB;
+      const rot = h => (h.nome||'') + '  ·  ' + (h.situacao==='E'?'Externo':h.situacao==='V'?'Vendido':'Interno') + (h.codigo?' #'+h.codigo:'');
+      document.getElementById('merge_a').value = rot(par.a);
+      document.getElementById('merge_b').value = rot(par.b);
       document.getElementById('mergeCompareHost').innerHTML=''; document.getElementById('mergeActions').style.display='none';
       openModal('overlayMerge');
       document.getElementById('btnCompareMerge').click();
@@ -16332,27 +16342,39 @@ const MERGE_FIELDS = [
   ['proprietario','Proprietário'],['valor','Valor'],['obs','Observações']
 ];
 let mergeA=null, mergeB=null;
+let _mergePendingIds=null; // [idA,idB] quando vem do "Comparar e decidir" da lista de duplicados
 
 document.getElementById('btnManualMerge').addEventListener('click', ()=>{
   closeModal('overlayDuplicates');
   document.getElementById('merge_a').value=''; document.getElementById('merge_b').value='';
   document.getElementById('mergeCompareHost').innerHTML='';
   document.getElementById('mergeActions').style.display='none';
-  mergeA=null; mergeB=null;
+  mergeA=null; mergeB=null; _mergePendingIds=null;
   openModal('overlayMerge');
 });
 
 document.getElementById('btnCompareMerge').addEventListener('click', ()=>{
-  const nameA = document.getElementById('merge_a').value.trim();
-  const nameB = document.getElementById('merge_b').value.trim();
-  mergeA = horses.find(h=>h.nome && h.nome.toLowerCase()===nameA.toLowerCase());
-  mergeB = horses.find(h=>h.nome && h.nome.toLowerCase()===nameB.toLowerCase());
+  if(_mergePendingIds){
+    mergeA = horses.find(h=>h.id===_mergePendingIds[0]);
+    mergeB = horses.find(h=>h.id===_mergePendingIds[1]);
+    _mergePendingIds = null;
+  } else {
+    const nameA = document.getElementById('merge_a').value.trim().split('  ·  ')[0].trim();
+    const nameB = document.getElementById('merge_b').value.trim().split('  ·  ')[0].trim();
+    mergeA = horses.find(h=>h.nome && h.nome.toLowerCase()===nameA.toLowerCase());
+    mergeB = horses.find(h=>h.nome && h.nome.toLowerCase()===nameB.toLowerCase());
+    if(mergeA && mergeB && mergeA.id===mergeB.id){
+      // dois registros com o MESMO nome: pega os dois primeiros distintos
+      const iguais = horses.filter(h=>h.nome && h.nome.toLowerCase()===nameA.toLowerCase());
+      if(iguais.length>=2){ mergeA = iguais[0]; mergeB = iguais[1]; }
+    }
+  }
   if(!mergeA || !mergeB){ showAlert('Digite (ou selecione) dois animais existentes e válidos.'); return; }
   if(mergeA.id===mergeB.id){ showAlert('Escolha dois animais diferentes.'); return; }
 
   const host = document.getElementById('mergeCompareHost');
   host.innerHTML = `<div class="grid-wrap" style="max-height:380px;"><table class="grid">
-    <thead><tr><th style="width:140px;">Campo</th><th>${mergeA.nome||'Animal A'}</th><th>${mergeB.nome||'Animal B'}</th></tr></thead>
+    <thead><tr><th style="width:140px;">Campo</th><th>${(mergeA.nome||'Animal A')} <span style="color:var(--muted);font-weight:400;">(${mergeA.situacao==='E'?'Externo':mergeA.situacao==='V'?'Vendido':'Interno'}${mergeA.codigo?' #'+mergeA.codigo:''}) — fica este</span></th><th>${(mergeB.nome||'Animal B')} <span style="color:var(--muted);font-weight:400;">(${mergeB.situacao==='E'?'Externo':mergeB.situacao==='V'?'Vendido':'Interno'}${mergeB.codigo?' #'+mergeB.codigo:''}) — some</span></th></tr></thead>
     <tbody>${MERGE_FIELDS.map(([key,label])=>{
       const va=mergeA[key]||'', vb=mergeB[key]||'';
       const defaultA = va || !vb;
