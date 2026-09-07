@@ -16380,22 +16380,51 @@ document.getElementById('btnCompareMerge').addEventListener('click', ()=>{
   }
   if(!mergeA || !mergeB){ showAlert('Digite (ou selecione) dois animais existentes e válidos.'); return; }
   if(mergeA.id===mergeB.id){ showAlert('Escolha dois animais diferentes.'); return; }
+  // Sugestão de quem fica: o que NÃO é Externo; empate → o com mais campos preenchidos; empate → A.
+  const cheio = h => MERGE_FIELDS.filter(([k])=>String(h[k]||'').trim()).length;
+  let survPref = 'A';
+  if(mergeA.situacao==='E' && mergeB.situacao!=='E') survPref='B';
+  else if(mergeB.situacao==='E' && mergeA.situacao!=='E') survPref='A';
+  else if(cheio(mergeB) > cheio(mergeA)) survPref='B';
+  _renderMergeCompare(survPref);
+  document.getElementById('mergeActions').style.display='flex';
+});
 
+function _rotuloMerge(h){
+  const sit = h.situacao==='E'?'Externo':h.situacao==='V'?'Vendido':'Interno';
+  return (h.nome||'Animal')+' <span style="color:var(--muted);font-weight:400;">('+sit+(h.codigo?' #'+h.codigo:'')+')</span>';
+}
+function _renderMergeCompare(surv){
   const host = document.getElementById('mergeCompareHost');
-  host.innerHTML = `<div class="grid-wrap" style="max-height:380px;"><table class="grid">
-    <thead><tr><th style="width:140px;">Campo</th><th>${(mergeA.nome||'Animal A')} <span style="color:var(--muted);font-weight:400;">(${mergeA.situacao==='E'?'Externo':mergeA.situacao==='V'?'Vendido':'Interno'}${mergeA.codigo?' #'+mergeA.codigo:''}) — fica este</span></th><th>${(mergeB.nome||'Animal B')} <span style="color:var(--muted);font-weight:400;">(${mergeB.situacao==='E'?'Externo':mergeB.situacao==='V'?'Vendido':'Interno'}${mergeB.codigo?' #'+mergeB.codigo:''}) — some</span></th></tr></thead>
+  const badgeFica = ' <span style="color:var(--brass);font-weight:700;">— FICA</span>';
+  const badgeSome = ' <span style="color:var(--muted);font-weight:400;">— some</span>';
+  host.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Marque qual registro fica e, campo a campo, qual valor manter.</div>
+  <div class="grid-wrap" style="max-height:360px;"><table class="grid">
+    <thead>
+      <tr><th style="width:150px;"></th>
+        <th>${_rotuloMerge(mergeA)}${surv==='A'?badgeFica:badgeSome}</th>
+        <th>${_rotuloMerge(mergeB)}${surv==='B'?badgeFica:badgeSome}</th></tr>
+      <tr><th style="width:150px;font-size:11.5px;color:var(--muted);">Registro que fica</th>
+        <th><label style="cursor:pointer;font-weight:400;"><input type="radio" name="mergeSurvivor" value="A" ${surv==='A'?'checked':''}> manter este</label></th>
+        <th><label style="cursor:pointer;font-weight:400;"><input type="radio" name="mergeSurvivor" value="B" ${surv==='B'?'checked':''}> manter este</label></th></tr>
+    </thead>
     <tbody>${MERGE_FIELDS.map(([key,label])=>{
       const va=mergeA[key]||'', vb=mergeB[key]||'';
-      const defaultA = va || !vb;
+      // padrão: fica com o valor preenchido; se os dois têm, fica com o do registro que sobra
+      let defA;
+      if(va && vb) defA = (surv==='A');
+      else defA = !!va || !vb;
       return `<tr>
         <td><strong>${label}</strong></td>
-        <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="radio" name="mf_${key}" value="A" ${defaultA?'checked':''}> ${va||'<span style="color:var(--muted)">(vazio)</span>'}</label></td>
-        <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="radio" name="mf_${key}" value="B" ${!defaultA?'checked':''}> ${vb||'<span style="color:var(--muted)">(vazio)</span>'}</label></td>
+        <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="radio" name="mf_${key}" value="A" ${defA?'checked':''}> ${va||'<span style="color:var(--muted)">(vazio)</span>'}</label></td>
+        <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer;"><input type="radio" name="mf_${key}" value="B" ${!defA?'checked':''}> ${vb||'<span style="color:var(--muted)">(vazio)</span>'}</label></td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
-  document.getElementById('mergeActions').style.display='flex';
-});
+  host.querySelectorAll('input[name="mergeSurvivor"]').forEach(r=>{
+    r.addEventListener('change', ()=>_renderMergeCompare(r.value));
+  });
+}
 
 function dedupeAnimais(arr){
   const seen={}, out=[];
@@ -16450,13 +16479,15 @@ async function _salvarPosFusao(){
 
 document.getElementById('btnConfirmMerge').addEventListener('click', async ()=>{
   if(!mergeA || !mergeB) return;
-  const survivorId = mergeA.id, loserId = mergeB.id;
-  const merged = { ...mergeA, id: survivorId };
+  const survSel = document.querySelector('input[name="mergeSurvivor"]:checked');
+  const survObj = (survSel && survSel.value==='B') ? mergeB : mergeA;
+  const loseObj = survObj===mergeA ? mergeB : mergeA;
+  const merged = { ...survObj, id: survObj.id };
   MERGE_FIELDS.forEach(([key])=>{
     const chosen = document.querySelector(`input[name="mf_${key}"]:checked`);
     merged[key] = (chosen && chosen.value==='B') ? (mergeB[key]||'') : (mergeA[key]||'');
   });
-  _aplicarFusaoAnimais(merged, survivorId, loserId, mergeA.nome, mergeB.nome);
+  _aplicarFusaoAnimais(merged, survObj.id, loseObj.id, mergeA.nome, mergeB.nome);
   await _salvarPosFusao();
   closeModal('overlayMerge');
   showAlert('Animais unificados com sucesso.');
