@@ -2714,12 +2714,21 @@ const AUDIT_LIMITE_BYTES = 600000;
 
 // Listas de registros com id (Animais, Manejos, Financeiro...) — reaproveita o mapa que a Auditoria já
 // mantém, e o mesmo "antes" que ela já guarda em auditSnapshots.
-function fundirListaDeEntidades(minhaBaseAnteriorMap, val, doBanco){
+function fundirListaDeEntidades(minhaBaseAnteriorMap, val, doBanco, key){
   const valMap = new Map((Array.isArray(val)?val:[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
   const bancoMap = new Map((Array.isArray(doBanco)?doBanco:[]).filter(x=>x&&x.id!=null).map(x=>[x.id,x]));
   const resultado = new Map(bancoMap); // parte do banco AGORA — respeita o que outra sessão já gravou
+  // Nomes de Externo que JÁ existem no banco — pra não recriar o mesmo ancestral que outra aba/aparelho
+  // acabou de cadastrar (sem sync ao vivo, cada aba só enxerga a própria lista até gravar).
+  const externosNoBanco = key==='horses_list'
+    ? new Set([...bancoMap.values()].filter(h=>h.situacao==='E' && h.nome).map(h=>normNomeParentesco(h.nome)))
+    : null;
   valMap.forEach((item,id)=>{
     const antesJson = minhaBaseAnteriorMap ? minhaBaseAnteriorMap.get(id) : undefined;
+    const souNovo = antesJson===undefined && !bancoMap.has(id);
+    // Externo novo cujo nome já existe como Externo no banco → não duplica, o do banco vale
+    // (pai/mãe são referências por NOME, então continuam apontando certo).
+    if(souNovo && externosNoBanco && item.situacao==='E' && item.nome && externosNoBanco.has(normNomeParentesco(item.nome))) return;
     if(antesJson===undefined || antesJson!==JSON.stringify(item)) resultado.set(id, item); // eu criei/editei este agora
   });
   if(minhaBaseAnteriorMap) minhaBaseAnteriorMap.forEach((json,id)=>{ if(!valMap.has(id)) resultado.delete(id); }); // eu excluí este agora
@@ -2917,7 +2926,7 @@ async function storeSet(key,val,userDeleted){
       const minhaBaseAnterior = auditSnapshots[key];
       const releitura = await storeGet(key);
       const doBanco = releitura.ok ? releitura.value : val;
-      val = fundirListaDeEntidades(minhaBaseAnterior, val, doBanco);
+      val = fundirListaDeEntidades(minhaBaseAnterior, val, doBanco, key);
       atualizarGlobalPosFusao(key, val);
     }
     auditTirarFoto(key, val);
