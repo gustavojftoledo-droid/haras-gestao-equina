@@ -15931,6 +15931,10 @@ if(HAS_FIRESTORE){
   firebase.auth().onAuthStateChanged((user)=>{
     if(user){
       if(_appJaIniciou) return;
+      // Aba aberta pelo 👁 (ficha de um animal, URL com ?animal=ID): já veio de dentro do app,
+      // não faz sentido pedir "Entrar" de novo — entra direto com a sessão que já existe.
+      const ehFichaDireta = !!new URLSearchParams(location.search).get('animal');
+      if(ehFichaDireta){ iniciarAppLogado(user); return; }
       loginMostrarConfirm(user);
     }else{
       _appJaIniciou = false;
