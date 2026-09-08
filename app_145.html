@@ -9192,6 +9192,39 @@ async function desfazerPrenhez(id){
   renderNascimentos();
   showAlert('Prenhez desfeita — a cobertura de '+(n.matriz||'?')+' voltou pra "em aberto".');
 }
+// Confirmar NÃO PRENHE (diagnóstico: vazia). Fecha a cobertura como sem sucesso (conta na taxa de
+// perda). Clicar de novo desfaz e volta pra "em aberto". Se estava confirmada prenhe, é
+// reabsorção/perda: limpa a prenhez (agenda de vacinas some se nenhuma dose foi aplicada).
+async function confirmarVazia(id){
+  const n = nascimentos.find(x=>x.id===id); if(!n) return;
+  if(n.confirm==='S'){ showAlert('O nascimento dessa cobertura já foi confirmado.'); return; }
+  if(n.prenhezNegativa==='S'){
+    if(!(await showConfirm('Desfazer o "não prenhe" de '+(n.matriz||'?')+'? A cobertura volta pra "em aberto".', { titulo:'Desfazer', okLabel:'Desfazer', danger:true }))) return;
+    n.prenhezNegativa = 'N'; n.prenhezNegativaData = '';
+    await storeSet('nascimentos_list', nascimentos);
+    renderNascimentos();
+    showAlert('Pronto — a cobertura de '+(n.matriz||'?')+' voltou pra "em aberto".');
+    return;
+  }
+  const data = await showPromptDate('Confirmar não prenhe', 'Data do diagnóstico (vazia) de '+(n.matriz||'?')+':', toISODate(new Date()));
+  if(!data) return;
+  const eraPrenhe = n.prenhezConfirmada==='S';
+  const dosesFeitas = (n.protocoloVacinas||[]).filter(it=>it.feito).length;
+  if(eraPrenhe){
+    let m = 'Essa cobertura estava confirmada como PRENHE. Marcar como não prenhe agora (reabsorção/perda)?';
+    if(dosesFeitas>0) m += ' As '+dosesFeitas+' vacina(s) de gestação já aplicada(s) ficam no histórico.';
+    if(!(await showConfirm(m, { titulo:'Não prenhe', okLabel:'Confirmar', danger:true }))) return;
+  }
+  n.prenhezNegativa = 'S';
+  n.prenhezNegativaData = data;
+  n.prenhezConfirmada = 'N';
+  n.prenhezUltima = '';
+  if(!eraPrenhe) n.prenhezHistorico = [];
+  if((n.protocoloVacinas||[]).length && dosesFeitas===0) n.protocoloVacinas = [];
+  await storeSet('nascimentos_list', nascimentos);
+  renderNascimentos();
+  showAlert('Cobertura de '+(n.matriz||'?')+' marcada como não prenhe em '+fmtDate(data)+'.');
+}
 
 // Quadro "Prenhezes confirmadas" — lista quem tá confirmada e ainda não teve o nascimento confirmado.
 // Cada linha vira um botão: reconfirmar de novo, ou abrir o relatório em PDF daquele registro.
@@ -9243,6 +9276,7 @@ function blocoRelatorioNascimento(n){
       ${n.dataColetaEmbriao?`<li>Coleta do embrião: ${fmtDate(n.dataColetaEmbriao)}</li>`:''}
       ${n.transferenciaEmbriao && n.lavado?`<li>Lavado: ${n.lavado==='POS'?'Positivo':'Negativo'}${n.lavadoData?(' ('+fmtDate(n.lavadoData)+')'):''}${n.lavado==='NEG'?' — cobertura encerrada':''}</li>`:''}
       <li>Provável nascimento: ${provavel?fmtDate(provavel):'—'}</li>
+      ${n.prenhezNegativa==='S'?`<li>Diagnóstico: <b>Vazia / não prenhe</b>${n.prenhezNegativaData?(' ('+fmtDate(n.prenhezNegativaData)+')'):''}</li>`:''}
       <li>Nascimento confirmado: ${n.confirm==='S' ? fmtDate(n.datanasc) : 'Ainda não'}</li>
     </ul>
     <div class="report-tipo-titulo">Confirmações de prenhez</div>
@@ -9285,7 +9319,7 @@ function renderNascimentos(){
     if(col==='dtNasc') return n.datanasc||'';
     if(col==='confirm') return n.confirm==='S'?'Sim':'Não';
     if(col==='lavado') return n.transferenciaEmbriao ? (n.lavado==='POS'?'3':n.lavado==='NEG'?'1':'2') : '0';
-    if(col==='prenhez') return n.prenhezConfirmada==='S'?('1 '+(n.prenhezUltima||'')):'0';
+    if(col==='prenhez') return n.prenhezConfirmada==='S'?('2 '+(n.prenhezUltima||'')):(n.prenhezNegativa==='S'?('1 '+(n.prenhezNegativaData||'')):'0');
     if(col==='confirmado') return n.confirm==='S'?'Sim':'Não';
     if(col==='obs') return (n.obs||'').toLowerCase();
     return '';
@@ -9362,10 +9396,12 @@ function renderNascimentos(){
       prenhezPill = `<span class="pill st-ativo">Nasceu</span>`;
     } else if(n.transferenciaEmbriao && n.lavado!=='POS'){
       prenhezPill = `<span class="pill st-outro" title="${n.lavado==='NEG'?'Cobertura encerrada (lavado negativo)':'Aguardando lavado positivo'}">—</span>`;
+    } else if(n.prenhezConfirmada==='S'){
+      prenhezPill = `<span class="pill st-ativo" title="Prenhez confirmada em ${fmtDate(n.prenhezUltima)}">Sim — ${fmtDate(n.prenhezUltima)}</span>`;
+    } else if(n.prenhezNegativa==='S'){
+      prenhezPill = `<span class="pill st-descarte" title="Diagnóstico: vazia${n.prenhezNegativaData?(' em '+fmtDate(n.prenhezNegativaData)):''}">Vazia${n.prenhezNegativaData?(' — '+fmtDate(n.prenhezNegativaData)):''}</span>`;
     } else {
-      prenhezPill = n.prenhezConfirmada==='S'
-        ? `<span class="pill st-ativo" title="Prenhez confirmada em ${fmtDate(n.prenhezUltima)}">Sim — ${fmtDate(n.prenhezUltima)}</span>`
-        : `<span class="pill st-descarte">Não</span>`;
+      prenhezPill = `<span class="pill st-descarte">Não</span>`;
     }
     return `<tr>
       <td><input type="checkbox" data-nselid="${n.id}" ${coberturaSel.has(n.id)?'checked':''}></td>
@@ -9384,9 +9420,12 @@ function renderNascimentos(){
             return `<button type="button" class="btn btn-sm btn-ghost" data-nlavado="${n.id}" title="Registrar resultado do lavado do embrião">🧫 Lavado</button>`;
           }
           // Mesmo botão confirma e desconfirma: 1º clique confirma; clicar de novo desfaz.
-          return n.prenhezConfirmada==='S'
-            ? `<button type="button" class="btn btn-sm btn-ghost" data-nprenheztoggle="${n.id}" title="Prenhez confirmada — clique para desfazer">✅ Prenhe</button>`
-            : `<button type="button" class="btn btn-sm btn-ghost" data-nprenheztoggle="${n.id}" title="Confirmar prenhez">🤰 Confirmar</button>`;
+          if(n.prenhezConfirmada==='S')
+            return `<button type="button" class="btn btn-sm btn-ghost" data-nprenheztoggle="${n.id}" title="Prenhez confirmada — clique para desfazer">✅ Prenhe</button>`;
+          if(n.prenhezNegativa==='S')
+            return `<button type="button" class="btn btn-sm btn-ghost" data-nvazia="${n.id}" title="Diagnóstico vazia — clique para desfazer">↩️ Vazia</button>`;
+          return `<button type="button" class="btn btn-sm btn-ghost" data-nprenheztoggle="${n.id}" title="Confirmar prenhez">🤰 Confirmar</button>`
+            + `<button type="button" class="btn btn-sm btn-ghost" data-nvazia="${n.id}" title="Confirmar não prenhe (vazia)">✕ Não prenhe</button>`;
         })()}
         <button type="button" class="btn btn-sm btn-ghost" data-nrelatorio="${n.id}" title="Gerar PDF deste registro">📄</button>
       </td>
@@ -9398,6 +9437,7 @@ function renderNascimentos(){
     if(n && n.prenhezConfirmada==='S') await desfazerPrenhez(b.dataset.nprenheztoggle);
     else await confirmarPrenhez(b.dataset.nprenheztoggle);
   }));
+  tbody.querySelectorAll('[data-nvazia]').forEach(b=>b.addEventListener('click', ()=>confirmarVazia(b.dataset.nvazia)));
   tbody.querySelectorAll('[data-nlavado]').forEach(b=>b.addEventListener('click', ()=>registrarLavado(b.dataset.nlavado)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
   tbody.querySelectorAll('[data-nselid]').forEach(cb=>cb.addEventListener('change', ()=>{
@@ -12158,7 +12198,7 @@ function openVisitaReproEdit(id){
 function coberturaAbertaDaEgua(nome){
   const alvo = normNomeParentesco(nome);
   return nascimentos
-    .filter(n=> n.confirm!=='S' && n.lavado!=='NEG' && (normNomeParentesco(n.matriz)===alvo || (n.transferenciaEmbriao && normNomeParentesco(n.receptora)===alvo)))
+    .filter(n=> n.confirm!=='S' && n.lavado!=='NEG' && n.prenhezNegativa!=='S' && (normNomeParentesco(n.matriz)===alvo || (n.transferenciaEmbriao && normNomeParentesco(n.receptora)===alvo)))
     .sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''))[0] || null;
 }
 
@@ -12204,13 +12244,14 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   // Integração com a prenhez: toda égua marcada como prenhe liga na cobertura aberta dela e dispara o
   // protocolo de vacinas de gestação (mesmo efeito do botão 🤰 da aba Coberturas).
   let mexeuNascimentos = false; const semCobertura = []; const receptorasDefinidas = []; let totalVacinas = 0;
+  const prenhesConfirmadas = [];
   for(const e of eguas){
     if(!reproDiagPrenhe(e.diagnostico)) continue;
     let n = coberturaAbertaDaEgua(e.nome);
     // Transferência de embrião cuja receptora ainda não foi definida: se existe UMA única cobertura de TE
     // em aberto sem receptora, é essa égua examinada agora que virou a receptora — liga ela aqui.
     if(!n){
-      const teSemReceptora = nascimentos.filter(x=> x.confirm!=='S' && x.lavado!=='NEG' && x.transferenciaEmbriao && !(x.receptora||'').trim());
+      const teSemReceptora = nascimentos.filter(x=> x.confirm!=='S' && x.lavado!=='NEG' && x.prenhezNegativa!=='S' && x.transferenciaEmbriao && !(x.receptora||'').trim());
       if(teSemReceptora.length===1){
         n = teSemReceptora[0];
         n.receptora = e.nome;
@@ -12222,6 +12263,25 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     e.nascimentoId = n.id;
     totalVacinas += confirmarPrenhezRegistro(n, data);
     mexeuNascimentos = true;
+    prenhesConfirmadas.push(e.nome);
+  }
+  // Diagnóstico negativo (vazia / reabsorção) → marca a cobertura aberta da égua como "não prenhe"
+  // (mesmo efeito do botão "✕ Não prenhe" da aba Coberturas).
+  const vaziasMarcadas = [];
+  for(const e of eguas){
+    if(e.diagnostico!=='vazia' && e.diagnostico!=='reabsorveu') continue;
+    const n = coberturaAbertaDaEgua(e.nome);
+    if(!n) continue;
+    const eraPrenhe = n.prenhezConfirmada==='S';
+    n.prenhezNegativa = 'S';
+    n.prenhezNegativaData = data;
+    n.prenhezConfirmada = 'N';
+    n.prenhezUltima = '';
+    if(!eraPrenhe) n.prenhezHistorico = [];
+    if((n.protocoloVacinas||[]).length && !(n.protocoloVacinas||[]).some(it=>it.feito)) n.protocoloVacinas = [];
+    e.nascimentoId = n.id;
+    mexeuNascimentos = true;
+    vaziasMarcadas.push(e.nome);
   }
   // Ovulação numa cobertura de TRANSFERÊNCIA DE EMBRIÃO em aberto → grava a data da ovulação e agenda
   // a coleta do embrião (ovulação + N dias, config.diasColetaEmbriao, padrão 8). Só na 1ª vez (não
@@ -12248,10 +12308,11 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   salvarEmSegundoPlano('visitas_repro_list', visitasRepro, ()=>{ renderVisitasRepro(); renderNascimentos(); });
   let msg = 'Visita salva.';
   if(receptorasDefinidas.length) msg += ' Receptora definida na transferência de embrião: '+receptorasDefinidas.join(', ')+'.';
-  if(mexeuNascimentos) msg += ' Prenhez confirmada na cobertura correspondente' + (totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
+  if(prenhesConfirmadas.length) msg += ' Prenhez confirmada: '+prenhesConfirmadas.join(', ')+(totalVacinas>0 ? (' — '+totalVacinas+' vacina(s) de gestação entraram no calendário.') : '.');
+  if(vaziasMarcadas.length) msg += ' Marcada(s) como não prenhe: '+vaziasMarcadas.join(', ')+'.';
   if(semCobertura.length>0) msg += ' Sem cobertura em aberto pra: '+semCobertura.join(', ')+' (registre a cobertura na aba Coberturas pra ligar a prenhez).';
   if(coletasAgendadas.length) msg += ' Coleta de embrião agendada: '+coletasAgendadas.join('; ')+'.';
-  if(mexeuNascimentos || semCobertura.length>0 || receptorasDefinidas.length || coletasAgendadas.length) showAlert(msg);
+  if(mexeuNascimentos || semCobertura.length>0 || receptorasDefinidas.length || coletasAgendadas.length || vaziasMarcadas.length) showAlert(msg);
 });
 document.getElementById('btnDeleteVisitaRepro').addEventListener('click', async ()=>{
   if(!editingVisitaReproId || !(await showConfirm('Excluir esta visita reprodutiva? As prenhezes já confirmadas por ela não são desfeitas.'))) return;
