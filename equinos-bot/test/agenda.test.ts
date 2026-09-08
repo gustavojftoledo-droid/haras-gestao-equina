@@ -16,6 +16,7 @@ import {
 import {
   montarRelatorioManha,
   montarRelatorioNoite,
+  montarRelatorioEstoque,
   type DadosHaras,
 } from "../src/relatorios.ts";
 
@@ -213,4 +214,30 @@ test("relatório da noite: reprodução (cobertura, lavado, prenhez)", () => {
 
 test("relatório da noite: dia sem nada", () => {
   assert.match(montarRelatorioNoite(vazio(), HOJE), /Nenhum registro lançado hoje/);
+});
+
+test("estoque NÃO aparece nos relatórios diários", () => {
+  const d = vazio();
+  d.produtos = [{ id: "p1", nome: "Ivermectina", quantidade: 0, minimo: 3 }];
+  d.movimentos = [{ data: HOJE, produtoId: "p1", tipoMov: "saida", quantidade: 2, motivo: "Uso" }];
+  assert.doesNotMatch(montarRelatorioManha(d, HOJE), /Ivermectina|Estoque/);
+  assert.doesNotMatch(montarRelatorioNoite(d, HOJE), /Ivermectina/);
+});
+
+test("montarRelatorioEstoque: baixo + saiu hoje, ignora dieta", () => {
+  const d = {
+    produtos: [
+      { id: "p1", nome: "Ivermectina", quantidade: 0, minimo: 3, unidade: "un" },
+      { id: "p2", nome: "Feno", quantidade: 999 },
+    ],
+    movimentos: [
+      { data: HOJE, produtoId: "p1", tipoMov: "saida", quantidade: 2, motivo: "Vermifugação" },
+      { data: HOJE, produtoId: "p2", tipoMov: "saida", quantidade: 40, motivo: "Dieta: manhã" },
+      { data: "2026-09-01", produtoId: "p1", tipoMov: "saida", quantidade: 1, motivo: "Antiga" },
+    ],
+  };
+  const txt = montarRelatorioEstoque(d, HOJE);
+  assert.match(txt, /🛑 Zerado: Ivermectina/);
+  assert.match(txt, /2 — Ivermectina \(Vermificação\)|2 — Ivermectina \(Vermifugação\)/);
+  assert.doesNotMatch(txt, /Feno/); // baixa de dieta não conta
 });

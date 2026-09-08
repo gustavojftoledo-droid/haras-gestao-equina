@@ -269,7 +269,6 @@ export function montarRelatorioManha(d: DadosHaras, hoje: string): string {
     admManejos,
     bloco("Veterinária", s.veterinaria),
     bloco("Reprodução", s.reproducao),
-    bloco("Estoque", s.estoque),
     bloco("Funcionários", s.salario),
   ]);
   const blocoVet = blocoPapel("🩺 Veterinário", [
@@ -391,8 +390,42 @@ export function montarRelatorioNoite(d: DadosHaras, hoje: string): string {
   }
   const bEst = bloco("Estoque", estLinhas);
 
-  const partes = [bManejos, bVet, bRepro, bEst].filter((x) => x && x.trim());
+  const partes = [bManejos, bVet, bRepro].filter((x) => x && x.trim());
   const cabecalho = `✅ <b>O que foi feito hoje — ${fmtBR(hoje)}</b>\n`;
-  if (partes.length === 0) return cabecalho + "\nNenhum registro lançado hoje.";
+  if (partes.length === 0)
+    return cabecalho + "\nNenhum registro lançado hoje. (Estoque: mande /estoque pra ver.)";
   return cabecalho + "\n" + partes.join("\n");
+}
+
+// ================= ESTOQUE (só sob demanda — comando /estoque) =================
+
+export function montarRelatorioEstoque(
+  d: Pick<DadosHaras, "produtos" | "movimentos">,
+  hoje: string,
+): string {
+  const baixo: string[] = [];
+  for (const p of d.produtos || []) {
+    const s = situacaoEstoque(p, d.movimentos, hoje);
+    if (!s) continue;
+    const un = p.unidade ? " " + p.unidade : "";
+    baixo.push(
+      `• ${s === "zerado" ? "🛑 Zerado" : "⚠️ Baixo"}: ${esc(p.nome || "?")} (${Number(p.quantidade) || 0}${un})`,
+    );
+  }
+  const saidasHoje: string[] = [];
+  const entradasHoje: string[] = [];
+  for (const mv of d.movimentos || []) {
+    if (mv.data !== hoje) continue;
+    if (mv.origem === "dieta" || /^Dieta:/i.test(mv.motivo || "")) continue;
+    const prod = (d.produtos || []).find((p) => p.id === mv.produtoId);
+    const linha = `• ${Number(mv.quantidade) || 0} — ${esc(prod ? prod.nome : mv.produtoNome || "?")}${mv.motivo ? " (" + esc(mv.motivo) + ")" : ""}`;
+    if (mv.tipoMov === "entrada") entradasHoje.push(linha);
+    else saidasHoje.push(linha);
+  }
+  const partes = [
+    bloco("Baixo / zerado", baixo),
+    bloco("Saiu hoje (" + fmtBR(hoje) + ")", saidasHoje.length ? saidasHoje : ["—"]),
+    bloco("Entrou hoje", entradasHoje),
+  ];
+  return `📦 <b>Estoque</b>\n\n` + partes.filter((x) => x && x.trim()).join("\n");
 }

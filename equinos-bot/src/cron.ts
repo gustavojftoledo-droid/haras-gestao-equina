@@ -9,7 +9,12 @@
 import type { Env } from "./firestore.ts";
 import { getList, getMap } from "./firestore.ts";
 import { sendMessage } from "./telegram.ts";
-import { montarRelatorioManha, montarRelatorioNoite, type DadosHaras } from "./relatorios.ts";
+import {
+  montarRelatorioManha,
+  montarRelatorioNoite,
+  montarRelatorioEstoque,
+  type DadosHaras,
+} from "./relatorios.ts";
 
 /** "hoje" em Brasília (UTC-3), formato AAAA-MM-DD. */
 export function hojeBrasilia(agora: Date = new Date()): string {
@@ -110,6 +115,15 @@ export async function rodarRelatorioNoite(env: Env): Promise<void> {
   const dados = await carregarDados(env);
   const hoje = hojeBrasilia();
   await enviarPraTodos(env, montarRelatorioNoite(dados, hoje));
+}
+
+/** Relatório de estoque sob demanda (comando /estoque no Telegram). Busca só o necessário. */
+export async function textoRelatorioEstoque(env: Env): Promise<string> {
+  const [produtos, movimentos] = await Promise.all([
+    getList(env, "estoque_produtos"),
+    getList(env, "estoque_movimentos"),
+  ]);
+  return montarRelatorioEstoque({ produtos, movimentos }, hojeBrasilia());
 }
 
 /** Roteia pelo horário do cron. */

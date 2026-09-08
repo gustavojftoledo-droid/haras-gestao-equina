@@ -7,6 +7,7 @@ import type { Env } from "./firestore.ts";
 import { getList, getMap, setList } from "./firestore.ts";
 import { sendMessage, esc } from "./telegram.ts";
 import { interpretar, type DadosAnimal, type DadosManejo } from "./ai.ts";
+import { textoRelatorioEstoque } from "./cron.ts";
 import {
   acharAnimal,
   auditEntrada,
@@ -53,7 +54,8 @@ const INTRO =
   "• <i>Cadastra a Estopa, fêmea, filha do Vento com a Aurora, nascida ontem, tordilha, do Paulo</i>\n" +
   "• <i>Ferrei hoje a Rosa, a Tirania e a Tulipa</i>\n\n" +
   "Eu monto, mostro pra você conferir, e só gravo depois do seu OK.\n" +
-  "Vacina e vermífugo (com baixa de estoque): pelo app.";
+  "Vacina e vermífugo (com baixa de estoque): pelo app.\n\n" +
+  "📦 <b>/estoque</b> — ver o que está baixo e o que saiu hoje.";
 
 // ---------- entrada ----------
 
@@ -68,6 +70,14 @@ export async function onText(env: Env, chatId: number, textoRaw: string): Promis
   if (lower === "/cancelar" || lower === "cancelar") {
     await clear(env, chatId);
     return sendMessage(env, chatId, "Ok, esqueci o que estava fazendo. Pode mandar outra.");
+  }
+  // Estoque saiu do relatório diário — só aparece quando você pede.
+  if (lower === "/estoque" || (lower.includes("estoque") && /\?|^o que|^quais|^quanto|saiu|sa[ií]da|acab|falta|baixo|zerad|lista/.test(lower))) {
+    try {
+      return sendMessage(env, chatId, await textoRelatorioEstoque(env));
+    } catch (e: any) {
+      return sendMessage(env, chatId, `❌ Não consegui ler o estoque agora (${esc(String(e?.message || e))}).`);
+    }
   }
   if (!texto) return;
 
