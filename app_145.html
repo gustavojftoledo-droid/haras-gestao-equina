@@ -1096,7 +1096,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
-          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="lavado" data-col="lavado">Lavado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -2098,6 +2098,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
+      <div class="field" id="n_lavadoWrap" style="display:none;"><label>Lavado do embrião</label><select id="n_lavado"><option value="">Pendente</option><option value="POS">Positivo — recuperou embrião</option><option value="NEG">Negativo — encerra a cobertura</option></select></div>
+      <div class="field" id="n_lavadoDataWrap" style="display:none;"><label>Data do lavado</label><input type="date" id="n_lavadoData"></div>
       <div class="field full" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(informe após a transferência do embrião)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
       <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
       <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
@@ -8846,7 +8848,14 @@ document.getElementById('n_transferenciaEmbriao').addEventListener('change', e=>
   document.getElementById('n_receptoraWrap').style.display = on ? 'flex' : 'none';
   document.getElementById('n_ovulacaoWrap').style.display = on ? 'flex' : 'none';
   document.getElementById('n_coletaWrap').style.display = on ? 'flex' : 'none';
-  if(!on){ document.getElementById('n_receptora').value = ''; document.getElementById('n_dataOvulacao').value=''; document.getElementById('n_dataColetaEmbriao').value=''; }
+  document.getElementById('n_lavadoWrap').style.display = on ? 'flex' : 'none';
+  document.getElementById('n_lavadoDataWrap').style.display = (on && document.getElementById('n_lavado').value) ? 'flex' : 'none';
+  if(!on){ document.getElementById('n_receptora').value = ''; document.getElementById('n_dataOvulacao').value=''; document.getElementById('n_dataColetaEmbriao').value=''; document.getElementById('n_lavado').value=''; document.getElementById('n_lavadoData').value=''; }
+});
+document.getElementById('n_lavado').addEventListener('change', ()=>{
+  const on = !!document.getElementById('n_lavado').value;
+  document.getElementById('n_lavadoDataWrap').style.display = on ? 'flex' : 'none';
+  if(on && !document.getElementById('n_lavadoData').value) document.getElementById('n_lavadoData').value = toISODate(new Date());
 });
 document.getElementById('n_dataOvulacao').addEventListener('input', ()=>{
   const ov = document.getElementById('n_dataOvulacao').value;
@@ -8857,12 +8866,14 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
   document.getElementById('btnDeleteNasc').style.display = 'none';
-  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao'].forEach(id=>document.getElementById(id).value='');
+  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
+  document.getElementById('n_lavadoWrap').style.display='none';
+  document.getElementById('n_lavadoDataWrap').style.display='none';
   document.getElementById('n_nomeWrap').style.display='none';
   document.getElementById('n_sexoWrap').style.display='none';
   nascCobExtras = []; renderNascCobExtras();
@@ -8881,6 +8892,10 @@ function openNascEdit(id){
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
   document.getElementById('n_ovulacaoWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
   document.getElementById('n_coletaWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
+  document.getElementById('n_lavadoWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
+  document.getElementById('n_lavado').value = n.lavado||'';
+  document.getElementById('n_lavadoData').value = n.lavadoData||'';
+  document.getElementById('n_lavadoDataWrap').style.display = (n.transferenciaEmbriao && n.lavado) ? 'flex' : 'none';
   document.getElementById('n_dataOvulacao').value = n.dataOvulacao||'';
   document.getElementById('n_dataColetaEmbriao').value = n.dataColetaEmbriao||'';
   document.getElementById('n_datacob').value = n.datacob||'';
@@ -8917,7 +8932,9 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
-    coletaEmbriaoFeita: existente ? !!existente.coletaEmbriaoFeita : false,
+    lavado: transferenciaEmbriao ? (document.getElementById('n_lavado').value||'') : '',
+    lavadoData: (transferenciaEmbriao && document.getElementById('n_lavado').value) ? (f('n_lavadoData')||toISODate(new Date())) : '',
+    coletaEmbriaoFeita: (existente ? !!existente.coletaEmbriaoFeita : false) || (transferenciaEmbriao && !!document.getElementById('n_lavado').value),
     datanasc:f('n_datanasc'), letra:f('n_letra'), obs:f('n_obs'), confirm: confirmado?'S':'N',
     animalId: existente ? existente.animalId : null,
     prenhezConfirmada: existente ? (existente.prenhezConfirmada||'N') : 'N',
@@ -9124,6 +9141,24 @@ function confirmarPrenhezRegistro(n, data){
   }
   return 0;
 }
+// Transferência de embrião: passo do LAVADO (coleta do embrião na doadora) antes de confirmar prenhez.
+// Positivo = embrião recuperado, segue pra receptora e pra confirmação de prenhez. Negativo = encerra
+// a cobertura (entra na taxa de perda; sem mais ação). Some da agenda de "coleta de embrião" do Calendário.
+async function registrarLavado(id){
+  const n = nascimentos.find(x=>x.id===id); if(!n) return;
+  const data = await showPromptDate('Registrar lavado', 'Data do lavado do embrião de '+(n.matriz||'?')+':', toISODate(new Date()));
+  if(!data) return; // cancelou
+  const pos = await showConfirm('Lavado POSITIVO? Clique "Positivo" se recuperou o embrião. Clique "Cancelar" se foi negativo (encerra a cobertura).', { titulo:'Resultado do lavado', okLabel:'Positivo' });
+  n.lavado = pos ? 'POS' : 'NEG';
+  n.lavadoData = data;
+  n.coletaEmbriaoFeita = true;
+  if(!n.dataColetaEmbriao) n.dataColetaEmbriao = data;
+  await storeSet('nascimentos_list', nascimentos);
+  renderNascimentos();
+  showAlert(pos
+    ? ('Lavado positivo registrado em '+fmtDate(data)+'. Informe a receptora (✏️ editar a cobertura) e depois confirme a prenhez.')
+    : ('Lavado negativo registrado em '+fmtDate(data)+'. Cobertura encerrada.'));
+}
 async function confirmarPrenhez(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
   const nomeGestante = alvoVacinaGestacao(n).nome;
@@ -9180,6 +9215,7 @@ function blocoRelatorioNascimento(n){
       <li>Cobertura${cobs.length>1?'s':''}: ${cobs.length ? cobs.map(fmtDate).join(', ') : '—'}${estacaoDaCobertura(n)?` <span style="color:#666;">(estação ${estacaoDaCobertura(n)})</span>`:''}</li>
       ${n.dataOvulacao?`<li>Ovulação: ${fmtDate(n.dataOvulacao)}</li>`:''}
       ${n.dataColetaEmbriao?`<li>Coleta do embrião: ${fmtDate(n.dataColetaEmbriao)}</li>`:''}
+      ${n.transferenciaEmbriao && n.lavado?`<li>Lavado: ${n.lavado==='POS'?'Positivo':'Negativo'}${n.lavadoData?(' ('+fmtDate(n.lavadoData)+')'):''}${n.lavado==='NEG'?' — cobertura encerrada':''}</li>`:''}
       <li>Provável nascimento: ${provavel?fmtDate(provavel):'—'}</li>
       <li>Nascimento confirmado: ${n.confirm==='S' ? fmtDate(n.datanasc) : 'Ainda não'}</li>
     </ul>
@@ -9222,6 +9258,7 @@ function renderNascimentos(){
     if(col==='provavelNasc') return (!n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '')||'';
     if(col==='dtNasc') return n.datanasc||'';
     if(col==='confirm') return n.confirm==='S'?'Sim':'Não';
+    if(col==='lavado') return n.transferenciaEmbriao ? (n.lavado==='POS'?'3':n.lavado==='NEG'?'1':'2') : '0';
     if(col==='prenhez') return n.prenhezConfirmada==='S'?('1 '+(n.prenhezUltima||'')):'0';
     if(col==='confirmado') return n.confirm==='S'?'Sim':'Não';
     if(col==='obs') return (n.obs||'').toLowerCase();
@@ -9277,7 +9314,7 @@ function renderNascimentos(){
   // Tira da seleção o que não está mais na lista filtrada
   const idsVis = new Set(filteredOrd.map(n=>n.id));
   [...coberturaSel].forEach(id=>{ if(!idsVis.has(id)) coberturaSel.delete(id); });
-  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="13" class="empty">Nenhum registro encontrado.</td></tr>`; atualizarCoberturaSelAll(); return; }
+  if(filteredOrd.length===0){ tbody.innerHTML=`<tr><td colspan="14" class="empty">Nenhum registro encontrado.</td></tr>`; atualizarCoberturaSelAll(); return; }
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
@@ -9288,25 +9325,42 @@ function renderNascimentos(){
     const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
     const cobsN = todasCoberturas(n);
     const dtCobCell = cobsN.length<=1 ? fmtDate(n.datacob) : `${fmtDate(cobsN[cobsN.length-1])} <span class="pill st-outro" title="${cobsN.map(fmtDate).join(' · ')}">+${cobsN.length-1}</span>`;
-    const prenhezPill = n.prenhezConfirmada==='S'
-      ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
-      : `<span class="pill st-descarte">Não</span>`;
+    let lavadoCell = '—';
+    if(n.transferenciaEmbriao){
+      if(n.lavado==='POS') lavadoCell = `<span class="pill st-ativo" title="Lavado positivo — embrião recuperado${n.lavadoData?(' em '+fmtDate(n.lavadoData)):''}">✓ Positivo</span>`;
+      else if(n.lavado==='NEG') lavadoCell = `<span class="pill st-descarte" title="Lavado negativo${n.lavadoData?(' em '+fmtDate(n.lavadoData)):''} — cobertura encerrada">✕ Negativo</span>`;
+      else lavadoCell = `<span class="pill st-outro" title="Aguardando o lavado do embrião">Pendente</span>`;
+    }
+    const prenhezPill = (n.transferenciaEmbriao && n.lavado!=='POS')
+      ? `<span class="pill st-outro" title="${n.lavado==='NEG'?'Cobertura encerrada (lavado negativo)':'Aguardando lavado positivo'}">—</span>`
+      : (n.prenhezConfirmada==='S'
+        ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
+        : `<span class="pill st-descarte">Não</span>`);
     return `<tr>
       <td><input type="checkbox" data-nselid="${n.id}" ${coberturaSel.has(n.id)?'checked':''}></td>
       <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
       <td data-col="dtCobertura">${dtCobCell}</td><td data-col="estacao">${estacaoDaCobertura(n)||'—'}</td><td data-col="provavelNasc">${provavel?fmtDate(provavel):'—'}</td><td data-col="dtNasc">${fmtDate(n.datanasc)}</td>
+      <td data-col="lavado">${lavadoCell}</td>
       <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
       <td data-col="prenhez">${prenhezPill}</td>
       <td data-col="confirmado">${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${n.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm btn-ghost" data-nedit="${n.id}" title="Editar">✏️</button>
-        ${n.confirm!=='S' ? `<button type="button" class="btn btn-sm btn-ghost" data-nconfirmprenhez="${n.id}" title="Confirmar prenhez hoje">🤰 Confirmar</button>` : ''}
+        ${(()=>{
+          if(n.confirm==='S') return '';
+          if(n.transferenciaEmbriao){
+            if(n.lavado==='NEG') return '';
+            if(n.lavado!=='POS') return `<button type="button" class="btn btn-sm btn-ghost" data-nlavado="${n.id}" title="Registrar resultado do lavado do embrião">🧫 Lavado</button>`;
+          }
+          return `<button type="button" class="btn btn-sm btn-ghost" data-nconfirmprenhez="${n.id}" title="Confirmar prenhez hoje">🤰 Confirmar</button>`;
+        })()}
         <button type="button" class="btn btn-sm btn-ghost" data-nrelatorio="${n.id}" title="Gerar PDF deste registro">📄</button>
       </td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-nedit]').forEach(b=>b.addEventListener('click', ()=>openNascEdit(b.dataset.nedit)));
   tbody.querySelectorAll('[data-nconfirmprenhez]').forEach(b=>b.addEventListener('click', ()=>confirmarPrenhez(b.dataset.nconfirmprenhez)));
+  tbody.querySelectorAll('[data-nlavado]').forEach(b=>b.addEventListener('click', ()=>registrarLavado(b.dataset.nlavado)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
   tbody.querySelectorAll('[data-nselid]').forEach(cb=>cb.addEventListener('change', ()=>{
     if(cb.checked) coberturaSel.add(cb.dataset.nselid); else coberturaSel.delete(cb.dataset.nselid);
@@ -12063,7 +12117,7 @@ function openVisitaReproEdit(id){
 function coberturaAbertaDaEgua(nome){
   const alvo = normNomeParentesco(nome);
   return nascimentos
-    .filter(n=> n.confirm!=='S' && (normNomeParentesco(n.matriz)===alvo || (n.transferenciaEmbriao && normNomeParentesco(n.receptora)===alvo)))
+    .filter(n=> n.confirm!=='S' && n.lavado!=='NEG' && (normNomeParentesco(n.matriz)===alvo || (n.transferenciaEmbriao && normNomeParentesco(n.receptora)===alvo)))
     .sort((a,b)=> (b.datacob||'').localeCompare(a.datacob||''))[0] || null;
 }
 
@@ -12115,7 +12169,7 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     // Transferência de embrião cuja receptora ainda não foi definida: se existe UMA única cobertura de TE
     // em aberto sem receptora, é essa égua examinada agora que virou a receptora — liga ela aqui.
     if(!n){
-      const teSemReceptora = nascimentos.filter(x=> x.confirm!=='S' && x.transferenciaEmbriao && !(x.receptora||'').trim());
+      const teSemReceptora = nascimentos.filter(x=> x.confirm!=='S' && x.lavado!=='NEG' && x.transferenciaEmbriao && !(x.receptora||'').trim());
       if(teSemReceptora.length===1){
         n = teSemReceptora[0];
         n.receptora = e.nome;
