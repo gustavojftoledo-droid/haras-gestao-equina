@@ -34,6 +34,22 @@ export async function sendMessage(
   if (!res.ok) console.error("sendMessage falhou:", res.status, await res.text());
 }
 
+/** Manda uma imagem (PNG) como foto — aparece direto na conversa. `caption` aceita HTML. */
+export async function sendPhoto(
+  env: Env,
+  chatId: number | string,
+  png: Uint8Array,
+  caption: string,
+): Promise<void> {
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  form.append("caption", caption.slice(0, 1000));
+  form.append("parse_mode", "HTML");
+  form.append("photo", new Blob([png], { type: "image/png" }), "relatorio.png");
+  const res = await fetch(api(env, "sendPhoto"), { method: "POST", body: form });
+  if (!res.ok) throw new Error(`sendPhoto ${res.status}: ${await res.text()}`);
+}
+
 export async function answerCallback(env: Env, callbackId: string, text?: string): Promise<void> {
   await fetch(api(env, "answerCallbackQuery"), {
     method: "POST",

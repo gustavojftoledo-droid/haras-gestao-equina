@@ -9,14 +9,17 @@
  */
 import type { Env } from "./firestore.ts";
 import { getList, getMap } from "./firestore.ts";
-import { sendMessage } from "./telegram.ts";
+import { sendMessage, sendPhoto } from "./telegram.ts";
 import {
   montarRelatorioManha,
   montarRelatorioEstoque,
   coletarFeitos,
   montarMensagemFeitos,
+  gruposManha,
+  gruposFeitos,
   type DadosHaras,
 } from "./relatorios.ts";
+import type { GrupoCard } from "./imagem.ts";
 
 /** Chave no KV com as `key`s de eventos já reportados hoje (pra msg das 19h não repetir a das 12h). */
 const kvFeito = (hoje: string) => `rel:feito:${hoje}`;
@@ -93,6 +96,42 @@ async function enviarPraTodos(env: Env, texto: string): Promise<void> {
   }
 }
 
+/**
+ * Manda o relatório como IMAGEM (card). Se a renderização ou o envio da foto falhar, cai pro
+ * texto — nunca deixa de mandar o relatório.
+ */
+async function enviarComImagem(
+  env: Env,
+  titulo: string,
+  dataBR: string,
+  grupos: GrupoCard[],
+  textoFallback: string,
+): Promise<void> {
+  let png: Uint8Array | null = null;
+  try {
+    const { renderCardPng } = await import("./imagem.ts");
+    png = await renderCardPng(titulo, dataBR, grupos);
+  } catch (e) {
+    console.error("renderCardPng falhou:", e);
+  }
+  for (const id of chatIds(env)) {
+    if (png) {
+      try {
+        await sendPhoto(env, id, png, `<b>${titulo}</b> — ${dataBR}`);
+        continue;
+      } catch (e) {
+        console.error("sendPhoto falhou, mando texto:", e);
+      }
+    }
+    for (const pedaco of partir(textoFallback, 3900)) await sendMessage(env, id, pedaco);
+  }
+}
+
+function dataBRlonga(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 function partir(texto: string, max: number): string[] {
   if (texto.length <= max) return [texto];
   const linhas = texto.split("\n");
@@ -110,10 +149,17 @@ function partir(texto: string, max: number): string[] {
   return out;
 }
 
-/** 07:00 — o que fazer hoje (uma lista só). */
+/** 07:00 — o que fazer hoje (uma lista só). Vai como imagem (card), texto de reserva. */
 export async function rodarRelatorioManha(env: Env): Promise<void> {
   const dados = await carregarDados(env);
-  await enviarPraTodos(env, montarRelatorioManha(dados, hojeBrasilia()));
+  const hoje = hojeBrasilia();
+  await enviarComImagem(
+    env,
+    "O que fazer hoje",
+    dataBRlonga(hoje),
+    gruposManha(dados, hoje),
+    montarRelatorioManha(dados, hoje),
+  );
 }
 
 /** 12:00 — o que foi feito de manhã. Guarda as chaves pra msg das 19h não repetir. */
@@ -121,7 +167,13 @@ export async function rodarFeitoManha(env: Env): Promise<void> {
   const dados = await carregarDados(env);
   const hoje = hojeBrasilia();
   const feitos = coletarFeitos(dados, hoje);
-  await enviarPraTodos(env, montarMensagemFeitos(feitos, `Feito hoje de manhã — ${fmtDataBRcurta(hoje)}`));
+  await enviarComImagem(
+    env,
+    "Feito hoje de manhã",
+    dataBRlonga(hoje),
+    gruposFeitos(feitos),
+    montarMensagemFeitos(feitos, `Feito hoje de manhã — ${dataBRlonga(hoje)}`),
+  );
   await env.SESSIONS.put(kvFeito(hoje), JSON.stringify(feitos.map((f) => f.key)), {
     expirationTtl: 172800,
   });
@@ -135,14 +187,15 @@ export async function rodarFeitoTarde(env: Env): Promise<void> {
   const jaVistos: string[] = (await env.SESSIONS.get(kvFeito(hoje), "json")) || [];
   const jaSet = new Set(jaVistos);
   const novos = feitos.filter((f) => !jaSet.has(f.key));
-  await enviarPraTodos(env, montarMensagemFeitos(novos, `Feito hoje à tarde — ${fmtDataBRcurta(hoje)}`));
+  await enviarComImagem(
+    env,
+    "Feito hoje à tarde",
+    dataBRlonga(hoje),
+    gruposFeitos(novos),
+    montarMensagemFeitos(novos, `Feito hoje à tarde — ${dataBRlonga(hoje)}`),
+  );
   const uniao = [...new Set([...jaVistos, ...feitos.map((f) => f.key)])];
   await env.SESSIONS.put(kvFeito(hoje), JSON.stringify(uniao), { expirationTtl: 172800 });
-}
-
-function fmtDataBRcurta(iso: string): string {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m ? `${m[3]}/${m[2]}` : iso;
 }
 
 /** Relatório de estoque sob demanda (comando /estoque no Telegram). Busca só o necessário. */

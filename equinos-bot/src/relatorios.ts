@@ -8,6 +8,7 @@
  * Financeiro e Estoque ficam de fora (pedido do Gustavo; Estoque virou /estoque).
  */
 import { esc } from "./telegram.ts";
+import type { GrupoCard } from "./imagem.ts";
 import {
   computeProgramacao,
   dosesPendentesTratamento,
@@ -271,6 +272,20 @@ export function montarRelatorioManha(d: DadosHaras, hoje: string): string {
   return cabecalho + "\n" + partes.join("\n");
 }
 
+/** Grupos pro card-imagem das 7h (mesma info do texto, só que estruturada por categoria). */
+export function gruposManha(d: DadosHaras, hoje: string): GrupoCard[] {
+  const s = montarSecoesManha(d, hoje);
+  return [
+    { label: "Casco", linhas: s.casco },
+    { label: "Dente", linhas: s.dente },
+    { label: "Vacina", linhas: s.vacina },
+    { label: "Vermífugo", linhas: s.vermifugo },
+    { label: "Veterinária", linhas: s.veterinaria },
+    { label: "Reprodução", linhas: s.reproducao },
+    { label: "Funcionários", linhas: s.salario },
+  ].filter((g) => g.linhas.length);
+}
+
 // ================= "O QUE FOI FEITO" (manhã 12h / tarde 19h, sem repetir) =================
 
 /** Um evento registrado hoje. `key` é estável — serve pra não repetir entre a msg das 12h e a das 19h. */
@@ -383,6 +398,14 @@ export function coletarFeitos(d: DadosHaras, hoje: string): Feito[] {
 }
 
 const ORDEM_MODULO = ["Manejos", "Veterinária", "Reprodução"] as const;
+
+/** Grupos pro card-imagem do "feito" (manhã/tarde). */
+export function gruposFeitos(feitos: Feito[]): GrupoCard[] {
+  return ORDEM_MODULO.map((m) => ({
+    label: m,
+    linhas: feitos.filter((f) => f.modulo === m).flatMap((f) => f.texto.split("\n")),
+  })).filter((g) => g.linhas.length);
+}
 
 export function montarMensagemFeitos(feitos: Feito[], titulo: string): string {
   const cab = `✅ <b>${esc(titulo)}</b>\n`;

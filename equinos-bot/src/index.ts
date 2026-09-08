@@ -56,15 +56,24 @@ export default {
             ? "feito-tarde"
             : "afazer";
       const cron = await import("./cron.ts");
-      if (url.searchParams.get("preview") === "1") {
+      if (url.searchParams.get("preview") === "1" || url.searchParams.get("img") === "1") {
         const rel = await import("./relatorios.ts");
         const dados = await cron.carregarDadosDebug(env);
         const hoje = cron.hojeBrasilia();
+        const feitos = () => rel.coletarFeitos(dados, hoje);
+        if (url.searchParams.get("img") === "1") {
+          const { renderCardPng } = await import("./imagem.ts");
+          const dataBR = hoje.split("-").reverse().join("/");
+          const grupos = qual === "afazer" ? rel.gruposManha(dados, hoje) : rel.gruposFeitos(feitos());
+          const titulo = qual === "afazer" ? "O que fazer hoje" : qual === "feito-manha" ? "Feito hoje de manhã" : "Feito hoje à tarde";
+          const png = await renderCardPng(titulo, dataBR, grupos);
+          return new Response(png as BodyInit, { status: 200, headers: { "content-type": "image/png" } });
+        }
         const txt =
           qual === "afazer"
             ? rel.montarRelatorioManha(dados, hoje)
             : rel.montarMensagemFeitos(
-                rel.coletarFeitos(dados, hoje),
+                feitos(),
                 qual === "feito-manha" ? "Feito de manhã (preview)" : "Feito à tarde (preview, sem dedup)",
               );
         return new Response(txt, { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
