@@ -9170,6 +9170,28 @@ async function confirmarPrenhez(id){
   renderNascimentos();
   showAlert('Prenhez confirmada em '+fmtDate(data)+'.'+avisoVacinas);
 }
+// Voltar atrás numa confirmação de prenhez: a cobertura volta pra "em aberto". Só enquanto o
+// nascimento não foi confirmado. Se a agenda de vacinas da gestação foi gerada e nenhuma dose
+// foi aplicada, ela é removida junto (some do Calendário e da aba Protocolo de Vacinas); se
+// alguma já foi aplicada, o protocolo é mantido pra não perder esse histórico.
+async function desfazerPrenhez(id){
+  const n = nascimentos.find(x=>x.id===id); if(!n) return;
+  if(n.prenhezConfirmada!=='S'){ showAlert('Essa cobertura não está com prenhez confirmada.'); return; }
+  if(n.confirm==='S'){ showAlert('O nascimento dessa cobertura já foi confirmado. Desfaça o nascimento primeiro (✏️ Editar) pra poder mexer na prenhez.'); return; }
+  const nome = alvoVacinaGestacao(n).nome;
+  const dosesFeitas = (n.protocoloVacinas||[]).filter(it=>it.feito).length;
+  let msg = 'Desfazer a confirmação de prenhez'+(nome?(' de '+nome):'')+'? A cobertura volta a ficar "em aberto".';
+  if(dosesFeitas>0) msg += ' Atenção: '+dosesFeitas+' vacina(s) de gestação já aplicada(s) serão mantidas.';
+  else if((n.protocoloVacinas||[]).length) msg += ' A agenda de vacinas de gestação (nenhuma aplicada ainda) será removida.';
+  if(!(await showConfirm(msg, { titulo:'Desfazer prenhez', okLabel:'Desfazer', danger:true }))) return;
+  n.prenhezConfirmada = 'N';
+  n.prenhezUltima = '';
+  n.prenhezHistorico = [];
+  if((n.protocoloVacinas||[]).length && dosesFeitas===0) n.protocoloVacinas = [];
+  await storeSet('nascimentos_list', nascimentos);
+  renderNascimentos();
+  showAlert('Prenhez desfeita — a cobertura de '+(n.matriz||'?')+' voltou pra "em aberto".');
+}
 
 // Quadro "Prenhezes confirmadas" — lista quem tá confirmada e ainda não teve o nascimento confirmado.
 // Cada linha vira um botão: reconfirmar de novo, ou abrir o relatório em PDF daquele registro.
@@ -9189,12 +9211,16 @@ function abrirListaPrenhezesConfirmadas(){
         <div><strong>${alvoVacinaGestacao(n).nome}</strong> <span style="color:var(--muted);font-size:12px;">— última confirmação ${fmtDate(n.prenhezUltima)}${dias!==null?(' ('+dias+' dia(s) atrás)'):''}</span></div>
         <div style="white-space:nowrap;display:flex;gap:6px;">
           <button type="button" class="btn btn-sm btn-ghost" data-reconfirmar="${n.id}">🤰 Confirmar de novo</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-desfazpren="${n.id}" title="Desfazer a confirmação de prenhez">↩️ Desfazer</button>
           <button type="button" class="btn btn-sm btn-ghost" data-relpren="${n.id}">📄</button>
         </div>
       </div>`;
     }).join('');
     body.querySelectorAll('[data-reconfirmar]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{ await confirmarPrenhez(btn.dataset.reconfirmar); abrirListaPrenhezesConfirmadas(); });
+    });
+    body.querySelectorAll('[data-desfazpren]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{ await desfazerPrenhez(btn.dataset.desfazpren); abrirListaPrenhezesConfirmadas(); });
     });
     body.querySelectorAll('[data-relpren]').forEach(btn=>{
       btn.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(btn.dataset.relpren));
@@ -9331,11 +9357,21 @@ function renderNascimentos(){
       else if(n.lavado==='NEG') lavadoCell = `<span class="pill st-descarte" title="Lavado negativo${n.lavadoData?(' em '+fmtDate(n.lavadoData)):''} — cobertura encerrada">✕ Negativo</span>`;
       else lavadoCell = `<span class="pill st-outro" title="Aguardando o lavado do embrião">Pendente</span>`;
     }
-    const prenhezPill = (n.transferenciaEmbriao && n.lavado!=='POS')
-      ? `<span class="pill st-outro" title="${n.lavado==='NEG'?'Cobertura encerrada (lavado negativo)':'Aguardando lavado positivo'}">—</span>`
-      : (n.prenhezConfirmada==='S'
-        ? `<span class="pill st-ativo" title="Última confirmação">Sim — ${fmtDate(n.prenhezUltima)}</span>`
-        : `<span class="pill st-descarte">Não</span>`);
+    // Coluna Prenhez = checkbox: marcado quando confirmada; desmarcar desfaz (volta pra "em aberto").
+    // Marcar pede a data da confirmação. Casos sem checkbox: nascimento já confirmado, ou TE ainda
+    // sem lavado positivo.
+    let prenhezPill;
+    if(n.confirm==='S'){
+      prenhezPill = `<span class="pill st-ativo">Nasceu</span>`;
+    } else if(n.transferenciaEmbriao && n.lavado!=='POS'){
+      prenhezPill = `<span class="pill st-outro" title="${n.lavado==='NEG'?'Cobertura encerrada (lavado negativo)':'Aguardando lavado positivo'}">—</span>`;
+    } else {
+      const marc = n.prenhezConfirmada==='S';
+      prenhezPill = `<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;white-space:nowrap;" title="${marc?'Prenhez confirmada — desmarque para desfazer':'Marque para confirmar a prenhez'}">
+        <input type="checkbox" data-nprenhezchk="${n.id}" ${marc?'checked':''} style="cursor:pointer;">
+        ${marc ? fmtDate(n.prenhezUltima) : '<span style="color:var(--muted);">confirmar</span>'}
+      </label>`;
+    }
     return `<tr>
       <td><input type="checkbox" data-nselid="${n.id}" ${coberturaSel.has(n.id)?'checked':''}></td>
       <td>${nomeComOlho(n.matriz)}</td><td data-col="pai">${nomeComOlho(n.pai)}</td><td data-col="receptora">${nomeComOlho(n.receptora)}</td>
@@ -9348,11 +9384,12 @@ function renderNascimentos(){
         <button type="button" class="btn btn-sm btn-ghost" data-nedit="${n.id}" title="Editar">✏️</button>
         ${(()=>{
           if(n.confirm==='S') return '';
-          if(n.transferenciaEmbriao){
+          // Confirmar/desfazer prenhez virou o checkbox na coluna "Prenhez".
+          if(n.transferenciaEmbriao && n.lavado!=='POS'){
             if(n.lavado==='NEG') return '';
-            if(n.lavado!=='POS') return `<button type="button" class="btn btn-sm btn-ghost" data-nlavado="${n.id}" title="Registrar resultado do lavado do embrião">🧫 Lavado</button>`;
+            return `<button type="button" class="btn btn-sm btn-ghost" data-nlavado="${n.id}" title="Registrar resultado do lavado do embrião">🧫 Lavado</button>`;
           }
-          return `<button type="button" class="btn btn-sm btn-ghost" data-nconfirmprenhez="${n.id}" title="Confirmar prenhez hoje">🤰 Confirmar</button>`;
+          return '';
         })()}
         <button type="button" class="btn btn-sm btn-ghost" data-nrelatorio="${n.id}" title="Gerar PDF deste registro">📄</button>
       </td>
@@ -9360,6 +9397,11 @@ function renderNascimentos(){
   }).join('');
   tbody.querySelectorAll('[data-nedit]').forEach(b=>b.addEventListener('click', ()=>openNascEdit(b.dataset.nedit)));
   tbody.querySelectorAll('[data-nconfirmprenhez]').forEach(b=>b.addEventListener('click', ()=>confirmarPrenhez(b.dataset.nconfirmprenhez)));
+  tbody.querySelectorAll('[data-nprenhezchk]').forEach(cb=>cb.addEventListener('change', async ()=>{
+    const id = cb.dataset.nprenhezchk;
+    if(cb.checked) await confirmarPrenhez(id); else await desfazerPrenhez(id);
+    renderNascimentos(); // ressincroniza o checkbox com o estado real (inclusive se cancelou o diálogo)
+  }));
   tbody.querySelectorAll('[data-nlavado]').forEach(b=>b.addEventListener('click', ()=>registrarLavado(b.dataset.nlavado)));
   tbody.querySelectorAll('[data-nrelatorio]').forEach(b=>b.addEventListener('click', ()=>gerarRelatorioNascimentoUnico(b.dataset.nrelatorio)));
   tbody.querySelectorAll('[data-nselid]').forEach(cb=>cb.addEventListener('change', ()=>{
