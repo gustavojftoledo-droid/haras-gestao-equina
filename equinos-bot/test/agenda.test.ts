@@ -15,8 +15,9 @@ import {
 } from "../src/agenda.ts";
 import {
   montarRelatorioManha,
-  montarRelatorioNoite,
   montarRelatorioEstoque,
+  coletarFeitos,
+  montarMensagemFeitos,
   type DadosHaras,
 } from "../src/relatorios.ts";
 
@@ -127,28 +128,21 @@ test("salarioConfirmadoNoMes", () => {
   assert.equal(salarioConfirmadoNoMes(lanc, "f2", "2026-09"), false);
 });
 
-test("relatório da manhã: separa papéis e blocos; casco só no ferrador+adm", () => {
+test("relatório da manhã: lista única, SEM blocos de papel", () => {
   const d = vazio();
   d.horses = [
     { id: "h1", nome: "Estrela", situacao: "P" },
     { id: "h2", nome: "Trovão", situacao: "P", freqvermifugo: "3" },
   ];
   d.manejos = [
-    {
-      tipo: "Casco",
-      data: "2026-08-25",
-      animais: [{ id: "h1", nome: "Estrela", tipo: "Casqueado" }],
-    },
+    { tipo: "Casco", data: "2026-08-25", animais: [{ id: "h1", nome: "Estrela", tipo: "Casqueado" }] },
     { tipo: "Vermífugo", data: "2026-06-10", animais: [{ id: "h2", nome: "Trovão" }] },
   ];
   const txt = montarRelatorioManha(d, HOJE);
-  assert.match(txt, /👤 ADM/);
-  assert.match(txt, /🩺 Veterinário/);
-  assert.match(txt, /🔨 Ferrador/);
-  // casco (casqueamento de 60d a partir de 25/08 -> 24/10, fora do horizonte de 7d) NÃO deve aparecer
-  assert.doesNotMatch(txt, /Casqueamento/);
-  // vermífugo atrasado aparece pro vet
-  assert.match(txt, /Desparasita|Vermífugo/);
+  assert.doesNotMatch(txt, /ADM|Veterinário|Ferrador/); // sem sub-blocos por papel
+  assert.doesNotMatch(txt, /Casqueamento/); // 25/08 + 60d = fora do horizonte
+  assert.match(txt, /Vermífugo/); // desparasitação prevista aparece
+  assert.equal(txt.match(/Trovão/g)!.length, 1); // uma vez só, não repete
 });
 
 test("relatório da manhã: lavado pendente e prenhez a confirmar entram em Reprodução", () => {
@@ -177,10 +171,11 @@ test("relatório da manhã: lavado pendente e prenhez a confirmar entram em Repr
   assert.match(txt, /Confirmar prenhez — Égua Natural/);
 });
 
-test("relatório da noite: manejos por tipo, casco por subtipo", () => {
+test("feito hoje: manejos por tipo, casco por subtipo; só data === hoje", () => {
   const d = vazio();
   d.manejos = [
     {
+      id: "m1",
       tipo: "Casco",
       data: HOJE,
       animais: [
@@ -189,31 +184,47 @@ test("relatório da noite: manejos por tipo, casco por subtipo", () => {
         { id: "h3", nome: "C", tipo: "Ferrado completo" },
       ],
     },
-    { tipo: "Dente", data: HOJE, animais: [{ id: "h4", nome: "D" }] },
-    { tipo: "Vacina", data: HOJE, medicamentoNome: "Gripe", animais: [{ id: "h5", nome: "E" }] },
+    { id: "m2", tipo: "Dente", data: HOJE, animais: [{ id: "h4", nome: "D" }] },
+    { id: "m3", tipo: "Vacina", data: HOJE, medicamentoNome: "Gripe", animais: [{ id: "h5", nome: "E" }] },
+    { id: "m4", tipo: "Dente", data: "2026-09-01", animais: [{ id: "h6", nome: "ONTEM" }] },
   ];
-  const txt = montarRelatorioNoite(d, HOJE);
+  const txt = montarMensagemFeitos(coletarFeitos(d, HOJE), "Feito");
   assert.match(txt, /Ferrado completo: A, C/);
   assert.match(txt, /Casqueado: B/);
-  assert.match(txt, /Dente.*D/);
-  assert.match(txt, /Vacina.*\(Gripe\).*E/);
+  assert.match(txt, /Dente.*D/s);
+  assert.match(txt, /Vacina.*\(Gripe\).*E/s);
+  assert.doesNotMatch(txt, /ONTEM/); // dia anterior não entra
 });
 
-test("relatório da noite: reprodução (cobertura, lavado, prenhez)", () => {
+test("feito hoje: reprodução (cobertura, lavado, prenhez)", () => {
   const d = vazio();
   d.nascimentos = [
     { id: "n1", matriz: "M1", pai: "P1", datacob: HOJE, transferenciaEmbriao: true },
     { id: "n2", matriz: "M2", pai: "P2", lavado: "NEG", lavadoData: HOJE },
     { id: "n3", matriz: "M3", receptora: "R3", transferenciaEmbriao: true, prenhezHistorico: [HOJE] },
   ];
-  const txt = montarRelatorioNoite(d, HOJE);
+  const txt = montarMensagemFeitos(coletarFeitos(d, HOJE), "Feito");
   assert.match(txt, /Cobertura — M1 × P1 \(transferência de embrião\)/);
   assert.match(txt, /Lavado negativo ✕ — M2 \(cobertura encerrada\)/);
   assert.match(txt, /Prenhez confirmada — R3/);
 });
 
-test("relatório da noite: dia sem nada", () => {
-  assert.match(montarRelatorioNoite(vazio(), HOJE), /Nenhum registro lançado hoje/);
+test("feito hoje: dia sem nada", () => {
+  assert.match(montarMensagemFeitos(coletarFeitos(vazio(), HOJE), "Feito"), /Nada novo/);
+});
+
+test("feito hoje: dedup tarde x manhã pelas keys", () => {
+  const d = vazio();
+  d.manejos = [
+    { id: "m1", tipo: "Dente", data: HOJE, animais: [{ id: "h1", nome: "Manhã" }] },
+    { id: "m2", tipo: "Dente", data: HOJE, animais: [{ id: "h2", nome: "Tarde" }] },
+  ];
+  const todos = coletarFeitos(d, HOJE);
+  const vistosDeManha = new Set([todos[0].key]); // só m1 saiu às 12h
+  const novos = todos.filter((f) => !vistosDeManha.has(f.key));
+  const txt = montarMensagemFeitos(novos, "Tarde");
+  assert.match(txt, /Tarde/);
+  assert.doesNotMatch(txt, /Manhã<|Manhã$|: Manhã/);
 });
 
 test("estoque NÃO aparece nos relatórios diários", () => {
@@ -221,7 +232,7 @@ test("estoque NÃO aparece nos relatórios diários", () => {
   d.produtos = [{ id: "p1", nome: "Ivermectina", quantidade: 0, minimo: 3 }];
   d.movimentos = [{ data: HOJE, produtoId: "p1", tipoMov: "saida", quantidade: 2, motivo: "Uso" }];
   assert.doesNotMatch(montarRelatorioManha(d, HOJE), /Ivermectina|Estoque/);
-  assert.doesNotMatch(montarRelatorioNoite(d, HOJE), /Ivermectina/);
+  assert.doesNotMatch(montarMensagemFeitos(coletarFeitos(d, HOJE), "x"), /Ivermectina/);
 });
 
 test("montarRelatorioEstoque: baixo + saiu hoje, ignora dieta", () => {

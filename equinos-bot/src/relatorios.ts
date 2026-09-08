@@ -2,9 +2,10 @@
  * Monta o TEXTO dos dois relatórios diários (Telegram HTML). Função pura: recebe as listas já
  * buscadas do Firestore + a data "hoje" (Brasília), devolve string. Quem busca e envia é o cron.ts.
  *
- * 07:00 — "O que fazer hoje", em 3 blocos por papel (ADM / Veterinário / Ferrador).
- * 19:00 — "O que foi feito hoje", por módulo.
- * Financeiro fica de fora dos dois (pedido do Gustavo).
+ * 07:00 — "O que fazer hoje": uma lista só (Gustavo é ADM, já vê tudo).
+ * 12:00 / 19:00 — "O que foi feito": eventos do dia, partidos em manhã/tarde, sem repetir
+ *   (a msg das 19h só traz o que apareceu depois das 12h — o cron.ts guarda as chaves no KV).
+ * Financeiro e Estoque ficam de fora (pedido do Gustavo; Estoque virou /estoque).
  */
 import { esc } from "./telegram.ts";
 import {
@@ -247,154 +248,151 @@ function montarSecoesManha(d: DadosHaras, hoje: string): SecoesManha {
   };
 }
 
-function blocoPapel(nome: string, secoes: string[]): string {
-  const corpo = secoes.filter((s) => s && s.trim()).join("\n");
-  if (!corpo.trim()) return `━━━ <b>${esc(nome)}</b> ━━━\nNada pendente. ✅\n`;
-  return `━━━ <b>${esc(nome)}</b> ━━━\n${corpo}`;
-}
-
+/**
+ * 07:00 — "O que fazer hoje". UMA lista só pro Gustavo (ele é ADM: já vê tudo que o
+ * veterinário e o ferrador veriam). Sem sub-blocos por papel, sem repetição.
+ */
 export function montarRelatorioManha(d: DadosHaras, hoje: string): string {
   const s = montarSecoesManha(d, hoje);
-
-  const admManejos = bloco("Manejos", [
+  const manejos = bloco("🐴 Manejos", [
     ...(s.casco.length ? ["<i>Casco</i>", ...s.casco] : []),
     ...(s.dente.length ? ["<i>Dente</i>", ...s.dente] : []),
     ...(s.vacina.length ? ["<i>Vacina</i>", ...s.vacina] : []),
     ...(s.vermifugo.length ? ["<i>Vermífugo</i>", ...s.vermifugo] : []),
   ]);
-
+  const partes = [
+    manejos,
+    bloco("🩺 Veterinária", s.veterinaria),
+    bloco("🐣 Reprodução", s.reproducao),
+    bloco("💰 Funcionários", s.salario),
+  ].filter((x) => x && x.trim());
   const cabecalho = `📋 <b>O que fazer hoje — ${fmtBR(hoje)}</b>\n`;
-
-  const blocoAdm = blocoPapel("👤 ADM", [
-    admManejos,
-    bloco("Veterinária", s.veterinaria),
-    bloco("Reprodução", s.reproducao),
-    bloco("Funcionários", s.salario),
-  ]);
-  const blocoVet = blocoPapel("🩺 Veterinário", [
-    bloco("Dente", s.dente),
-    bloco("Vacina", s.vacina),
-    bloco("Vermífugo", s.vermifugo),
-    bloco("Veterinária", s.veterinaria),
-    bloco("Reprodução", s.reproducao),
-  ]);
-  const blocoFer = blocoPapel("🔨 Ferrador", [bloco("Casco", s.casco)]);
-
-  return [cabecalho, blocoAdm, blocoVet, blocoFer].join("\n").trim();
+  if (partes.length === 0) return cabecalho + "\nNada pendente hoje. ✅";
+  return cabecalho + "\n" + partes.join("\n");
 }
 
-// ================= 19:00 — O QUE FOI FEITO HOJE =================
+// ================= "O QUE FOI FEITO" (manhã 12h / tarde 19h, sem repetir) =================
 
-export function montarRelatorioNoite(d: DadosHaras, hoje: string): string {
+/** Um evento registrado hoje. `key` é estável — serve pra não repetir entre a msg das 12h e a das 19h. */
+export interface Feito {
+  key: string;
+  modulo: "Manejos" | "Veterinária" | "Reprodução";
+  texto: string;
+}
+
+/** Todos os eventos com data === hoje (nunca dias anteriores). */
+export function coletarFeitos(d: DadosHaras, hoje: string): Feito[] {
   const nomeAnimais = (ids: any[]) => listaAnimais((ids || []).map((a) => a.nome));
-  const linhas: string[] = [];
+  const out: Feito[] = [];
 
-  // --- Manejos feitos hoje, por tipo ---
-  const manejosHoje = (d.manejos || []).filter((m) => m.data === hoje);
-  const mLinhas: string[] = [];
-  const porTipo = new Map<string, any[]>();
-  for (const m of manejosHoje) {
-    const arr = porTipo.get(m.tipo) || [];
-    arr.push(m);
-    porTipo.set(m.tipo, arr);
-  }
-  for (const [tipo, arr] of porTipo) {
-    if (tipo === "Casco") {
-      // separa por subtipo (por animal: a.tipo, senão m.subtipoCasco)
+  // Manejos
+  for (const m of d.manejos || []) {
+    if (m.data !== hoje) continue;
+    if (m.tipo === "Casco") {
       const porSub = new Map<string, string[]>();
-      for (const m of arr) {
-        for (const a of m.animais || []) {
-          const sub = a.tipo || m.subtipoCasco || "Casco";
-          const l = porSub.get(sub) || [];
-          l.push(a.nome);
-          porSub.set(sub, l);
-        }
+      for (const a of m.animais || []) {
+        const sub = a.tipo || m.subtipoCasco || "Casco";
+        if (!porSub.has(sub)) porSub.set(sub, []);
+        porSub.get(sub)!.push(a.nome);
       }
-      const datas = [...new Set(arr.map((m) => m.data))].map(fmtBR).join(", ");
-      mLinhas.push(`<i>Casco</i> — ${datas}`);
-      for (const [sub, nomes] of porSub) mLinhas.push(`  • ${esc(sub)}: ${listaAnimais(nomes)}`);
+      const linhas = [...porSub].map(([sub, ns]) => `  • ${esc(sub)}: ${listaAnimais(ns)}`);
+      out.push({ key: `mj|${m.id}`, modulo: "Manejos", texto: `<i>Casco</i>\n${linhas.join("\n")}` });
     } else {
-      for (const m of arr) {
-        const nome = m.medicamentoNome ? " (" + esc(m.medicamentoNome) + ")" : "";
-        mLinhas.push(`<i>${esc(tipo)}</i>${nome} — ${fmtBR(m.data)}: ${nomeAnimais(m.animais)}`);
-      }
+      const med = m.medicamentoNome ? " (" + esc(m.medicamentoNome) + ")" : "";
+      out.push({
+        key: `mj|${m.id}`,
+        modulo: "Manejos",
+        texto: `<i>${esc(m.tipo)}</i>${med}: ${nomeAnimais(m.animais)}`,
+      });
     }
   }
-  const bManejos = bloco("Manejos", mLinhas);
 
-  // --- Veterinária ---
-  const vetLinhas: string[] = [];
+  // Veterinária
   for (const v of d.visitas || []) {
     if (v.data !== hoje) continue;
-    vetLinhas.push(
-      `• Visita${v.veterinario ? " (" + esc(v.veterinario) + ")" : ""}${v.local ? " — " + esc(v.local) : ""}`,
-    );
+    out.push({
+      key: `vis|${v.id}`,
+      modulo: "Veterinária",
+      texto: `• Visita${v.veterinario ? " (" + esc(v.veterinario) + ")" : ""}${v.local ? " — " + esc(v.local) : ""}`,
+    });
   }
   for (const t of d.tratamentos || []) {
     if (t.dataInicio === hoje) {
-      vetLinhas.push(
-        `• Tratamento iniciado — ${esc(t.medicamentoNome || "?")}: ${nomeAnimais(t.animais)}`,
-      );
+      out.push({
+        key: `trat-ini|${t.id}`,
+        modulo: "Veterinária",
+        texto: `• Tratamento iniciado — ${esc(t.medicamentoNome || "?")}: ${nomeAnimais(t.animais)}`,
+      });
     }
-    for (const key of t.doseConcluidas || []) {
-      if ((key as string).startsWith(hoje + "|")) {
-        vetLinhas.push(
-          `• Dose aplicada — ${esc(t.medicamentoNome || "?")} (${(key as string).split("|")[1]}): ${nomeAnimais(t.animais)}`,
-        );
-        break;
-      }
+    for (const k of t.doseConcluidas || []) {
+      const key = String(k);
+      if (!key.startsWith(hoje + "|")) continue;
+      out.push({
+        key: `trat-dose|${t.id}|${key}`,
+        modulo: "Veterinária",
+        texto: `• Dose aplicada — ${esc(t.medicamentoNome || "?")} (${key.split("|")[1]}): ${nomeAnimais(t.animais)}`,
+      });
     }
   }
-  const bVet = bloco("Veterinária", vetLinhas);
 
-  // --- Reprodução ---
-  const reproLinhas: string[] = [];
-  const eguasVisitadas: string[] = [];
+  // Reprodução
+  const eguasVisitadas: { key: string; nomes: string[] }[] = [];
   for (const vr of d.visitasRepro || []) {
     if (vr.data !== hoje) continue;
-    eguasVisitadas.push(...(vr.eguas || []).map((e: any) => e.nome));
+    eguasVisitadas.push({ key: `vr|${vr.id}`, nomes: (vr.eguas || []).map((e: any) => e.nome) });
   }
-  if (eguasVisitadas.length)
-    reproLinhas.push(`• Visita/exame reprodutivo — éguas: ${listaAnimais(eguasVisitadas)}`);
+  for (const vr of eguasVisitadas) {
+    out.push({
+      key: vr.key,
+      modulo: "Reprodução",
+      texto: `• Visita/exame reprodutivo — éguas: ${listaAnimais(vr.nomes)}`,
+    });
+  }
   for (const n of d.nascimentos || []) {
     if (n.datacob === hoje) {
-      reproLinhas.push(
-        `• Cobertura — ${esc(n.matriz || "?")} × ${esc(n.pai || "?")}${n.transferenciaEmbriao ? " (transferência de embrião)" : ""}`,
-      );
+      out.push({
+        key: `cob|${n.id}`,
+        modulo: "Reprodução",
+        texto: `• Cobertura — ${esc(n.matriz || "?")} × ${esc(n.pai || "?")}${n.transferenciaEmbriao ? " (transferência de embrião)" : ""}`,
+      });
     }
     if (n.lavadoData === hoje && n.lavado) {
-      reproLinhas.push(
-        `• Lavado ${n.lavado === "POS" ? "positivo ✓" : "negativo ✕"} — ${esc(n.matriz || "?")}${n.lavado === "NEG" ? " (cobertura encerrada)" : ""}`,
-      );
+      out.push({
+        key: `lav|${n.id}`,
+        modulo: "Reprodução",
+        texto: `• Lavado ${n.lavado === "POS" ? "positivo ✓" : "negativo ✕"} — ${esc(n.matriz || "?")}${n.lavado === "NEG" ? " (cobertura encerrada)" : ""}`,
+      });
     }
     if ((n.prenhezHistorico || []).includes(hoje)) {
-      reproLinhas.push(`• Prenhez confirmada — ${esc(alvoGestacao(n))}`);
+      out.push({
+        key: `pren|${n.id}|${hoje}`,
+        modulo: "Reprodução",
+        texto: `• Prenhez confirmada — ${esc(alvoGestacao(n))}`,
+      });
     }
     if (n.datanasc === hoje && n.confirm === "S") {
-      reproLinhas.push(`• Nascimento confirmado — ${esc(n.matriz || "?")}`);
+      out.push({
+        key: `nasc|${n.id}`,
+        modulo: "Reprodução",
+        texto: `• Nascimento confirmado — ${esc(n.matriz || "?")}`,
+      });
     }
   }
-  const bRepro = bloco("Reprodução", reproLinhas);
 
-  // --- Estoque ---
-  const estLinhas: string[] = [];
-  for (const mv of d.movimentos || []) {
-    if (mv.data !== hoje) continue;
-    // Baixa automática de dieta acontece todo dia sozinha — não é "o que foi feito".
-    if (mv.origem === "dieta" || /^Dieta:/i.test(mv.motivo || "")) continue;
-    const prod = (d.produtos || []).find((p) => p.id === mv.produtoId);
-    const seta = mv.tipoMov === "entrada" ? "⬆️ entrada" : "⬇️ saída";
-    estLinhas.push(
-      `• ${seta} ${Number(mv.quantidade) || 0} — ${esc(prod ? prod.nome : mv.produtoNome || "?")}${mv.motivo ? " (" + esc(mv.motivo) + ")" : ""}`,
-    );
+  return out;
+}
+
+const ORDEM_MODULO = ["Manejos", "Veterinária", "Reprodução"] as const;
+
+export function montarMensagemFeitos(feitos: Feito[], titulo: string): string {
+  const cab = `✅ <b>${esc(titulo)}</b>\n`;
+  if (feitos.length === 0) return cab + "\nNada novo lançado neste período.";
+  const partes: string[] = [];
+  for (const mod of ORDEM_MODULO) {
+    const linhas = feitos.filter((f) => f.modulo === mod).map((f) => f.texto);
+    if (linhas.length) partes.push(bloco(mod, linhas));
   }
-  const bEst = bloco("Estoque", estLinhas);
-
-  const partes = [bManejos, bVet, bRepro].filter((x) => x && x.trim());
-  const cabecalho = `✅ <b>O que foi feito hoje — ${fmtBR(hoje)}</b>\n`;
-  if (partes.length === 0)
-    return cabecalho + "\nNenhum registro lançado hoje. (Estoque: mande /estoque pra ver.)";
-  return cabecalho + "\n" + partes.join("\n");
+  return cab + "\n" + partes.join("\n");
 }
 
 // ================= ESTOQUE (só sob demanda — comando /estoque) =================

@@ -43,26 +43,36 @@ export default {
       return new Response("ok", { status: 200 });
     }
 
-    // Dispara manualmente um relatório pra testar (GET /cron/manha ou /cron/noite com ?key=<secret>).
+    // Dispara/preview manual pra testar: GET /cron/{afazer,feito-manha,feito-tarde}?key=<secret>[&preview=1]
     if (req.method === "GET" && url.pathname.startsWith("/cron/")) {
       if (url.searchParams.get("key") !== env.TELEGRAM_WEBHOOK_SECRET) {
         return new Response("forbidden", { status: 403 });
       }
-      const qual = url.pathname === "/cron/noite" ? "noite" : "manha";
+      const p = url.pathname.replace("/cron/", "");
+      const qual =
+        p === "feito-manha" || p === "manha"
+          ? "feito-manha"
+          : p === "feito-tarde" || p === "noite"
+            ? "feito-tarde"
+            : "afazer";
       const cron = await import("./cron.ts");
-      // ?preview=1 -> só devolve o texto, não manda no Telegram (pra conferir).
       if (url.searchParams.get("preview") === "1") {
+        const rel = await import("./relatorios.ts");
         const dados = await cron.carregarDadosDebug(env);
         const hoje = cron.hojeBrasilia();
-        const rel = await import("./relatorios.ts");
         const txt =
-          qual === "noite"
-            ? rel.montarRelatorioNoite(dados, hoje)
-            : rel.montarRelatorioManha(dados, hoje);
+          qual === "afazer"
+            ? rel.montarRelatorioManha(dados, hoje)
+            : rel.montarMensagemFeitos(
+                rel.coletarFeitos(dados, hoje),
+                qual === "feito-manha" ? "Feito de manhã (preview)" : "Feito à tarde (preview, sem dedup)",
+              );
         return new Response(txt, { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
       }
       try {
-        await (qual === "noite" ? cron.rodarRelatorioNoite(env) : cron.rodarRelatorioManha(env));
+        if (qual === "afazer") await cron.rodarRelatorioManha(env);
+        else if (qual === "feito-manha") await cron.rodarFeitoManha(env);
+        else await cron.rodarFeitoTarde(env);
       } catch (e: any) {
         return new Response("erro: " + (e?.stack || e), { status: 500 });
       }
