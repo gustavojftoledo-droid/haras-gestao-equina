@@ -9,6 +9,7 @@
 import type { Env } from "./firestore.ts";
 import { answerCallback, sendMessage } from "./telegram.ts";
 import { onCallback, onText } from "./flows.ts";
+import { onScheduled } from "./cron.ts";
 
 function autorizado(env: Env, chatId: number): boolean {
   const ids = (env.ALLOWED_CHAT_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -42,7 +43,37 @@ export default {
       return new Response("ok", { status: 200 });
     }
 
+    // Dispara manualmente um relatório pra testar (GET /cron/manha ou /cron/noite com ?key=<secret>).
+    if (req.method === "GET" && url.pathname.startsWith("/cron/")) {
+      if (url.searchParams.get("key") !== env.TELEGRAM_WEBHOOK_SECRET) {
+        return new Response("forbidden", { status: 403 });
+      }
+      const qual = url.pathname === "/cron/noite" ? "noite" : "manha";
+      const cron = await import("./cron.ts");
+      // ?preview=1 -> só devolve o texto, não manda no Telegram (pra conferir).
+      if (url.searchParams.get("preview") === "1") {
+        const dados = await cron.carregarDadosDebug(env);
+        const hoje = cron.hojeBrasilia();
+        const rel = await import("./relatorios.ts");
+        const txt =
+          qual === "noite"
+            ? rel.montarRelatorioNoite(dados, hoje)
+            : rel.montarRelatorioManha(dados, hoje);
+        return new Response(txt, { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } });
+      }
+      try {
+        await (qual === "noite" ? cron.rodarRelatorioNoite(env) : cron.rodarRelatorioManha(env));
+      } catch (e: any) {
+        return new Response("erro: " + (e?.stack || e), { status: 500 });
+      }
+      return new Response("enviado: " + qual, { status: 200 });
+    }
+
     return new Response("not found", { status: 404 });
+  },
+
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(onScheduled(event, env).catch((e) => console.error("scheduled:", e)));
   },
 };
 

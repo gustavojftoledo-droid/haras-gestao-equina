@@ -18,6 +18,12 @@
     "FIRESTORE_COLLECTION": "harasData"
   },
 
+  /* 07:00 e 19:00 de Brasília (UTC-3, sem horário de verão) -> 10:00 e 22:00 UTC.
+     Relatórios diários no Telegram: "o que fazer hoje" / "o que foi feito hoje". */
+  "triggers": {
+    "crons": ["0 10 * * *", "0 22 * * *"]
+  },
+
   "kv_namespaces": [
     {
       "binding": "SESSIONS",

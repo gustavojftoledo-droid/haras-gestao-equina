@@ -7,7 +7,7 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "type-check": "tsc --noEmit",
-    "test": "node --test \"test/basic.test.ts\" \"test/flow.test.ts\""
+    "test": "node --test \"test/basic.test.ts\" \"test/flow.test.ts\" \"test/agenda.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.0"
