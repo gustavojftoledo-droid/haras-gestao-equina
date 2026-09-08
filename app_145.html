@@ -12000,7 +12000,7 @@ const reproDiagPrenhe = d => d==='prenhe' || d==='gemelar';
 const visitaReproHost = document.getElementById('visitaReproSelectorHost');
 const visitaReproSelector = createAnimalSelector(visitaReproHost, { onlyActive:true, somenteFemeas:true, onChange:()=>{ sincronizarReproEguas(); renderReproEguas(); renderVisitaReproDocs(); } });
 
-function eguaReproVazia(a){ return { animalId:a.id, nome:a.nome, folOD:'', folOE:'', edema:'', utero:'', cervix:'', ovulou:'', cio:'', diagnostico:'', medicacao:'', proximaAcao:'', proximoRetorno:'', obs:'' }; }
+function eguaReproVazia(a){ return { animalId:a.id, nome:a.nome, folOD:'', folOE:'', edema:'', utero:'', cervix:'', ovulou:'', cio:'', recebeuEmbriao:'', diagnostico:'', medicacao:'', proximaAcao:'', proximoRetorno:'', obs:'' }; }
 function sincronizarReproEguas(){
   const sel = visitaReproSelector.getSelected();
   const porId = {}; reproEguasState.forEach(e=>{ porId[e.animalId] = e; });
@@ -12031,6 +12031,8 @@ function aplicarDitadoEgua(idx, texto){
   const t = (texto||'').toLowerCase();
   if(/n[ãa]o ovul/.test(t)){ e.ovulou='nao'; entendido.push('ovulou: não'); }
   else if(/ovul/.test(t)){ e.ovulou='sim'; entendido.push('ovulou: sim'); }
+  if(/n[ãa]o recebeu (o )?embri[ãa]o|sem embri[ãa]o/.test(t)){ e.recebeuEmbriao='nao'; entendido.push('recebeu embrião: não'); }
+  else if(/recebeu (o )?embri[ãa]o|com embri[ãa]o|embri[ãa]o transferid|transferi.*embri[ãa]o/.test(t)){ e.recebeuEmbriao='sim'; entendido.push('recebeu embrião: sim'); }
   if(/g[êe]meo|gemelar/.test(t)){ e.diagnostico='gemelar'; entendido.push('diagnóstico: gemelar'); }
   else if(/prenhe|gestante|positiv/.test(t)){ e.diagnostico='prenhe'; entendido.push('diagnóstico: prenhe'); }
   else if(/vazia|negativ/.test(t)){ e.diagnostico='vazia'; entendido.push('diagnóstico: vazia'); }
@@ -12060,6 +12062,7 @@ function renderReproEguas(){
           <div class="field"><label>Cérvix</label><input type="text" data-refield="cervix" data-reidx="${idx}" value="${(e.cervix||'').replace(/"/g,'&quot;')}" placeholder="Ex: fechada"></div>
           <div class="field"><label>Ovulou?</label><select data-refield="ovulou" data-reidx="${idx}">${ovulouOpts}</select></div>
           <div class="field"><label>Cio</label><input type="text" data-refield="cio" data-reidx="${idx}" value="${(e.cio||'').replace(/"/g,'&quot;')}" placeholder="Opcional"></div>
+          <div class="field"><label>Recebeu embrião?</label><select data-refield="recebeuEmbriao" data-reidx="${idx}">${ovulouOpts}</select></div>
           <div class="field"><label>Diagnóstico de gestação</label><select data-refield="diagnostico" data-reidx="${idx}">${diagOpts}</select></div>
           <div class="field"><label>Medicação aplicada</label><input type="text" list="dl_medicamentos" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml (do Estoque)"></div>
           <div class="field"><label>Próxima ação / conduta</label><input type="text" data-refield="proximaAcao" data-reidx="${idx}" value="${(e.proximaAcao||'').replace(/"/g,'&quot;')}" placeholder="Ex: cobrir amanhã"></div>
@@ -12069,7 +12072,7 @@ function renderReproEguas(){
       </div>
     </div>`).join('');
   reproEguasState.forEach((e,idx)=>{
-    ['edema','ovulou','diagnostico'].forEach(fld=>{ const el = host.querySelector(`[data-refield="${fld}"][data-reidx="${idx}"]`); if(el) el.value = e[fld]||''; });
+    ['edema','ovulou','recebeuEmbriao','diagnostico'].forEach(fld=>{ const el = host.querySelector(`[data-refield="${fld}"][data-reidx="${idx}"]`); if(el) el.value = e[fld]||''; });
   });
   host.querySelectorAll('[data-refield]').forEach(el=>{
     const ev = (el.tagName==='SELECT') ? 'change' : 'input';
@@ -12168,7 +12171,7 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   const eguas = reproEguasState.map(e=>({
     animalId:e.animalId, nome:e.nome,
     folOD:e.folOD||'', folOE:e.folOE||'', edema:e.edema||'', utero:(e.utero||'').trim(), cervix:(e.cervix||'').trim(),
-    ovulou:e.ovulou||'', cio:(e.cio||'').trim(), diagnostico:e.diagnostico||'', medicacao:(e.medicacao||'').trim(),
+    ovulou:e.ovulou||'', cio:(e.cio||'').trim(), recebeuEmbriao:e.recebeuEmbriao||'', diagnostico:e.diagnostico||'', medicacao:(e.medicacao||'').trim(),
     proximaAcao:(e.proximaAcao||'').trim(), proximoRetorno:e.proximoRetorno||'', obs:(e.obs||'').trim(),
     nascimentoId: e.nascimentoId||null
   }));
@@ -12270,6 +12273,7 @@ const VISITA_REPRO_COLUNAS_META = [
   { key:'cervix',        label:'Cérvix',             default:false },
   { key:'ovulou',        label:'Ovulou?',            default:false },
   { key:'cio',           label:'Cio',                default:false },
+  { key:'recebeuEmbriao',label:'Recebeu embrião?',   default:false },
   { key:'medicacao',     label:'Medicação',          default:false },
   { key:'proximaAcao',   label:'Próxima ação',       default:true },
   { key:'proximoRetorno',label:'Retorno previsto',   default:true },
@@ -12286,7 +12290,7 @@ function celulaVisitaRepro(key, e){
   const v = e[key];
   if(key==='folOD' || key==='folOE') return v ? fmtFoliculo(v) : '—';
   if(key==='edema') return (v!=='' && v!=null) ? v : '—';
-  if(key==='ovulou') return v==='sim' ? 'Sim' : (v==='nao' ? 'Não' : '—');
+  if(key==='ovulou' || key==='recebeuEmbriao') return v==='sim' ? 'Sim' : (v==='nao' ? 'Não' : '—');
   if(key==='diagnostico') return v ? (REPRO_DIAG_LABEL[v]||v) : '—';
   if(key==='proximoRetorno') return v ? fmtDate(v) : '—';
   return (v && String(v).trim()) ? v : '—';
@@ -12440,6 +12444,7 @@ function blocoExameEgua(e){
     ['Útero', e.utero], ['Cérvix', e.cervix],
     ['Ovulou', e.ovulou==='sim'?'Sim':(e.ovulou==='nao'?'Não':'')],
     ['Cio', e.cio],
+    ['Recebeu embrião', e.recebeuEmbriao==='sim'?'Sim':(e.recebeuEmbriao==='nao'?'Não':'')],
     ['Diagnóstico', e.diagnostico ? REPRO_DIAG_LABEL[e.diagnostico] : ''],
     ['Medicação', e.medicacao],
     ['Próxima ação', e.proximaAcao],
@@ -15568,6 +15573,7 @@ function computeTimelineAnimal(h){
       (e.folOD||e.folOE) ? ('folículo '+[e.folOD&&('OD '+fmtFoliculo(e.folOD)),e.folOE&&('OE '+fmtFoliculo(e.folOE))].filter(Boolean).join(' / ')) : null,
       e.edema!=='' && e.edema!==undefined ? ('edema '+e.edema) : null,
       e.ovulou==='sim' ? 'ovulou' : null,
+      e.recebeuEmbriao==='sim' ? 'recebeu embrião' : null,
       e.proximaAcao||null,
       e.proximoRetorno ? ('retorno '+fmtDate(e.proximoRetorno)) : null,
       e.obs||null
