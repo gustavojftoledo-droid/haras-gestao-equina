@@ -6106,13 +6106,13 @@ function renderInicioReproducao(host){
   const linha = (esq, dir, corDir) =>
     `<div class="dash-medidor-linha"><span>${esq}</span><span${corDir?` style="color:${corDir};"`:''}>${dir}</span></div>`;
 
-  // --- Partos previstos (qualquer estação) ---
+  // --- Partos previstos (qualquer estação — cada linha mostra de qual estação a prenhez é) ---
   const previstos = naoNascidas
     .filter(n=>n.prenhezConfirmada==='S' && refCobertura(n))
-    .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)) }))
+    .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)), est: estacaoDaCobertura(n) }))
     .filter(p=>p.prev).sort((a,b)=> a.prev>b.prev ? 1 : -1);
   const partosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>'
-    : previstos.map(p=>linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev))).join('');
+    : previstos.map(p=>linha(`<strong>${p.nome}</strong>${p.est?` <span style="color:var(--text-faint);font-weight:400;">· estação ${p.est}</span>`:''}`, fmtDate(p.prev))).join('');
 
   // --- Estação reprodutiva atual ---
   const estAtual = estacaoReprodutiva(toISODate(new Date()));
