@@ -5557,7 +5557,7 @@ function computeCalendarTasks(){
     (v.eguas||[]).forEach(e=>{
       if(!e.proximoRetorno || !e.animalId) return;
       const atual = ultimoRetornoPorEgua[e.animalId];
-      if(!atual || (v.data||'') > (atual.visitaData||'')) ultimoRetornoPorEgua[e.animalId] = { nome:e.nome, retorno:e.proximoRetorno, visitaData:v.data };
+      if(!atual || (v.data||'') > (atual.visitaData||'')) ultimoRetornoPorEgua[e.animalId] = { nome:e.nome, retorno:e.proximoRetorno, visitaData:v.data, proximaAcao:(e.proximaAcao||'').trim() };
     });
   });
   Object.entries(ultimoRetornoPorEgua).forEach(([animalId, r])=>{
@@ -5565,7 +5565,7 @@ function computeCalendarTasks(){
     if(jaVoltou) return;
     const tarefa = {
       data: r.retorno, tipo:'RetornoRepro', label:'Retorno reprodutivo: '+r.nome, categoria:'repro',
-      animalId, animalNome:r.nome,
+      animalId, animalNome:r.nome, proximaAcao: r.proximaAcao||'',
       situacao: r.retorno<hoje ? 'atrasado' : 'proximo'
     };
     // Excluída pelo usuário (🗑 no Calendário) — só reaparece se uma visita nova marcar outro retorno.
@@ -6094,60 +6094,83 @@ function renderInicioSaude(host){
   `;
 }
 
-// "Reprodução" no Início: 4 listas, cada uma mostrando QUEM está em cada situação (não só a contagem).
-//  • Partos previstos      = prenhezes confirmadas COM data provável de parto, ordenadas por data.
-//  • Prenhezes confirmadas = prenhezes confirmadas SEM data provável ainda (as com data ficam acima).
-//  • Coberturas em aberto  = ainda sem prenhez confirmada, sem lavado negativo, sem "vazia", sem nascimento.
-//  • Retornos reprodutivos = o próximo retorno de cada égua (computeCalendarTasks já dá um por égua).
+// "Reprodução" no Início:
+//  • Partos previstos  = prenhezes confirmadas COM data provável, TODAS as estações, ordenado por data.
+//  • Por estação reprodutiva (mais nova primeiro): "Coberturas em aberto" + "Prenhezes confirmadas"
+//    (essa última num quadro verde; se for transferência de embrião, mostra a data do lavado junto).
+//  • Retornos reprodutivos = o próximo retorno de cada égua + a "próxima ação" (motivo da visita).
 // A "última visita" saiu daqui a pedido do Gustavo. Atalho pra aba Reprodução.
 function renderInicioReproducao(host){
-  const confirmadas = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
-  // Quem realmente vai parir é a receptora quando é transferência de embrião (alvoVacinaGestacao resolve).
-  const comData = [], semData = [];
-  confirmadas.forEach(n=>{
-    const nome = alvoVacinaGestacao(n).nome;
-    const prev = refCobertura(n) ? calcProvavelNascimento(refCobertura(n)) : null;
-    if(prev) comData.push({ nome, prev }); else semData.push({ nome, conf: n.prenhezUltima });
-  });
-  comData.sort((a,b)=> a.prev>b.prev ? 1 : -1);
-
+  const naoNascidas = nascimentos.filter(n=>n.confirm!=='S');
+  const alvoNome = n => (n.transferenciaEmbriao && n.receptora) ? n.receptora : (alvoVacinaGestacao(n).nome || n.matriz);
   const linha = (esq, dir, corDir) =>
     `<div class="dash-medidor-linha"><span>${esq}</span><span${corDir?` style="color:${corDir};"`:''}>${dir}</span></div>`;
 
-  const partosHtml = comData.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>'
-    : comData.map(p=>linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev))).join('');
+  // --- Partos previstos (todas as estações) ---
+  const previstos = naoNascidas
+    .filter(n=>n.prenhezConfirmada==='S' && refCobertura(n))
+    .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)) }))
+    .filter(p=>p.prev).sort((a,b)=> a.prev>b.prev ? 1 : -1);
+  const partosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>'
+    : previstos.map(p=>linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev))).join('');
 
-  const prenhHtml = semData.length===0
-    ? '<div class="hint-text">Todas as prenhezes confirmadas já têm parto previsto (acima).</div>'
-    : semData.map(p=>linha(`<strong>${p.nome}</strong>`, p.conf?('confirmada '+fmtDate(p.conf)):'')).join('');
+  // --- Agrupa por estação reprodutiva ---
+  const porEstacao = {};
+  naoNascidas.forEach(n=>{
+    if(n.lavado==='NEG') return;
+    const est = estacaoDaCobertura(n) || 'Sem data';
+    const g = (porEstacao[est] = porEstacao[est] || { abertas:[], confirmadas:[] });
+    if(n.prenhezConfirmada==='S') g.confirmadas.push(n);
+    else if(n.prenhezNegativa!=='S') g.abertas.push(n);
+  });
+  const estacoes = Object.keys(porEstacao).sort().reverse();
 
-  const abertas = nascimentos
-    .filter(n=> n.confirm!=='S' && n.prenhezConfirmada!=='S' && n.prenhezNegativa!=='S' && n.lavado!=='NEG')
-    .sort((a,b)=> (refCobertura(b)||'').localeCompare(refCobertura(a)||''));
-  const abertasHtml = abertas.length===0 ? '<div class="hint-text">Nenhuma cobertura em aberto.</div>'
-    : abertas.map(n=>{
-        const alvo = (n.transferenciaEmbriao && n.receptora) ? n.receptora : n.matriz;
-        const d = refCobertura(n);
-        const pai = n.pai ? ` <span style="color:var(--text-faint);">× ${n.pai}</span>` : '';
-        return linha(`<strong>${alvo||'—'}</strong>${pai}`, d?fmtDate(d):'—');
-      }).join('');
+  const rowCob = n => {
+    const d = refCobertura(n);
+    const pai = n.pai ? ` <span style="color:var(--text-faint);">× ${n.pai}</span>` : '';
+    return linha(`<strong>${alvoNome(n)||'—'}</strong>${pai}`, d?fmtDate(d):'—');
+  };
+  const rowPrenhe = n => {
+    const pai = n.pai ? ` <span style="color:var(--ok-ink);opacity:.65;">× ${n.pai}</span>` : '';
+    const lav = (n.transferenciaEmbriao && n.lavadoData) ? `lavado ${fmtDate(n.lavadoData)} · ` : '';
+    const conf = n.prenhezUltima ? fmtDate(n.prenhezUltima) : '';
+    return `<div class="dash-medidor-linha" style="color:var(--ok-ink);"><span><strong>${alvoNome(n)||'—'}</strong>${pai}</span><span>${lav}${conf}</span></div>`;
+  };
+  const subLabel = (txt, cor) => `<div style="font-size:10px;color:${cor};text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:8px 0 4px;">${txt}</div>`;
 
+  const estacoesHtml = estacoes.map(est=>{
+    const g = porEstacao[est];
+    g.abertas.sort((a,b)=>(refCobertura(b)||'').localeCompare(refCobertura(a)||''));
+    g.confirmadas.sort((a,b)=>(a.prenhezUltima||'').localeCompare(b.prenhezUltima||''));
+    return `<div style="margin:14px 0 2px;">
+      <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;">Estação ${est}</div>
+      ${subLabel(`Coberturas em aberto (${g.abertas.length})`, 'var(--text-faint)')}
+      <div style="max-height:130px;overflow-y:auto;padding-right:2px;">${g.abertas.length?g.abertas.map(rowCob).join(''):'<div class="hint-text">Nenhuma.</div>'}</div>
+      ${g.confirmadas.length ? `${subLabel(`Prenhezes confirmadas (${g.confirmadas.length})`, 'var(--ok-ink)')}
+        <div style="background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:6px;padding:6px 9px;max-height:130px;overflow-y:auto;">${g.confirmadas.map(rowPrenhe).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // --- Retornos reprodutivos (próximo de cada égua + próxima ação) ---
   const retornos = (typeof computeCalendarTasks==='function' ? computeCalendarTasks() : [])
     .filter(t=>t.tipo==='RetornoRepro').sort((a,b)=>(a.data||'').localeCompare(b.data||''));
   const retornosHtml = retornos.length===0 ? '<div class="hint-text">Nenhum retorno agendado.</div>'
-    : retornos.map(t=>linha(t.animalNome||'—', fmtDate(t.data), t.situacao==='atrasado'?'var(--burgundy)':'var(--text-faint)')).join('');
+    : retornos.map(t=>{
+        const acao = (t.proximaAcao||'').trim();
+        const esq = acao ? `${t.animalNome||'—'} <span style="color:var(--text-faint);">— ${acao}</span>` : (t.animalNome||'—');
+        return linha(esq, fmtDate(t.data), t.situacao==='atrasado'?'var(--burgundy)':'var(--text-faint)');
+      }).join('');
 
-  const sec = (titulo, n, inner) => `<div>
+  const secTopo = (titulo, n, inner) => `<div>
     <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin:10px 0 6px;">${titulo}${n>0?` (${n})`:''}</div>
-    <div style="max-height:160px;overflow-y:auto;padding-right:2px;">${inner}</div>
+    <div style="max-height:150px;overflow-y:auto;padding-right:2px;">${inner}</div>
   </div>`;
 
   host.innerHTML = `
     ${dashCardHead('coracao','Reprodução','Abrir')}
-    ${sec('Partos previstos', comData.length, partosHtml)}
-    ${sec('Prenhezes confirmadas', semData.length, prenhHtml)}
-    ${sec('Coberturas em aberto', abertas.length, abertasHtml)}
-    ${sec('Retornos reprodutivos', retornos.length, retornosHtml)}
+    ${secTopo('Partos previstos', previstos.length, partosHtml)}
+    ${estacoesHtml || '<div class="hint-text" style="margin-top:10px;">Nenhuma cobertura registrada.</div>'}
+    ${secTopo('Retornos reprodutivos', retornos.length, retornosHtml)}
   `;
 }
 
