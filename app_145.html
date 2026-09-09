@@ -5563,11 +5563,14 @@ function computeCalendarTasks(){
   Object.entries(ultimoRetornoPorEgua).forEach(([animalId, r])=>{
     const jaVoltou = visitasRepro.some(v=> (v.data||'') > r.retorno && (v.eguas||[]).some(e=>e.animalId===animalId));
     if(jaVoltou) return;
-    retornoReproTasks.push({
+    const tarefa = {
       data: r.retorno, tipo:'RetornoRepro', label:'Retorno reprodutivo: '+r.nome, categoria:'repro',
       animalId, animalNome:r.nome,
       situacao: r.retorno<hoje ? 'atrasado' : 'proximo'
-    });
+    };
+    // Excluída pelo usuário (🗑 no Calendário) — só reaparece se uma visita nova marcar outro retorno.
+    if(dismissedManejoTasks.has(chaveTarefaManejo(tarefa))) return;
+    retornoReproTasks.push(tarefa);
   });
   // Coleta de embrião: agendada automaticamente quando a ovulação foi marcada numa cobertura de
   // transferência de embrião (ovulação + N dias). Some quando marcada como feita ou quando o
@@ -6438,7 +6441,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
             : ehColeta
               ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm" data-coletafeita="${t.nascimentoId}">✔ Coleta feita</button><button type="button" class="btn btn-sm btn-ghost" data-abrircobcal="${t.nascimentoId}">👁 Ver cobertura</button></div>`
             : ehRepro
-              ? `<button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">👁 Ver ficha</button>`
+              ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">👁 Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirretorno="${chaveTarefaManejo(t)}" title="Remove esse retorno reprodutivo da agenda — só volta se uma visita nova marcar outro retorno pra essa égua">🗑 Excluir</button></div>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
               : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${seletorCasco}${(t.tipo==='Vacina'||t.tipo==='Vermífugo')?'':`<input type="date" class="cal-data-conclusao" data-caldet-data="${t.animalId}" value="${toISODate(new Date())}" title="Data em que foi feito — o próximo manejo é calculado a partir daqui">`}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
@@ -6480,6 +6483,15 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Tem certeza que quer excluir essa tarefa da agenda? Não registra nada, não baixa estoque nem lança financeiro — some completa e definitivamente (só volta se você cadastrar um novo manejo desse tipo pra esse animal).', {okLabel:'Excluir', danger:true, titulo:'Excluir tarefa'}))) return;
       dismissedManejoTasks.add(btn.dataset.excluirmanejo);
+      await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
+      renderCalendar(); renderInicio();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirretorno]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir esse retorno reprodutivo da agenda? Não mexe na visita que o gerou — só tira o lembrete. Volta se uma visita nova marcar outro retorno pra essa égua.', {okLabel:'Excluir', danger:true, titulo:'Excluir retorno'}))) return;
+      dismissedManejoTasks.add(btn.dataset.excluirretorno);
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
       closeModal('overlayCalDetalhe');
