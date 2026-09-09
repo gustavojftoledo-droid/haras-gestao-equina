@@ -6095,9 +6095,9 @@ function renderInicioSaude(host){
 }
 
 // "Reprodução" no Início:
-//  • Partos previstos  = prenhezes confirmadas COM data provável, TODAS as estações, ordenado por data.
-//  • Por estação reprodutiva (mais nova primeiro): "Coberturas em aberto" + "Prenhezes confirmadas"
-//    (essa última num quadro verde; se for transferência de embrião, mostra a data do lavado junto).
+//  • Partos previstos = prenhezes confirmadas COM data provável, de qualquer estação, por data.
+//  • Só a ESTAÇÃO REPRODUTIVA ATUAL: "Coberturas em aberto" + "Prenhezes confirmadas" (quadro verde).
+//    Estações anteriores não entram — o que interessa delas (as prenhezes) já está em "Partos previstos".
 //  • Retornos reprodutivos = o próximo retorno de cada égua + a "próxima ação" (motivo da visita).
 // A "última visita" saiu daqui a pedido do Gustavo. Atalho pra aba Reprodução.
 function renderInicioReproducao(host){
@@ -6106,7 +6106,7 @@ function renderInicioReproducao(host){
   const linha = (esq, dir, corDir) =>
     `<div class="dash-medidor-linha"><span>${esq}</span><span${corDir?` style="color:${corDir};"`:''}>${dir}</span></div>`;
 
-  // --- Partos previstos (todas as estações) ---
+  // --- Partos previstos (qualquer estação) ---
   const previstos = naoNascidas
     .filter(n=>n.prenhezConfirmada==='S' && refCobertura(n))
     .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)) }))
@@ -6114,16 +6114,13 @@ function renderInicioReproducao(host){
   const partosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>'
     : previstos.map(p=>linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev))).join('');
 
-  // --- Agrupa por estação reprodutiva ---
-  const porEstacao = {};
-  naoNascidas.forEach(n=>{
-    if(n.lavado==='NEG') return;
-    const est = estacaoDaCobertura(n) || 'Sem data';
-    const g = (porEstacao[est] = porEstacao[est] || { abertas:[], confirmadas:[] });
-    if(n.prenhezConfirmada==='S') g.confirmadas.push(n);
-    else if(n.prenhezNegativa!=='S') g.abertas.push(n);
-  });
-  const estacoes = Object.keys(porEstacao).sort().reverse();
+  // --- Estação reprodutiva atual ---
+  const estAtual = estacaoReprodutiva(toISODate(new Date()));
+  const daEstacao = naoNascidas.filter(n=> n.lavado!=='NEG' && estacaoDaCobertura(n)===estAtual);
+  const abertas = daEstacao.filter(n=> n.prenhezConfirmada!=='S' && n.prenhezNegativa!=='S')
+    .sort((a,b)=>(refCobertura(b)||'').localeCompare(refCobertura(a)||''));
+  const confirmadas = daEstacao.filter(n=> n.prenhezConfirmada==='S')
+    .sort((a,b)=>(a.prenhezUltima||'').localeCompare(b.prenhezUltima||''));
 
   const rowCob = n => {
     const d = refCobertura(n);
@@ -6132,24 +6129,18 @@ function renderInicioReproducao(host){
   };
   const rowPrenhe = n => {
     const pai = n.pai ? ` <span style="color:var(--ok-ink);opacity:.65;">× ${n.pai}</span>` : '';
-    const lav = (n.transferenciaEmbriao && n.lavadoData) ? `lavado ${fmtDate(n.lavadoData)} · ` : '';
     const conf = n.prenhezUltima ? fmtDate(n.prenhezUltima) : '';
-    return `<div class="dash-medidor-linha" style="color:var(--ok-ink);"><span><strong>${alvoNome(n)||'—'}</strong>${pai}</span><span>${lav}${conf}</span></div>`;
+    return `<div class="dash-medidor-linha" style="color:var(--ok-ink);"><span><strong>${alvoNome(n)||'—'}</strong>${pai}</span><span>${conf}</span></div>`;
   };
   const subLabel = (txt, cor) => `<div style="font-size:10px;color:${cor};text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:8px 0 4px;">${txt}</div>`;
 
-  const estacoesHtml = estacoes.map(est=>{
-    const g = porEstacao[est];
-    g.abertas.sort((a,b)=>(refCobertura(b)||'').localeCompare(refCobertura(a)||''));
-    g.confirmadas.sort((a,b)=>(a.prenhezUltima||'').localeCompare(b.prenhezUltima||''));
-    return `<div style="margin:14px 0 2px;">
-      <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;">Estação ${est}</div>
-      ${subLabel(`Coberturas em aberto (${g.abertas.length})`, 'var(--text-faint)')}
-      <div style="max-height:130px;overflow-y:auto;padding-right:2px;">${g.abertas.length?g.abertas.map(rowCob).join(''):'<div class="hint-text">Nenhuma.</div>'}</div>
-      ${g.confirmadas.length ? `${subLabel(`Prenhezes confirmadas (${g.confirmadas.length})`, 'var(--ok-ink)')}
-        <div style="background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:6px;padding:6px 9px;max-height:130px;overflow-y:auto;">${g.confirmadas.map(rowPrenhe).join('')}</div>` : ''}
-    </div>`;
-  }).join('');
+  const estacaoHtml = `<div style="margin:14px 0 2px;">
+    <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;">Estação ${estAtual}</div>
+    ${subLabel(`Coberturas em aberto (${abertas.length})`, 'var(--text-faint)')}
+    <div style="max-height:150px;overflow-y:auto;padding-right:2px;">${abertas.length?abertas.map(rowCob).join(''):'<div class="hint-text">Nenhuma.</div>'}</div>
+    ${confirmadas.length ? `${subLabel(`Prenhezes confirmadas (${confirmadas.length})`, 'var(--ok-ink)')}
+      <div style="background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:6px;padding:6px 9px;max-height:150px;overflow-y:auto;">${confirmadas.map(rowPrenhe).join('')}</div>` : ''}
+  </div>`;
 
   // --- Retornos reprodutivos (próximo de cada égua + próxima ação) ---
   const retornos = (typeof computeCalendarTasks==='function' ? computeCalendarTasks() : [])
@@ -6169,7 +6160,7 @@ function renderInicioReproducao(host){
   host.innerHTML = `
     ${dashCardHead('coracao','Reprodução','Abrir')}
     ${secTopo('Partos previstos', previstos.length, partosHtml)}
-    ${estacoesHtml || '<div class="hint-text" style="margin-top:10px;">Nenhuma cobertura registrada.</div>'}
+    ${estacaoHtml}
     ${secTopo('Retornos reprodutivos', retornos.length, retornosHtml)}
   `;
 }
