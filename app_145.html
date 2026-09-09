@@ -6100,41 +6100,44 @@ function renderInicioSaude(host){
 // atual ficar embaixo, logo antes dos "Retornos reprodutivos" — que são atividade da estação atual).
 // Dentro de cada estação, só as sub-listas que têm conteúdo, sempre nesta ordem:
 //   • Partos previstos      = prenhezes confirmadas COM data provável (nome + data provável).
-//   • Coberturas em aberto  = sem prenhez confirmada, sem "vazia", sem lavado negativo (nome × pai + data).
+//   • Prenhezes a confirmar = cobertura sem prenhez confirmada, sem "vazia", sem lavado negativo.
 //   • Prenhezes confirmadas = confirmadas SEM data provável ainda (quadro verde).
+// Rótulo do animal: transferência de embrião mostra "Receptora (Mãe × Pai)" — a prenhez é da receptora,
+// mas o cruzamento genético é matriz(doadora) × pai. Monta natural: "Matriz × Pai".
 // Retornos reprodutivos ficam no fim (vêm do Calendário, não de uma estação). A "última visita" saiu daqui.
 function renderInicioReproducao(host){
   const naoNascidas = nascimentos.filter(n=>n.confirm!=='S');
-  const alvoNome = n => (n.transferenciaEmbriao && n.receptora) ? n.receptora : (alvoVacinaGestacao(n).nome || n.matriz);
   const linha = (esq, dir, corDir) =>
     `<div class="dash-medidor-linha"><span>${esq}</span><span${corDir?` style="color:${corDir};"`:''}>${dir}</span></div>`;
   const estacaoTitulo = est => `<div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;margin:12px 0 4px;">Estação ${est}</div>`;
   const subLabel = (txt, cor) => `<div style="font-size:10px;color:${cor||'var(--text-faint)'};text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:8px 0 4px;">${txt}</div>`;
   const scroll = inner => `<div style="max-height:150px;overflow-y:auto;padding-right:2px;">${inner}</div>`;
+  const rotuloAnimal = (n, corFaint) => {
+    const f = corFaint || 'var(--text-faint)';
+    const cruz = [n.matriz, n.pai].filter(Boolean).join(' × ');
+    if(n.transferenciaEmbriao && n.receptora)
+      return `<strong>${n.receptora}</strong>${cruz?` <span style="color:${f};">(${cruz})</span>`:''}`;
+    if(n.pai) return `<strong>${n.matriz||'—'}</strong> <span style="color:${f};">× ${n.pai}</span>`;
+    return `<strong>${n.matriz||'—'}</strong>`;
+  };
 
-  const rowCob = n => {
-    const d = refCobertura(n);
-    const pai = n.pai ? ` <span style="color:var(--text-faint);">× ${n.pai}</span>` : '';
-    return linha(`<strong>${alvoNome(n)||'—'}</strong>${pai}`, d?fmtDate(d):'—');
-  };
-  const rowPrenhe = n => {
-    const pai = n.pai ? ` <span style="color:var(--ok-ink);opacity:.65;">× ${n.pai}</span>` : '';
-    return `<div class="dash-medidor-linha" style="color:var(--ok-ink);"><span><strong>${alvoNome(n)||'—'}</strong>${pai}</span><span>${n.prenhezUltima?fmtDate(n.prenhezUltima):''}</span></div>`;
-  };
-  const rowParto = p => linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev));
+  const rowCob = n => linha(rotuloAnimal(n), refCobertura(n) ? fmtDate(refCobertura(n)) : '—');
+  const rowPrenhe = n =>
+    `<div class="dash-medidor-linha" style="color:var(--ok-ink);"><span>${rotuloAnimal(n, 'var(--ok-ink)')}</span><span>${n.prenhezUltima?fmtDate(n.prenhezUltima):''}</span></div>`;
+  const rowParto = p => linha(rotuloAnimal(p.n), fmtDate(p.prev));
 
   // --- Agrupa por estação ---
   const porEst = {};
   naoNascidas.forEach(n=>{
     if(n.lavado==='NEG') return;
     const est = estacaoDaCobertura(n) || 'Sem data';
-    const g = (porEst[est] = porEst[est] || { previstos:[], abertas:[], confirmadasSemData:[] });
+    const g = (porEst[est] = porEst[est] || { previstos:[], aConfirmar:[], confirmadasSemData:[] });
     if(n.prenhezConfirmada==='S'){
       const prev = refCobertura(n) ? calcProvavelNascimento(refCobertura(n)) : null;
-      if(prev) g.previstos.push({ nome: alvoNome(n), prev });
+      if(prev) g.previstos.push({ n, prev });
       else g.confirmadasSemData.push(n);
     } else if(n.prenhezNegativa!=='S'){
-      g.abertas.push(n);
+      g.aConfirmar.push(n);
     }
   });
   const estacoes = Object.keys(porEst).sort(); // mais antiga primeiro
@@ -6144,13 +6147,13 @@ function renderInicioReproducao(host){
     : estacoes.map(est=>{
         const g = porEst[est];
         g.previstos.sort((a,b)=> a.prev>b.prev ? 1 : -1);
-        g.abertas.sort((a,b)=> (refCobertura(b)||'').localeCompare(refCobertura(a)||''));
+        g.aConfirmar.sort((a,b)=> (refCobertura(b)||'').localeCompare(refCobertura(a)||''));
         g.confirmadasSemData.sort((a,b)=> (a.prenhezUltima||'').localeCompare(b.prenhezUltima||''));
         let blocos = '';
         if(g.previstos.length)
           blocos += subLabel(`Partos previstos (${g.previstos.length})`) + scroll(g.previstos.map(rowParto).join(''));
-        if(g.abertas.length)
-          blocos += subLabel(`Coberturas em aberto (${g.abertas.length})`) + scroll(g.abertas.map(rowCob).join(''));
+        if(g.aConfirmar.length)
+          blocos += subLabel(`Prenhezes a confirmar (${g.aConfirmar.length})`) + scroll(g.aConfirmar.map(rowCob).join(''));
         if(g.confirmadasSemData.length)
           blocos += subLabel(`Prenhezes confirmadas (${g.confirmadasSemData.length})`, 'var(--ok-ink)') +
             `<div style="background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:6px;padding:6px 9px;max-height:150px;overflow-y:auto;">${g.confirmadasSemData.map(rowPrenhe).join('')}</div>`;
