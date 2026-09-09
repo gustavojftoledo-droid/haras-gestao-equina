@@ -6105,14 +6105,20 @@ function renderInicioReproducao(host){
   const alvoNome = n => (n.transferenciaEmbriao && n.receptora) ? n.receptora : (alvoVacinaGestacao(n).nome || n.matriz);
   const linha = (esq, dir, corDir) =>
     `<div class="dash-medidor-linha"><span>${esq}</span><span${corDir?` style="color:${corDir};"`:''}>${dir}</span></div>`;
+  // Padrão único de rótulo de estação — usado tanto em "Partos previstos" quanto no bloco da estação atual.
+  const estacaoTitulo = est => `<div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;margin:10px 0 5px;">Estação ${est}</div>`;
 
-  // --- Partos previstos (qualquer estação — cada linha mostra de qual estação a prenhez é) ---
+  // --- Partos previstos, agrupados por estação (mais nova primeiro) ---
   const previstos = naoNascidas
     .filter(n=>n.prenhezConfirmada==='S' && refCobertura(n))
-    .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)), est: estacaoDaCobertura(n) }))
+    .map(n=>({ nome: alvoNome(n), prev: calcProvavelNascimento(refCobertura(n)), est: estacaoDaCobertura(n) || 'Sem data' }))
     .filter(p=>p.prev).sort((a,b)=> a.prev>b.prev ? 1 : -1);
+  const previstosPorEst = {};
+  previstos.forEach(p=>{ (previstosPorEst[p.est] = previstosPorEst[p.est] || []).push(p); });
   const partosHtml = previstos.length===0 ? '<div class="hint-text">Nenhum parto previsto.</div>'
-    : previstos.map(p=>linha(`<strong>${p.nome}</strong>${p.est?` <span style="color:var(--text-faint);font-weight:400;">· estação ${p.est}</span>`:''}`, fmtDate(p.prev))).join('');
+    : Object.keys(previstosPorEst).sort().reverse().map(est=>
+        estacaoTitulo(est) + previstosPorEst[est].map(p=>linha(`<strong>${p.nome}</strong>`, fmtDate(p.prev))).join('')
+      ).join('');
 
   // --- Estação reprodutiva atual ---
   const estAtual = estacaoReprodutiva(toISODate(new Date()));
@@ -6134,8 +6140,8 @@ function renderInicioReproducao(host){
   };
   const subLabel = (txt, cor) => `<div style="font-size:10px;color:${cor};text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:8px 0 4px;">${txt}</div>`;
 
-  const estacaoHtml = `<div style="margin:14px 0 2px;">
-    <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;">Estação ${estAtual}</div>
+  const estacaoHtml = `<div style="margin:4px 0 2px;">
+    ${estacaoTitulo(estAtual)}
     ${subLabel(`Coberturas em aberto (${abertas.length})`, 'var(--text-faint)')}
     <div style="max-height:150px;overflow-y:auto;padding-right:2px;">${abertas.length?abertas.map(rowCob).join(''):'<div class="hint-text">Nenhuma.</div>'}</div>
     ${confirmadas.length ? `${subLabel(`Prenhezes confirmadas (${confirmadas.length})`, 'var(--ok-ink)')}
