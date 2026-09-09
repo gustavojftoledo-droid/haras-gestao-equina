@@ -3048,6 +3048,8 @@ async function loadAll(){
     }
   }
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
+  // Colunas das listas: o que este aparelho escolheu por último vale por cima da config da nuvem.
+  carregarColunasPrefsLocais();
   // "Foto" da config recém-carregada — usada pela fusão automática do storeSet (ver bloco "FUSÃO
   // AUTOMÁTICA..." acima) pra saber quais chaves de config esta aba de fato mudou depois daqui.
   configSnapshot = JSON.parse(JSON.stringify(config));
@@ -6094,8 +6096,9 @@ function renderInicioSaude(host){
   `;
 }
 
-// "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais nova primeiro). Dentro de cada
-// estação, só as sub-listas que têm conteúdo, sempre nesta ordem:
+// "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais ANTIGA primeiro, pra a estação
+// atual ficar embaixo, logo antes dos "Retornos reprodutivos" — que são atividade da estação atual).
+// Dentro de cada estação, só as sub-listas que têm conteúdo, sempre nesta ordem:
 //   • Partos previstos      = prenhezes confirmadas COM data provável (nome + data provável).
 //   • Coberturas em aberto  = sem prenhez confirmada, sem "vazia", sem lavado negativo (nome × pai + data).
 //   • Prenhezes confirmadas = confirmadas SEM data provável ainda (quadro verde).
@@ -6134,7 +6137,7 @@ function renderInicioReproducao(host){
       g.abertas.push(n);
     }
   });
-  const estacoes = Object.keys(porEst).sort().reverse();
+  const estacoes = Object.keys(porEst).sort(); // mais antiga primeiro
 
   const estacoesHtml = estacoes.length===0
     ? '<div class="hint-text" style="margin-top:10px;">Nenhuma cobertura registrada.</div>'
@@ -10077,6 +10080,7 @@ function renderColunasEstoquePicker(){
     cb.addEventListener('change', async ()=>{
       if(!config.estoqueColunas) config.estoqueColunas = {};
       config.estoqueColunas[cb.dataset.coluna] = cb.checked;
+      salvarColunasPrefsLocais();
       await storeSet('config', config);
       renderEstoque();
     });
@@ -10101,6 +10105,28 @@ const LISTA_COLUNAS_TITULO = {
 function colunasOcultas(listaId){
   const salvo = (config.colunasListas && config.colunasListas[listaId]) || {};
   return new Set(Object.keys(salvo).filter(k=> salvo[k]===false));
+}
+// A escolha de colunas de cada lista fica também no localStorage DESTE aparelho — assim "fecha e abre"
+// sempre volta com a última alteração de quem está aqui, independente do que a config da nuvem tem.
+// A config da nuvem continua sendo gravada junto (backup / 1º acesso num aparelho novo).
+const COLUNAS_PREFS_LS = 'equinos_colunas_prefs_v1';
+function salvarColunasPrefsLocais(){
+  try{
+    localStorage.setItem(COLUNAS_PREFS_LS, JSON.stringify({
+      colunasListas: config.colunasListas || {},
+      estoqueColunas: config.estoqueColunas || {},
+      colunasVisitaRepro: config.colunasVisitaRepro || {},
+    }));
+  }catch(e){ /* localStorage cheio/indisponível — a config da nuvem ainda guarda */ }
+}
+function carregarColunasPrefsLocais(){
+  try{
+    const p = JSON.parse(localStorage.getItem(COLUNAS_PREFS_LS) || 'null');
+    if(!p || typeof p!=='object') return;
+    if(p.colunasListas && typeof p.colunasListas==='object') config.colunasListas = p.colunasListas;
+    if(p.estoqueColunas && typeof p.estoqueColunas==='object') config.estoqueColunas = p.estoqueColunas;
+    if(p.colunasVisitaRepro && typeof p.colunasVisitaRepro==='object') config.colunasVisitaRepro = p.colunasVisitaRepro;
+  }catch(e){}
 }
 function aplicarColunasListas(){
   Object.keys(LISTA_COLUNAS_TITULO).forEach(listaId=>{
@@ -10127,6 +10153,7 @@ function abrirSeletorColunas(listaId){
       if(!config.colunasListas) config.colunasListas = {};
       if(!config.colunasListas[listaId]) config.colunasListas[listaId] = {};
       config.colunasListas[listaId][cb.dataset.colgen] = cb.checked; // true = visível, false = oculta
+      salvarColunasPrefsLocais();
       await storeSet('config', config);
       aplicarColunasListas();
     });
@@ -12417,6 +12444,7 @@ function renderColunasVisitaReproPicker(){
     cb.addEventListener('change', async ()=>{
       if(!config.colunasVisitaRepro) config.colunasVisitaRepro = {};
       config.colunasVisitaRepro[cb.dataset.colvr] = cb.checked;
+      salvarColunasPrefsLocais();
       await storeSet('config', config);
       renderVisitasRepro();
     });
