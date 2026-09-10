@@ -1008,7 +1008,7 @@
         <button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="transporte">
-        <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="transporte" title="Selecionar todos"></th><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
+        <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="transporte" title="Selecionar todos"></th><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="gta" data-col="gta">GTA</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
         <tbody id="tpTbody"></tbody>
       </table></div>
     </div>
@@ -1719,6 +1719,8 @@
       <div class="field"><label>Meio de Transporte</label><div class="field-plus"><select id="tp_meio_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="meioTransporte">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="meioTransporte" data-selid="tp_meio_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="meioTransporte" data-selid="tp_meio_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Motorista</label><div class="field-plus"><select id="tp_motorista_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="motorista">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="motorista" data-selid="tp_motorista_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="motorista" data-selid="tp_motorista_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Motivo</label><input type="text" id="tp_motivo" placeholder="Ex: Ida pra competição" spellcheck="true" lang="pt-BR"></div>
+      <div class="field"><label>Tem GTA?</label><select id="tp_gta"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+      <div class="field" id="tp_gtaNumeroWrap" style="display:none;"><label>Nº da GTA <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="tp_gtaNumero" placeholder="Ex: 12345678"></div>
       <div class="field"><label>Valor do Frete (R$) — total</label><input type="number" id="tp_valorFrete" min="0" step="0.01" placeholder="0,00"></div>
       <div class="field" style="justify-content:flex-end;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="tp_realizado" style="width:16px;height:16px;"> Transporte já realizado</label></div>
     </div>
@@ -2102,14 +2104,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field" id="n_lavadoDataWrap" style="display:none;"><label>Data do lavado</label><input type="date" id="n_lavadoData"></div>
       <div class="field full" id="n_receptoraWrap" style="display:none;"><label>Receptora <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(informe após a transferência do embrião)</span></label><input type="text" id="n_receptora" list="dl_femeas"></div>
       <div class="field"><label>Provável Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(calculado)</span></label><input type="text" id="n_provavelView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
-      <div class="field"><label>Data Nascimento</label><input type="date" id="n_datanasc"></div>
+      <div class="field"><label>Data Nascimento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(preencher confirma o nascimento — cadastra o potro e inicia o protocolo de vacinas)</span></label><input type="date" id="n_datanasc"></div>
       <div class="field full"><label>Observações</label><input type="text" id="n_obs" spellcheck="true" lang="pt-BR"></div>
-      <div class="field full" style="border-top:1px solid var(--line);padding-top:14px;">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="n_confirm" style="width:16px;height:16px;">
-          Confirmar nascimento (gera o animal automaticamente no cadastro)
-        </label>
-      </div>
+      <input type="checkbox" id="n_confirm" style="display:none;">
       <div class="field" id="n_nomeWrap" style="display:none;"><label>Nome do animal nascido</label><input type="text" id="n_nomeAnimal"></div>
       <div class="field" id="n_sexoWrap" style="display:none;"><label>Sexo</label><select id="n_sexoAnimal"><option value="MASCULINO">Macho</option><option value="FEMININO">Fêmea</option></select></div>
     </div>
@@ -8210,12 +8207,13 @@ function renderTransportes(){
     if(col==='motorista') return (t.motorista||'').toLowerCase();
     if(col==='motivo') return (t.motivo||'').toLowerCase();
     if(col==='qtdAnimais') return (t.animais||[]).length;
+    if(col==='gta') return t.gta==='sim'?'1 Sim':(t.gta==='nao'?'0 Não':'2 —');
     if(col==='valorFrete') return Number(t.valorFrete)||0;
     if(col==='situacao') return t.realizado==='S'?'Realizado':'Planejado';
     return '';
   });
   marcarSetasOrdenacao('transporte', '#view-transporte [data-lista="transporte"]');
-  document.getElementById('tpTbody').innerHTML = listaTp.length===0 ? `<tr><td colspan="10" class="empty">Nenhum transporte encontrado.</td></tr>` : listaTp.map(t=>{
+  document.getElementById('tpTbody').innerHTML = listaTp.length===0 ? `<tr><td colspan="11" class="empty">Nenhum transporte encontrado.</td></tr>` : listaTp.map(t=>{
     const nAnimais = (t.animais||[]).length;
     const situ = t.realizado==='S';
     return `<tr data-id="${t.id}">
@@ -8226,6 +8224,7 @@ function renderTransportes(){
       <td data-col="motorista">${t.motorista||'—'}</td>
       <td data-col="motivo">${t.motivo||'—'}</td>
       <td data-col="qtdAnimais">${nAnimais}</td>
+      <td data-col="gta">${t.gta==='sim'?`<span class="pill st-ativo"${t.gtaNumero?` title="Nº ${t.gtaNumero}"`:''}>✓ Sim${t.gtaNumero?(' — '+t.gtaNumero):''}</span>`:(t.gta==='nao'?'<span class="pill st-descarte">✕ Não</span>':'—')}</td>
       <td data-col="valorFrete">${fmtMoeda(Number(t.valorFrete)||0,'BRL')}</td>
       <td data-col="situacao"><span class="pill ${situ?'st-ativo':'st-outro'}">${situ?'Realizado':'Planejado'}</span></td>
       <td style="white-space:nowrap;">${!situ?`<button type="button" class="btn btn-sm btn-ghost" data-marcarrealizado="${t.id}" title="Marca como realizado e atualiza a localização dos animais">✔ Marcar feito</button>`:''} <button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">🗑</button></td>
@@ -8252,6 +8251,12 @@ function renderTransportes(){
 ORD_RENDERERS.transporte = renderTransportes;
 document.getElementById('tpSearch').addEventListener('input', debounce(renderTransportes));
 document.getElementById('tpFiltroSituacao').addEventListener('change', renderTransportes);
+// Nº da GTA só aparece quando "Tem GTA? = Sim".
+function atualizarCampoGtaTransporte(){
+  document.getElementById('tp_gtaNumeroWrap').style.display =
+    document.getElementById('tp_gta').value==='sim' ? 'flex' : 'none';
+}
+document.getElementById('tp_gta').addEventListener('change', atualizarCampoGtaTransporte);
 document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   editingTransporteId = null;
   document.getElementById('tpModalTitle').textContent = 'Novo Transporte';
@@ -8266,6 +8271,9 @@ document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   document.getElementById('tp_meio_sel').value = '';
   document.getElementById('tp_motorista_sel').value = '';
   document.getElementById('tp_motivo').value = '';
+  document.getElementById('tp_gta').value = '';
+  document.getElementById('tp_gtaNumero').value = '';
+  atualizarCampoGtaTransporte();
   document.getElementById('tp_valorFrete').value = '';
   document.getElementById('tp_realizado').checked = false;
   document.getElementById('tp_tipoViagem').value = 'ida';
@@ -8293,6 +8301,9 @@ function openTransporteEdit(id){
   document.getElementById('tp_meio_sel').value = t.meioTransporte||'';
   document.getElementById('tp_motorista_sel').value = t.motorista||'';
   document.getElementById('tp_motivo').value = t.motivo||'';
+  document.getElementById('tp_gta').value = t.gta||'';
+  document.getElementById('tp_gtaNumero').value = t.gtaNumero||'';
+  atualizarCampoGtaTransporte();
   document.getElementById('tp_valorFrete').value = t.valorFrete||'';
   document.getElementById('tp_realizado').checked = t.realizado==='S';
   transporteSelector.setSelected((t.animais||[]).map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||''})));
@@ -8319,6 +8330,8 @@ async function tentarSalvarTransporteAtual(){
     meioTransporte: document.getElementById('tp_meio_sel').value,
     motorista: document.getElementById('tp_motorista_sel').value,
     motivo: f('tp_motivo').trim(),
+    gta: document.getElementById('tp_gta').value || '',
+    gtaNumero: document.getElementById('tp_gta').value==='sim' ? f('tp_gtaNumero').trim() : '',
     valorFrete: Number(document.getElementById('tp_valorFrete').value)||0,
     realizado: document.getElementById('tp_realizado').checked ? 'S' : 'N',
     animais: selected
@@ -8345,6 +8358,7 @@ document.getElementById('btnSaveTransporte').addEventListener('click', async ()=
       document.getElementById('tp_origem_sel').value = r.registro.destino||'';
       document.getElementById('tp_destino_sel').value = r.registro.origem||'';
       document.getElementById('tp_motivo').value = r.registro.motivo ? ('Volta — '+r.registro.motivo) : 'Volta';
+      document.getElementById('tp_gta').value = ''; document.getElementById('tp_gtaNumero').value = ''; atualizarCampoGtaTransporte();
       document.getElementById('tp_valorFrete').value = '';
       document.getElementById('tp_realizado').checked = false;
       // Mesmos animais da ida vêm pré-marcados (é o caso comum de ida e volta), tudo editável.
@@ -8383,6 +8397,7 @@ document.getElementById('btnAddOutroTransporte').addEventListener('click', async
   document.getElementById('tp_origem_sel').value = destinoAnterior;
   document.getElementById('tp_destino_sel').value = origemAnterior;
   document.getElementById('tp_motivo').value = '';
+  document.getElementById('tp_gta').value = ''; document.getElementById('tp_gtaNumero').value = ''; atualizarCampoGtaTransporte();
   document.getElementById('tp_valorFrete').value = '';
   document.getElementById('tp_realizado').checked = false;
   transporteSelector.reset(); // quem volta não é necessariamente quem foi — seleção começa vazia de novo
@@ -8893,10 +8908,14 @@ document.getElementById('btnConfigColetaEmbriao').addEventListener('click', asyn
 });
 
 let editingNascId = null;
-document.getElementById('n_confirm').addEventListener('change', e=>{
-  document.getElementById('n_nomeWrap').style.display = e.target.checked ? 'flex' : 'none';
-  document.getElementById('n_sexoWrap').style.display = e.target.checked ? 'flex' : 'none';
-});
+// Preencher a Data Nascimento = confirmar o nascimento. Aí aparecem Nome/Sexo pra cadastrar o potro.
+function atualizarCamposNascimentoConfirmado(){
+  const temData = !!document.getElementById('n_datanasc').value;
+  document.getElementById('n_confirm').checked = temData;
+  document.getElementById('n_nomeWrap').style.display = temData ? 'flex' : 'none';
+  document.getElementById('n_sexoWrap').style.display = temData ? 'flex' : 'none';
+}
+document.getElementById('n_datanasc').addEventListener('input', atualizarCamposNascimentoConfirmado);
 // Receptora só faz sentido junto de transferência de embrião — desmarcando, some e limpa (pra não
 // ficar um nome de receptora esquecido numa cobertura que não é mais TE).
 document.getElementById('n_transferenciaEmbriao').addEventListener('change', e=>{
@@ -8960,19 +8979,23 @@ function openNascEdit(id){
   document.getElementById('n_datanasc').value = n.datanasc||'';
   document.getElementById('n_letra').value = n.letra||'';
   document.getElementById('n_obs').value = n.obs||'';
-  document.getElementById('n_confirm').checked = n.confirm==='S';
   const animal = n.animalId ? horses.find(h=>h.id===n.animalId) : null;
   document.getElementById('n_nomeAnimal').value = animal ? animal.nome : '';
   if(animal) document.getElementById('n_sexoAnimal').value = animal.sexo||'MASCULINO';
-  document.getElementById('n_nomeWrap').style.display = n.confirm==='S' ? 'flex' : 'none';
-  document.getElementById('n_sexoWrap').style.display = n.confirm==='S' ? 'flex' : 'none';
+  atualizarCamposNascimentoConfirmado(); // Nome/Sexo aparecem se tiver Data Nascimento
   atualizarProvavelNascimentoView();
   openModal('overlayNasc');
 }
 document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   const matrizNome = titleCase(f('n_matriz'));
   if(!matrizNome){ showAlert('Informe a matriz.'); return; }
-  const confirmado = document.getElementById('n_confirm').checked;
+  // Preencher a Data Nascimento é o que confirma o nascimento (não tem mais checkbox).
+  const confirmado = !!f('n_datanasc');
+  const jaConfirmado = editingNascId && (nascimentos.find(x=>x.id===editingNascId)||{}).confirm==='S';
+  if(jaConfirmado && !confirmado){
+    showAlert('Esse nascimento já estava confirmado. Pra desfazer, exclua o registro todo — não dá pra tirar só a data de nascimento.');
+    return;
+  }
   const paiNome = titleCase(f('n_pai'));
   const transferenciaEmbriao = document.getElementById('n_transferenciaEmbriao').checked;
   // Receptora pode ficar em branco numa transferência de embrião — normalmente ela só é definida depois
