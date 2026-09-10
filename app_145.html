@@ -15505,14 +15505,19 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body">
         <div id="perfilExamesLista">${(examesPorAnimal[h.id]||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (examesPorAnimal[h.id]||[]).map((e,i)=>`
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
-            <a href="${e.dataUrl}" target="_blank" rel="noopener" download="${e.nome}" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">📄 ${e.nome}</a>
+            <a href="${e.url || e.dataUrl}" target="_blank" rel="noopener"${e.url?'':` download="${e.nome}"`} style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">${e.url?'🔗':'📄'} ${e.nome}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
           </div>`).join('')}</div>
-        <div class="no-print" style="display:flex;gap:6px;margin-top:8px;align-items:center;">
-          <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
-          <button type="button" class="btn btn-sm" id="btnAddExamePerfil">+ Anexar</button>
+        <div class="no-print" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="perfilExameLinkNome" placeholder="Nome (ex: Ultrassom 14d)" style="flex:1 1 110px;font-size:12px;">
+          <input type="url" id="perfilExameLinkUrl" placeholder="Link do Drive / foto na nuvem" style="flex:2 1 150px;font-size:12px;">
+          <button type="button" class="btn btn-sm" id="btnAddExameLinkPerfil">+ Link</button>
         </div>
-        <div class="hint-text no-print" style="margin-top:6px;">Arquivo fica salvo num cadastro próprio de exames, separado do resto do cadastro do animal — anexe até 1 MB por arquivo (comprima o PDF/foto se precisar).</div>
+        <div class="no-print" style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+          <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
+          <button type="button" class="btn btn-sm btn-ghost" id="btnAddExamePerfil">+ Anexar arquivo</button>
+        </div>
+        <div class="hint-text no-print" style="margin-top:6px;">Prefira o <b>link do Drive</b> (sem limite de tamanho e não pesa o cadastro) — compartilhe a pasta/arquivo no Drive e cole o link aqui. Anexar arquivo direto: até 400 KB, num espaço compartilhado entre todos os animais.</div>
       </div>
     </div>
 
@@ -15573,6 +15578,19 @@ function renderAnimalPerfil(id){
         document.getElementById('perfilExamesCard').scrollIntoView({behavior:'smooth', block:'start'});
       }
     });
+  });
+  document.getElementById('btnAddExameLinkPerfil').addEventListener('click', async ()=>{
+    const nome = (document.getElementById('perfilExameLinkNome').value||'').trim();
+    const url = (document.getElementById('perfilExameLinkUrl').value||'').trim();
+    if(!url){ showAlert('Cole o link do Drive primeiro.'); return; }
+    if(!/^https?:\/\//i.test(url)){ showAlert('O link precisa começar com http:// ou https:// — copie do Drive com "Compartilhar → Copiar link".'); return; }
+    const novoExame = { id:'ex_'+Date.now(), nome: nome || url, url, tipo:'link', dataUpload: toISODate(new Date()) };
+    examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), novoExame] };
+    const ok = await storeSet('exames_animais', examesPorAnimal);
+    if(!ok) return;
+    document.getElementById('perfilExameLinkNome').value = '';
+    document.getElementById('perfilExameLinkUrl').value = '';
+    renderAnimalPerfil(h.id);
   });
   document.getElementById('btnAddExamePerfil').addEventListener('click', async ()=>{
     const inp = document.getElementById('perfilNovoExame');
