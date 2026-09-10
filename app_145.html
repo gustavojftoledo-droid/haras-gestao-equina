@@ -6029,19 +6029,20 @@ function renderInicioLocalizacao(){
     if(!e || !e.data) return null;
     return toISODate(addToDate(e.data, Number(e.dias)||60, 'dias'));
   };
+  const curto = iso => iso ? (iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(2,4)) : '—';
   const comExamesOk = ativosArr.map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
     .filter(x=> x.aie && x.mormo && x.aie>=hoje && x.mormo>=hoje)
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
-  const secExames = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft);">
-    <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">🩺 AIE + Mormo válidos${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
+  const secExames = `<div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--line);">
+    <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;margin-bottom:2px;">Saúde</div>
+    <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">AIE + Mormo válidos${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
     ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
-      : `<div style="display:flex;flex-direction:column;gap:1px;max-height:220px;overflow-y:auto;padding-right:2px;">
-          ${comExamesOk.slice(0,15).map(x=>`
-            <div data-verperfilexame="${x.h.id}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;padding:3px 0;">
-              <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${x.h.nome||'—'}</span>
-              <span style="color:var(--text-faint);flex-shrink:0;white-space:nowrap;">AIE ${fmtDate(x.aie)} · Mormo ${fmtDate(x.mormo)}</span>
+      : `<div style="display:flex;flex-direction:column;gap:6px;">
+          ${comExamesOk.map(x=>`
+            <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
+              <div style="font-weight:600;font-size:12.5px;">${x.h.nome||'—'}</div>
+              <div style="color:var(--text-faint);font-size:11px;">AIE ${curto(x.aie)} · Mormo ${curto(x.mormo)}</div>
             </div>`).join('')}
-          ${comExamesOk.length>15?`<div class="hint-text">+${comExamesOk.length-15} outro(s).</div>`:''}
         </div>`}
   </div>`;
 
