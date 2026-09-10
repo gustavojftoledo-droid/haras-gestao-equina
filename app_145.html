@@ -6021,8 +6021,33 @@ function renderInicioLocalizacao(){
       ${locais.length>8 ? `<div class="hint-text" style="margin-top:2px;">+${locais.length-8} outra(s) localização(ões) — veja tudo em Animais.</div>` : ''}
       ${semLocal>0 ? `<div class="hint-text" style="margin-top:6px;">${semLocal} animal(is) ativo(s) sem localização definida.</div>` : ''}`;
 
-  host.innerHTML = `${dashCardHead('local','Por localização','Animais')}${corpo}`;
+  // Animais com AIE (anemia infecciosa) E Mormo ainda válidos — nome + data de vencimento de cada exame,
+  // o que vence antes primeiro. Clicar abre a ficha (é lá que se registra/renova o exame).
+  const hoje = toISODate(new Date());
+  const vencExameSaude = (h, tp)=>{
+    const e = (h.examesSaude||{})[tp];
+    if(!e || !e.data) return null;
+    return toISODate(addToDate(e.data, Number(e.dias)||60, 'dias'));
+  };
+  const comExamesOk = ativosArr.map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
+    .filter(x=> x.aie && x.mormo && x.aie>=hoje && x.mormo>=hoje)
+    .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
+  const secExames = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft);">
+    <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">🩺 AIE + Mormo válidos${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
+    ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
+      : `<div style="display:flex;flex-direction:column;gap:1px;max-height:220px;overflow-y:auto;padding-right:2px;">
+          ${comExamesOk.slice(0,15).map(x=>`
+            <div data-verperfilexame="${x.h.id}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;padding:3px 0;">
+              <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${x.h.nome||'—'}</span>
+              <span style="color:var(--text-faint);flex-shrink:0;white-space:nowrap;">AIE ${fmtDate(x.aie)} · Mormo ${fmtDate(x.mormo)}</span>
+            </div>`).join('')}
+          ${comExamesOk.length>15?`<div class="hint-text">+${comExamesOk.length-15} outro(s).</div>`:''}
+        </div>`}
+  </div>`;
+
+  host.innerHTML = `${dashCardHead('local','Por localização','Animais')}${corpo}${secExames}`;
   host.querySelectorAll('[data-abrirlocal]').forEach(el=> el.addEventListener('click', ()=> abrirAnimaisPorLocalizacao(el.dataset.abrirlocal)));
+  host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', ()=> abrirPerfilAnimal(el.dataset.verperfilexame)));
 }
 
 // Quarta linha do Início — "Saúde e nascimentos" (Veterinária), "O que está acabando" (Estoque) e
