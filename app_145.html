@@ -669,12 +669,12 @@
       <div class="dash-3col" id="inicioTresColunas">
         <div class="dash-card" id="inicioAgendaCard"></div>
         <div class="dash-card card-btn" id="inicioPlantelCard" title="Abrir Animais"></div>
-        <div class="dash-card" id="inicioLocalizacaoCard"></div>
+        <div class="dash-card card-btn" id="inicioSaudeCard" title="Abrir Veterinária"></div>
       </div>
 
       <div class="dash-row4" id="inicioLinha4">
         <div class="dash-card card-btn" id="inicioReproCard" title="Abrir Reprodução"></div>
-        <div class="dash-card card-btn" id="inicioSaudeCard" title="Abrir Veterinária"></div>
+        <div class="dash-card card-btn" id="inicioLocalizacaoCard" title="Abrir Animais"></div>
         <div class="dash-card card-btn" id="inicioEstoqueCard" title="Abrir Estoque"></div>
         <div class="dash-card card-btn" id="inicioAtividadesCard" title="Abrir Atividades"></div>
       </div>
@@ -5740,8 +5740,23 @@ function renderInicio(){
   renderInicioPilares();
   renderInicioAgenda();
   renderInicioPlantel();
-  renderInicioLocalizacao();
+  renderInicioSaudeNoTopo();
   renderInicioLinha4();
+}
+// "Saúde" ocupa a 3ª coluna da fileira de cima (trocou de lugar com "Por localização", que desceu
+// pra 4ª fileira). Some pra quem não tem acesso a Veterinária — aí a fileira volta a 2 colunas.
+function renderInicioSaudeNoTopo(){
+  const host = document.getElementById('inicioSaudeCard');
+  const tresCol = document.getElementById('inicioTresColunas');
+  if(!viewsPermitidas(currentUser).includes('veterinaria')){
+    host.style.display='none';
+    tresCol.style.setProperty('--cols-3col','1.6fr 1fr');
+    return;
+  }
+  host.style.display='';
+  tresCol.style.setProperty('--cols-3col','1.38fr 1fr 1fr');
+  renderInicioSaude(host);
+  host.onclick = ()=>irParaView('veterinaria');
 }
 
 // Faixa de abertura: saudação + foto + frase-resumo + até 3 chips de atalho (atrasadas / estoque /
@@ -5988,17 +6003,10 @@ function renderInicioPlantel(){
   if(btnComprados) btnComprados.addEventListener('click', (e)=>{ e.stopPropagation(); abrirListaInicio('comprados'); });
 }
 
-// Terceiro cartão da fileira de cima do Início. O antigo cartão financeiro saiu daqui a pedido do
-// Gustavo (nada financeiro na tela inicial); no lugar entra a contagem de animais ativos por
-// localização — clicar num local abre Animais já filtrado só por ele. Pra quem não tem acesso a
-// Animais, o cartão some e a fileira volta a usar 2 colunas (Agenda + Plantel), mesmo caminho de
-// layout de sempre.
-function renderInicioLocalizacao(){
-  const host = document.getElementById('inicioLocalizacaoCard');
-  const tresCol = document.getElementById('inicioTresColunas');
-  if(!viewsPermitidas(currentUser).includes('animais')){ host.style.display='none'; tresCol.style.setProperty('--cols-3col','1.6fr 1fr'); return; }
-  host.style.display=''; tresCol.style.setProperty('--cols-3col','1.38fr 1fr 1fr');
-
+// Contagem de animais ativos por localização — clicar num local abre Animais já filtrado só por ele.
+// Fica na 4ª fileira (trocou de lugar com "Saúde", que subiu). Visibilidade + grade: renderInicioLinha4.
+function renderInicioLocalizacao(host){
+  host = host || document.getElementById('inicioLocalizacaoCard');
   const ativosArr = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
   const contagem = {};
   let semLocal = 0;
@@ -6021,34 +6029,8 @@ function renderInicioLocalizacao(){
       ${locais.length>8 ? `<div class="hint-text" style="margin-top:2px;">+${locais.length-8} outra(s) localização(ões) — veja tudo em Animais.</div>` : ''}
       ${semLocal>0 ? `<div class="hint-text" style="margin-top:6px;">${semLocal} animal(is) ativo(s) sem localização definida.</div>` : ''}`;
 
-  // Animais com AIE (anemia infecciosa) E Mormo ainda válidos — nome + data de vencimento de cada exame,
-  // o que vence antes primeiro. Clicar abre a ficha (é lá que se registra/renova o exame).
-  const hoje = toISODate(new Date());
-  const vencExameSaude = (h, tp)=>{
-    const e = (h.examesSaude||{})[tp];
-    if(!e || !e.data) return null;
-    return toISODate(addToDate(e.data, Number(e.dias)||60, 'dias'));
-  };
-  const curto = iso => iso ? (iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(2,4)) : '—';
-  const comExamesOk = ativosArr.map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
-    .filter(x=> x.aie && x.mormo && x.aie>=hoje && x.mormo>=hoje)
-    .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
-  const secExames = `<div style="margin-top:24px;">
-    <div style="font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--green);padding-bottom:7px;margin-bottom:10px;border-bottom:2px solid var(--brass);">🩺 Saúde</div>
-    <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">AIE + Mormo válidos${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
-    ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
-      : `<div style="display:flex;flex-direction:column;gap:6px;">
-          ${comExamesOk.map(x=>`
-            <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
-              <div style="font-weight:600;font-size:12.5px;">${x.h.nome||'—'}</div>
-              <div style="color:var(--text-faint);font-size:11px;">AIE ${curto(x.aie)} · Mormo ${curto(x.mormo)}</div>
-            </div>`).join('')}
-        </div>`}
-  </div>`;
-
-  host.innerHTML = `${dashCardHead('local','Por localização','Animais')}${corpo}${secExames}`;
-  host.querySelectorAll('[data-abrirlocal]').forEach(el=> el.addEventListener('click', ()=> abrirAnimaisPorLocalizacao(el.dataset.abrirlocal)));
-  host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', ()=> abrirPerfilAnimal(el.dataset.verperfilexame)));
+  host.innerHTML = `${dashCardHead('local','Por localização','Animais')}${corpo}`;
+  host.querySelectorAll('[data-abrirlocal]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirAnimaisPorLocalizacao(el.dataset.abrirlocal); }));
 }
 
 // Quarta linha do Início — "Saúde e nascimentos" (Veterinária), "O que está acabando" (Estoque) e
@@ -6060,7 +6042,7 @@ function renderInicioLinha4(){
   const linha = document.getElementById('inicioLinha4');
   const cards = [
     {id:'inicioReproCard', view:'nascimentos', ok:acessos.includes('nascimentos'), render:renderInicioReproducao},
-    {id:'inicioSaudeCard', view:'veterinaria', ok:acessos.includes('veterinaria'), render:renderInicioSaude},
+    {id:'inicioLocalizacaoCard', view:'animais', ok:acessos.includes('animais'), render:renderInicioLocalizacao},
     {id:'inicioEstoqueCard', view:'estoque', ok:acessos.includes('estoque'), render:renderInicioEstoque},
     {id:'inicioAtividadesCard', view:'treinos', ok:acessos.includes('treinos'), render:renderInicioAtividades},
   ];
@@ -6109,14 +6091,40 @@ function renderInicioSaude(host){
       <div class="dash-medidor-barra"><div style="width:${pct}%;background:var(--ok);"></div></div>`;
   }).join('');
 
+  // Animais ativos com AIE (anemia infecciosa) E Mormo ainda válidos — nome + vencimento de cada exame,
+  // o que vence antes primeiro. Clicar abre a ficha (é lá que se registra/renova).
+  const hojeS = toISODate(new Date());
+  const vencExameSaude = (h, tp)=>{
+    const e = (h.examesSaude||{})[tp];
+    return (e && e.data) ? toISODate(addToDate(e.data, Number(e.dias)||60, 'dias')) : null;
+  };
+  const curtoData = iso => iso ? (iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(2,4)) : '—';
+  const comExamesOk = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento)
+    .map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
+    .filter(x=> x.aie && x.mormo && x.aie>=hojeS && x.mormo>=hojeS)
+    .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
+  const secExames = `<div style="margin-top:16px;">
+    <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
+    ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
+      : `<div style="display:flex;flex-direction:column;gap:6px;">
+          ${comExamesOk.map(x=>`
+            <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
+              <div style="font-weight:600;font-size:12.5px;">${x.h.nome||'—'}</div>
+              <div style="color:var(--text-faint);font-size:11px;">AIE ${curtoData(x.aie)} · Mormo ${curtoData(x.mormo)}</div>
+            </div>`).join('')}
+        </div>`}
+  </div>`;
+
   host.innerHTML = `
     ${dashCardHead('coracao','Saúde','Veterinária')}
     ${pocoVisita}
     <div>
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
-      <div style="max-height:280px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
+      <div style="max-height:200px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
+    ${secExames}
   `;
+  host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
 }
 
 // "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais ANTIGA primeiro, pra a estação
