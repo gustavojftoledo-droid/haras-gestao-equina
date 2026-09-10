@@ -6033,8 +6033,8 @@ function renderInicioLocalizacao(){
   const comExamesOk = ativosArr.map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
     .filter(x=> x.aie && x.mormo && x.aie>=hoje && x.mormo>=hoje)
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
-  const secExames = `<div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--line);">
-    <div style="font-family:'Fraunces',serif;font-size:13.5px;color:var(--green);font-weight:600;margin-bottom:2px;">Saúde</div>
+  const secExames = `<div style="margin-top:24px;">
+    <div style="font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--green);padding-bottom:7px;margin-bottom:10px;border-bottom:2px solid var(--brass);">🩺 Saúde</div>
     <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">AIE + Mormo válidos${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
     ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
       : `<div style="display:flex;flex-direction:column;gap:6px;">
