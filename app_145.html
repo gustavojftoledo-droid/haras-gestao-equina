@@ -1559,6 +1559,26 @@
       <select id="el_proprietario" disabled style="margin-top:6px;width:100%;"></select>
     </div>
     <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkPelagem"> Alterar Pelagem para:</label>
+      <select id="el_pelagem" disabled style="margin-top:6px;width:100%;"></select>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkSituacao"> Alterar Situação para:</label>
+      <select id="el_situacao" disabled style="margin-top:6px;width:100%;">
+        <option value="P">Interno</option>
+        <option value="E">Externo</option>
+        <option value="V">Vendido</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkDoador"> Alterar Doadora de embriões para:</label>
+      <select id="el_doador" disabled style="margin-top:6px;width:100%;">
+        <option value="1">Sim</option>
+        <option value="0">Não</option>
+      </select>
+      <div class="hint-text" style="margin-top:4px;">Só vale pra fêmeas — machos selecionados ficam como estão.</div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkFreqManejo"> Alterar Frequência de Manejo:</label>
       <div style="display:flex;gap:8px;margin-top:6px;">
         <select id="el_freqManejoTipo" disabled style="flex:1;">
@@ -1568,6 +1588,21 @@
           <option value="Vermífugo">Vermífugo (meses)</option>
         </select>
         <input type="number" id="el_freqManejoValor" disabled style="flex:1;" placeholder="Novo valor">
+      </div>
+    </div>
+    <div class="section-label">Exames com validade</div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkAie"> Registrar exame AIE (Anemia Infecciosa Equina):</label>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+        <input type="date" id="el_aieData" disabled style="flex:1;min-width:140px;">
+        <input type="number" id="el_aieDias" disabled style="width:110px;" value="60" min="1" placeholder="Dias de validade">
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkMormo"> Registrar exame Mormo:</label>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+        <input type="date" id="el_mormoData" disabled style="flex:1;min-width:140px;">
+        <input type="number" id="el_mormoDias" disabled style="width:110px;" value="60" min="1" placeholder="Dias de validade">
       </div>
     </div>
     <div class="modal-actions">
@@ -4499,20 +4534,37 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   fillPlain('el_status', aux.status||[]);
   fillPlain('el_proprietario', aux.proprietarios||[]);
   fillPlain('el_raca', aux.raca||[]);
+  fillPlain('el_pelagem', aux.pelagem||[]);
   document.getElementById('el_chkLocalizacao').checked = false;
   document.getElementById('el_chkCategoria').checked = false;
   document.getElementById('el_chkStatus').checked = false;
   document.getElementById('el_chkProprietario').checked = false;
   document.getElementById('el_chkRaca').checked = false;
+  document.getElementById('el_chkPelagem').checked = false;
+  document.getElementById('el_chkSituacao').checked = false;
+  document.getElementById('el_chkDoador').checked = false;
   document.getElementById('el_chkFreqManejo').checked = false;
+  document.getElementById('el_chkAie').checked = false;
+  document.getElementById('el_chkMormo').checked = false;
   document.getElementById('el_localizacao').disabled = true;
   document.getElementById('el_categoria').disabled = true;
   document.getElementById('el_status').disabled = true;
   document.getElementById('el_proprietario').disabled = true;
   document.getElementById('el_raca').disabled = true;
+  document.getElementById('el_pelagem').disabled = true;
+  document.getElementById('el_situacao').disabled = true;
+  document.getElementById('el_doador').disabled = true;
   document.getElementById('el_freqManejoTipo').disabled = true;
   document.getElementById('el_freqManejoValor').disabled = true;
   document.getElementById('el_freqManejoValor').value = '';
+  document.getElementById('el_aieData').disabled = true;
+  document.getElementById('el_aieDias').disabled = true;
+  document.getElementById('el_aieData').value = '';
+  document.getElementById('el_aieDias').value = '60';
+  document.getElementById('el_mormoData').disabled = true;
+  document.getElementById('el_mormoDias').disabled = true;
+  document.getElementById('el_mormoData').value = '';
+  document.getElementById('el_mormoDias').value = '60';
   openModal('overlayEditLote');
 });
 document.getElementById('el_chkLocalizacao').addEventListener('change', e=>{ document.getElementById('el_localizacao').disabled = !e.target.checked; });
@@ -4520,9 +4572,20 @@ document.getElementById('el_chkCategoria').addEventListener('change', e=>{ docum
 document.getElementById('el_chkStatus').addEventListener('change', e=>{ document.getElementById('el_status').disabled = !e.target.checked; });
 document.getElementById('el_chkProprietario').addEventListener('change', e=>{ document.getElementById('el_proprietario').disabled = !e.target.checked; });
 document.getElementById('el_chkRaca').addEventListener('change', e=>{ document.getElementById('el_raca').disabled = !e.target.checked; });
+document.getElementById('el_chkPelagem').addEventListener('change', e=>{ document.getElementById('el_pelagem').disabled = !e.target.checked; });
+document.getElementById('el_chkSituacao').addEventListener('change', e=>{ document.getElementById('el_situacao').disabled = !e.target.checked; });
+document.getElementById('el_chkDoador').addEventListener('change', e=>{ document.getElementById('el_doador').disabled = !e.target.checked; });
 document.getElementById('el_chkFreqManejo').addEventListener('change', e=>{
   document.getElementById('el_freqManejoTipo').disabled = !e.target.checked;
   document.getElementById('el_freqManejoValor').disabled = !e.target.checked;
+});
+document.getElementById('el_chkAie').addEventListener('change', e=>{
+  document.getElementById('el_aieData').disabled = !e.target.checked;
+  document.getElementById('el_aieDias').disabled = !e.target.checked;
+});
+document.getElementById('el_chkMormo').addEventListener('change', e=>{
+  document.getElementById('el_mormoData').disabled = !e.target.checked;
+  document.getElementById('el_mormoDias').disabled = !e.target.checked;
 });
 document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=>{
   const alterarLoc = document.getElementById('el_chkLocalizacao').checked;
@@ -4530,21 +4593,36 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const alterarStatus = document.getElementById('el_chkStatus').checked;
   const alterarProp = document.getElementById('el_chkProprietario').checked;
   const alterarRaca = document.getElementById('el_chkRaca').checked;
+  const alterarPelagem = document.getElementById('el_chkPelagem').checked;
+  const alterarSituacao = document.getElementById('el_chkSituacao').checked;
+  const alterarDoador = document.getElementById('el_chkDoador').checked;
   const alterarFreqManejo = document.getElementById('el_chkFreqManejo').checked;
-  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarFreqManejo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
+  const alterarAie = document.getElementById('el_chkAie').checked;
+  const alterarMormo = document.getElementById('el_chkMormo').checked;
+  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
   const novaLoc = document.getElementById('el_localizacao').value;
   const novaCat = document.getElementById('el_categoria').value;
   const novoStatus = document.getElementById('el_status').value;
   const novoProp = document.getElementById('el_proprietario').value;
   const novaRaca = document.getElementById('el_raca').value;
+  const novaPelagem = document.getElementById('el_pelagem').value;
+  const novaSituacao = document.getElementById('el_situacao').value;
+  const novoDoador = document.getElementById('el_doador').value === '1';
   const freqManejoTipo = document.getElementById('el_freqManejoTipo').value;
   const freqManejoValor = document.getElementById('el_freqManejoValor').value;
+  const aieData = document.getElementById('el_aieData').value;
+  const aieDias = document.getElementById('el_aieDias').value;
+  const mormoData = document.getElementById('el_mormoData').value;
+  const mormoDias = document.getElementById('el_mormoDias').value;
   if(alterarLoc && !novaLoc){ showAlert('Escolha uma Localização.'); return; }
   if(alterarCat && !novaCat){ showAlert('Escolha uma Categoria.'); return; }
   if(alterarStatus && !novoStatus){ showAlert('Escolha um Status.'); return; }
   if(alterarProp && !novoProp){ showAlert('Escolha um Proprietário.'); return; }
   if(alterarRaca && !novaRaca){ showAlert('Escolha uma Raça.'); return; }
+  if(alterarPelagem && !novaPelagem){ showAlert('Escolha uma Pelagem.'); return; }
   if(alterarFreqManejo && (freqManejoValor==='' || isNaN(Number(freqManejoValor)) || Number(freqManejoValor)<=0)){ showAlert('Informe um novo valor de frequência válido.'); return; }
+  if(alterarAie && (!aieData || isNaN(Number(aieDias)) || Number(aieDias)<=0)){ showAlert('Informe a data e a validade (em dias) do exame de AIE.'); return; }
+  if(alterarMormo && (!mormoData || isNaN(Number(mormoDias)) || Number(mormoDias)<=0)){ showAlert('Informe a data e a validade (em dias) do exame de Mormo.'); return; }
   const n = selectedHorseIds.size;
   if(!(await showConfirm(`Aplicar essas alterações a ${n} animal(is) selecionado(s)?`))) return;
   const freqCampo = FREQ_FIELD[freqManejoTipo];
@@ -4561,7 +4639,15 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     if(alterarStatus) nh.status = novoStatus;
     if(alterarProp) nh.proprietario = novoProp;
     if(alterarRaca) nh.raca = novaRaca;
+    if(alterarPelagem) nh.pelagem = novaPelagem;
+    if(alterarSituacao) nh.situacao = novaSituacao;
+    if(alterarDoador && nh.sexo==='FEMININO') nh.doador = novoDoador;
     if(alterarFreqManejo) nh[freqCampo] = freqManejoValor;
+    if(alterarAie || alterarMormo){
+      nh.examesSaude = {...(h.examesSaude||{})};
+      if(alterarAie) nh.examesSaude.AIE = { data: aieData, dias: Math.max(1, Math.round(Number(aieDias))) };
+      if(alterarMormo) nh.examesSaude.Mormo = { data: mormoData, dias: Math.max(1, Math.round(Number(mormoDias))) };
+    }
     return nh;
   });
   await storeSet('horses_list', horses);
