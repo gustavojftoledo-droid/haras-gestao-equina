@@ -4355,7 +4355,10 @@ function renderFiltrosAnimaisChips(){
     </div>`;
   };
   const sexoOpts = [{value:'MASCULINO',label:'Macho'},{value:'FEMININO',label:'Fêmea'}];
-  const dedupOrdenado = campo => ordenarComPreferencia(campo, [...new Set(horses.map(h=>h[campo]).filter(Boolean))]).map(v=>({value:v,label:v}));
+  // Une o catálogo (aux.<campo> — o que você cadastra pelo "+" do formulário) com o que já está
+  // em uso nos animais. Assim, mal você cadastra uma raça/categoria/etc nova, o filtro já aparece
+  // aqui, mesmo antes de qualquer animal estar com esse valor.
+  const dedupOrdenado = campo => ordenarComPreferencia(campo, [...new Set([...(aux[campo]||[]), ...horses.map(h=>h[campo]).filter(Boolean)])]).map(v=>({value:v,label:v}));
   const statusOpts = dedupOrdenado('status');
   const categoriaOpts = dedupOrdenado('categoria');
   const pelagemOpts = dedupOrdenado('pelagem');
