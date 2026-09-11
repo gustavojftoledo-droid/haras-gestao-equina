@@ -2031,7 +2031,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-head"><div class="modal-title" id="vrModalTitle">Nova Visita Reprodutiva</div><button class="modal-close" data-close="overlayVisitaRepro">✕</button></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozVisitaRepro">🎤 Ditar por voz</button><span class="hint-text" id="visitaRepro_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <div class="form-grid">
-      <div class="field"><label>Data da visita</label><input type="date" id="vr_data"></div>
+      <div class="field"><label>Data da visita <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(quando o exame foi feito)</span></label><input type="date" id="vr_data"></div>
       <div class="field"><label>Veterinário / Responsável</label><div class="field-plus"><select id="vr_veterinario_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="veterinario">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="veterinario" data-selid="vr_veterinario_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Local</label><input type="text" id="vr_local" placeholder="Opcional"></div>
       <div class="field full"><label>Observação geral da visita</label><textarea id="vr_obsGeral" rows="2" spellcheck="true" lang="pt-BR" placeholder="Opcional"></textarea></div>
@@ -12332,7 +12332,7 @@ function renderReproEguas(){
           <div class="field"><label>Diagnóstico de gestação</label><select data-refield="diagnostico" data-reidx="${idx}">${diagOpts}</select></div>
           <div class="field"><label>Medicação aplicada</label><input type="text" list="dl_medicamentos" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml (do Estoque)"></div>
           <div class="field"><label>Próxima ação / conduta</label><input type="text" data-refield="proximaAcao" data-reidx="${idx}" value="${(e.proximaAcao||'').replace(/"/g,'&quot;')}" placeholder="Ex: cobrir amanhã"></div>
-          <div class="field"><label>Retorno / próxima visita</label><input type="date" data-refield="proximoRetorno" data-reidx="${idx}" value="${e.proximoRetorno||''}"></div>
+          <div class="field"><label>Retorno / próxima visita <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(é essa data que aparece no Calendário)</span></label><input type="date" data-refield="proximoRetorno" data-reidx="${idx}" value="${e.proximoRetorno||''}"></div>
           <div class="field full"><label>Observação</label><textarea rows="2" data-refield="obs" data-reidx="${idx}" spellcheck="true" lang="pt-BR" placeholder="Texto livre — ditável por voz">${e.obs||''}</textarea></div>
         </div>
       </div>
@@ -12525,6 +12525,18 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     coletasAgendadas.push(e.nome + ' → coleta ' + fmtDate(n.dataColetaEmbriao));
   }
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
+  // Reativa o retorno reprodutivo dessas éguas no Calendário: se alguém já tinha excluído (🗑) um
+  // retorno anterior dela por lá, essa exclusão fica "presa" na data antiga e o retorno novo/editado
+  // não aparece. Editar ou registrar a visita sempre limpa essas exclusões antigas da(s) égua(s)
+  // envolvida(s), pra data corrigida aqui aparecer certinho no Calendário.
+  let dismissedMudou = false;
+  eguas.forEach(e=>{
+    if(!e.animalId) return;
+    [...dismissedManejoTasks].forEach(k=>{
+      if(k.startsWith(e.animalId+'|RetornoRepro|')){ dismissedManejoTasks.delete(k); dismissedMudou = true; }
+    });
+  });
+  if(dismissedMudou) await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
   closeModal('overlayVisitaRepro');
   renderVisitasRepro(); renderNascimentos();
   if(typeof renderCalendar==='function') renderCalendar();
