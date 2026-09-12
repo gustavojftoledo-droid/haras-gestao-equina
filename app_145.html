@@ -6987,7 +6987,9 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   // em blocos que viram cada um a própria página (gerarPdfUmBlocoPorPagina), isso nunca acontece.
   const theadHtml = `<thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>`;
   const linhaHtml = r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
-  const paginas = paginarEmBlocos(programacaoFiltradaAtual, 22);
+  // 32 (não 22, como no Relatório 3) porque essas linhas são bem mais curtas — sem texto longo tipo
+  // "Casqueado completo" ou comentário — então cabem mais por página sem estourar a folha.
+  const paginas = paginarEmBlocos(programacaoFiltradaAtual, 32);
   const htmlConteudo = `<div class="report-card print-block">
     <h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
