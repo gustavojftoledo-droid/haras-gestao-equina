@@ -5444,6 +5444,25 @@ function gerarRelatorioManejosFinanceiro(){
   btnPdf.style.display='inline-block';
 }
 
+// Fatia uma lista de linhas em páginas de até `max` linhas, pra cada uma virar a própria página do
+// PDF (gerarPdfUmBlocoPorPagina) — assim nunca corta uma linha na divisa entre folhas. Cada página
+// fica CHEIA até o teto; só a última pode sobrar menor. Se essa sobra for pequena (bem menos que o
+// teto), junta ela com a penúltima página e reparte as duas em partes iguais — só pra não deixar
+// uma folha quase em branco por causa de 1 ou 2 itens. As demais páginas não são mexidas.
+function paginarEmBlocos(linhas, max){
+  const paginas = [];
+  for(let i=0; i<linhas.length; i+=max) paginas.push(linhas.slice(i, i+max));
+  if(paginas.length>=2){
+    const ultima = paginas[paginas.length-1];
+    if(ultima.length <= max/3){
+      const penultima = paginas[paginas.length-2];
+      const juntas = penultima.concat(ultima);
+      const metade = Math.ceil(juntas.length/2);
+      paginas.splice(paginas.length-2, 2, juntas.slice(0,metade), juntas.slice(metade));
+    }
+  }
+  return paginas;
+}
 // Relatório 3 — Tabela corrida (1 linha por animal, sem quebrar em blocos por lançamento), no formato
 // que ferradores/veterinários costumam usar pra emitir cobrança (ex: CRIO Online): Cavalo | Data | Tipo
 // | Responsável | Valor | Comentários, do mais antigo pro mais novo, cabendo bem mais linhas por folha.
@@ -5483,21 +5502,7 @@ function gerarRelatorioManejosTabela(){
   const periodoTxt = ordenados.length ? `${fmtDate(ordenados[0].data)} a ${fmtDate(ordenados[ordenados.length-1].data)}` : '';
   const linhaHtml = l => `<tr><td>${l.cavalo}</td><td>${fmtDate(l.data)}</td><td>${l.tipo||'—'}</td><td>${l.responsavel}</td><td class="num">${l.valor?fmtR(l.valor):'—'}</td><td class="obs">${l.comentario||''}</td></tr>`;
   const theadHtml = `<thead><tr><th>Cavalo</th><th>Data</th><th>Tipo</th><th>Responsável</th><th class="num">Valor</th><th>Comentários</th></tr></thead>`;
-  // Uma tabela corrida só (sem controlar onde ela quebra) deixa o PDF cortar uma linha bem na
-  // divisa entre páginas — o nome do animal termina numa folha e o resto da linha começa na de
-  // baixo. Pra nunca cortar uma linha no meio, a tabela é fatiada aqui em blocos: cada bloco vira a
-  // PRÓPRIA página do PDF (mesmo mecanismo usado pros relatórios "1 bloco por página" — ver
-  // gerarPdfUmBlocoPorPagina), com o cabeçalho da tabela repetido em cada folha e o TOTAL GERAL só na
-  // última. MAX_LINHAS_POR_PAGINA é o teto (calculado pra caber com folga numa A4 com essa
-  // fonte/espaçamento) — mas em vez de sempre cortar nesse número fixo (o que deixava, por exemplo,
-  // uma folha quase vazia com só 1 égua sobrando quando dava exatamente 1 a mais que o teto), as
-  // linhas são distribuídas em partes IGUAIS entre as páginas que realmente forem necessárias. Assim
-  // nunca sobra uma égua sozinha numa folha extra quase em branco.
-  const MAX_LINHAS_POR_PAGINA = 22;
-  const totalPaginas = Math.max(1, Math.ceil(linhas.length / MAX_LINHAS_POR_PAGINA));
-  const linhasPorPagina = Math.ceil(linhas.length / totalPaginas);
-  const paginas = [];
-  for(let i=0; i<linhas.length; i+=linhasPorPagina) paginas.push(linhas.slice(i, i+linhasPorPagina));
+  const paginas = paginarEmBlocos(linhas, 22);
   const tabelaPaginaHtml = (chunk, ultima) => `<table class="pdf-item-block" style="margin-bottom:18px;">${theadHtml}
     <tbody>${chunk.map(linhaHtml).join('')}</tbody>
     ${ultima ? `<tfoot><tr><td colspan="4">TOTAL GERAL</td><td class="num">${fmtR(totalCusto)}</td><td></td></tr></tfoot>` : ''}
@@ -6982,11 +6987,7 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   // em blocos que viram cada um a própria página (gerarPdfUmBlocoPorPagina), isso nunca acontece.
   const theadHtml = `<thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>`;
   const linhaHtml = r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
-  const MAX_LINHAS_POR_PAGINA = 22;
-  const totalPaginas = Math.max(1, Math.ceil(programacaoFiltradaAtual.length / MAX_LINHAS_POR_PAGINA));
-  const linhasPorPagina = Math.ceil(programacaoFiltradaAtual.length / totalPaginas);
-  const paginas = [];
-  for(let i=0; i<programacaoFiltradaAtual.length; i+=linhasPorPagina) paginas.push(programacaoFiltradaAtual.slice(i, i+linhasPorPagina));
+  const paginas = paginarEmBlocos(programacaoFiltradaAtual, 22);
   const htmlConteudo = `<div class="report-card print-block">
     <h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
