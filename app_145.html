@@ -5416,9 +5416,28 @@ function gerarRelatorioManejosFinanceiro(){
   const ordenados = [...filtered].sort((a,b)=> a.data.localeCompare(b.data));
   const totalGeralPeriodo = ordenados.reduce((s,m)=> s+calcularTotalLancamentoManejo(m), 0);
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  // Lançamentos separados (cadastrados em momentos diferentes) do mesmo tipo e mesma data viram UM
+  // quadro só — junta os animais, soma o deslocamento e combina ferrador/observação, em vez de
+  // mostrar um bloco repetido pra cada cadastro.
+  const grupos = [];
+  const porChave = new Map();
+  ordenados.forEach(m=>{
+    const chave = m.tipo+'|'+m.data;
+    const grupo = porChave.get(chave);
+    if(!grupo){
+      const novo = {...m, animais:[...m.animais]};
+      porChave.set(chave, novo);
+      grupos.push(novo);
+    } else {
+      grupo.animais = grupo.animais.concat(m.animais);
+      grupo.deslocamento = (Number(grupo.deslocamento)||0) + (Number(m.deslocamento)||0);
+      if(m.ferrador && m.ferrador!==grupo.ferrador) grupo.ferrador = [grupo.ferrador, m.ferrador].filter(Boolean).join(' / ');
+      if(m.obs && m.obs!==grupo.obs) grupo.obs = [grupo.obs, m.obs].filter(Boolean).join(' · ');
+    }
+  });
   host.innerHTML = `<div class="report-card print-block">
-    <h1 style="border:none;">Relatório Financeiro de Manejos — ${ordenados.length} lançamento(s)</h1>
-    ${ordenados.map(m=>`<div class="pdf-item-block">${blocoRelatorioManejo(m, false)}</div>`).join('')}
+    <h1 style="border:none;">Relatório Financeiro de Manejos — ${grupos.length} lançamento(s)</h1>
+    ${grupos.map(m=>`<div class="pdf-item-block">${blocoRelatorioManejo(m, false)}</div>`).join('')}
     <h2 style="border-top:2px solid #333;">TOTAL GERAL DO PERÍODO: ${fmtR(totalGeralPeriodo)}</h2>
   </div>`;
   ajustarTabelasRelatorio(host);
