@@ -6977,11 +6977,21 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   const badge = { atrasado:'Atrasado', proximo:'Próximo (7 dias)', emdia:'Em dia', nunca:'Nunca registrado' };
   const { de, ate } = pFiltroDataPeriodo.getRange();
   const intervaloTxt = (de||ate) ? ` · Próxima prevista entre ${de?fmtDate(de):'—'} e ${ate?fmtDate(ate):'—'}` : '';
-  const htmlConteudo = `<h1>Programação de Manejos</h1>
+  // Paginado em blocos (mesmo esquema do Relatório 3 de Manejos — Tabela): uma tabela corrida só,
+  // deixada pro html2pdf quebrar sozinho, corta uma linha bem na divisa entre folhas. Fatiando aqui
+  // em blocos que viram cada um a própria página (gerarPdfUmBlocoPorPagina), isso nunca acontece.
+  const theadHtml = `<thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>`;
+  const linhaHtml = r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
+  const MAX_LINHAS_POR_PAGINA = 22;
+  const totalPaginas = Math.max(1, Math.ceil(programacaoFiltradaAtual.length / MAX_LINHAS_POR_PAGINA));
+  const linhasPorPagina = Math.ceil(programacaoFiltradaAtual.length / totalPaginas);
+  const paginas = [];
+  for(let i=0; i<programacaoFiltradaAtual.length; i+=linhasPorPagina) paginas.push(programacaoFiltradaAtual.slice(i, i+linhasPorPagina));
+  const htmlConteudo = `<div class="report-card print-block">
+    <h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
-    <table><thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>
-    <tbody>${programacaoFiltradaAtual.map(r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`).join('')}</tbody>
-    </table>`;
+    ${paginas.map(chunk=>`<table class="pdf-item-block" style="margin-bottom:18px;">${theadHtml}<tbody>${chunk.map(linhaHtml).join('')}</tbody></table>`).join('')}
+  </div>`;
   abrirPreviaRelatorio(htmlConteudo, 'Programacao_Manejos.pdf', 'Programação de Manejos');
 });
 // Mostra/esconde os campos de valor (Casco ou Dente, cada um com seu bloco) e preenche o valor
