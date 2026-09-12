@@ -5502,7 +5502,9 @@ function gerarRelatorioManejosTabela(){
   const periodoTxt = ordenados.length ? `${fmtDate(ordenados[0].data)} a ${fmtDate(ordenados[ordenados.length-1].data)}` : '';
   const linhaHtml = l => `<tr><td>${l.cavalo}</td><td>${fmtDate(l.data)}</td><td>${l.tipo||'—'}</td><td>${l.responsavel}</td><td class="num">${l.valor?fmtR(l.valor):'—'}</td><td class="obs">${l.comentario||''}</td></tr>`;
   const theadHtml = `<thead><tr><th>Cavalo</th><th>Data</th><th>Tipo</th><th>Responsável</th><th class="num">Valor</th><th>Comentários</th></tr></thead>`;
-  const paginas = paginarEmBlocos(linhas, 22);
+  // Baixa sempre em paisagem (ver btnPdfRelManejo) — mede com o HTML/CSS real quantas linhas cabem.
+  const maxPorPagina = calcularLinhasPorPagina(theadHtml, linhas.slice(0,40).map(linhaHtml), true);
+  const paginas = paginarEmBlocos(linhas, maxPorPagina);
   const tabelaPaginaHtml = (chunk, ultima) => `<table class="pdf-item-block" style="margin-bottom:18px;">${theadHtml}
     <tbody>${chunk.map(linhaHtml).join('')}</tbody>
     ${ultima ? `<tfoot><tr><td colspan="4">TOTAL GERAL</td><td class="num">${fmtR(totalCusto)}</td><td></td></tr></tfoot>` : ''}
@@ -6987,9 +6989,10 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   // em blocos que viram cada um a própria página (gerarPdfUmBlocoPorPagina), isso nunca acontece.
   const theadHtml = `<thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>`;
   const linhaHtml = r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
-  // 32 (não 22, como no Relatório 3) porque essas linhas são bem mais curtas — sem texto longo tipo
-  // "Casqueado completo" ou comentário — então cabem mais por página sem estourar a folha.
-  const paginas = paginarEmBlocos(programacaoFiltradaAtual, 32);
+  // Baixa em retrato — mede com o HTML/CSS real quantas linhas cabem (essas são bem mais curtas que
+  // as do Relatório 3, sem texto longo tipo "Casqueado completo" ou comentário, então cabe mais).
+  const maxPorPagina = calcularLinhasPorPagina(theadHtml, programacaoFiltradaAtual.slice(0,40).map(linhaHtml), false);
+  const paginas = paginarEmBlocos(programacaoFiltradaAtual, maxPorPagina);
   const htmlConteudo = `<div class="report-card print-block">
     <h1>Programação de Manejos</h1>
     <div class="sub">${programacaoFiltradaAtual.length} registro(s)${intervaloTxt}</div>
@@ -7373,7 +7376,7 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
                           // e sobra um espaço em branco no topo do PDF — por isso volta ao topo antes.
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:fixed;top:0;left:0;width:100%;min-height:100%;background:#fff;z-index:99999;overflow:auto;';
-  const larguraConteudo = paisagem ? 980 : 700; // reduzido (era 1120/800) pra sobrar folga e caber inteiro na folha
+  const larguraConteudo = paisagem ? LARGURA_CONTEUDO_PAISAGEM : LARGURA_CONTEUDO_RETRATO;
   wrapper.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf" style="max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;">${htmlConteudo}</div>`;
   ajustarTabelasRelatorio(wrapper);
   document.body.appendChild(wrapper);
@@ -7421,6 +7424,32 @@ function ajustarTabelasRelatorio(container){
       ths.forEach(th=>{ if(!th.style.width) th.style.width = w; });
     }
   });
+}
+// Largura do conteúdo dos relatórios em blocos-por-página (mesma usada em baixarRelatorioManejoPDF).
+const LARGURA_CONTEUDO_RETRATO = 700, LARGURA_CONTEUDO_PAISAGEM = 980;
+// Descobre quantas linhas cabem numa página MEDINDO de verdade a altura do cabeçalho + de uma
+// amostra das linhas (o mesmo HTML/CSS que vai pro PDF) — em vez de usar um número fixo "no chute"
+// igual pra qualquer relatório. Linha mais alta (texto mais longo, quebra em 2 linhas) cabe menos
+// por página; linha mais curta cabe mais. Reutilizável por qualquer relatório novo que quebrar em
+// blocos-por-página (gerarPdfUmBlocoPorPagina).
+function calcularLinhasPorPagina(theadHtml, linhasHtmlAmostra, paisagem){
+  const larguraConteudo = paisagem ? LARGURA_CONTEUDO_PAISAGEM : LARGURA_CONTEUDO_RETRATO;
+  // Área útil da folha A4 (210x297mm) menos a margem de 10mm de cada lado (ver pdfOptsBase.margin) —
+  // convertida pra "px do conteúdo" na mesma escala que larguraConteudo já usa pra largura.
+  const larguraMm = (paisagem ? 297 : 210) - 20;
+  const alturaMm = (paisagem ? 210 : 297) - 20;
+  const alturaDisponivelPx = larguraConteudo * (alturaMm / larguraMm);
+  const host = document.createElement('div');
+  host.style.cssText = `position:fixed;top:-99999px;left:0;width:${larguraConteudo}px;`;
+  host.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf" style="width:${larguraConteudo}px;"><div class="report-card print-block"><table class="pdf-item-block">${theadHtml}<tbody>${linhasHtmlAmostra.join('')}</tbody></table></div></div>`;
+  document.body.appendChild(host);
+  ajustarTabelasRelatorio(host);
+  const alturaHeader = host.querySelector('thead').getBoundingClientRect().height;
+  const trs = host.querySelectorAll('tbody tr');
+  const alturaLinhaMedia = trs.length ? (trs[trs.length-1].getBoundingClientRect().bottom - trs[0].getBoundingClientRect().top) / trs.length : 20;
+  document.body.removeChild(host);
+  const folga = 0.85; // margem de segurança pra fonte/navegador/aparelho variarem um pouco
+  return Math.max(5, Math.floor(((alturaDisponivelPx*folga) - alturaHeader) / alturaLinhaMedia));
 }
 // Mostra o relatório na tela ANTES de baixar — usado nos botões rápidos de relatório (📄 em
 // Manejos/Treinos/Nascimentos/Visitas), pra dar a chance de conferir antes de gerar o PDF.
