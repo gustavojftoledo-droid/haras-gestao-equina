@@ -5494,10 +5494,8 @@ document.getElementById('btnPdfRelManejo').addEventListener('click', ()=>{
   const host = document.getElementById('manejoRelResult');
   if(!host.innerHTML.trim()) return;
   const nomeArquivo = (manejoRelFormatoAtual==='2') ? 'Relatorio_Financeiro_Manejos.pdf' : (manejoRelFormatoAtual==='3') ? 'Relatorio_Tabela_Manejos.pdf' : 'Relatorio_Manejos.pdf';
-  // Relatório 2 (financeiro): folha em paisagem — as tabelas de Casco/Dente têm bastante coluna
-  // (Animal, Tipo aplicado, Valor base, Valor extra, Subtotal, Observação) e ficavam espremidas no
-  // retrato; paisagem dá mais largura pra cada coluna.
-  const opts = (manejoRelFormatoAtual==='2') ? {orientation:'landscape'} : undefined;
+  // Relatórios 2 (financeiro) e 3 (tabela): folha em paisagem — dá mais largura pra cada coluna.
+  const opts = (manejoRelFormatoAtual==='2' || manejoRelFormatoAtual==='3') ? {orientation:'landscape'} : undefined;
   baixarRelatorioManejoPDF(host.innerHTML, nomeArquivo, opts);
 });
 
