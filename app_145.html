@@ -5470,7 +5470,7 @@ function gerarRelatorioManejosTabela(){
   // bloco vira a PRÓPRIA página do PDF (mesmo mecanismo usado pros relatórios "1 bloco por página"
   // — ver gerarPdfUmBlocoPorPagina), com o cabeçalho da tabela repetido em cada folha e o TOTAL GERAL
   // só na última. N foi calculado pra caber com folga numa A4 retrato com essa fonte/espaçamento.
-  const LINHAS_POR_PAGINA = 28;
+  const LINHAS_POR_PAGINA = 22;
   const paginas = [];
   for(let i=0; i<linhas.length; i+=LINHAS_POR_PAGINA) paginas.push(linhas.slice(i, i+LINHAS_POR_PAGINA));
   const tabelaPaginaHtml = (chunk, ultima) => `<table class="pdf-item-block" style="margin-bottom:18px;">${theadHtml}
@@ -7345,15 +7345,17 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   await new Promise(r=>setTimeout(r, 60));
   const conteudoEl = wrapper.querySelector('.rel-manejo-pdf');
   const itensPorBloco = conteudoEl.querySelectorAll('.report-animal-block, .pdf-item-block');
-  // "windowWidth/windowHeight" simulam o tamanho da JANELA do navegador pro html2canvas — em telas
-  // bem maiores que o conteúdo (ex: monitor grande), isso descentraliza a captura e corta um pedaço
-  // do conteúdo de um dos lados. Nem o elemento nem a janela virtual precisam ser ditos: sem eles,
-  // o html2canvas mede sozinho o tamanho real de cada elemento que captura, não importa a tela.
+  // "windowWidth" simula a LARGURA da janela do navegador pro html2canvas. É importante fixar ela
+  // em `larguraConteudo` (a mesma largura que o conteúdo já usa) — em celular, sem isso, o WebKit
+  // (Safari/iPhone) mede a janela como a tela real (bem mais estreita que os 800/1120px do relatório)
+  // e recorta a captura de "position:fixed" nessa largura, cortando as últimas colunas de qualquer
+  // tabela mais larga que a tela — mesmo o elemento sendo maior. Fixando a largura simulada igual à
+  // do conteúdo, a captura sai completa em qualquer aparelho, celular ou monitor grande.
   const pdfOptsBase = {
     margin: 10,
     filename: nomeArquivo,
     image: { type:'jpeg', quality:0.98 },
-    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
+    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, windowWidth: larguraConteudo },
     jsPDF: { unit:'mm', format:'a4', orientation: paisagem ? 'landscape' : 'portrait' },
     pagebreak: { mode:'css' }
   };
