@@ -7288,18 +7288,14 @@ async function gerarPdfUmBlocoPorPagina(itens, larguraConteudo, pdfOpts){
     let no = primeiroCard.firstChild;
     while(no && no !== itens[0]){ preambuloHtml += no.outerHTML || ''; no = no.nextSibling; }
   }
-  // O host da captura tem a largura EXATA do conteúdo (não 100% da tela) — numa tela de computador
-  // bem maior que o relatório, um host largo com o bloco centrado dentro dele (margin:0 auto) é
-  // exatamente o cenário que já causou corte de um lado antes (ver comentário mais abaixo, em
-  // pdfOptsBase). Host do tamanho certo = nada pra centralizar, nada pra descentralizar.
   const host = document.createElement('div');
-  host.style.cssText = `position:fixed;top:0;left:0;width:${larguraConteudo}px;background:#fff;z-index:99998;overflow:visible;`;
+  host.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#fff;z-index:99998;overflow:visible;';
   document.body.appendChild(host);
   function montarPagina(item, comPreambulo){
     host.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style>`;
     const pag = document.createElement('div');
     pag.className = 'rel-manejo-pdf';
-    pag.style.cssText = `max-width:${larguraConteudo}px;width:${larguraConteudo}px;`;
+    pag.style.cssText = `max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;`;
     const card = document.createElement('div');
     card.className = 'report-card print-block';
     if(comPreambulo) card.insertAdjacentHTML('afterbegin', preambuloHtml);
@@ -7341,7 +7337,7 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
                           // e sobra um espaço em branco no topo do PDF — por isso volta ao topo antes.
   const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:fixed;top:0;left:0;width:100%;min-height:100%;background:#fff;z-index:99999;overflow:auto;';
-  const larguraConteudo = paisagem ? 1120 : 800; // A4 paisagem cabe bem mais colunas
+  const larguraConteudo = paisagem ? 980 : 700; // reduzido (era 1120/800) pra sobrar folga e caber inteiro na folha
   wrapper.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style><div class="rel-manejo-pdf" style="max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;">${htmlConteudo}</div>`;
   ajustarTabelasRelatorio(wrapper);
   document.body.appendChild(wrapper);
