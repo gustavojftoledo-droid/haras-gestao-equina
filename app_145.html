@@ -7288,18 +7288,14 @@ async function gerarPdfUmBlocoPorPagina(itens, larguraConteudo, pdfOpts){
     let no = primeiroCard.firstChild;
     while(no && no !== itens[0]){ preambuloHtml += no.outerHTML || ''; no = no.nextSibling; }
   }
-  // O host da captura tem a largura EXATA do conteúdo (não 100% da tela) — numa tela de computador
-  // bem maior que o relatório, um host largo com o bloco centrado dentro dele (margin:0 auto) é
-  // exatamente o cenário que já causou corte de um lado antes (ver comentário mais abaixo, em
-  // pdfOptsBase). Host do tamanho certo = nada pra centralizar, nada pra descentralizar.
   const host = document.createElement('div');
-  host.style.cssText = `position:fixed;top:0;left:0;width:${larguraConteudo}px;background:#fff;z-index:99998;overflow:visible;`;
+  host.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#fff;z-index:99998;overflow:visible;';
   document.body.appendChild(host);
   function montarPagina(item, comPreambulo){
     host.innerHTML = `<style>${RELATORIO_MANEJO_ESTILO}</style>`;
     const pag = document.createElement('div');
     pag.className = 'rel-manejo-pdf';
-    pag.style.cssText = `max-width:${larguraConteudo}px;width:${larguraConteudo}px;`;
+    pag.style.cssText = `max-width:${larguraConteudo}px;width:${larguraConteudo}px;margin:0 auto;`;
     const card = document.createElement('div');
     card.className = 'report-card print-block';
     if(comPreambulo) card.insertAdjacentHTML('afterbegin', preambuloHtml);
@@ -7349,15 +7345,17 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   await new Promise(r=>setTimeout(r, 60));
   const conteudoEl = wrapper.querySelector('.rel-manejo-pdf');
   const itensPorBloco = conteudoEl.querySelectorAll('.report-animal-block, .pdf-item-block');
-  // "windowWidth/windowHeight" simulam o tamanho da JANELA do navegador pro html2canvas — em telas
-  // bem maiores que o conteúdo (ex: monitor grande), isso descentraliza a captura e corta um pedaço
-  // do conteúdo de um dos lados. Nem o elemento nem a janela virtual precisam ser ditos: sem eles,
-  // o html2canvas mede sozinho o tamanho real de cada elemento que captura, não importa a tela.
+  // "windowWidth" simula a LARGURA da janela do navegador pro html2canvas. É importante fixar ela
+  // em `larguraConteudo` (a mesma largura que o conteúdo já usa) — em celular, sem isso, o WebKit
+  // (Safari/iPhone) mede a janela como a tela real (bem mais estreita que os 800/1120px do relatório)
+  // e recorta a captura de "position:fixed" nessa largura, cortando as últimas colunas de qualquer
+  // tabela mais larga que a tela — mesmo o elemento sendo maior. Fixando a largura simulada igual à
+  // do conteúdo, a captura sai completa em qualquer aparelho, celular ou monitor grande.
   const pdfOptsBase = {
     margin: 10,
     filename: nomeArquivo,
     image: { type:'jpeg', quality:0.98 },
-    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
+    html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0, windowWidth: larguraConteudo },
     jsPDF: { unit:'mm', format:'a4', orientation: paisagem ? 'landscape' : 'portrait' },
     pagebreak: { mode:'css' }
   };
