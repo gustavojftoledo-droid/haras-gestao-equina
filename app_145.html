@@ -989,7 +989,8 @@
           <button type="button" class="btn btn-sm" id="btnGerarRelManejo3">Gerar Relatório 3 (tabela p/ cobrança) <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+3)</span></button>
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelManejo" style="display:none;">⬇ Baixar PDF</button>
         </div>
-        <div id="manejoRelResult" style="margin-top:14px;"></div>
+        <div class="hint-text no-print" style="margin-top:10px;">Se a tabela do relatório for mais larga que a tela, arraste ela pros lados pra ver as colunas de fora — o PDF baixado sai certinho, sem cortar nada.</div>
+        <div id="manejoRelResult" class="rel-manejo-pdf rel-manejo-preview" style="margin-top:14px;overflow-x:auto;"></div>
       </div>
     </div>
 
@@ -5387,6 +5388,7 @@ function gerarRelatorioManejos(){
         `).join('')}`;
     }).join('') + `</div>`;
   }
+  ajustarTabelasRelatorio(host);
   btnPrint.style.display='inline-block';
 }
 
@@ -5419,6 +5421,7 @@ function gerarRelatorioManejosFinanceiro(){
     ${ordenados.map(m=>`<div class="pdf-item-block">${blocoRelatorioManejo(m, false)}</div>`).join('')}
     <h2 style="border-top:2px solid #333;">TOTAL GERAL DO PERÍODO: ${fmtR(totalGeralPeriodo)}</h2>
   </div>`;
+  ajustarTabelasRelatorio(host);
   btnPdf.style.display='inline-block';
 }
 
@@ -5479,6 +5482,7 @@ function gerarRelatorioManejosTabela(){
     <div class="sub">${linhas.length} item(ns) · ${cavalosDistintos} cavalo(s) · Custo total: ${fmtR(totalCusto)}</div>
     ${paginas.map((chunk,idx)=>tabelaPaginaHtml(chunk, idx===paginas.length-1)).join('')}
   </div>`;
+  ajustarTabelasRelatorio(host);
   btnPdf.style.display='inline-block';
 }
 
@@ -7261,6 +7265,14 @@ const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;pa
 .rel-manejo-pdf .matrix td.hit{background:#e4efe4;font-weight:bold;color:#2f4a37;}
 .rel-manejo-pdf .matrix .eye-inline{display:none;}
 .rel-manejo-pdf .matrix-block-title{font-weight:bold;font-size:13px;margin:14px 0 4px;color:#2f4a37;}`;
+// A prévia dos Relatórios de Manejo (#manejoRelResult, na própria tela) usa essa MESMA folha de
+// estilo do PDF — sem isso, a tabela aparecia "crua" (sem largura controlada) e estourava a tela em
+// celular, cortando as últimas colunas. Injeta uma vez só, no carregamento.
+document.head.insertAdjacentHTML('beforeend', `<style>${RELATORIO_MANEJO_ESTILO}</style>`);
+// Na tela (diferente do PDF, que precisa caber exato numa largura fixa de folha), forçar a tabela a
+// encolher até a largura do celular deixa tudo ilegível (cada palavra quebrada numa linha). Aqui é
+// melhor manter uma largura mínima legível e deixar rolar de lado — só a tabela, não a página toda.
+document.head.insertAdjacentHTML('beforeend', `<style>.rel-manejo-preview table{min-width:640px;} .rel-manejo-preview .report-card{overflow:visible;max-width:none;}</style>`);
 // O page-break-inside:avoid do CSS (e a opção "avoid" do próprio html2pdf) não bastaram pra impedir
 // que um bloco (1 animal, 1 manejo...) comece numa folha e continue na próxima — testado e confirmado
 // que nenhum dos dois pega aqui, e um espaçador calculado na mão também não bateu direito com a
