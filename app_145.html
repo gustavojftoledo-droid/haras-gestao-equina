@@ -986,6 +986,7 @@
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelManejo1">Gerar Relatório 1 <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button>
           <button type="button" class="btn btn-sm" id="btnGerarRelManejo2">Gerar Relatório 2 (financeiro) <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+2)</span></button>
+          <button type="button" class="btn btn-sm" id="btnGerarRelManejo3">Gerar Relatório 3 (tabela p/ cobrança) <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+3)</span></button>
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelManejo" style="display:none;">⬇ Baixar PDF</button>
         </div>
         <div id="manejoRelResult" style="margin-top:14px;"></div>
@@ -3783,7 +3784,7 @@ document.addEventListener('keydown', (e)=>{
 // lançamento aberto pra edição, Alt+1 baixa o relatório daquele lançamento (só tem um ali).
 const RELATORIO_NUMERO_CONTEXTUAL = {
   animais: { tabId:'atab_relatorios', subTabId:'rtab_fichas', botoes:{'1':'btnGerarRel1Ficha','2':'btnGerarRel2Ficha','3':'btnGerarRel3Ficha'} },
-  manejos: { tabId:'mtab_relatorios', botoes:{'1':'btnGerarRelManejo1','2':'btnGerarRelManejo2'} },
+  manejos: { tabId:'mtab_relatorios', botoes:{'1':'btnGerarRelManejo1','2':'btnGerarRelManejo2','3':'btnGerarRelManejo3'} },
   treinos: { tabId:'ttab_relatorios', botoes:{'1':'btnGerarRel1Treino','2':'btnGerarRel2Treino','3':'btnGerarRel3Treino'} }
 };
 document.addEventListener('keydown', (e)=>{
@@ -5421,13 +5422,62 @@ function gerarRelatorioManejosFinanceiro(){
   btnPdf.style.display='inline-block';
 }
 
+// Relatório 3 — Tabela corrida (1 linha por animal, sem quebrar em blocos por lançamento), no formato
+// que ferradores/veterinários costumam usar pra emitir cobrança (ex: CRIO Online): Cavalo | Data | Tipo
+// | Responsável | Valor | Comentários, do mais antigo pro mais novo, cabendo bem mais linhas por folha.
+// Não substitui os Relatórios 1 e 2 — é só mais uma opção de formato.
+function gerarRelatorioManejosTabela(){
+  const base = manejoRelatorioBase();
+  const host = document.getElementById('manejoRelResult');
+  const btnPdf = document.getElementById('btnPdfRelManejo');
+  if(!base){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
+  const { filtered } = base;
+  if(filtered.length===0){ host.innerHTML = '<div class="empty">Nenhum manejo encontrado com esses filtros.</div>'; btnPdf.style.display='none'; return; }
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const ordenados = [...filtered].sort((a,b)=> a.data.localeCompare(b.data));
+  const linhas = [];
+  ordenados.forEach(m=>{
+    const temValor = (m.tipo==='Casco' || m.tipo==='Dente');
+    (m.animais||[]).forEach(a=>{
+      const valorBase = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
+      const extra = Number(a.valorExtra)||0;
+      linhas.push({
+        cavalo: a.nome, data: m.data,
+        tipo: m.tipo==='Casco' ? (a.tipo||m.subtipoCasco||m.tipo) : m.tipo,
+        responsavel: m.ferrador || '—',
+        valor: temValor ? (valorBase+extra) : (Number(m.valor)||0),
+        comentario: a.extra || ((m.animais||[]).length===1 ? (m.obs||'') : '')
+      });
+    });
+    // Deslocamento do lançamento (Casco) vira uma linha própria, chamada "Frete" — mesmo esquema do
+    // relatório que os ferradores costumam usar (ex: CRIO Online).
+    const desloc = Number(m.deslocamento)||0;
+    if(desloc>0){
+      linhas.push({ cavalo:'Frete', data:m.data, tipo:(m.tipo==='Casco'?(m.subtipoCasco||''):m.tipo), responsavel:m.ferrador||'—', valor:desloc, comentario:m.obs||'' });
+    }
+  });
+  const totalCusto = linhas.reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const cavalosDistintos = new Set(linhas.filter(l=>l.cavalo!=='Frete').map(l=>l.cavalo)).size;
+  const periodoTxt = ordenados.length ? `${fmtDate(ordenados[0].data)} a ${fmtDate(ordenados[ordenados.length-1].data)}` : '';
+  host.innerHTML = `<div class="report-card print-block">
+    <h1 style="border:none;">Relatório de Manejos — Tabela${periodoTxt?(' ('+periodoTxt+')'):''}</h1>
+    <div class="sub">${linhas.length} item(ns) · ${cavalosDistintos} cavalo(s) · Custo total: ${fmtR(totalCusto)}</div>
+    <table><thead><tr><th>Cavalo</th><th>Data</th><th>Tipo</th><th>Responsável</th><th class="num">Valor</th><th>Comentários</th></tr></thead>
+    <tbody>${linhas.map(l=>`<tr><td>${l.cavalo}</td><td>${fmtDate(l.data)}</td><td>${l.tipo||'—'}</td><td>${l.responsavel}</td><td class="num">${l.valor?fmtR(l.valor):'—'}</td><td class="obs">${l.comentario||''}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="4">TOTAL GERAL</td><td class="num">${fmtR(totalCusto)}</td><td></td></tr></tfoot>
+    </table>
+  </div>`;
+  btnPdf.style.display='inline-block';
+}
+
 let manejoRelFormatoAtual = '1';
 document.getElementById('btnGerarRelManejo1').addEventListener('click', ()=>{ manejoRelFormatoAtual='1'; gerarRelatorioManejos(); });
 document.getElementById('btnGerarRelManejo2').addEventListener('click', ()=>{ manejoRelFormatoAtual='2'; gerarRelatorioManejosFinanceiro(); });
+document.getElementById('btnGerarRelManejo3').addEventListener('click', ()=>{ manejoRelFormatoAtual='3'; gerarRelatorioManejosTabela(); });
 document.getElementById('btnPdfRelManejo').addEventListener('click', ()=>{
   const host = document.getElementById('manejoRelResult');
   if(!host.innerHTML.trim()) return;
-  const nomeArquivo = (manejoRelFormatoAtual==='2') ? 'Relatorio_Financeiro_Manejos.pdf' : 'Relatorio_Manejos.pdf';
+  const nomeArquivo = (manejoRelFormatoAtual==='2') ? 'Relatorio_Financeiro_Manejos.pdf' : (manejoRelFormatoAtual==='3') ? 'Relatorio_Tabela_Manejos.pdf' : 'Relatorio_Manejos.pdf';
   baixarRelatorioManejoPDF(host.innerHTML, nomeArquivo);
 });
 
