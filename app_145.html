@@ -5466,13 +5466,19 @@ function gerarRelatorioManejosTabela(){
   const theadHtml = `<thead><tr><th>Cavalo</th><th>Data</th><th>Tipo</th><th>Responsável</th><th class="num">Valor</th><th>Comentários</th></tr></thead>`;
   // Uma tabela corrida só (sem controlar onde ela quebra) deixa o PDF cortar uma linha bem na
   // divisa entre páginas — o nome do animal termina numa folha e o resto da linha começa na de
-  // baixo. Pra nunca cortar uma linha no meio, a tabela é fatiada aqui em blocos de N linhas: cada
-  // bloco vira a PRÓPRIA página do PDF (mesmo mecanismo usado pros relatórios "1 bloco por página"
-  // — ver gerarPdfUmBlocoPorPagina), com o cabeçalho da tabela repetido em cada folha e o TOTAL GERAL
-  // só na última. N foi calculado pra caber com folga numa A4 retrato com essa fonte/espaçamento.
-  const LINHAS_POR_PAGINA = 22;
+  // baixo. Pra nunca cortar uma linha no meio, a tabela é fatiada aqui em blocos: cada bloco vira a
+  // PRÓPRIA página do PDF (mesmo mecanismo usado pros relatórios "1 bloco por página" — ver
+  // gerarPdfUmBlocoPorPagina), com o cabeçalho da tabela repetido em cada folha e o TOTAL GERAL só na
+  // última. MAX_LINHAS_POR_PAGINA é o teto (calculado pra caber com folga numa A4 com essa
+  // fonte/espaçamento) — mas em vez de sempre cortar nesse número fixo (o que deixava, por exemplo,
+  // uma folha quase vazia com só 1 égua sobrando quando dava exatamente 1 a mais que o teto), as
+  // linhas são distribuídas em partes IGUAIS entre as páginas que realmente forem necessárias. Assim
+  // nunca sobra uma égua sozinha numa folha extra quase em branco.
+  const MAX_LINHAS_POR_PAGINA = 22;
+  const totalPaginas = Math.max(1, Math.ceil(linhas.length / MAX_LINHAS_POR_PAGINA));
+  const linhasPorPagina = Math.ceil(linhas.length / totalPaginas);
   const paginas = [];
-  for(let i=0; i<linhas.length; i+=LINHAS_POR_PAGINA) paginas.push(linhas.slice(i, i+LINHAS_POR_PAGINA));
+  for(let i=0; i<linhas.length; i+=linhasPorPagina) paginas.push(linhas.slice(i, i+linhasPorPagina));
   const tabelaPaginaHtml = (chunk, ultima) => `<table class="pdf-item-block" style="margin-bottom:18px;">${theadHtml}
     <tbody>${chunk.map(linhaHtml).join('')}</tbody>
     ${ultima ? `<tfoot><tr><td colspan="4">TOTAL GERAL</td><td class="num">${fmtR(totalCusto)}</td><td></td></tr></tfoot>` : ''}
