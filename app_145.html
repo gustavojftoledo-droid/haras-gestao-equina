@@ -2674,6 +2674,25 @@ const FIRESTORE_COLLECTION = 'harasData';
 const HAS_CLOUD_STORAGE = (typeof window.storage !== 'undefined');
 const LS_PREFIX = 'haras_gestao_equina__';
 
+// Aviso fixo, impossível de ignorar, pro caso em que nem window.storage nem o Firebase estão
+// disponíveis — o app cai pro localStorage isolado deste aparelho/navegador sem avisar ninguém.
+// Sem isso, quem estiver usando não tem NENHUM jeito de perceber que o que salvar agora fica só
+// aqui e não aparece em outro aparelho até a conexão voltar e a página ser recarregada — foi
+// exatamente esse tipo de divergência silenciosa que gerou confusão de "produto sumiu"/"cadastro
+// não apareceu no outro aparelho" depois que a sincronização na nuvem entrou (24/08).
+function mostrarAvisoSemNuvem(){
+  if(document.getElementById('semNuvemBanner')) return;
+  const el = document.createElement('div');
+  el.id = 'semNuvemBanner';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:var(--burgundy);color:#fff;padding:12px 20px;z-index:400;display:flex;align-items:center;justify-content:center;gap:16px;font-size:13.5px;text-align:center;flex-wrap:wrap;';
+  el.innerHTML = '<span>⚠️ SEM NUVEM — não consegui conectar ao banco compartilhado agora. '
+    + 'O que você salvar fica só NESTE aparelho até reconectar; não vai aparecer em outros aparelhos.</span>'
+    + '<button type="button" id="btnRetryNuvem" style="background:#fff;color:var(--burgundy);border:none;padding:7px 14px;border-radius:5px;font-weight:600;cursor:pointer;font-size:12.5px;white-space:nowrap;">Tentar reconectar</button>';
+  document.body.prepend(el);
+  document.getElementById('btnRetryNuvem').addEventListener('click', ()=> location.reload());
+}
+if(!HAS_CLOUD_STORAGE && !HAS_FIRESTORE) mostrarAvisoSemNuvem();
+
 async function storeGet(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
