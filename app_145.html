@@ -620,6 +620,7 @@
           <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
           <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
           <div class="nav-item" data-view="auditoria"><span class="dot"></span>Auditoria</div>
+          <div class="nav-item" data-view="filtrosanimais"><span class="dot"></span>Filtros de Animais</div>
         </div>
       </div>
     </div>
@@ -750,6 +751,15 @@
         <tbody id="audTbody"></tbody>
       </table></div>
       <div class="hint-text" style="margin-top:12px;">O registro começou a partir da atualização que criou esta tela — o que aconteceu antes disso não tem como ser reconstruído. Ficam guardadas cerca das 1.500 ações mais recentes; as mais antigas saem conforme entram novas. O log entra no backup, então exportar de vez em quando guarda o histórico antigo.</div>
+    </div>
+
+    <!-- FILTROS DE ANIMAIS (admin) -->
+    <div class="view" id="view-filtrosanimais">
+      <div class="topbar">
+        <div><div class="title">Filtros de Animais</div><div class="subtitle">O que aparece nos filtros de Sexo, Status, Categoria, Pelagem, Raça e Localização — acrescente, renomeie ou apague valores aqui</div></div>
+      </div>
+      <div class="hint-text" style="margin-bottom:16px;">Sexo não entra aqui (Macho/Fêmea é fixo). Um valor "usado" não pode ser apagado sem avisar antes quantos animais ficam com o campo em branco — pra trocar um valor de vários animais de uma vez sem apagar nada, use "Editar em Lote" na tela de Animais.</div>
+      <div id="filtrosAdminHost"></div>
     </div>
 
     <!-- ANIMAIS -->
@@ -1752,8 +1762,8 @@
     <div class="form-grid cols3" style="margin-bottom:16px;">
       <div class="field"><label>Data Saída</label><input type="date" id="tp_data" required></div>
       <div class="field"><label>Tipo de viagem</label><select id="tp_tipoViagem"><option value="ida">Só ida</option><option value="idavolta">Ida e volta</option></select></div>
-      <div class="field"><label>Origem</label><select id="tp_origem_sel"></select></div>
-      <div class="field"><label>Destino</label><select id="tp_destino_sel"></select></div>
+      <div class="field"><label>Origem</label><div class="field-plus"><select id="tp_origem_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="localizacao">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="localizacao" data-selid="tp_origem_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="localizacao" data-selid="tp_origem_sel" title="Excluir valor selecionado">🗑</button></div></div>
+      <div class="field"><label>Destino</label><div class="field-plus"><select id="tp_destino_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="localizacao">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="localizacao" data-selid="tp_destino_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="localizacao" data-selid="tp_destino_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Meio de Transporte</label><div class="field-plus"><select id="tp_meio_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="meioTransporte">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="meioTransporte" data-selid="tp_meio_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="meioTransporte" data-selid="tp_meio_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Motorista</label><div class="field-plus"><select id="tp_motorista_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="motorista">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="motorista" data-selid="tp_motorista_sel" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="motorista" data-selid="tp_motorista_sel" title="Excluir valor selecionado">🗑</button></div></div>
       <div class="field"><label>Motivo</label><input type="text" id="tp_motivo" placeholder="Ex: Ida pra competição" spellcheck="true" lang="pt-BR"></div>
@@ -3352,9 +3362,9 @@ const AUX_CASCADE = {
   classeMedicamento: {collection:'estoqueProdutos', field:'classe'},
   finCategoria: {collection:'lancamentos', field:'categoria'}
 };
-async function editarValorAux(key, selId){
+async function editarValorAux(key, selId, valorForcado){
   const meta = AUX_META[key]; if(!meta) return;
-  const atual = document.getElementById(selId).value;
+  const atual = valorForcado!==undefined ? valorForcado : document.getElementById(selId).value;
   if(!atual){ showAlert('Escolha um valor na lista pra editar primeiro.'); return; }
   let novo = await showPrompt('Editando "'+atual+'" — digite o novo valor para '+meta.label+':', atual);
   if(!novo || !novo.trim()) return;
@@ -3405,6 +3415,7 @@ async function editarValorAux(key, selId){
   const el = document.getElementById(selId); if(el) el.value = novo;
   refreshDatalists();
   renderHorses(); renderTreinos(); renderEstoque(); if(typeof renderTratamentos==='function') renderTratamentos(); renderFinanceiro();
+  if(typeof renderFiltrosAdmin==='function') renderFiltrosAdmin();
   showAlert('"'+atual+'" atualizado para "'+novo+'"'+(count>0?' — '+count+' registro(s) existentes também foram atualizados.':'.'));
 }
 document.querySelectorAll('[data-auxedit]').forEach(btn=>{
@@ -3417,9 +3428,9 @@ document.querySelectorAll('[data-auxedit]').forEach(btn=>{
 // estavam, mesmo que o produto tenha parado de ser fornecido. Pras outras listas (Status, Pelagem,
 // Categoria, Proprietário, Tipo/Local de Treino, Treinador), o campo do registro fica em branco, como antes.
 const NO_CASCADE_ON_DELETE = new Set(['tipoProduto','nomeProduto','unidade','ferrador','subtipoFerrageamento']);
-async function apagarValorAux(key, selId){
+async function apagarValorAux(key, selId, valorForcado){
   const meta = AUX_META[key]; if(!meta) return;
-  const atual = document.getElementById(selId).value;
+  const atual = valorForcado!==undefined ? valorForcado : document.getElementById(selId).value;
   if(!atual){ showAlert('Escolha um valor na lista pra excluir primeiro.'); return; }
   const preservaHistorico = NO_CASCADE_ON_DELETE.has(key);
 
@@ -3483,6 +3494,7 @@ async function apagarValorAux(key, selId){
   const el = document.getElementById(selId); if(el) el.value = '';
   refreshDatalists();
   renderHorses(); renderTreinos(); renderEstoque(); if(typeof renderTratamentos==='function') renderTratamentos(); renderFinanceiro(); renderManejos();
+  if(typeof renderFiltrosAdmin==='function') renderFiltrosAdmin();
   let msgFinal = '"'+atual+'" excluído de '+meta.label+'.';
   if(count>0){
     msgFinal += preservaHistorico
@@ -3494,6 +3506,74 @@ async function apagarValorAux(key, selId){
 document.querySelectorAll('[data-auxdelete]').forEach(btn=>{
   btn.addEventListener('click', ()=> apagarValorAux(btn.dataset.auxdelete, btn.dataset.selid));
 });
+
+// Tela "Filtros de Animais" (Administração) — gerenciar de um lugar só o catálogo (aux.<campo>) dos
+// filtros de Sexo/Status/Categoria/Pelagem/Raça/Localização: acrescentar, renomear (com efeito nos
+// animais que já usam, via editarValorAux) ou apagar (com aviso, via apagarValorAux) qualquer valor.
+// Mostra também valores que só existem por já estarem gravados em algum animal, mesmo sem estar no
+// catálogo (ex: categoria antiga de um sistema anterior) — sem isso não daria pra apagar/renomear.
+const FILTROS_ADMIN_CAMPOS = [
+  { key:'categoria', label:'Categoria' },
+  { key:'status', label:'Status' },
+  { key:'pelagem', label:'Pelagem' },
+  { key:'raca', label:'Raça' },
+  { key:'localizacao', label:'Localização' },
+];
+function renderFiltrosAdmin(){
+  const host = document.getElementById('filtrosAdminHost');
+  if(!host) return;
+  host.innerHTML = FILTROS_ADMIN_CAMPOS.map(({key,label})=>{
+    const valores = [...new Set([...(aux[key]||[]), ...horses.map(h=>h[key]).filter(Boolean)])];
+    const ordenados = ordenarComPreferencia(key, valores);
+    const linhas = ordenados.map(v=>{
+      const count = horses.filter(h=>h[key]===v).length;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+        <span style="flex:1;min-width:120px;">${v}</span>
+        <span class="hint-text" style="margin:0;min-width:90px;">${count>0 ? count+' animal(is)' : 'sem uso'}</span>
+        <button type="button" class="btn btn-sm btn-ghost" data-filtroadmin-edit="${key}|${encodeURIComponent(v)}">✎ Renomear</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-filtroadmin-del="${key}|${encodeURIComponent(v)}">🗑 Excluir</button>
+      </div>`;
+    }).join('') || '<div class="hint-text">Nenhum valor cadastrado ainda.</div>';
+    return `<div class="report-card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div style="font-weight:600;font-family:'Fraunces',serif;font-size:16px;">${label}</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="filtroAdminNovo_${key}" placeholder="Novo valor" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;">
+          <button type="button" class="btn btn-sm" data-filtroadmin-add="${key}">+ Adicionar</button>
+        </div>
+      </div>
+      ${linhas}
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-filtroadmin-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [key, vEnc] = btn.dataset.filtroadminEdit.split('|');
+      editarValorAux(key, null, decodeURIComponent(vEnc));
+    });
+  });
+  host.querySelectorAll('[data-filtroadmin-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [key, vEnc] = btn.dataset.filtroadminDel.split('|');
+      apagarValorAux(key, null, decodeURIComponent(vEnc));
+    });
+  });
+  host.querySelectorAll('[data-filtroadmin-add]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const key = btn.dataset.filtroadminAdd;
+      const inp = document.getElementById('filtroAdminNovo_'+key);
+      let val = (inp.value||'').trim();
+      if(!val) return;
+      val = titleCase(val);
+      if(!aux[key]) aux[key]=[];
+      if(!aux[key].some(x=>x.toLowerCase()===val.toLowerCase())){
+        aux[key].push(val);
+        await storeSet('aux_lists', aux);
+        populateAuxSelects();
+      }
+      renderFiltrosAdmin();
+    });
+  });
+}
 
 /* Auto-preencher avós quando Pai/Mãe já existem no cadastro */
 function tryAutoFillGrandparents(){
@@ -3577,7 +3657,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     if(!preservarPilhaVoltar){ pilhaVoltar = []; }
     preservarPilhaVoltar = false;
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -3590,6 +3670,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios') renderUsuarios();
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
+      if(view==='filtrosanimais') renderFiltrosAdmin();
     }else{
       document.getElementById('view-other').classList.add('active');
       document.getElementById('otherTitle').textContent = item.textContent.trim().replace('em breve','');
