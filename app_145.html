@@ -758,7 +758,7 @@
       <div class="topbar">
         <div><div class="title">Filtros de Animais</div><div class="subtitle">O que aparece nos filtros de Sexo, Status, Categoria, Pelagem, Raça e Localização — acrescente, renomeie ou apague valores aqui</div></div>
       </div>
-      <div class="hint-text" style="margin-bottom:16px;">Sexo não entra aqui (Macho/Fêmea é fixo). Um valor "usado" não pode ser apagado sem avisar antes quantos animais ficam com o campo em branco — pra trocar um valor de vários animais de uma vez sem apagar nada, use "Editar em Lote" na tela de Animais. A contagem de "animal(is)" aqui é de TODOS os cadastrados (internos, vendidos, falecidos e externos) — pode não bater com a lista de Animais se ela estiver numa aba diferente de "Todos os internos" (ex: só "Ativos" não conta quem já foi vendido).</div>
+      <div class="hint-text" style="margin-bottom:16px;">Sexo não entra aqui (Macho/Fêmea é fixo). Um valor "usado" não pode ser apagado sem avisar antes quantos animais ficam com o campo em branco — pra trocar um valor de vários animais de uma vez sem apagar nada, use "Editar em Lote" na tela de Animais. A contagem de "animal(is)" aqui conta só os ativos (nem vendido, nem falecido, nem externo) — igual à aba "Ativos" de Animais; se o valor só for usado por um animal vendido/falecido/externo, aparece "sem uso" aqui mesmo assim (excluir avisa certinho, contando esses também).</div>
       <div id="filtrosAdminHost"></div>
     </div>
 
@@ -3535,8 +3535,10 @@ function renderFiltrosAdmin(){
   host.innerHTML = FILTROS_ADMIN_CAMPOS.map(({key,label})=>{
     const valores = [...new Set([...(aux[key]||[]), ...horses.map(h=>h[key]).filter(Boolean)])];
     const ordenados = ordenarComPreferencia(key, valores);
+    // Conta só animais ativos (mesma regra do viewMode "Ativos" em Animais: nem vendido, nem
+    // falecido, nem externo) — pra bater com o que a maioria vê na lista, que abre nessa aba.
     const linhas = ordenados.map(v=>{
-      const count = horses.filter(h=>h[key]===v).length;
+      const count = horses.filter(h=>h[key]===v && h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).length;
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
         <span style="flex:1;min-width:120px;">${v}</span>
         <span class="hint-text" style="margin:0;min-width:90px;">${count>0 ? count+' animal(is)' : 'sem uso'}</span>
