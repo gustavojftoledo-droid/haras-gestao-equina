@@ -3389,6 +3389,12 @@ async function editarValorAux(key, selId, valorForcado){
     if(casc.collection==='horses'){
       horses.forEach(h=>{ if(h[casc.field]===atual){ h[casc.field]=novo; count++; } });
       if(count) await storeSet('horses_list', horses);
+      // Renomeando um valor que estava marcado como filtro ativo, troca ele pro nome novo — senão
+      // a lista fica vazia (filtrando pelo nome antigo, que nenhum animal tem mais).
+      if(typeof filtrosAnimaisMultiplos!=='undefined' && filtrosAnimaisMultiplos[casc.field] && filtrosAnimaisMultiplos[casc.field].has(atual)){
+        filtrosAnimaisMultiplos[casc.field].delete(atual);
+        filtrosAnimaisMultiplos[casc.field].add(novo);
+      }
     } else if(casc.collection==='estoqueProdutos'){
       estoqueProdutos.forEach(p=>{ if(p[casc.field]===atual){ p[casc.field]=novo; count++; } });
       if(count) await storeSet('estoque_produtos', estoqueProdutos);
@@ -3465,6 +3471,10 @@ async function apagarValorAux(key, selId, valorForcado){
     if(casc.collection==='horses'){
       horses.forEach(h=>{ if(h[casc.field]===atual) h[casc.field]=''; });
       await storeSet('horses_list', horses);
+      // Se esse valor estava marcado como filtro ativo na tela de Animais, tira ele — senão a lista
+      // fica vazia (filtrando por um valor que nenhum animal tem mais), parecendo que os animais
+      // sumiram, quando só estão escondidos atrás do filtro.
+      if(typeof filtrosAnimaisMultiplos!=='undefined' && filtrosAnimaisMultiplos[casc.field]) filtrosAnimaisMultiplos[casc.field].delete(atual);
     } else if(casc.collection==='estoqueProdutos'){
       estoqueProdutos.forEach(p=>{ if(p[casc.field]===atual) p[casc.field]=''; });
       await storeSet('estoque_produtos', estoqueProdutos);
