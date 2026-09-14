@@ -815,6 +815,7 @@
             <th class="sortable" data-sort="raca" data-col="raca">Raça</th>
             <th class="sortable" data-sort="categoria" data-col="categoria">Categoria</th>
             <th class="sortable" data-sort="status" data-col="status">Status</th>
+            <th class="sortable" data-sort="localizacao" data-col="localizacao">Localização</th>
             <th class="sortable" data-sort="proprietario" data-col="proprietario">Proprietário</th>
             <th class="sortable" data-sort="comprador" data-col="comprador">Comprador</th>
           </tr></thead>
@@ -4555,7 +4556,7 @@ function renderHorses(){
   }
   document.getElementById('horseStats').innerHTML = statsHtml;
   const tbody=document.getElementById('hTbody');
-  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="10" class="empty">Nenhum animal encontrado.</td></tr>`; return; }
+  if(filtered.length===0){ tbody.innerHTML=`<tr><td colspan="11" class="empty">Nenhum animal encontrado.</td></tr>`; return; }
   tbody.innerHTML = filtered.map(h=>{
     const tags = [];
     if(h.situacao==='E') tags.push('<span class="pill st-outro" style="margin-left:4px;">Externo</span>');
@@ -4568,6 +4569,7 @@ function renderHorses(){
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
       <td data-col="pai">${h.pai||''}</td><td data-col="mae">${h.mae||''}</td><td data-col="pelagem">${h.pelagem||''}</td><td data-col="raca">${h.raca||''}</td><td data-col="categoria">${h.categoria||''}</td>
       <td data-col="status"><span class="pill st-outro">${h.status||'—'}</span></td>
+      <td data-col="localizacao">${h.localizacao||''}</td>
       <td data-col="proprietario">${h.proprietario||''}</td>
       <td data-col="comprador">${h.comprador||''}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
     </tr>`;
