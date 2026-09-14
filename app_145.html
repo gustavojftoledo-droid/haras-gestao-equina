@@ -4360,8 +4360,18 @@ function renderFiltrosAnimaisChips(){
   const sexoOpts = [{value:'MASCULINO',label:'Macho'},{value:'FEMININO',label:'Fêmea'}];
   // Une o catálogo (aux.<campo> — o que você cadastra pelo "+" do formulário) com o que já está
   // em uso nos animais. Assim, mal você cadastra uma raça/categoria/etc nova, o filtro já aparece
-  // aqui, mesmo antes de qualquer animal estar com esse valor.
-  const dedupOrdenado = campo => ordenarComPreferencia(campo, [...new Set([...(aux[campo]||[]), ...horses.map(h=>h[campo]).filter(Boolean)])]).map(v=>({value:v,label:v}));
+  // aqui, mesmo antes de qualquer animal estar com esse valor. Dedupe ignora maiúscula/minúscula
+  // (ex: "3° Polo" e "3° polo" viram um chip só, não dois) — sem isso, cadastros antigos com
+  // diferença só de caixa apareciam duplicados na lista de filtros.
+  const normVal = s => (s||'').toString().trim().toLowerCase();
+  const dedupOrdenado = campo => {
+    const vistos = new Map();
+    [...(aux[campo]||[]), ...horses.map(h=>h[campo]).filter(Boolean)].forEach(v=>{
+      const chave = normVal(v);
+      if(!vistos.has(chave)) vistos.set(chave, v);
+    });
+    return ordenarComPreferencia(campo, [...vistos.values()]).map(v=>({value:v,label:v}));
+  };
   const statusOpts = dedupOrdenado('status');
   const categoriaOpts = dedupOrdenado('categoria');
   const pelagemOpts = dedupOrdenado('pelagem');
@@ -4403,16 +4413,20 @@ function renderHorses(){
     }
   });
   const fm = filtrosAnimaisMultiplos;
+  // Ignora maiúscula/minúscula — o chip é um só por valor (ver dedupOrdenado), então precisa pegar
+  // o animal independente de ele estar cadastrado com uma caixa diferente da escolhida no chip.
+  const normVal = s => (s||'').toString().trim().toLowerCase();
+  const filtroTem = (set, valor) => set.size===0 || [...set].some(v=>normVal(v)===normVal(valor));
   const filtered = baseList.filter(h=>{
     const matchTerm = !term || (h.nome||'').toLowerCase().includes(term) || (h.codigo||'').toLowerCase().includes(term) || (h.proprietario||'').toLowerCase().includes(term);
     return matchTerm
       && (!soSelecionadosAnimais || selectedHorseIds.has(h.id))
       && (fm.sexo.size===0 || fm.sexo.has(h.sexo))
-      && (fm.status.size===0 || fm.status.has(h.status))
-      && (fm.categoria.size===0 || fm.categoria.has(h.categoria))
-      && (fm.pelagem.size===0 || fm.pelagem.has(h.pelagem))
-      && (fm.raca.size===0 || fm.raca.has(h.raca))
-      && (fm.localizacao.size===0 || fm.localizacao.has(h.localizacao))
+      && filtroTem(fm.status, h.status)
+      && filtroTem(fm.categoria, h.categoria)
+      && filtroTem(fm.pelagem, h.pelagem)
+      && filtroTem(fm.raca, h.raca)
+      && filtroTem(fm.localizacao, h.localizacao)
       && (fm.doador.size===0 || fm.doador.has(h.doador?'sim':'nao'));
   });
   if(sortColumn){
