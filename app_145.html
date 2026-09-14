@@ -15162,7 +15162,7 @@ function podeVerValoresAnimais(){
 // então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
   if(!user) return [];
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'auditoria'];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'auditoria', 'filtrosanimais'];
   return ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
 }
 // Pra Manejos, além de liberar a tela, dá pra restringir A QUAIS TIPOS o usuário tem acesso — o caso
