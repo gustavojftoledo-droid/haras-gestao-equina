@@ -109,6 +109,11 @@
   .menu-discreto-pop{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,0.18);z-index:60;min-width:230px;flex-direction:column;gap:4px;}
   .menu-discreto-pop.show{display:flex;}
   .menu-discreto-pop button{width:100%;justify-content:flex-start;}
+  /* Botão "..." em cima de um fundo escuro (ex: perfil-card-head verde) — o .btn-ghost padrão fica
+     com texto escuro em cima de fundo transparente, invisível ali; e no hover ele vira fundo branco
+     (regra geral do .btn-ghost), que apagaria um texto branco também. Essa variante resolve os dois. */
+  .btn-ghost.on-dark{color:#fff;border-color:rgba(255,255,255,.45);}
+  .btn-ghost.on-dark:hover{background:rgba(255,255,255,.18);}
   .drc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:13px;color:var(--ink);}
   .drc-nav{background:none;border:none;font-size:16px;cursor:pointer;color:var(--green);padding:2px 8px;}
   .drc-nav:hover{color:var(--brass);}
@@ -1094,8 +1099,6 @@
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
             </div>
           </div>
-          <button class="btn btn-ghost" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
-          <button class="btn" id="btnNewNasc" title="Atalho: Alt+N">+ Nova Cobertura</button>
         </div>
       </div>
       <div class="subtabs">
@@ -1114,6 +1117,7 @@
           <div class="f"><label>Estação reprodutiva</label><select id="nFiltroEstacao"><option value="">Todas</option></select></div>
         </div>
         <div class="lista-toolbar">
+          <button type="button" class="btn btn-sm" id="btnNewNasc" title="Atalho: Alt+N" style="margin-right:auto;">+ Nova Cobertura</button>
           <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button>
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
         </div>
@@ -1130,6 +1134,7 @@
           <div class="f"><label>Período</label><div id="vrFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
+          <button type="button" class="btn btn-sm" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
           <div class="lista-toolbar-info">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
           <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF</button>
           <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button>
@@ -1142,7 +1147,19 @@
 
       <div id="nview_protocolo" style="display:none;">
         <div class="perfil-card">
-          <div class="perfil-card-head"><span>Protocolo — Gestação <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Cobertura)</span></span><button type="button" class="btn btn-sm" id="btnGerarPedidoVacina" style="font-weight:400;">🐴 Gerar pedido de vacina</button></div>
+          <div class="perfil-card-head">
+            <span>Protocolo — Gestação <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Cobertura)</span></span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" class="btn btn-sm" data-gerarpedido="gestacao" style="font-weight:400;">🐴 Gerar pedido de vacina</button>
+              <div class="menu-discreto-wrap">
+                <button type="button" class="btn btn-sm btn-ghost on-dark" data-menuprotocolo="gestacao" title="Mais ações" style="font-weight:400;">⋯</button>
+                <div class="menu-discreto-pop" data-menuprotocolopop="gestacao">
+                  <button type="button" class="btn btn-ghost btn-sm" data-editarprotocolo="gestacao">✎ Editar protocolo</button>
+                  <button type="button" class="btn btn-ghost btn-sm" data-exportarprotocolo="gestacao">📄 Exportar protocolo</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="perfil-card-body">
             <div class="hint-text" style="margin-bottom:12px;">Quando você confirma a prenhez de uma égua ou receptora, essas vacinas já entram sozinhas no Calendário, com a data prevista de cada uma. Sugestão inicial — revise com seu veterinário antes de confiar de olhos fechados.</div>
             <div id="protocoloGestacaoLista"></div>
@@ -1150,7 +1167,19 @@
           </div>
         </div>
         <div class="perfil-card">
-          <div class="perfil-card-head">Protocolo — Potro <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Nascimento)</span></div>
+          <div class="perfil-card-head">
+            <span>Protocolo — Potro <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Nascimento)</span></span>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" class="btn btn-sm" data-gerarpedido="potro" style="font-weight:400;">🐴 Gerar pedido de vacina</button>
+              <div class="menu-discreto-wrap">
+                <button type="button" class="btn btn-sm btn-ghost on-dark" data-menuprotocolo="potro" title="Mais ações" style="font-weight:400;">⋯</button>
+                <div class="menu-discreto-pop" data-menuprotocolopop="potro">
+                  <button type="button" class="btn btn-ghost btn-sm" data-editarprotocolo="potro">✎ Editar protocolo</button>
+                  <button type="button" class="btn btn-ghost btn-sm" data-exportarprotocolo="potro">📄 Exportar protocolo</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="perfil-card-body">
             <div class="hint-text" style="margin-bottom:12px;">Aplicado sozinho quando o nascimento é confirmado, até o potro entrar no protocolo anual normal (Manejos → Vacina, com frequência própria por vacina).</div>
             <div id="protocoloPotroLista"></div>
@@ -1835,27 +1864,32 @@
   </div>
 </div>
 
-<!-- PEDIDO DE VACINA (GESTAÇÃO) -->
+<!-- PEDIDO DE VACINA (GESTAÇÃO OU POTRO — mesmo layout, só muda como a quantidade é informada) -->
 <div class="overlay" id="overlayPedidoVacina">
   <div class="modal wide">
-    <div class="modal-head"><div class="modal-title">Pedido de Vacina — Gestação</div><button class="modal-close" data-close="overlayPedidoVacina">✕</button></div>
-    <div class="hint-text" style="margin-bottom:10px;">Marque as éguas prenhas do plantel que vão receber o protocolo — o pedido sugerido é a quantidade de doses de cada vacina no protocolo de gestação × éguas marcadas.</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-weight:600;font-size:13px;">Éguas prenhas do plantel</div>
-      <div style="display:flex;gap:8px;">
-        <button type="button" class="btn btn-sm btn-ghost" id="btnPedidoVacinaTodas">Marcar todas</button>
-        <button type="button" class="btn btn-sm btn-ghost" id="btnPedidoVacinaNenhuma">Desmarcar todas</button>
-      </div>
+    <div class="modal-head"><div class="modal-title" id="pedidoVacinaTitulo">Pedido de Vacina</div><button class="modal-close" data-close="overlayPedidoVacina">✕</button></div>
+    <div class="hint-text" id="pedidoVacinaHint" style="margin-bottom:12px;"></div>
+
+    <div class="section-label" style="border-top:none;padding-top:0;">Vacinas do protocolo</div>
+    <div id="pedidoVacinaVacinasLista" style="border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:16px;"></div>
+
+    <div id="pedidoVacinaQtdHost" style="margin-bottom:16px;"></div>
+
+    <div style="text-align:right;margin-bottom:10px;">
+      <button type="button" class="btn btn-sm" id="btnPedidoVacinaGerar">Gerar pedido</button>
     </div>
-    <div id="pedidoVacinaEguasLista" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:16px;"></div>
-    <div class="section-label" style="border-top:none;padding-top:0;">Pedido sugerido</div>
-    <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Vacina</th><th>Doses por égua</th><th>Éguas marcadas</th><th>Total sugerido</th></tr></thead>
-      <tbody id="pedidoVacinaTbody"></tbody>
-    </table></div>
+
+    <div id="pedidoVacinaResultadoWrap" style="display:none;">
+      <div class="section-label" style="border-top:none;padding-top:0;">Pedido sugerido</div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Vacina</th><th>Doses por unidade</th><th>Quantidade</th><th>Total sugerido</th></tr></thead>
+        <tbody id="pedidoVacinaTbody"></tbody>
+      </table></div>
+    </div>
+
     <div class="modal-actions">
-      <div></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoVacina">Fechar</button><button type="button" class="btn" id="btnPedidoVacinaPdf">📄 Baixar PDF</button></div>
+      <div><button type="button" class="btn btn-ghost btn-sm" id="btnPedidoVacinaCopiar" style="display:none;">📋 Copiar como texto</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoVacina">Fechar</button><button type="button" class="btn" id="btnPedidoVacinaPdf" style="display:none;">📄 Baixar PDF</button></div>
     </div>
   </div>
 </div>
@@ -9296,18 +9330,26 @@ function atualizarProvavelNascimentoView(){
   document.getElementById('n_provavelView').value = prov ? fmtDate(prov)+sufixo : '—';
 }
 document.getElementById('n_datacob').addEventListener('input', atualizarProvavelNascimentoView);
-// Botão "⋯" discreto que agrupa opções secundárias de Reprodução (Tempo de gestação, Dias p/ coleta,
-// Importar PDF) — fora do caminho principal (Nova visita / Nova Cobertura), pra não poluir a barra.
-document.getElementById('btnMenuNascMais').addEventListener('click', e=>{
-  e.stopPropagation();
-  document.getElementById('menuNascMaisPop').classList.toggle('show');
-});
-document.getElementById('menuNascMaisPop').addEventListener('click', e=>{
-  if(e.target.closest('button')) document.getElementById('menuNascMaisPop').classList.remove('show');
-});
+// Botão "⋯" discreto — genérico pra qualquer ".menu-discreto-wrap" (opções secundárias de
+// Reprodução, menus dos cards de Protocolo de Vacinas etc.): abre o popover ao lado, fecha os
+// outros abertos, fecha ao clicar numa opção dele ou fora dele.
 document.addEventListener('click', e=>{
-  const wrap = document.getElementById('menuNascMaisPop');
-  if(wrap && !e.target.closest('.menu-discreto-wrap')) wrap.classList.remove('show');
+  const trigger = e.target.closest('.menu-discreto-wrap > button');
+  if(trigger){
+    e.stopPropagation();
+    const pop = trigger.parentElement.querySelector('.menu-discreto-pop');
+    const jaAberto = pop.classList.contains('show');
+    document.querySelectorAll('.menu-discreto-pop.show').forEach(p=>p.classList.remove('show'));
+    if(!jaAberto) pop.classList.add('show');
+    return;
+  }
+  if(e.target.closest('.menu-discreto-pop button')){
+    e.target.closest('.menu-discreto-pop').classList.remove('show');
+    return;
+  }
+  if(!e.target.closest('.menu-discreto-wrap')){
+    document.querySelectorAll('.menu-discreto-pop.show').forEach(p=>p.classList.remove('show'));
+  }
 });
 document.getElementById('btnConfigGestacao').addEventListener('click', async ()=>{
   const val = await showPrompt('Tempo de gestação (em dias) usado pra calcular a Provável Nascimento:', 'Ex: 340 (atual: '+config.gestacaoDias+')');
@@ -10191,65 +10233,156 @@ function renderProtocoloAgenda(){
 }
 function renderProtocoloVacinas(){ renderRegrasProtocolo(); renderProtocoloAgenda(); }
 
-/* ---- Pedido de Vacina — pedido sugerido de compra, com base nas éguas prenhas marcadas (do
-   plantel) e no protocolo de gestação já cadastrado (doses por égua = quantos momentos a vacina
-   tem no protocolo; total = doses por égua × éguas marcadas) ---- */
-let pedidoVacinaSelecionadas = new Set();
-function abrirPedidoVacina(){
+/* ---- Pedido de Vacina — mesmo modal serve pro protocolo de Gestação e o de Potro; a única
+   diferença é como a quantidade é informada (checklist de éguas prenhas vs. um número de potros).
+   Fluxo: marca as vacinas do protocolo (cada uma já mostra doses por unidade) + a quantidade,
+   aperta "Gerar pedido" pra somar e mostrar a lista final, com opção de copiar como texto ou
+   baixar em PDF. ---- */
+let pedidoVacinaGrupoAtual = null;
+let pedidoVacinaUltimoResultado = null;
+function montarQtdHostPedidoVacina(grupo){
+  const host = document.getElementById('pedidoVacinaQtdHost');
+  if(grupo==='potro'){
+    host.innerHTML = `<div class="field" style="max-width:180px;"><label>Quantos potros</label><input type="number" min="1" step="1" id="pedidoVacinaQtdPotros" value="1"></div>`;
+    return;
+  }
   const prenhes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S');
-  if(prenhes.length===0){ showAlert('Nenhuma égua com prenhez confirmada no momento — confirme a prenhez de uma égua ou receptora em Coberturas antes de gerar o pedido.'); return; }
-  pedidoVacinaSelecionadas = new Set(prenhes.map(n=>n.id));
-  const lista = document.getElementById('pedidoVacinaEguasLista');
-  lista.innerHTML = prenhes.map(n=>{
-    const nome = alvoVacinaGestacao(n).nome || '(sem nome)';
+  if(prenhes.length===0){
+    host.innerHTML = '<div class="hint-text">Nenhuma égua com prenhez confirmada no momento — confirme a prenhez de uma égua ou receptora em Coberturas antes de gerar o pedido.</div>';
+    return;
+  }
+  host.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-weight:600;font-size:13px;">Éguas prenhas do plantel</div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="btn btn-sm btn-ghost" id="btnPedidoVacinaTodas">Marcar todas</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnPedidoVacinaNenhuma">Desmarcar todas</button>
+      </div>
+    </div>
+    <div id="pedidoVacinaEguasLista" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;">
+      ${prenhes.map(n=>{
+        const nome = alvoVacinaGestacao(n).nome || '(sem nome)';
+        const prov = calcProvavelNascimento(refCobertura(n));
+        return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;">
+          <input type="checkbox" data-pedidoegua="${n.id}" data-nome="${nome}" checked> ${nome} <span style="color:var(--muted);font-size:12px;">— parto previsto ${prov?fmtDate(prov):'—'}</span>
+        </label>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('btnPedidoVacinaTodas').addEventListener('click', ()=>{
+    document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]').forEach(cb=>cb.checked=true);
+  });
+  document.getElementById('btnPedidoVacinaNenhuma').addEventListener('click', ()=>{
+    document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]').forEach(cb=>cb.checked=false);
+  });
+}
+function abrirPedidoVacina(grupo){
+  const regras = grupo==='gestacao' ? (config.protocoloVacinasGestacao||[]) : (config.protocoloVacinasPotro||[]);
+  if(regras.length===0){ showAlert('Nenhuma vacina cadastrada nesse protocolo ainda — cadastre em "+ Adicionar vacina ao protocolo de '+(grupo==='gestacao'?'gestação':'potro')+'".'); return; }
+  pedidoVacinaGrupoAtual = grupo;
+  const unidade = grupo==='gestacao' ? 'égua' : 'potro';
+  document.getElementById('pedidoVacinaTitulo').textContent = 'Pedido de Vacina — '+(grupo==='gestacao'?'Gestação':'Potro');
+  document.getElementById('pedidoVacinaHint').textContent = grupo==='gestacao'
+    ? 'Marque as vacinas e as éguas prenhas do plantel que vão receber o protocolo, depois clique em "Gerar pedido".'
+    : 'Marque as vacinas e informe quantos potros vão receber o protocolo, depois clique em "Gerar pedido".';
+  document.getElementById('pedidoVacinaVacinasLista').innerHTML = regras.map(r=>{
+    const doses = (r.valores||[]).length;
     return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;">
-      <input type="checkbox" data-pedidoegua="${n.id}" data-nome="${nome}" checked> ${nome} <span style="color:var(--muted);font-size:12px;">— cobertura ${fmtDate(n.datacob)}</span>
+      <input type="checkbox" data-pedidovacinaid="${r.id}" data-doses="${doses}" data-nome="${r.nome}" checked> ${r.nome} <span style="color:var(--muted);font-size:12px;">— ${doses} dose(s) por ${unidade}</span>
     </label>`;
   }).join('');
-  lista.querySelectorAll('[data-pedidoegua]').forEach(cb=>cb.addEventListener('change', ()=>{
-    if(cb.checked) pedidoVacinaSelecionadas.add(cb.dataset.pedidoegua); else pedidoVacinaSelecionadas.delete(cb.dataset.pedidoegua);
-    renderPedidoVacinaTabela();
-  }));
-  renderPedidoVacinaTabela();
+  montarQtdHostPedidoVacina(grupo);
+  document.getElementById('pedidoVacinaResultadoWrap').style.display = 'none';
+  document.getElementById('btnPedidoVacinaCopiar').style.display = 'none';
+  document.getElementById('btnPedidoVacinaPdf').style.display = 'none';
+  pedidoVacinaUltimoResultado = null;
   openModal('overlayPedidoVacina');
 }
-function renderPedidoVacinaTabela(){
-  const qtdEguas = pedidoVacinaSelecionadas.size;
-  const regras = config.protocoloVacinasGestacao||[];
-  const tbody = document.getElementById('pedidoVacinaTbody');
-  if(regras.length===0){ tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhuma vacina cadastrada no protocolo de gestação ainda — cadastre em "+ Adicionar vacina ao protocolo de gestação".</td></tr>'; return; }
-  tbody.innerHTML = regras.map(r=>{
-    const dosesPorEgua = (r.valores||[]).length;
-    return `<tr><td>${r.nome}</td><td>${dosesPorEgua}</td><td>${qtdEguas}</td><td><strong>${dosesPorEgua*qtdEguas}</strong></td></tr>`;
-  }).join('');
-}
-document.getElementById('btnGerarPedidoVacina').addEventListener('click', abrirPedidoVacina);
-document.getElementById('btnPedidoVacinaTodas').addEventListener('click', ()=>{
-  document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]').forEach(cb=>{ cb.checked=true; pedidoVacinaSelecionadas.add(cb.dataset.pedidoegua); });
-  renderPedidoVacinaTabela();
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-gerarpedido]');
+  if(btn) abrirPedidoVacina(btn.dataset.gerarpedido);
 });
-document.getElementById('btnPedidoVacinaNenhuma').addEventListener('click', ()=>{
-  document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]').forEach(cb=>{ cb.checked=false; pedidoVacinaSelecionadas.delete(cb.dataset.pedidoegua); });
-  renderPedidoVacinaTabela();
+document.getElementById('btnPedidoVacinaGerar').addEventListener('click', ()=>{
+  const grupo = pedidoVacinaGrupoAtual;
+  const vacinasChecadas = [...document.querySelectorAll('#pedidoVacinaVacinasLista [data-pedidovacinaid]')].filter(cb=>cb.checked);
+  if(vacinasChecadas.length===0){ showAlert('Marque ao menos uma vacina.'); return; }
+  let qtd = 0, qtdLabel = '';
+  if(grupo==='gestacao'){
+    const eguasChecadas = [...document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]')].filter(cb=>cb.checked);
+    qtd = eguasChecadas.length;
+    if(qtd===0){ showAlert('Marque ao menos uma égua.'); return; }
+    qtdLabel = qtd+' égua(s) selecionada(s): '+eguasChecadas.map(cb=>cb.dataset.nome).join(', ');
+  } else {
+    qtd = Number(document.getElementById('pedidoVacinaQtdPotros').value)||0;
+    if(qtd<=0){ showAlert('Informe quantos potros vão receber o protocolo.'); return; }
+    qtdLabel = qtd+' potro(s)';
+  }
+  const itens = vacinasChecadas.map(cb=>{
+    const doses = Number(cb.dataset.doses)||0;
+    return { nome: cb.dataset.nome, doses, qtd, total: doses*qtd };
+  });
+  pedidoVacinaUltimoResultado = { grupo, qtdLabel, itens };
+  document.getElementById('pedidoVacinaTbody').innerHTML = itens.map(i=>`<tr><td>${i.nome}</td><td>${i.doses}</td><td>${i.qtd}</td><td><strong>${i.total}</strong></td></tr>`).join('');
+  document.getElementById('pedidoVacinaResultadoWrap').style.display = '';
+  document.getElementById('btnPedidoVacinaCopiar').style.display = '';
+  document.getElementById('btnPedidoVacinaPdf').style.display = '';
+});
+document.getElementById('btnPedidoVacinaCopiar').addEventListener('click', async ()=>{
+  if(!pedidoVacinaUltimoResultado) return;
+  const { grupo, qtdLabel, itens } = pedidoVacinaUltimoResultado;
+  const titulo = 'Pedido de Vacina — '+(grupo==='gestacao'?'Gestação':'Potro');
+  const texto = [titulo, qtdLabel, '', ...itens.map(i=>`${i.nome}: ${i.total} dose(s)`)].join('\n');
+  try{
+    await navigator.clipboard.writeText(texto);
+    showAlert('Pedido copiado — já pode colar numa mensagem.');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); showAlert('Pedido copiado — já pode colar numa mensagem.'); }
+    catch(e2){ showAlert('Não consegui copiar automaticamente. Texto do pedido:\n\n'+texto); }
+    document.body.removeChild(ta);
+  }
 });
 document.getElementById('btnPedidoVacinaPdf').addEventListener('click', ()=>{
-  const regras = config.protocoloVacinasGestacao||[];
-  const qtdEguas = pedidoVacinaSelecionadas.size;
-  if(qtdEguas===0){ showAlert('Marque ao menos uma égua pra gerar o pedido em PDF.'); return; }
-  if(regras.length===0){ showAlert('Nenhuma vacina cadastrada no protocolo de gestação ainda.'); return; }
-  const nomesEguas = [...document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]')].filter(cb=>cb.checked).map(cb=>cb.dataset.nome);
-  const linhasVacinas = regras.map(r=>{
-    const doses = (r.valores||[]).length;
-    return `<tr><td>${r.nome}</td><td class="num">${doses}</td><td class="num">${qtdEguas}</td><td class="num">${doses*qtdEguas}</td></tr>`;
-  }).join('');
-  const html = `<h1>Pedido de Vacina — Gestação</h1>
-    <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${qtdEguas} égua(s) selecionada(s)</div>
-    <table><thead><tr><th>Vacina</th><th class="num">Doses por égua</th><th class="num">Éguas marcadas</th><th class="num">Total sugerido</th></tr></thead>
-    <tbody>${linhasVacinas}</tbody></table>
-    <div class="sub" style="margin-top:14px;">Éguas incluídas: ${nomesEguas.join(', ')}</div>`;
+  if(!pedidoVacinaUltimoResultado) return;
+  const { grupo, qtdLabel, itens } = pedidoVacinaUltimoResultado;
+  const titulo = 'Pedido de Vacina — '+(grupo==='gestacao'?'Gestação':'Potro');
+  const linhasVacinas = itens.map(i=>`<tr><td>${i.nome}</td><td class="num">${i.doses}</td><td class="num">${i.qtd}</td><td class="num">${i.total}</td></tr>`).join('');
+  const html = `<h1>${titulo}</h1>
+    <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${qtdLabel}</div>
+    <table><thead><tr><th>Vacina</th><th class="num">Doses por unidade</th><th class="num">Quantidade</th><th class="num">Total sugerido</th></tr></thead>
+    <tbody>${linhasVacinas}</tbody></table>`;
   closeModal('overlayPedidoVacina');
-  abrirPreviaRelatorio(html, 'Pedido-de-Vacina.pdf', 'Pedido de Vacina — Gestação');
+  abrirPreviaRelatorio(html, 'Pedido-de-Vacina-'+(grupo==='gestacao'?'Gestacao':'Potro')+'.pdf', titulo);
 });
+
+/* ---- Menu "..." de cada card de Protocolo (Editar / Exportar protocolo) ---- */
+document.addEventListener('click', e=>{
+  const editBtn = e.target.closest('[data-editarprotocolo]');
+  if(editBtn){
+    const alvo = document.getElementById(editBtn.dataset.editarprotocolo==='gestacao' ? 'protocoloGestacaoLista' : 'protocoloPotroLista');
+    if(alvo) alvo.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  const expBtn = e.target.closest('[data-exportarprotocolo]');
+  if(expBtn) exportarProtocolo(expBtn.dataset.exportarprotocolo);
+});
+function exportarProtocolo(grupo){
+  const REGRA_LABEL_GEST = { mes_gestacao:'mês(es) de gestação', dias_antes_parto:'dia(s) antes do parto previsto', meses_apos_cobertura:'mês(es) após a cobertura' };
+  const REGRA_LABEL_POTRO = { dias_apos_nascimento:'dia(s) após o nascimento' };
+  const regras = grupo==='gestacao' ? (config.protocoloVacinasGestacao||[]) : (config.protocoloVacinasPotro||[]);
+  const labelMap = grupo==='gestacao' ? REGRA_LABEL_GEST : REGRA_LABEL_POTRO;
+  if(regras.length===0){ showAlert('Nenhuma vacina cadastrada nesse protocolo ainda.'); return; }
+  const linhas = regras.map(r=>{
+    const ordinal = r.regra==='mes_gestacao';
+    const valoresTxt = ordinal ? (r.valores||[]).map(v=>v+'º').join(', ') : (r.valores||[]).join(', ');
+    return `<tr><td>${r.nome}</td><td>${valoresTxt} ${labelMap[r.regra]||r.regra}</td></tr>`;
+  }).join('');
+  const titulo = 'Protocolo de Vacinas — '+(grupo==='gestacao'?'Gestação':'Potro');
+  const html = `<h1>${titulo}</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>
+    <table><thead><tr><th>Vacina</th><th>Quando aplicar</th></tr></thead><tbody>${linhas}</tbody></table>`;
+  abrirPreviaRelatorio(html, 'Protocolo-'+(grupo==='gestacao'?'Gestacao':'Potro')+'.pdf', titulo);
+}
 
 /* ---- Modal de adicionar/editar uma regra do protocolo (gestação ou potro) ---- */
 let editingRegraGrupo = null, editingRegraId = null;
