@@ -16657,6 +16657,27 @@ function computeTimelineAnimal(h){
       });
     }
   });
+  // Filhos que estão cadastrados direto na lista de Animais (campo Pai/Mãe preenchido manualmente —
+  // comum em animal migrado de outro sistema, sem nunca ter passado por uma Cobertura/Nascimento
+  // aqui) também entram como "Nasceu", senão a contagem de "Filhos" da Linha do Tempo fica menor que
+  // a "Descendência" mostrada nas estatísticas do animal (que olha o cadastro de Animais direto).
+  // Dedup pelo id do animal-filho: um nascimento confirmado grava animalId apontando pro Animal
+  // criado — se esse filho já gerou evento pela Cobertura/Nascimento acima, não conta de novo aqui.
+  const filhosJaNaTimeline = new Set(nascimentos.map(n=>n.animalId).filter(Boolean));
+  const hNomeNormFilhos = normNomeParentesco(h.nome);
+  if(hNomeNormFilhos){
+    horses.forEach(x=>{
+      if(x.id===h.id || filhosJaNaTimeline.has(x.id)) return;
+      const ehFilhoDele = normNomeParentesco(x.pai)===hNomeNormFilhos;
+      const ehFilhoDela = normNomeParentesco(x.mae)===hNomeNormFilhos;
+      if(!ehFilhoDele && !ehFilhoDela) return;
+      if(!x.nascimento) return; // sem data cadastrada, não dá pra postar na timeline
+      eventos.push({
+        data: x.nascimento, tipo:'filho', titulo:'Nasceu: '+x.nome,
+        detalhe: ehFilhoDele ? ('Mãe: '+(x.mae||'—')) : ('Pai: '+(x.pai||'—'))
+      });
+    });
+  }
   return eventos.filter(e=>e.data).sort((a,b)=> b.data.localeCompare(a.data));
 }
 function renderAnimalTimeline(h){
