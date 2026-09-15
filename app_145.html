@@ -3824,12 +3824,18 @@ function guardarPontoDeVolta(){
   preservarPilhaVoltar = true;
 }
 function atualizarBotaoVoltar(){
-  document.getElementById('btnVoltarFlutuante').style.display = pilhaVoltar.length>0 ? 'inline-block' : 'none';
+  // Na Ficha do Animal o "Voltar" já aparece junto do nome (btnVoltarPerfil) — o flutuante junto
+  // dele era um segundo botão fazendo a mesma coisa, then só mostra o flutuante nas outras telas.
+  const naFicha = document.querySelector('.view.active')?.id === 'view-animalPerfil';
+  document.getElementById('btnVoltarFlutuante').style.display = (!naFicha && pilhaVoltar.length>0) ? 'inline-block' : 'none';
 }
 function voltarUmPasso(){
   const anterior = pilhaVoltar.pop();
   preservarPilhaVoltar = true; // essa navegação (a de volta em si) não deve esvaziar o resto da pilha
   if(!anterior){
+    // Aba aberta a partir de um 👁 "Abrir ficha em nova aba" (window.opener aponta pra quem abriu) —
+    // não tem pra onde "voltar" dentro dela mesma, então fecha e devolve o foco pra aba de origem.
+    if(window.opener){ window.close(); return; }
     irParaView('inicio');
   } else if(anterior.view==='view-animalPerfil' && anterior.animalId){
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -16132,8 +16138,10 @@ function abrirPerfilAnimal(id){
 }
 document.getElementById('btnVoltarPerfil').addEventListener('click', ()=>{
   // Volta pro lugar exato de onde a ficha foi aberta (pilhaVoltar quase sempre tem algo, já que
-  // abrirPerfilAnimal sempre empilha) — sem pilha (ex: abriu direto por link ?animal=ID), cai em Animais.
+  // abrirPerfilAnimal sempre empilha). Sem pilha: se essa aba foi aberta por um 👁 "Abrir ficha em
+  // nova aba", fecha ela; senão (link direto/aba única) cai em Animais.
   if(pilhaVoltar.length>0){ voltarUmPasso(); return; }
+  if(window.opener){ window.close(); return; }
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animais').classList.add('active');
   document.querySelector('.nav-item[data-view="animais"]').classList.add('active');
