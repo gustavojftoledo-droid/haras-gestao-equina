@@ -1154,13 +1154,7 @@
             <span>Protocolo — Gestação <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Cobertura)</span></span>
             <div style="display:flex;gap:6px;align-items:center;">
               <button type="button" class="btn btn-sm" data-gerarpedido="gestacao" style="font-weight:400;">🐴 Gerar pedido de vacina</button>
-              <div class="menu-discreto-wrap">
-                <button type="button" class="btn btn-sm btn-ghost on-dark" data-menuprotocolo="gestacao" title="Mais ações" style="font-weight:400;">⋯</button>
-                <div class="menu-discreto-pop" data-menuprotocolopop="gestacao">
-                  <button type="button" class="btn btn-ghost btn-sm" data-editarprotocolo="gestacao">✎ Editar protocolo</button>
-                  <button type="button" class="btn btn-ghost btn-sm" data-exportarprotocolo="gestacao">📄 Exportar protocolo</button>
-                </div>
-              </div>
+              <button type="button" class="btn btn-sm btn-ghost on-dark" data-exportarprotocolo="gestacao" style="font-weight:400;">📄 Exportar protocolo</button>
             </div>
           </div>
           <div class="perfil-card-body">
@@ -1174,13 +1168,7 @@
             <span>Protocolo — Potro <span style="font-weight:400;font-size:11.5px;">(a partir da Data de Nascimento)</span></span>
             <div style="display:flex;gap:6px;align-items:center;">
               <button type="button" class="btn btn-sm" data-gerarpedido="potro" style="font-weight:400;">🐴 Gerar pedido de vacina</button>
-              <div class="menu-discreto-wrap">
-                <button type="button" class="btn btn-sm btn-ghost on-dark" data-menuprotocolo="potro" title="Mais ações" style="font-weight:400;">⋯</button>
-                <div class="menu-discreto-pop" data-menuprotocolopop="potro">
-                  <button type="button" class="btn btn-ghost btn-sm" data-editarprotocolo="potro">✎ Editar protocolo</button>
-                  <button type="button" class="btn btn-ghost btn-sm" data-exportarprotocolo="potro">📄 Exportar protocolo</button>
-                </div>
-              </div>
+              <button type="button" class="btn btn-sm btn-ghost on-dark" data-exportarprotocolo="potro" style="font-weight:400;">📄 Exportar protocolo</button>
             </div>
           </div>
           <div class="perfil-card-body">
@@ -10400,14 +10388,8 @@ document.getElementById('btnPedidoVacinaPdf').addEventListener('click', ()=>{
   abrirPreviaRelatorio(html, 'Pedido-de-Vacina-'+(grupo==='gestacao'?'Gestacao':'Potro')+'.pdf', titulo);
 });
 
-/* ---- Menu "..." de cada card de Protocolo (Editar / Exportar protocolo) ---- */
+/* ---- Botão "Exportar protocolo" de cada card de Protocolo ---- */
 document.addEventListener('click', e=>{
-  const editBtn = e.target.closest('[data-editarprotocolo]');
-  if(editBtn){
-    const alvo = document.getElementById(editBtn.dataset.editarprotocolo==='gestacao' ? 'protocoloGestacaoLista' : 'protocoloPotroLista');
-    if(alvo) alvo.scrollIntoView({behavior:'smooth', block:'center'});
-    return;
-  }
   const expBtn = e.target.closest('[data-exportarprotocolo]');
   if(expBtn) exportarProtocolo(expBtn.dataset.exportarprotocolo);
 });
