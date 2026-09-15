@@ -1381,15 +1381,15 @@
 
       <!-- VISITA: histórico de visitas veterinárias -->
       <div id="vtrview_visitas" style="display:none;">
-        <div class="toolbar-row">
-          <button type="button" class="btn" id="btnNewVisita">+ Nova Visita</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="btnRelVisitasFiltro" style="display:none;">📄 Gerar Relatório (dos filtrados)</button>
-        </div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="vsSearch" placeholder="Veterinário, animal, observações..."></div>
           <div class="f"><label>Período</label><div id="vsFiltroPeriodo"></div></div>
         </div>
         <div class="hint-text" style="margin:-4px 0 10px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" id="vsSoUltima" style="width:15px;height:15px;margin:0;"> Mostrar só a última visita de cada animal</label></div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn" id="btnNewVisita" style="margin-right:auto;">+ Nova Visita</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnRelVisitasFiltro" style="display:none;">📄 Gerar Relatório (dos filtrados)</button>
+        </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetVisitas">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="vetVisitas" title="Selecionar todos"></th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="veterinario" data-col="veterinario">Veterinário</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="animais" data-col="animais">Animais revisados</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="obsGeral" data-col="obsGeral">Observação geral</th><th></th></tr></thead>
           <tbody id="vsTbody"></tbody>
@@ -1399,7 +1399,6 @@
       <!-- TRATAMENTO: histórico de aplicações/tratamentos + relatório -->
       <div id="vtrview_tratamento" style="display:none;">
         <div class="toolbar-row">
-          <button class="btn" id="btnNewTratamento">+ Novo Tratamento</button>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelAll">Selecionar todos</button>
             <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelNone">Limpar seleção</button>
@@ -1412,6 +1411,9 @@
           <span class="chip active" data-trstatus="ativo" id="trstat_ativo">Em andamento</span>
           <span class="chip" data-trstatus="concluido" id="trstat_concluido">Histórico (concluídos)</span>
           <span class="chip" data-trstatus="" id="trstat_todos">Todos</span>
+        </div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnNewTratamento" style="margin-right:auto;">+ Novo Tratamento</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetTratamentos">
           <thead><tr><th style="width:34px;"></th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="medicamento">Medicamento</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="periodo" data-col="periodo">Período</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="status" data-col="status">Status</th><th></th></tr></thead>
