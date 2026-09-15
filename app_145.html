@@ -1050,9 +1050,11 @@
     <div class="view" id="view-treinos">
       <div class="topbar">
         <div><div class="title">Treinos</div><div class="subtitle">Sessões de treino e bate-bola</div></div>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
-          <button class="btn" id="btnNewTreino" title="Atalho: Alt+T">+ Novo Treino</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuTreinosMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuTreinosMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
+          </div>
         </div>
       </div>
       <div class="subtabs">
@@ -1067,6 +1069,7 @@
           <div class="f"><label>Período</label><div id="tFiltroPeriodo"></div></div>
         </div>
         <div class="lista-toolbar">
+          <button class="btn" id="btnNewTreino" title="Atalho: Alt+T" style="margin-right:auto;">+ Novo Treino</button>
           <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
           <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
         </div>
@@ -1237,11 +1240,15 @@
     <div class="view" id="view-estoque">
       <div class="topbar">
         <div><div class="title">Estoque</div><div class="subtitle">Medicamentos, alimentos, ferramentas e arreios</div></div>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
+        <div style="display:flex;gap:10px;align-items:center;">
           <button class="btn btn-danger" id="btnVinculosQuebrados" style="display:none;" title="Dieta ou Tratamento apontando pra um produto que foi excluído do Estoque">🔗 Vínculos quebrados</button>
-          <button class="btn btn-ghost" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
-          <button class="btn" id="btnNewProduto" title="Atalho: Alt+E">+ Novo Produto</button>
+          <div class="menu-discreto-wrap">
+            <button class="btn btn-ghost btn-sm" id="btnMenuEstoqueMais" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop" id="menuEstoqueMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
+            </div>
+          </div>
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -1257,6 +1264,10 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="eSearch" placeholder="Nome do produto..."></div>
           <div class="f"><label>Só perto do mínimo / zerado</label><select id="eSoMinimo"><option value="">Não</option><option value="S">Sim</option></select></div>
           <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" id="btnColunasEstoque">⚙ Colunas</button></div>
+        </div>
+        <div class="toolbar-row">
+          <div></div>
+          <button class="btn" id="btnNewProduto" title="Atalho: Alt+E">+ Novo Produto</button>
         </div>
         <div id="eEditLoteBar" style="display:none;align-items:center;gap:10px;background:#F4F0E4;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
           <span id="eEditLoteContagemBar"></span>
