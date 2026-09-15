@@ -942,9 +942,11 @@
     <div class="view" id="view-manejos">
       <div class="topbar">
         <div><div class="title">Manejos</div><div class="subtitle">Casco, vacina, vermífugo e dente</div></div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost" id="btnImportCasco">📋 Importar histórico de ferrageamento</button>
-          <button class="btn" id="btnNewManejo" title="Atalho: Alt+M">+ Novo Lançamento</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuManejosMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuManejosMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnImportCasco">📋 Importar histórico de ferrageamento</button>
+          </div>
         </div>
       </div>
       <div class="subtabs">
@@ -964,9 +966,10 @@
             <button type="button" class="btn btn-sm btn-ghost" id="btnManejoSelNone">Limpar seleção</button>
             <span class="hint-text" id="manejoSelCount">0 selecionado(s)</span>
           </div>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnRelManejoSel" style="display:none;">📄 Relatório dos selecionados</button>
             <button type="button" class="btn btn-sm btn-danger" id="btnManejoDelSel" style="display:none;">🗑 Excluir selecionados</button>
+            <button class="btn" id="btnNewManejo" title="Atalho: Alt+M">+ Novo Lançamento</button>
           </div>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
