@@ -448,6 +448,9 @@
   .cal-day.cal-today{border-color:var(--brass);border-width:2px;background:var(--card);}
   .cal-daynum{font-size:11.5px;font-weight:600;color:var(--muted);}
   .cal-today .cal-daynum{color:var(--green);}
+  .cal-daynum-row{display:flex;justify-content:space-between;align-items:center;}
+  .cal-day-add{width:17px;height:17px;line-height:15px;padding:0;border:1px solid var(--line);border-radius:3px;background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .cal-day-add:hover{background:var(--brass-light);color:#fff;border-color:var(--brass-light);}
   .cal-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--card);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cal-tag.cal-atrasado{background:var(--alert-bg);color:var(--alert-ink);border-color:var(--alert-bg);}
   .cal-tag.cal-hoje{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bg);}
@@ -716,7 +719,7 @@
             </div>
             <div class="title" id="calLabel" style="font-size:16px;"></div>
           </div>
-          <div class="hint-text" style="margin-bottom:10px;">Mostra Casco/Dente/Vacina/Vermífugo previstos (calculado a partir da frequência cadastrada de cada animal). Clique num dia ou numa tarefa pra ver os detalhes.</div>
+          <div class="hint-text" style="margin-bottom:10px;">Mostra Casco/Dente/Vacina/Vermífugo previstos (calculado a partir da frequência cadastrada de cada animal). Clique num dia ou numa tarefa pra ver os detalhes, ou no "+" do quadro do dia pra cadastrar um Manejo, Atividade, Transporte, Visita Veterinária ou Visita Reprodutiva já com a data preenchida.</div>
           <div id="calBody"></div>
         </div>
       </div>
@@ -2451,6 +2454,15 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-head"><div class="modal-title" id="calDetTitulo">Tarefas do dia</div><button class="modal-close" data-close="overlayCalDetalhe">✕</button></div>
     <div id="calDetBody"></div>
     <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayCalDetalhe">Fechar</button></div></div>
+  </div>
+</div>
+
+<!-- ESCOLHA DE TIPO — "+" do quadro do dia no Calendário -->
+<div class="overlay" id="overlayCalEscolha">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head"><div class="modal-title">O que você quer registrar?</div><button class="modal-close" data-close="overlayCalEscolha">✕</button></div>
+    <div class="hint-text" id="calEscolhaData" style="margin-bottom:12px;"></div>
+    <div id="calEscolhaOpcoes" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 </div>
 
@@ -6673,7 +6685,7 @@ function renderCalMonthHtml(byDate){
     const porTipo = {};
     tarefasDia.forEach(t=>{ if(!porTipo[t.tipo]) porTipo[t.tipo]=[]; porTipo[t.tipo].push(t); });
     html += `<div class="cal-day ${fora?'cal-outside':''} ${isHoje?'cal-today':''}" data-caldia="${iso}">
-      <div class="cal-daynum">${d.getDate()}</div>
+      <div class="cal-daynum-row"><div class="cal-daynum">${d.getDate()}</div><button type="button" class="cal-day-add" data-caladd="${iso}" title="Adicionar registro nesse dia">+</button></div>
       ${Object.entries(porTipo).map(([tipo,arr])=>{
         const temAtrasado = arr.some(t=>t.situacao==='atrasado');
         const icone = CAL_ICON[tipo] || (arr[0].categoria==='atividade' ? '🏇' : '');
@@ -6698,7 +6710,7 @@ function renderCalWeekHtml(byDate, nDias){
     const isHoje = iso===hojeStr;
     const tarefasDia = (byDate[iso]||[]).slice().sort((a,b)=> a.tipo.localeCompare(b.tipo,'pt'));
     html += `<div class="cal-week-col ${isHoje?'cal-today':''}">
-      <div class="cal-week-col-head">${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</div>
+      <div class="cal-week-col-head" style="display:flex;justify-content:space-between;align-items:center;"><span>${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</span><button type="button" class="cal-day-add" data-caladd="${iso}" title="Adicionar registro nesse dia">+</button></div>
       ${tarefasDia.length===0 ? '<div class="hint-text">Nenhuma tarefa prevista.</div>' :
         tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${t.label||t.tipo}</strong> — ${t.animalNome||'(sem animais definidos ainda)'}</div>`).join('')}
     </div>`;
@@ -7095,7 +7107,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
 }
 function wireCalendarClicks(byDate){
   document.querySelectorAll('[data-caldia]').forEach(el=>{
-    el.addEventListener('click', (e)=>{ if(e.target.closest('[data-caltag]')) return; abrirDetalheCalendario(el.dataset.caldia); });
+    el.addEventListener('click', (e)=>{ if(e.target.closest('[data-caltag],[data-caladd]')) return; abrirDetalheCalendario(el.dataset.caldia); });
   });
   document.querySelectorAll('[data-caltag]').forEach(el=>{
     el.addEventListener('click', (e)=>{ e.stopPropagation(); const [iso,tipo] = el.dataset.caltag.split('|'); abrirDetalheCalendario(iso, tipo); });
@@ -7103,6 +7115,38 @@ function wireCalendarClicks(byDate){
   document.querySelectorAll('[data-caltask]').forEach(el=>{
     el.addEventListener('click', ()=>{ const [iso,tipo] = el.dataset.caltask.split('|'); abrirDetalheCalendario(iso, tipo); });
   });
+  // "+" do quadro do dia — abre o escolhedor de tipo de registro (Manejo/Atividade/Transporte/
+  // Visita Veterinária/Visita Reprodutiva) pra criar algo já datado daquele dia.
+  document.querySelectorAll('[data-caladd]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); abrirEscolhaCalendario(el.dataset.caladd); });
+  });
+}
+// Escolhedor de tipo de registro pelo "+" do quadro do dia — abre o mesmo modal de "Novo X" que o
+// botão da tela original abriria, só que já com a data preenchida com o dia clicado. Cada item usa
+// o botão "+ Novo..." de verdade (mesmo cadastro, sem duplicar lógica), sobrescrevendo só a data.
+const CAL_ESCOLHA_OPCOES = [
+  { modulo:'manejos',     label:'🔧 Manejo (casco, dente, vacina, vermífugo)', btnId:'btnNewManejo',     dataField:'m_data' },
+  { modulo:'treinos',     label:'🏇 Atividade / Treino',                       btnId:'btnNewTreino',     dataField:'t_data' },
+  { modulo:'transporte',  label:'🚚 Transporte',                               btnId:'btnNewTransporte', dataField:'tp_data' },
+  { modulo:'veterinaria', label:'🩺 Visita Veterinária',                       btnId:'btnNewVisita',     dataField:'vs_data' },
+  { modulo:'nascimentos', label:'🐎 Visita Reprodutiva',                       btnId:'btnNewVisitaRepro',dataField:'vr_data' },
+];
+function abrirEscolhaCalendario(iso){
+  const opcoes = CAL_ESCOLHA_OPCOES.filter(o=>temPermissao(o.modulo,'inserir'));
+  if(opcoes.length===0){ showAlert('Você não tem permissão de inserir em nenhum desses módulos.'); return; }
+  document.getElementById('calEscolhaData').textContent = 'Nova entrada para '+fmtDate(iso)+' — escolha o tipo:';
+  document.getElementById('calEscolhaOpcoes').innerHTML = opcoes.map(o=>`<button type="button" class="btn btn-ghost" data-calescolha="${o.modulo}" style="text-align:left;">${o.label}</button>`).join('');
+  document.getElementById('calEscolhaOpcoes').querySelectorAll('[data-calescolha]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const opcao = opcoes.find(o=>o.modulo===btn.dataset.calescolha);
+      closeModal('overlayCalEscolha');
+      document.getElementById(opcao.btnId).click();
+      // setTimeout garante que roda depois de qualquer coisa assíncrona no início do handler do
+      // botão original — sobrescreve só a data que ele já preencheu (hoje, ou vazia) pela do dia clicado.
+      setTimeout(()=>{ const campo = document.getElementById(opcao.dataField); if(campo) campo.value = iso; }, 0);
+    });
+  });
+  openModal('overlayCalEscolha');
 }
 document.querySelectorAll('[data-calview]').forEach(chip=>{
   chip.addEventListener('click', ()=>{ calView = chip.dataset.calview; renderCalendar(); });
