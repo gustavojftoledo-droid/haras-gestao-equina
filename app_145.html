@@ -854,7 +854,7 @@
         </div>
 
         <div id="rview_fichas">
-          <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+          <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 6px;">
             <span class="hint-text" style="margin:0;">Ordenar o relatório por:</span>
             <span class="chip active" data-relordem="nome" id="relOrdemNome">Nome (A–Z)</span>
@@ -1024,7 +1024,7 @@
           <div class="f"><label>Tipo</label><select id="mrFiltroTipo"><option value="">Todos</option><option>Casco</option><option>Vacina</option><option>Vermífugo</option><option>Dente</option></select></div>
           <div class="f"><label>Período</label><div id="mrFiltroPeriodo"></div></div>
         </div>
-        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— use "Selecionar todos" pra ver todo mundo, ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— use "Selecionar todos os animais" pra ver todo mundo, ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="manejoRelSelectorHost" style="margin:10px 0 16px;"></div>
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelManejo1">Gerar Relatório 1 <span style="opacity:.6;font-weight:400;font-size:11px;">(Alt+1)</span></button>
@@ -1101,7 +1101,7 @@
           <div class="f"><label>Data de</label><input type="date" id="trFiltroDe"></div>
           <div class="f"><label>Data até</label><input type="date" id="trFiltroAte"></div>
         </div>
-        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="treinoRelSelectorHost" style="margin:10px 0 16px;"></div>
         <div class="toolbar-row">
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1425,7 +1425,7 @@
           <div class="f"><label>Status</label><select id="vrFiltroStatus"><option value="">Todos</option><option value="ativo">Em andamento</option><option value="atrasado">Com dose(s) atrasada(s)</option><option value="concluido">Concluído</option></select></div>
           <div class="f"><label>Período de início</label><div id="trRelFiltroPeriodo"></div></div>
         </div>
-        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+        <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="vetRelSelectorHost" style="margin:10px 0 16px;"></div>
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelVet">Gerar Relatório</button>
@@ -4113,8 +4113,11 @@ function createAnimalSelector(hostEl, opts){
         </div>` : ''}
         <div class="selector-hint">Clique em uma ou mais categorias/localizações/proprietários pra filtrar (pode combinar várias ao mesmo tempo, inclusive entre filtros diferentes). Setas ↑ ↓ navegam na lista e espaço marca/desmarca.</div>
         <div class="selector-toolbar" style="border-top:1px solid var(--line);">
-          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_all">Selecionar todos</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_none">Limpar seleção</button>
+          <!-- "os animais" no nome de propósito: em telas como Veterinária → Tratamento existe, mais
+               acima, outro "Selecionar todos" que marca as LINHAS da lista (pra excluir em lote).
+               Sem o complemento, os dois pares de botões ficam idênticos na mesma tela. -->
+          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_all">Selecionar todos os animais</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="${hostEl.id}_none">Limpar seleção de animais</button>
           <span class="chip ${state.onlySelected?'active':''}" id="${hostEl.id}_onlysel" title="Mostrar só quem já está marcado, pra conferir mais fácil">👁 Só selecionados (${nSel})</span>
         </div>
         <div class="selector-body" id="${hostEl.id}_body"></div>
