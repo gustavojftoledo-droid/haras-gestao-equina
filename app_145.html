@@ -729,7 +729,9 @@
     <div class="view" id="view-usuarios">
       <div class="topbar">
         <div><div class="title">Usuários</div><div class="subtitle">Cada pessoa só vê e mexe no que você liberar pra ela, módulo por módulo</div></div>
-        <button class="btn" id="btnNewUsuario" title="Atalho: Alt+U">+ Novo Usuário</button>
+      </div>
+      <div class="lista-toolbar">
+        <button class="btn" id="btnNewUsuario" title="Atalho: Alt+U" style="margin-right:auto;">+ Novo Usuário</button>
       </div>
       <div class="grid-wrap"><table class="grid">
         <thead><tr><th>Nome</th><th>Tipo</th><th>Acesso</th><th></th></tr></thead>
@@ -741,8 +743,11 @@
     <div class="view" id="view-auditoria">
       <div class="topbar">
         <div><div class="title">Auditoria</div><div class="subtitle">Tudo que foi incluído, alterado ou excluído — quem fez e quando</div></div>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <button class="btn btn-ghost btn-sm" id="btnAudPDF">📄 Imprimir / PDF</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuAudMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuAudMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnAudPDF">📄 Imprimir / PDF</button>
+          </div>
         </div>
       </div>
       <div class="stats" id="audStats"></div>
@@ -782,12 +787,12 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuAnimaisMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuAnimaisMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="animais">⚙ Colunas</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportAnimais">⬆ Importar Animais</button>
             </div>
           </div>
-          <button class="btn" id="btnNewHorse" title="Atalho: Alt+A">+ Novo Animal</button>
         </div>
       </div>
       <div class="subtabs">
@@ -818,7 +823,9 @@
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelTodos">Selecionar todos</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelLimpar">Limpar seleção</button>
           <span class="chip" id="btnAnimSelSo" title="Mostrar só os animais já marcados, pra conferir mais fácil">👁 Só selecionados</span>
-          <button type="button" class="btn btn-sm btn-ghost" data-colpicker="animais">⚙ Colunas</button>
+        </div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnNewHorse" title="Atalho: Alt+A" style="margin-right:auto;">+ Novo Animal</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="animais">
           <thead><tr>
@@ -906,7 +913,12 @@
     <div class="view" id="view-grupos">
       <div class="topbar">
         <div><div class="title">Grupos</div><div class="subtitle">Lotes de animais separados por você, pra achar rápido depois (ex: quem treina com fulano, quem é acompanhado por tal veterinário)</div></div>
-        <button class="btn" id="btnNewGrupo" title="Atalho: Alt+G">+ Novo Grupo</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuGruposMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuGruposMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista [data-lista="grupos"]' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
+          </div>
+        </div>
       </div>
       <div class="subtabs">
         <span class="chip active" data-grtab="lista" id="grtab_lista">Lista</span>
@@ -918,7 +930,7 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="gSearch" placeholder="Nome do grupo..."></div>
         </div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista [data-lista="grupos"]' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
+          <button class="btn" id="btnNewGrupo" title="Atalho: Alt+G" style="margin-right:auto;">+ Novo Grupo</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="grupos">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="grupos" title="Selecionar todos"></th><th class="sortable" data-ordlista="grupos" data-ordcol="nome">Grupo</th><th class="sortable" data-ordlista="grupos" data-ordcol="qtd">Qtd. Animais</th><th class="sortable" data-ordlista="grupos" data-ordcol="obs">Observações</th><th></th></tr></thead>
@@ -945,6 +957,8 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuManejosMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuManejosMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-manejos [data-lista="manejos"]' data-pdftitulo="Manejos" data-pdfarquivo="Manejos">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="manejos">⚙ Colunas</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btnImportCasco">📋 Importar histórico de ferrageamento</button>
           </div>
         </div>
@@ -969,13 +983,11 @@
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnRelManejoSel" style="display:none;">📄 Relatório dos selecionados</button>
             <button type="button" class="btn btn-sm btn-danger" id="btnManejoDelSel" style="display:none;">🗑 Excluir selecionados</button>
-            <button class="btn" id="btnNewManejo" title="Atalho: Alt+M">+ Novo Lançamento</button>
           </div>
         </div>
         <div class="hint-text" style="margin:0 0 8px;">Clique numa linha e use as setas ↑ ↓ pra navegar e espaço pra marcar/desmarcar — igual à seleção de animais.</div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-manejos [data-lista="manejos"]' data-pdftitulo="Manejos" data-pdfarquivo="Manejos">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="manejos">⚙ Colunas</button>
+          <button class="btn" id="btnNewManejo" title="Atalho: Alt+M" style="margin-right:auto;">+ Novo Lançamento</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="manejos">
           <thead><tr><th style="width:34px;"></th><th class="sortable" data-ordlista="manejos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="manejos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="manejos" data-ordcol="subtipo" data-col="subtipo">Subtipo (Casco)</th><th class="sortable" data-ordlista="manejos" data-ordcol="ferrador" data-col="ferrador">Ferrador</th><th class="sortable" data-ordlista="manejos" data-ordcol="totalBase" data-col="totalBase">Total ferrageamento (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="totalExtras" data-col="totalExtras">Total c/ extras (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="deslocamento" data-col="deslocamento">Deslocamento (R$)</th><th class="sortable" data-ordlista="manejos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="manejos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
@@ -1029,7 +1041,13 @@
     <div class="view" id="view-transporte">
       <div class="topbar">
         <div><div class="title">Transporte</div><div class="subtitle">Saídas e deslocamentos dos animais</div></div>
-        <button class="btn" id="btnNewTransporte">+ Novo Transporte</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuTransporteMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuTransporteMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-transporte [data-lista="transporte"]' data-pdftitulo="Transportes" data-pdfarquivo="Transportes">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button>
+          </div>
+        </div>
       </div>
       <div class="filters">
         <div class="f grow"><label>Buscar</label><input type="text" id="tpSearch" placeholder="Origem, destino, motorista, motivo..."></div>
@@ -1037,8 +1055,7 @@
         <div class="f"><label>Período (data saída)</label><div id="tpFiltroPeriodo"></div></div>
       </div>
       <div class="lista-toolbar">
-        <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-transporte [data-lista="transporte"]' data-pdftitulo="Transportes" data-pdfarquivo="Transportes">📄 Baixar PDF</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-colpicker="transporte">⚙ Colunas</button>
+        <button class="btn" id="btnNewTransporte" style="margin-right:auto;">+ Novo Transporte</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="transporte">
         <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="transporte" title="Selecionar todos"></th><th class="sortable" data-ordlista="transporte" data-ordcol="data">Data Saída</th><th class="sortable" data-ordlista="transporte" data-ordcol="origemDestino" data-col="origemDestino">Origem → Destino</th><th class="sortable" data-ordlista="transporte" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="transporte" data-ordcol="motorista" data-col="motorista">Motorista</th><th class="sortable" data-ordlista="transporte" data-ordcol="motivo" data-col="motivo">Motivo</th><th class="sortable" data-ordlista="transporte" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="transporte" data-ordcol="gta" data-col="gta">GTA</th><th class="sortable" data-ordlista="transporte" data-ordcol="valorFrete" data-col="valorFrete">Valor Frete</th><th class="sortable" data-ordlista="transporte" data-ordcol="situacao" data-col="situacao">Situação</th><th></th></tr></thead>
@@ -1053,6 +1070,8 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuTreinosMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuTreinosMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
           </div>
         </div>
@@ -1070,8 +1089,6 @@
         </div>
         <div class="lista-toolbar">
           <button class="btn" id="btnNewTreino" title="Atalho: Alt+T" style="margin-right:auto;">+ Novo Treino</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="treinos">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="treinos" title="Selecionar todos"></th><th class="sortable" data-ordlista="treinos" data-ordcol="data">Data</th><th class="sortable" data-ordlista="treinos" data-ordcol="local" data-col="local">Local</th><th class="sortable" data-ordlista="treinos" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="treinos" data-ordcol="quemTreinou" data-col="quemTreinou">Quem treinou</th><th class="sortable" data-ordlista="treinos" data-ordcol="qtdAnimais" data-col="qtdAnimais">Qtd. Animais</th><th class="sortable" data-ordlista="treinos" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
@@ -1108,6 +1125,11 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuNascMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuNascMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF (Coberturas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas (Coberturas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF (Visitas / Exames)</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas (Visitas / Exames)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#nview_semen [data-lista="semen"]' data-pdftitulo="Estoque de Sêmen" data-pdfarquivo="Estoque_Semen">📄 Baixar PDF (Sêmen)</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnConfigColetaEmbriao" title="Dias entre a ovulação e a coleta do embrião (transferência de embrião)">🥚 Dias p/ coleta</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
@@ -1131,9 +1153,7 @@
           <div class="f"><label>Estação reprodutiva</label><select id="nFiltroEstacao"><option value="">Todas</option></select></div>
         </div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-sm" id="btnNewNasc" title="Atalho: Alt+N" style="margin-right:auto;">+ Nova Cobertura</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas</button>
+          <button type="button" class="btn" id="btnNewNasc" title="Atalho: Alt+N" style="margin-right:auto;">+ Nova Cobertura</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
           <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="lavado" data-col="lavado">Lavado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
@@ -1149,10 +1169,8 @@
         </div>
         <div class="hint-text" style="margin:-4px 0 10px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" id="vrSoUltima" style="width:15px;height:15px;margin:0;"> Mostrar só a última visita de cada animal</label></div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-sm" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
+          <button type="button" class="btn" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
           <div class="lista-toolbar-info">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid">
           <thead><tr id="vrThead"></tr></thead>
@@ -1206,8 +1224,7 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="semenSearch" placeholder="Garanhão, lote, observação..."></div>
         </div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#nview_semen [data-lista="semen"]' data-pdftitulo="Estoque de Sêmen" data-pdfarquivo="Estoque_Semen">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-sm" id="btnNewSemen">+ Novo lote</button>
+          <button type="button" class="btn" id="btnNewSemen" style="margin-right:auto;">+ Novo lote</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="semen">
           <thead><tr>
@@ -1245,6 +1262,11 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuEstoqueMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuEstoqueMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnColunasEstoque">⚙ Colunas (Produtos)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF (Dietas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas (Dietas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF (Movimentações)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas (Movimentações)</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
             </div>
@@ -1263,11 +1285,9 @@
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="eSearch" placeholder="Nome do produto..."></div>
           <div class="f"><label>Só perto do mínimo / zerado</label><select id="eSoMinimo"><option value="">Não</option><option value="S">Sim</option></select></div>
-          <div class="f" style="align-self:flex-end;"><button type="button" class="btn btn-ghost btn-sm" id="btnColunasEstoque">⚙ Colunas</button></div>
         </div>
-        <div class="toolbar-row">
-          <div></div>
-          <button class="btn" id="btnNewProduto" title="Atalho: Alt+E">+ Novo Produto</button>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnNewProduto" title="Atalho: Alt+E" style="margin-right:auto;">+ Novo Produto</button>
         </div>
         <div id="eEditLoteBar" style="display:none;align-items:center;gap:10px;background:#F4F0E4;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
           <span id="eEditLoteContagemBar"></span>
@@ -1281,12 +1301,10 @@
       <div id="eview_dietas" style="display:none;">
         <div class="topbar" style="margin-bottom:14px;">
           <div class="subtitle" style="margin:0;">Horário, alimento e quantidade (por animal) de cada dieta</div>
-          <div style="display:flex;gap:8px;"><button class="btn" id="btnNewDieta" title="Atalho: Alt+D">+ Nova Dieta</button></div>
         </div>
         <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button>
+          <button class="btn" id="btnNewDieta" title="Atalho: Alt+D" style="margin-right:auto;">+ Nova Dieta</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="dietas">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="dietas" title="Selecionar todos"></th><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
@@ -1299,10 +1317,6 @@
           <div class="f"><label>Movimento</label><select id="movFiltroTipo"><option value="">Todos</option><option value="entrada">Entrada</option><option value="saida">Saída</option></select></div>
           <div class="f"><label>Origem</label><select id="movFiltroOrigem"><option value="">Todas</option><option value="manual">Manual</option><option value="dieta">Dieta</option><option value="veterinaria">Veterinária</option><option value="ajuste">Reajuste</option></select></div>
           <div class="f"><label>Período</label><div id="movFiltroPeriodo"></div></div>
-        </div>
-        <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="estoqueMov">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="estoqueMov" title="Selecionar todos"></th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="data">Data</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="produto" data-col="produto">Produto</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="movimento" data-col="movimento">Movimento</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="qtd" data-col="qtd">Qtd</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="valor" data-col="valor">Valor</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="estoqueMov" data-ordcol="motivo" data-col="motivo">Motivo / Observações</th><th></th></tr></thead>
@@ -1335,6 +1349,17 @@
     <div class="view" id="view-veterinaria">
       <div class="topbar">
         <div><div class="title">Veterinária</div><div class="subtitle">Visitas e tratamentos, com baixa automática ou manual no Estoque</div></div>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuVetMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuVetMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF (Lista)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas (Lista)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF (Visita)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas (Visita)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_tratamento [data-lista="vetTratamentos"]' data-pdftitulo="Tratamentos" data-pdfarquivo="Tratamentos">📄 Baixar PDF (Tratamento)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetTratamentos">⚙ Colunas (Tratamento)</button>
+          </div>
+        </div>
       </div>
       <div class="subtabs">
         <span class="chip active" data-vtrtab="lista" id="vtrtab_lista">Lista</span>
@@ -1348,10 +1373,6 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vlSearch" placeholder="Veterinário, medicamento, animal..."></div>
           <div class="f"><label>Período</label><div id="vlFiltroPeriodo"></div></div>
         </div>
-        <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas</button>
-        </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetLista">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="vetLista" title="Selecionar todos"></th><th class="sortable" data-ordlista="vetLista" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetLista" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="resumo" data-col="resumo">Resumo</th><th class="sortable" data-ordlista="vetLista" data-ordcol="animais" data-col="animais">Animais</th><th></th></tr></thead>
           <tbody id="vlTbody"></tbody>
@@ -1361,7 +1382,7 @@
       <!-- VISITA: histórico de visitas veterinárias -->
       <div id="vtrview_visitas" style="display:none;">
         <div class="toolbar-row">
-          <button type="button" class="btn btn-sm" id="btnNewVisita">+ Nova Visita</button>
+          <button type="button" class="btn" id="btnNewVisita">+ Nova Visita</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnRelVisitasFiltro" style="display:none;">📄 Gerar Relatório (dos filtrados)</button>
         </div>
         <div class="filters">
@@ -1369,10 +1390,6 @@
           <div class="f"><label>Período</label><div id="vsFiltroPeriodo"></div></div>
         </div>
         <div class="hint-text" style="margin:-4px 0 10px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" id="vsSoUltima" style="width:15px;height:15px;margin:0;"> Mostrar só a última visita de cada animal</label></div>
-        <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas</button>
-        </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetVisitas">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="vetVisitas" title="Selecionar todos"></th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="data">Data</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="veterinario" data-col="veterinario">Veterinário</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="animais" data-col="animais">Animais revisados</th><th class="sortable" data-ordlista="vetVisitas" data-ordcol="obsGeral" data-col="obsGeral">Observação geral</th><th></th></tr></thead>
           <tbody id="vsTbody"></tbody>
@@ -1382,7 +1399,7 @@
       <!-- TRATAMENTO: histórico de aplicações/tratamentos + relatório -->
       <div id="vtrview_tratamento" style="display:none;">
         <div class="toolbar-row">
-          <button class="btn btn-sm" id="btnNewTratamento">+ Novo Tratamento</button>
+          <button class="btn" id="btnNewTratamento">+ Novo Tratamento</button>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelAll">Selecionar todos</button>
             <button type="button" class="btn btn-sm btn-ghost" id="btnTratSelNone">Limpar seleção</button>
@@ -1395,10 +1412,6 @@
           <span class="chip active" data-trstatus="ativo" id="trstat_ativo">Em andamento</span>
           <span class="chip" data-trstatus="concluido" id="trstat_concluido">Histórico (concluídos)</span>
           <span class="chip" data-trstatus="" id="trstat_todos">Todos</span>
-        </div>
-        <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_tratamento [data-lista="vetTratamentos"]' data-pdftitulo="Tratamentos" data-pdfarquivo="Tratamentos">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetTratamentos">⚙ Colunas</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="vetTratamentos">
           <thead><tr><th style="width:34px;"></th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="medicamento">Medicamento</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="periodo" data-col="periodo">Período</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="meio" data-col="meio">Meio</th><th class="sortable" data-ordlista="vetTratamentos" data-ordcol="status" data-col="status">Status</th><th></th></tr></thead>
@@ -1424,7 +1437,13 @@
     <div class="view" id="view-financeiro">
       <div class="topbar">
         <div><div class="title">Financeiro</div><div class="subtitle">Livro-caixa: entradas e saídas do haras</div></div>
-        <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F">+ Novo Lançamento</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuFinanceiroMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuFinanceiroMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#finview_lancamentos [data-lista="financeiro"]' data-pdftitulo="Financeiro — Lançamentos" data-pdfarquivo="Financeiro_Lancamentos">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button>
+          </div>
+        </div>
       </div>
       <div class="subtabs">
         <span class="chip active" data-fintab="lancamentos" id="fintab_lancamentos">Lançamentos</span>
@@ -1443,8 +1462,7 @@
         </div>
         <div class="hint-text" style="margin:0 0 10px;">Além do que você lança aqui, a lista já traz sozinha os custos de Manejos (Casco/Dente) e as compras de Estoque — marcados como "Automático", pra você não digitar de novo o que já está cadastrado em outra tela.</div>
         <div class="lista-toolbar">
-          <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#finview_lancamentos [data-lista="financeiro"]' data-pdftitulo="Financeiro — Lançamentos" data-pdfarquivo="Financeiro_Lancamentos">📄 Baixar PDF</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button>
+          <button class="btn" id="btnNewLancamento" title="Atalho: Alt+F" style="margin-right:auto;">+ Novo Lançamento</button>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="financeiro">
           <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="financeiro" title="Selecionar todos"></th><th class="sortable" data-ordlista="financeiro" data-ordcol="data">Data</th><th class="sortable" data-ordlista="financeiro" data-ordcol="origem" data-col="origem">Origem</th><th class="sortable" data-ordlista="financeiro" data-ordcol="tipo" data-col="tipo">Tipo</th><th class="sortable" data-ordlista="financeiro" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="financeiro" data-ordcol="descricao" data-col="descricao">Descrição</th><th class="sortable" data-ordlista="financeiro" data-ordcol="valor">Valor</th><th></th></tr></thead>
@@ -1485,15 +1503,20 @@
     <div class="view" id="view-funcionarios">
       <div class="topbar">
         <div><div class="title">Funcionários</div><div class="subtitle">Cadastro básico — salários e custos entram no Financeiro em "Lançar custo"</div></div>
-        <button class="btn" id="btnNewFuncionario" title="Atalho: Alt+P">+ Novo Funcionário</button>
+        <div class="menu-discreto-wrap">
+          <button class="btn btn-ghost btn-sm" id="btnMenuFuncMais" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop" id="menuFuncMaisPop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-funcionarios [data-lista="funcionarios"]' data-pdftitulo="Funcionários" data-pdfarquivo="Funcionarios">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="funcionarios">⚙ Colunas</button>
+          </div>
+        </div>
       </div>
       <div class="stats" id="funcStats"></div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:0 0 10px;">
         <div class="hint-text" style="margin:0;flex:1;">Cadastro só de identificação. Todo dia 5, o Calendário do Início lembra de confirmar o pagamento do salário de cada funcionário — clique lá pra confirmar (e ajustar o valor se precisar). Outros custos (vale, adiantamento...) entram por "Lançar custo".</div>
       </div>
       <div class="lista-toolbar">
-        <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-funcionarios [data-lista="funcionarios"]' data-pdftitulo="Funcionários" data-pdfarquivo="Funcionarios">📄 Baixar PDF</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-colpicker="funcionarios">⚙ Colunas</button>
+        <button class="btn" id="btnNewFuncionario" title="Atalho: Alt+P" style="margin-right:auto;">+ Novo Funcionário</button>
       </div>
       <div class="grid-wrap"><table class="grid" data-lista="funcionarios">
         <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="funcionarios" title="Selecionar todos"></th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="documento" data-col="documento">Documento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="nascimento" data-col="nascimento">Nascimento</th><th class="sortable" data-ordlista="funcionarios" data-ordcol="ultimoSalario" data-col="ultimoSalario">Último salário lançado</th><th></th></tr></thead>
@@ -5218,7 +5241,11 @@ function atualizarBtnPdfSelecao(listaId){
   const n = selLista(listaId).size;
   document.querySelectorAll('[data-pdftabela]').forEach(b=>{
     if((b.dataset.pdftabela||'').indexOf('"'+listaId+'"') < 0) return;
-    b.textContent = n ? `📄 Baixar PDF (${n})` : '📄 Baixar PDF';
+    // Guarda o rótulo original na primeira vez: agora que esses botões moram dentro do menu "⋯" de
+    // cada tela, cada um pode ter um complemento próprio ("Baixar PDF (Visita)") que não pode sumir
+    // quando a contagem de selecionados entra no texto.
+    if(!b.dataset.pdflabel) b.dataset.pdflabel = b.textContent.trim();
+    b.textContent = n ? `${b.dataset.pdflabel} (${n})` : b.dataset.pdflabel;
   });
 }
 function sincronizarSelecaoLista(listaId, scopeSelector){
@@ -10076,7 +10103,7 @@ function atualizarCoberturaSelAll(){
   all.checked = cbs.length>0 && marcados===cbs.length;
   all.indeterminate = marcados>0 && marcados<cbs.length;
   const btn = document.getElementById('btnPdfCoberturas');
-  if(btn) btn.textContent = coberturaSel.size ? `📄 Baixar PDF (${coberturaSel.size})` : '📄 Baixar PDF';
+  if(btn) btn.textContent = coberturaSel.size ? `📄 Baixar PDF (Coberturas) (${coberturaSel.size})` : '📄 Baixar PDF (Coberturas)';
 }
 document.addEventListener('change', e=>{
   if(e.target && e.target.id==='nSelAll'){
@@ -13208,7 +13235,7 @@ function atualizarVisitaExameSelAll(){
   all.checked = cbs.length>0 && marc===cbs.length;
   all.indeterminate = marc>0 && marc<cbs.length;
   const btn = document.getElementById('btnPdfVisitasRepro');
-  if(btn) btn.textContent = visitaExameSel.size ? `📄 Baixar PDF (${visitaExameSel.size})` : '📄 Baixar PDF';
+  if(btn) btn.textContent = visitaExameSel.size ? `📄 Baixar PDF (Visitas / Exames) (${visitaExameSel.size})` : '📄 Baixar PDF (Visitas / Exames)';
 }
 function vrValorOrdenacao(l, key){
   if(key==='data') return l.v.data||'';
