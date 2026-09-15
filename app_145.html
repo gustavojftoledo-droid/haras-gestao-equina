@@ -779,9 +779,14 @@
       <div class="topbar">
         <div><div class="title">Animais</div><div class="subtitle">Cadastro geral do plantel</div></div>
         <div style="display:flex;gap:10px;align-items:center;">
-          <button class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
-          <button class="btn btn-ghost" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
-          <button class="btn btn-ghost" id="btnImportAnimais">⬆ Importar Animais</button>
+          <div class="menu-discreto-wrap">
+            <button class="btn btn-ghost btn-sm" id="btnMenuAnimaisMais" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop" id="menuAnimaisMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnImportAnimais">⬆ Importar Animais</button>
+            </div>
+          </div>
           <button class="btn" id="btnNewHorse" title="Atalho: Alt+A">+ Novo Animal</button>
         </div>
       </div>
