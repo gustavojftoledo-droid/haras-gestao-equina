@@ -787,7 +787,7 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuAnimaisMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuAnimaisMaisPop">
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="animais">⚙ Colunas</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" data-colpicker="animais">⚙ Colunas</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportAnimais">⬆ Importar Animais</button>
@@ -916,7 +916,7 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuGruposMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuGruposMaisPop">
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#grview_lista [data-lista="grupos"]' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" data-pdftabela='#grview_lista [data-lista="grupos"]' data-pdftitulo="Grupos" data-pdfarquivo="Grupos">📄 Baixar PDF</button>
           </div>
         </div>
       </div>
@@ -957,8 +957,8 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuManejosMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuManejosMaisPop">
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-manejos [data-lista="manejos"]' data-pdftitulo="Manejos" data-pdfarquivo="Manejos">📄 Baixar PDF</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="manejos">⚙ Colunas</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="historico" data-pdftabela='#view-manejos [data-lista="manejos"]' data-pdftitulo="Manejos" data-pdfarquivo="Manejos">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="historico" data-colpicker="manejos">⚙ Colunas</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btnImportCasco">📋 Importar histórico de ferrageamento</button>
           </div>
         </div>
@@ -1070,8 +1070,8 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuTreinosMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuTreinosMaisPop">
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="treinos">⚙ Colunas</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="historico" data-pdftabela='#view-treinos [data-lista="treinos"]' data-pdftitulo="Atividades" data-pdfarquivo="Atividades">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="historico" data-colpicker="treinos">⚙ Colunas</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
           </div>
         </div>
@@ -1125,11 +1125,11 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuNascMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuNascMaisPop">
-              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfCoberturas">📄 Baixar PDF (Coberturas)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="coberturas">⚙ Colunas (Coberturas)</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasRepro">📄 Baixar PDF (Visitas / Exames)</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btnColunasVisitaRepro">⚙ Colunas (Visitas / Exames)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#nview_semen [data-lista="semen"]' data-pdftitulo="Estoque de Sêmen" data-pdfarquivo="Estoque_Semen">📄 Baixar PDF (Sêmen)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" id="btnPdfCoberturas">📄 Baixar PDF (Coberturas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" data-colpicker="coberturas">⚙ Colunas (Coberturas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="visitas" id="btnPdfVisitasRepro">📄 Baixar PDF (Visitas / Exames)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="visitas" id="btnColunasVisitaRepro">⚙ Colunas (Visitas / Exames)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="semen" data-pdftabela='#nview_semen [data-lista="semen"]' data-pdftitulo="Estoque de Sêmen" data-pdfarquivo="Estoque_Semen">📄 Baixar PDF (Sêmen)</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnConfigGestacao" title="Define quantos dias depois da cobertura o nascimento é esperado">⏱ Tempo de gestação</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnConfigColetaEmbriao" title="Dias entre a ovulação e a coleta do embrião (transferência de embrião)">🥚 Dias p/ coleta</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportNasc">📋 Importar PDF (sistema antigo)</button>
@@ -1262,11 +1262,11 @@
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuEstoqueMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuEstoqueMaisPop">
-              <button type="button" class="btn btn-ghost btn-sm" id="btnColunasEstoque">⚙ Colunas (Produtos)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF (Dietas)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas (Dietas)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF (Movimentações)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="estoqueMov">⚙ Colunas (Movimentações)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="produtos" id="btnColunasEstoque">⚙ Colunas (Produtos)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="dietas" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF (Dietas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="dietas" data-colpicker="dietas">⚙ Colunas (Dietas)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="movimentos" data-pdftabela='#eview_movimentos [data-lista="estoqueMov"]' data-pdftitulo="Movimentações de Estoque" data-pdfarquivo="Movimentacoes_Estoque">📄 Baixar PDF (Movimentações)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-menutab="movimentos" data-colpicker="estoqueMov">⚙ Colunas (Movimentações)</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnAnomaliasConsumo" title="Consumos que fogem muito do normal desse mesmo produto">⚠ Consumo Fora do Padrão</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportNota" title="Lê um PDF de nota fiscal e ajuda a lançar os produtos no estoque">📥 Importar Nota Fiscal</button>
             </div>
@@ -1352,12 +1352,12 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuVetMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuVetMaisPop">
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF (Lista)</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetLista">⚙ Colunas (Lista)</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF (Visita)</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetVisitas">⚙ Colunas (Visita)</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#vtrview_tratamento [data-lista="vetTratamentos"]' data-pdftitulo="Tratamentos" data-pdfarquivo="Tratamentos">📄 Baixar PDF (Tratamento)</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="vetTratamentos">⚙ Colunas (Tratamento)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" data-pdftabela='#vtrview_lista [data-lista="vetLista"]' data-pdftitulo="Veterinária — Histórico" data-pdfarquivo="Veterinaria_Historico">📄 Baixar PDF (Lista)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="lista" data-colpicker="vetLista">⚙ Colunas (Lista)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="visitas" data-pdftabela='#vtrview_visitas [data-lista="vetVisitas"]' data-pdftitulo="Visitas Veterinárias" data-pdfarquivo="Visitas_Veterinarias">📄 Baixar PDF (Visita)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="visitas" data-colpicker="vetVisitas">⚙ Colunas (Visita)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="tratamento" data-pdftabela='#vtrview_tratamento [data-lista="vetTratamentos"]' data-pdftitulo="Tratamentos" data-pdfarquivo="Tratamentos">📄 Baixar PDF (Tratamento)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="tratamento" data-colpicker="vetTratamentos">⚙ Colunas (Tratamento)</button>
           </div>
         </div>
       </div>
@@ -1440,8 +1440,8 @@
         <div class="menu-discreto-wrap">
           <button class="btn btn-ghost btn-sm" id="btnMenuFinanceiroMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuFinanceiroMaisPop">
-            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#finview_lancamentos [data-lista="financeiro"]' data-pdftitulo="Financeiro — Lançamentos" data-pdfarquivo="Financeiro_Lancamentos">📄 Baixar PDF</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="financeiro">⚙ Colunas</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="lancamentos" data-pdftabela='#finview_lancamentos [data-lista="financeiro"]' data-pdftitulo="Financeiro — Lançamentos" data-pdfarquivo="Financeiro_Lancamentos">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-menutab="lancamentos" data-colpicker="financeiro">⚙ Colunas</button>
           </div>
         </div>
       </div>
@@ -5487,6 +5487,7 @@ function showManejoTab(tab){
     document.getElementById('mtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('mview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-manejos'));
   if(tab==='programacao') renderProgramacao();
   if(tab==='relatorios' && manejoRelSelector){ manejoRelSelector.draw(); }
 }
@@ -8970,6 +8971,7 @@ function showTreinoTab(tab){
     document.getElementById('ttab_'+t).classList.toggle('active', t===tab);
     document.getElementById('tview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-treinos'));
   if(tab==='relatorios' && treinoRelSelector) treinoRelSelector.draw();
 }
 document.getElementById('ttab_historico').addEventListener('click', ()=>showTreinoTab('historico'));
@@ -9435,6 +9437,37 @@ function atualizarProvavelNascimentoView(){
   document.getElementById('n_provavelView').value = prov ? fmtDate(prov)+sufixo : '—';
 }
 document.getElementById('n_datacob').addEventListener('input', atualizarProvavelNascimentoView);
+/* Menu "⋯" contextual: cada opção marcada com data-menutab só aparece quando aquela aba da tela
+   está aberta (ex: "Baixar PDF (Visita)" só na aba Visita). Opções SEM data-menutab valem pra tela
+   inteira e ficam sempre visíveis (ex: Tempo de gestação, Importar PDF). Se nenhuma opção sobrar
+   pra aba atual, o próprio "⋯" some. */
+function tabAtivaDaView(view){
+  const chip = view.querySelector('.chip.active[data-nvtab], .chip.active[data-etab], .chip.active[data-vtrtab], .chip.active[data-mtab], .chip.active[data-ttab], .chip.active[data-atab], .chip.active[data-grtab], .chip.active[data-fintab]');
+  if(!chip) return null;
+  const d = chip.dataset;
+  return d.nvtab || d.etab || d.vtrtab || d.mtab || d.ttab || d.atab || d.grtab || d.fintab || null;
+}
+function atualizarMenuContextual(view){
+  if(!view) return;
+  const tab = tabAtivaDaView(view);
+  view.querySelectorAll('.menu-discreto-pop [data-menutab]').forEach(b=>{
+    b.style.display = (tab===null || b.dataset.menutab===tab) ? '' : 'none';
+  });
+  view.querySelectorAll('.menu-discreto-wrap').forEach(wrap=>{
+    const pop = wrap.querySelector('.menu-discreto-pop');
+    if(!pop) return;
+    const algumVisivel = [...pop.querySelectorAll('button')].some(b=>b.style.display!=='none');
+    wrap.style.display = algumVisivel ? '' : 'none';
+    if(!algumVisivel) pop.classList.remove('show');
+  });
+}
+function atualizarMenusContextuais(){ document.querySelectorAll('.view').forEach(atualizarMenuContextual); }
+// Reaplica ao trocar de aba (clique nas chips de qualquer tela) — pega tanto o clique da pessoa
+// quanto os .click() disparados por atalho de teclado.
+document.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip[data-nvtab], .chip[data-etab], .chip[data-vtrtab], .chip[data-mtab], .chip[data-ttab], .chip[data-atab], .chip[data-grtab], .chip[data-fintab]');
+  if(chip) setTimeout(()=>atualizarMenuContextual(chip.closest('.view')), 0);
+});
 // Botão "⋯" discreto — genérico pra qualquer ".menu-discreto-wrap" (opções secundárias de
 // Reprodução, menus dos cards de Protocolo de Vacinas etc.): abre o popover ao lado, fecha os
 // outros abertos, fecha ao clicar numa opção dele ou fora dele.
@@ -9442,6 +9475,7 @@ document.addEventListener('click', e=>{
   const trigger = e.target.closest('.menu-discreto-wrap > button');
   if(trigger){
     e.stopPropagation();
+    atualizarMenuContextual(trigger.closest('.view')); // garante o conteúdo certo mesmo se a aba mudou por código
     const pop = trigger.parentElement.querySelector('.menu-discreto-pop');
     const jaAberto = pop.classList.contains('show');
     document.querySelectorAll('.menu-discreto-pop.show').forEach(p=>p.classList.remove('show'));
@@ -10123,6 +10157,7 @@ function showNascTab(tab){
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-nascimentos'));
   if(tab==='protocolo') renderProtocoloVacinas();
   if(tab==='visitas') renderVisitasRepro();
   if(tab==='semen') renderSemen();
@@ -10755,6 +10790,7 @@ document.querySelectorAll('#view-estoque [data-etab]').forEach(chip=>{
     document.querySelectorAll('#view-estoque [data-etab]').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
     ['produtos','dietas','movimentos','relatorio'].forEach(t=>{ document.getElementById('eview_'+t).style.display = (t===chip.dataset.etab) ? 'block':'none'; });
+    atualizarMenuContextual(document.getElementById('view-estoque'));
     if(chip.dataset.etab==='dietas') renderDietas();
     if(chip.dataset.etab==='movimentos') renderMovimentos();
     if(chip.dataset.etab==='relatorio') populateRelEstoqueTipos();
@@ -13571,6 +13607,7 @@ function showVetTab(tab){
     document.getElementById('vtrtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('vtrview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-veterinaria'));
   if(tab==='tratamento' && vetRelSelector){ vetRelSelector.draw(); renderTratamentos(); }
   if(tab==='visitas') renderVisitas();
   if(tab==='lista') renderVetLista();
@@ -13931,6 +13968,7 @@ function showGrupoTab(tab){
     document.getElementById('grtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('grview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-grupos'));
 }
 document.getElementById('grtab_lista').addEventListener('click', ()=>showGrupoTab('lista'));
 document.getElementById('grtab_relatorio').addEventListener('click', ()=>showGrupoTab('relatorio'));
@@ -13999,6 +14037,7 @@ function showAnimaisTab(tab){
     document.getElementById('atab_'+t).classList.toggle('active', t===tab);
     document.getElementById('aview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-animais'));
   if(tab==='relatorios') showRelatoriosTab('fichas');
 }
 document.getElementById('atab_lista').addEventListener('click', ()=>showAnimaisTab('lista'));
@@ -14740,6 +14779,7 @@ function showFinTab(tab){
     document.getElementById('fintab_'+t).classList.toggle('active', t===tab);
     document.getElementById('finview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
+  atualizarMenuContextual(document.getElementById('view-financeiro'));
   if(tab==='custoanimal') renderCustoPorAnimalTab();
 }
 document.getElementById('fintab_lancamentos').addEventListener('click', ()=>showFinTab('lancamentos'));
@@ -15603,6 +15643,9 @@ function aplicarPermissoes(){
   // não mudar e o "if" acima não disparar.
   if(typeof renderInicio==='function') renderInicio();
   if(typeof renderManejos==='function') renderManejos();
+  // Deixa cada menu "⋯" já com as opções da aba que está aberta em cada tela (e some com o "⋯" das
+  // telas/abas que não têm nenhuma opção).
+  if(typeof atualizarMenusContextuais==='function') atualizarMenusContextuais();
 }
 
 /* ================= LOGIN (Firebase Authentication — e-mail/senha) =================
