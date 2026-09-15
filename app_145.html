@@ -6827,9 +6827,10 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehAtividade = arr[0].categoria==='atividade';
     const ehRepro = arr[0].categoria==='repro';
     const ehColeta = tipo==='ColetaEmbriao';
+    const ehRetorno = tipo==='RetornoRepro'; // subconjunto de ehRepro — só o retorno reprodutivo tem exclusão em lote, Coleta de Embrião não
     const ehTransporte = arr[0].categoria==='transporte';
     const ehCasco = tipo==='Casco';
-    const podeLote = (ehManejo||ehTratamento||ehAtividade) && arr.length>1;
+    const podeLote = (ehManejo||ehTratamento||ehAtividade||ehRetorno) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const iconeGrupo = CAL_ICON[tipo] || (ehAtividade ? '🏇' : '');
@@ -6838,13 +6839,15 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const dataMestre = (ehManejo && podeLote && tipo!=='Vacina' && tipo!=='Vermífugo') ? `<input type="date" data-caldet-datamaster="1" value="${toISODate(new Date())}" title="Data em que foi feito — vale pra todos ao 'Marcar todos concluídos' (o próximo manejo é calculado a partir daqui)">` : '';
     const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
       : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
-      : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
+      : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>`
+      : ehRetorno ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosretorno="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
     const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
     const btnConcluirSel = ((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${tipo}" data-concluirseltrat="${ehTratamento?'1':''}" data-concluirselproto="${(ehGestacao||ehPotro)?'1':''}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
+    const btnExcluirSel = (ehRetorno && arr.length>1) ? `<button type="button" class="btn btn-sm btn-danger" data-excluirselretorno="${tipo}" style="display:none;">🗑 Excluir selecionados (<span data-selcount>0</span>)</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirSel}${btnConcluirTodos}${btnExcluirTodos}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirSel}${btnExcluirSel}${btnConcluirTodos}${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -6856,7 +6859,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-selproto="${(ehGestacao||ehPotro)?((ehGestacao?'gestacao':'potro')+'|'+(ehGestacao?t.nascimentoId:t.animalId)+'|'+t.itemId):''}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento||ehGestacao||ehPotro||ehRetorno) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selchave="${ehRetorno?chaveTarefaManejo(t):''}" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-selproto="${(ehGestacao||ehPotro)?((ehGestacao?'gestacao':'potro')+'|'+(ehGestacao?t.nascimentoId:t.animalId)+'|'+t.itemId):''}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
         ${ehTransporte
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-abrirtransporte="${t.transporteId}">👁 Abrir / marcar realizado</button></div>`
           : ehTratamento
@@ -6919,6 +6922,17 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Excluir esse retorno reprodutivo da agenda? Não mexe na visita que o gerou — só tira o lembrete. Volta se uma visita nova marcar outro retorno pra essa égua.', {okLabel:'Excluir', danger:true, titulo:'Excluir retorno'}))) return;
       dismissedManejoTasks.add(btn.dataset.excluirretorno);
+      await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
+      renderCalendar(); renderInicio();
+      closeModal('overlayCalDetalhe');
+    });
+  });
+  document.getElementById('calDetBody').querySelectorAll('[data-excluirtodosretorno]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tipo = btn.dataset.excluirtodosretorno;
+      const grupo = porTipo[tipo];
+      if(!(await showConfirm(`Excluir o retorno reprodutivo de ${grupo.length} égua(s) de uma vez? Não mexe nas visitas que geraram — só tira os lembretes. Voltam se uma visita nova marcar outro retorno.`, {okLabel:'Excluir', danger:true, titulo:'Excluir retornos'}))) return;
+      grupo.forEach(t=> dismissedManejoTasks.add(chaveTarefaManejo(t)));
       await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
       renderCalendar(); renderInicio();
       closeModal('overlayCalDetalhe');
@@ -7046,6 +7060,18 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const marcados = [...body.querySelectorAll(`.cal-manejo-sel[data-seltipo="${tipo}"]:checked`)];
     const btn = body.querySelector(`[data-concluirsel="${tipo}"]`);
     if(btn){ btn.style.display = marcados.length ? 'inline-block' : 'none'; const c = btn.querySelector('[data-selcount]'); if(c) c.textContent = marcados.length; }
+    const btnDel = body.querySelector(`[data-excluirselretorno="${tipo}"]`);
+    if(btnDel){ btnDel.style.display = marcados.length ? 'inline-block' : 'none'; const c2 = btnDel.querySelector('[data-selcount]'); if(c2) c2.textContent = marcados.length; }
+  }));
+  body.querySelectorAll('[data-excluirselretorno]').forEach(btn=> btn.addEventListener('click', async ()=>{
+    const tipo = btn.dataset.excluirselretorno;
+    const checados = [...body.querySelectorAll(`.cal-manejo-sel[data-seltipo="${tipo}"]:checked`)];
+    if(checados.length===0) return;
+    if(!(await showConfirm(`Excluir ${checados.length} retorno(s) reprodutivo(s) selecionado(s) da agenda? Não mexe nas visitas que geraram — só tira os lembretes. Voltam se uma visita nova marcar outro retorno.`, {okLabel:'Excluir', danger:true, titulo:'Excluir retornos'}))) return;
+    checados.forEach(cb=> dismissedManejoTasks.add(cb.dataset.selchave));
+    await storeSet('dismissed_manejo_tasks', [...dismissedManejoTasks]);
+    renderCalendar(); renderInicio();
+    closeModal('overlayCalDetalhe');
   }));
   body.querySelectorAll('[data-concluirsel]').forEach(btn=> btn.addEventListener('click', async ()=>{
     const tipo = btn.dataset.concluirsel;
