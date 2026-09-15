@@ -1141,6 +1141,7 @@
           <div class="f"><label>Veterinário</label><input type="text" id="vrFiltroVet" placeholder="Nome"></div>
           <div class="f"><label>Período</label><div id="vrFiltroPeriodo"></div></div>
         </div>
+        <div class="hint-text" style="margin:-4px 0 10px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;"><input type="checkbox" id="vrSoUltima" style="width:15px;height:15px;margin:0;"> Mostrar só a última visita de cada animal</label></div>
         <div class="lista-toolbar">
           <button type="button" class="btn btn-sm" id="btnNewVisitaRepro" title="Registrar uma visita do veterinário">🩺 Nova visita</button>
           <div class="lista-toolbar-info">Uma linha por égua examinada. Marcar uma égua como <strong>prenhe</strong> confirma a prenhez da cobertura mais recente dela. Dá pra ditar por voz.</div>
@@ -13217,7 +13218,7 @@ function renderVisitasRepro(){
   const thOrd = (k,label) => `<th class="sortable ${vrSortCol===k?'sort-active':''}" data-vrsort="${k}">${label} ${seta(k)}</th>`;
   thead.innerHTML = `<th style="width:34px;"><input type="checkbox" id="vrSelAll" title="Selecionar todos"></th>`+thOrd('data','Data')+thOrd('veterinario','Veterinário')+thOrd('egua','Égua')+cols.map(c=>thOrd(c.key,c.label)).join('')+`<th></th>`;
   // uma linha por égua examinada
-  const linhas = [];
+  let linhas = [];
   visitasRepro.forEach(v=>{
     if(de && v.data<de) return;
     if(ate && v.data>ate) return;
@@ -13227,6 +13228,17 @@ function renderVisitasRepro(){
       linhas.push({ v, e });
     });
   });
+  // "Só a última visita de cada animal" — dentro do que já está filtrado por busca/veterinário/período
+  // acima, fica só a linha mais recente de cada égua (mesma ideia da Veterinária geral).
+  const vrSoUltimaEl = document.getElementById('vrSoUltima');
+  if(vrSoUltimaEl && vrSoUltimaEl.checked){
+    const ultimaPorEgua = {};
+    linhas.forEach(({v,e})=>{
+      const chave = e.animalId || e.nome; if(!chave) return;
+      if(!ultimaPorEgua[chave] || v.data > ultimaPorEgua[chave]) ultimaPorEgua[chave] = v.data;
+    });
+    linhas = linhas.filter(({v,e})=>{ const chave = e.animalId || e.nome; return chave && ultimaPorEgua[chave]===v.data; });
+  }
   linhas.sort((a,b)=>{
     const va = vrValorOrdenacao(a, vrSortCol), vb = vrValorOrdenacao(b, vrSortCol);
     let cmp = (vrSortCol==='data'||vrSortCol==='proximoRetorno')
@@ -13301,6 +13313,7 @@ document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
 });
 (function(){ const el=document.getElementById('vrSearch'); if(el) el.addEventListener('input', debounce(renderVisitasRepro)); })();
 (function(){ const el=document.getElementById('vrFiltroVet'); if(el) el.addEventListener('input', renderVisitasRepro); })();
+(function(){ const el=document.getElementById('vrSoUltima'); if(el) el.addEventListener('change', renderVisitasRepro); })();
 
 function blocoExameEgua(e){
   const linhas = [
