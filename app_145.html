@@ -1855,7 +1855,7 @@
     </table></div>
     <div class="modal-actions">
       <div></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoVacina">Fechar</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoVacina">Fechar</button><button type="button" class="btn" id="btnPedidoVacinaPdf">📄 Baixar PDF</button></div>
     </div>
   </div>
 </div>
@@ -10203,7 +10203,7 @@ function abrirPedidoVacina(){
   lista.innerHTML = prenhes.map(n=>{
     const nome = alvoVacinaGestacao(n).nome || '(sem nome)';
     return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;">
-      <input type="checkbox" data-pedidoegua="${n.id}" checked> ${nome} <span style="color:var(--muted);font-size:12px;">— cobertura ${fmtDate(n.datacob)}</span>
+      <input type="checkbox" data-pedidoegua="${n.id}" data-nome="${nome}" checked> ${nome} <span style="color:var(--muted);font-size:12px;">— cobertura ${fmtDate(n.datacob)}</span>
     </label>`;
   }).join('');
   lista.querySelectorAll('[data-pedidoegua]').forEach(cb=>cb.addEventListener('change', ()=>{
@@ -10231,6 +10231,24 @@ document.getElementById('btnPedidoVacinaTodas').addEventListener('click', ()=>{
 document.getElementById('btnPedidoVacinaNenhuma').addEventListener('click', ()=>{
   document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]').forEach(cb=>{ cb.checked=false; pedidoVacinaSelecionadas.delete(cb.dataset.pedidoegua); });
   renderPedidoVacinaTabela();
+});
+document.getElementById('btnPedidoVacinaPdf').addEventListener('click', ()=>{
+  const regras = config.protocoloVacinasGestacao||[];
+  const qtdEguas = pedidoVacinaSelecionadas.size;
+  if(qtdEguas===0){ showAlert('Marque ao menos uma égua pra gerar o pedido em PDF.'); return; }
+  if(regras.length===0){ showAlert('Nenhuma vacina cadastrada no protocolo de gestação ainda.'); return; }
+  const nomesEguas = [...document.querySelectorAll('#pedidoVacinaEguasLista [data-pedidoegua]')].filter(cb=>cb.checked).map(cb=>cb.dataset.nome);
+  const linhasVacinas = regras.map(r=>{
+    const doses = (r.valores||[]).length;
+    return `<tr><td>${r.nome}</td><td class="num">${doses}</td><td class="num">${qtdEguas}</td><td class="num">${doses*qtdEguas}</td></tr>`;
+  }).join('');
+  const html = `<h1>Pedido de Vacina — Gestação</h1>
+    <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${qtdEguas} égua(s) selecionada(s)</div>
+    <table><thead><tr><th>Vacina</th><th class="num">Doses por égua</th><th class="num">Éguas marcadas</th><th class="num">Total sugerido</th></tr></thead>
+    <tbody>${linhasVacinas}</tbody></table>
+    <div class="sub" style="margin-top:14px;">Éguas incluídas: ${nomesEguas.join(', ')}</div>`;
+  closeModal('overlayPedidoVacina');
+  abrirPreviaRelatorio(html, 'Pedido-de-Vacina.pdf', 'Pedido de Vacina — Gestação');
 });
 
 /* ---- Modal de adicionar/editar uma regra do protocolo (gestação ou potro) ---- */
