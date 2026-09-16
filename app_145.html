@@ -625,6 +625,13 @@
         </div>
       </div>
 
+      <div class="nav-group" data-group="consultoria-grp">
+        <div class="nav-group-head"><span>Consultoria</span><span class="chev">›</span></div>
+        <div class="nav-group-body">
+          <div class="nav-item" data-view="consultoria"><span class="dot"></span>Consultoria</div>
+        </div>
+      </div>
+
       <div class="nav-group" data-group="admin-grp">
         <div class="nav-group-head"><span>Administração</span><span class="chev">›</span></div>
         <div class="nav-group-body">
@@ -1609,6 +1616,42 @@
       <div id="perfilTimelineWrap" style="margin-top:14px;"></div>
     </div>
 
+    <!-- CONSULTORIA (Fase 1: Visitas Técnicas + Histórico da Propriedade. Fase 2 vai acrescentar sub-abas
+         de Rações/Formulação/Comparação aqui do lado, sem precisar refatorar essa estrutura) -->
+    <div class="view" id="view-consultoria">
+      <div class="topbar">
+        <div><div class="title">Consultoria</div><div class="subtitle">Visitas técnicas, avaliação do animal e relatório de consultoria</div></div>
+      </div>
+      <div class="subtabs">
+        <span class="chip active" data-cstab="visitas" id="cstab_visitas">Visitas Técnicas</span>
+        <span class="chip" data-cstab="historico" id="cstab_historico">Histórico da Propriedade</span>
+      </div>
+
+      <div id="csview_visitas">
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="cvSearch" placeholder="Propriedade, consultor, responsável..."></div>
+        </div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnNewVisitaConsultoria" style="margin-right:auto;">+ Nova Visita Técnica</button>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="consultoriaVisitas">
+          <thead><tr><th>Propriedade</th><th>Data</th><th>Consultor</th><th>Responsável</th><th>Objetivo</th><th>Animais avaliados</th><th></th></tr></thead>
+          <tbody id="cvTbody"></tbody>
+        </table></div>
+      </div>
+
+      <div id="csview_historico" style="display:none;">
+        <div class="filters">
+          <div class="f grow"><label>Propriedade</label><input type="text" id="chSearch" placeholder="Nome da propriedade..."></div>
+          <div class="f"><label>Período</label><div id="chFiltroPeriodo"></div></div>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
+          <thead><tr><th>Propriedade</th><th>Data</th><th>Consultor</th><th>Responsável</th><th>Animais avaliados</th><th></th></tr></thead>
+          <tbody id="chTbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
     <!-- OTHER PLACEHOLDER -->
     <div class="view" id="view-other">
       <div class="topbar"><div><div class="title" id="otherTitle">Módulo</div></div></div>
@@ -2509,6 +2552,88 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
+<!-- CONSULTORIA: VISITA TÉCNICA MODAL -->
+<div class="overlay" id="overlayConsultoriaVisita">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="csvModalTitle">Nova Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisita">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Propriedade</label><input type="text" id="csv_propriedade" placeholder="Nome da propriedade/haras"></div>
+      <div class="field"><label>Data da visita</label><input type="date" id="csv_data"></div>
+      <div class="field"><label>Consultor</label><input type="text" id="csv_consultorNome" placeholder="Quem está realizando a visita"></div>
+      <div class="field"><label>Responsável / Proprietário</label><input type="text" id="csv_responsavelNome" placeholder="Quem recebeu a visita"></div>
+      <div class="field full"><label>Objetivo da visita</label><input type="text" id="csv_objetivo" placeholder="Ex: avaliação nutricional, acompanhamento de escore..."></div>
+      <div class="field full"><label>Observações gerais</label><textarea id="csv_obsGerais" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaConsultoria" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: DETALHE DA VISITA (avaliações + relatório) -->
+<div class="overlay" id="overlayConsultoriaVisitaDetalhe">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="csvdModalTitle">Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisitaDetalhe">✕</button></div>
+    <div class="hint-text" id="csvdResumo" style="margin-bottom:14px;"></div>
+    <div class="section-label" style="border-top:none;padding-top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>Animais avaliados</span>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAddAvaliacaoConsultoria">+ Adicionar Animal</button>
+    </div>
+    <div class="grid-wrap"><table class="grid" data-lista="consultoriaAvaliacoesVisita">
+      <thead><tr><th>Animal</th><th>Peso</th><th>Tamanho</th><th>Idade</th><th>Score corporal</th><th>Situação geral</th><th>Fotos</th><th></th></tr></thead>
+      <tbody id="csvdTbody"></tbody>
+    </table></div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-ghost" id="btnEditarVisitaConsultoria">✎ Editar dados da visita</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: FICHA DE AVALIAÇÃO DO ANIMAL -->
+<div class="overlay" id="overlayConsultoriaAvaliacao">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="csaModalTitle">Avaliação do Animal</div><button class="modal-close" data-close="overlayConsultoriaAvaliacao">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Animal</label><select id="csa_animalId"></select></div>
+      <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="csa_peso"></div>
+      <div class="field"><label>Tamanho (altura, cm)</label><input type="number" step="0.1" id="csa_tamanho"></div>
+      <div class="field"><label>Idade (anos)</label><input type="number" step="0.1" id="csa_idadeAnos" title="Sugerida a partir do nascimento cadastrado — editável"></div>
+      <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="csa_scoreCorporal"></div>
+      <div class="field full"><label>Situação geral</label><input type="text" id="csa_situacaoGeral" placeholder="Ex: bom estado, magro, sobrepeso..."></div>
+      <div class="field full"><label>Observações</label><textarea id="csa_observacoes" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="section-label" style="border-top:none;padding-top:0;">Fotos <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— podem ser adicionadas depois de salvar a avaliação</span></div>
+    <div id="csaFotosWrap" style="display:none;">
+      <div id="csaFotosHost" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;"></div>
+      <input type="file" id="csa_fotoFile" accept="image/*" multiple style="display:none;">
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAddFotoConsultoria">+ Adicionar Fotos</button>
+    </div>
+    <div class="hint-text" id="csaFotosHint" style="margin-top:8px;">Salve a avaliação primeiro pra poder anexar fotos.</div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteAvaliacaoConsultoria" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaAvaliacao">Cancelar</button><button type="button" class="btn" id="btnSaveAvaliacaoConsultoria">Salvar Avaliação <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: RELATÓRIO DA VISITA -->
+<div class="overlay" id="overlayConsultoriaRelatorio">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Relatório da Visita</div><button class="modal-close" data-close="overlayConsultoriaRelatorio">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Sugestões técnicas</label><textarea id="csr_sugestoes" rows="4" spellcheck="true" lang="pt-BR" placeholder="Texto livre — preenchido na hora de gerar o relatório"></textarea></div>
+      <div class="field full"><label>Conclusão</label><textarea id="csr_conclusao" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="hint-text">Seções de dietas avaliadas e custos entram no relatório como "Disponível na Fase 2" — o cálculo nutricional ainda não foi construído.</div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaRelatorio">Cancelar</button><button type="button" class="btn" id="btnBaixarRelatorioConsultoria">⬇ Baixar PDF</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- USUÁRIO MODAL -->
 <div class="overlay" id="overlayUsuario">
   <div class="modal wide">
@@ -2788,6 +2913,14 @@ let dismissedManejoTasks = new Set();
 function chaveTarefaManejo(t){ return [t.animalId, t.tipo, t.label||'', t.data].join('|'); }
 let relSelecoes = {}; // lembra a última seleção de animais de cada seletor de relatório (persistido)
 let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProdutoId=null, editingDietaId=null, editingGrupoId=null, editingVisitaId=null, editingLancamentoId=null, editingMovId=null, editingFuncionarioId=null;
+/* ================= CONSULTORIA (Fase 1 — visitas técnicas / avaliação / fotos) =================
+   Módulo novo, 100% aditivo: chaves próprias no Firestore, nunca lê nem escreve em dietas/horses/
+   estoqueProdutos. Ver banner "CONSULTORIA" mais abaixo (perto de Tratamentos) pro CRUD completo. */
+let consultoriaVisitas = [];    // Firestore key: 'consultoria_visitas_list'
+let consultoriaAvaliacoes = []; // Firestore key: 'consultoria_avaliacoes_list'
+let consultoriaFotos = {};      // Firestore key: 'consultoria_fotos' — objeto { [avaliacaoId]: [{id,dataUrl,legenda,ordem}] }
+let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null;
+let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
 // funcionário — o Salvar do modal de Lançamento usa isso pra ligar o registro ao funcionário
 // (l.origemFuncionarioId), sem precisar de um campo visível no formulário.
@@ -2910,6 +3043,8 @@ const AUDIT_KEYS = {
   transportes_list:   { modulo:'Transporte',  nome: r=>[r.origem, r.destino].filter(Boolean).join(' → ') },
   usuarios_list:      { modulo:'Usuários',    nome: r=>r.nome },
   semen_lotes:        { modulo:'Reprodução', nome: r=>['Sêmen', r.garanhao, r.lote].filter(Boolean).join(' · ') },
+  consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -2968,7 +3103,9 @@ function fundirUniaoDeLista(val, doBanco){
 // mudou (comparando com o que ela sabia antes), preservando as chaves que outra sessão mudou.
 // exames_animais entra no mesmo grupo — cada chave de topo é um animalId, então o mesmo "funde só a
 // chave que mudou" vale (um exame novo no Animal X nunca ameaça o que o Animal Y tinha).
-const OBJETO_POR_CHAVE_KEYS = new Set(['config','aux_lists','exames_animais']);
+// consultoria_fotos entra no mesmo grupo — cada chave de topo é um avaliacaoId, então as fotos de uma
+// avaliação nunca ameaçam as fotos de outra avaliação editadas em outra sessão ao mesmo tempo.
+const OBJETO_POR_CHAVE_KEYS = new Set(['config','aux_lists','exames_animais','consultoria_fotos']);
 let configSnapshot = null, auxSnapshot = null, examesSnapshot = null; // clone da última leitura/gravação bem-sucedida desta aba
 function fundirObjetoPorChave(minhaBaseAnteriorObj, val, doBanco){
   const atual = (doBanco && typeof doBanco==='object' && !Array.isArray(doBanco)) ? {...doBanco} : {};
@@ -3002,6 +3139,9 @@ function atualizarGlobalPosFusao(key, val){
     case 'config': config = val; break;
     case 'aux_lists': aux = val; break;
     case 'exames_animais': examesPorAnimal = val; break;
+    case 'consultoria_visitas_list': consultoriaVisitas = val; break;
+    case 'consultoria_avaliacoes_list': consultoriaAvaliacoes = val; break;
+    case 'consultoria_fotos': consultoriaFotos = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -3165,12 +3305,13 @@ async function storeSet(key,val,userDeleted){
     val = fundirUniaoDeLista(val, doBanco);
     atualizarGlobalPosFusao(key, val);
   } else if(OBJETO_POR_CHAVE_KEYS.has(key)){
-    const minhaBaseAnterior = key==='config' ? configSnapshot : key==='aux_lists' ? auxSnapshot : examesSnapshot;
+    const minhaBaseAnterior = key==='config' ? configSnapshot : key==='aux_lists' ? auxSnapshot : key==='consultoria_fotos' ? consultoriaFotosSnapshot : examesSnapshot;
     const releitura = await storeGet(key);
     const doBanco = releitura.ok ? releitura.value : val;
     val = fundirObjetoPorChave(minhaBaseAnterior, val, doBanco);
     if(key==='config') configSnapshot = JSON.parse(JSON.stringify(val));
     else if(key==='aux_lists') auxSnapshot = JSON.parse(JSON.stringify(val));
+    else if(key==='consultoria_fotos') consultoriaFotosSnapshot = JSON.parse(JSON.stringify(val));
     else examesSnapshot = JSON.parse(JSON.stringify(val));
     atualizarGlobalPosFusao(key, val);
   }
@@ -3217,7 +3358,8 @@ async function loadAll(){
   // Todas as leituras em PARALELO — antes eram ~24 idas ao Firestore uma depois da outra (abertura
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
-         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen] = await Promise.all([
+         rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
+         rCV, rCA, rCF] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3225,8 +3367,12 @@ async function loadAll(){
     storeGet('tratamentos_list'), storeGet('visitas_list'), storeGet('visitas_repro_list'),
     storeGet('transportes_list'), storeGet('rel_selecoes'), storeGet('nf_aprendizado'),
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
-    storeGet('exames_animais'), storeGet('semen_lotes')
+    storeGet('exames_animais'), storeGet('semen_lotes'),
+    storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos')
   ]);
+  consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
+  consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
+  consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
   // Começa vazio; o storeSet('auditoria_log') funde com o disco (união), então nada se perde. É
@@ -3246,7 +3392,8 @@ async function loadAll(){
     horses_list:horses, manejos_list:manejos, treinos_list:treinos, nascimentos_list:nascimentos,
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
-    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes
+    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -3861,7 +4008,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     if(!preservarPilhaVoltar){ pilhaVoltar = []; }
     preservarPilhaVoltar = false;
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -3875,6 +4022,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='usuarios') renderUsuarios();
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
       if(view==='filtrosanimais') renderFiltrosAdmin();
+      if(view==='consultoria') renderConsultoria();
     }else{
       document.getElementById('view-other').classList.add('active');
       document.getElementById('otherTitle').textContent = item.textContent.trim().replace('em breve','');
@@ -10961,6 +11109,7 @@ const LISTA_COLUNAS_TITULO = {
   protocoloAgenda:'Colunas — Vacinas previstas', dietas:'Colunas — Dietas', estoqueMov:'Colunas — Movimentações de estoque',
   vetLista:'Colunas — Veterinária (Lista)', vetVisitas:'Colunas — Visitas', vetTratamentos:'Colunas — Tratamentos',
   financeiro:'Colunas — Financeiro', funcionarios:'Colunas — Funcionários', auditoria:'Colunas — Auditoria',
+  consultoriaAvaliacoes:'Colunas — Avaliações Técnicas',
 };
 function colunasOcultas(listaId){
   const salvo = (config.colunasListas && config.colunasListas[listaId]) || {};
@@ -12364,6 +12513,463 @@ async function processarConsumoAutomatico(){
   }
   renderEstoque(); renderDietas();
   if(relatorioTxt.length) showAlert('Consumo automático de hoje registrado:\n\n'+relatorioTxt.join('\n'));
+}
+
+/* ================= CONSULTORIA (Fase 1) =================
+   Visitas Técnicas + Ficha de Avaliação do Animal (com fotos) + Histórico da Propriedade + Relatório PDF.
+   Módulo 100% aditivo: chaves próprias no Firestore (consultoria_visitas_list, consultoria_avaliacoes_list,
+   consultoria_fotos), nunca lê nem grava em dietas_list/horses_list/estoque_produtos. A sub-navegação
+   (csview_visitas / csview_historico) já nasce pronta pra Fase 2 acrescentar Rações/Formulação/Comparação
+   sem precisar refatorar essa estrutura. */
+let visitaConsultoriaDetalheId = null; // qual visita está aberta no modal de detalhe (avaliações + relatório)
+let avaliacaoConsultoriaVisitaAtualId = null; // visitaId-alvo ao abrir "+ Adicionar Animal" numa avaliação NOVA
+
+function renderConsultoria(){
+  renderConsultoriaVisitas();
+}
+
+document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('#view-consultoria [data-cstab]').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const sub = tab.dataset.cstab;
+    document.getElementById('csview_visitas').style.display = sub==='visitas' ? 'block' : 'none';
+    document.getElementById('csview_historico').style.display = sub==='historico' ? 'block' : 'none';
+    if(sub==='historico') renderConsultoriaHistorico();
+  });
+});
+
+function consultoriaAvaliacoesDaVisita(visitaId){
+  return consultoriaAvaliacoes.filter(a=>a.visitaId===visitaId);
+}
+
+/* ---- Lista de Visitas ---- */
+document.getElementById('cvSearch').addEventListener('input', renderConsultoriaVisitas);
+function renderConsultoriaVisitas(){
+  const tbody = document.getElementById('cvTbody');
+  const term = (document.getElementById('cvSearch').value||'').toLowerCase();
+  const lista = consultoriaVisitas.filter(v=>{
+    if(!term) return true;
+    return [v.propriedade, v.consultorNome, v.responsavelNome].some(x=>(x||'').toLowerCase().includes(term));
+  }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma visita técnica cadastrada.</td></tr>'; return; }
+  tbody.innerHTML = lista.map(v=>{
+    const nAval = consultoriaAvaliacoesDaVisita(v.id).length;
+    return `<tr data-abrirvisitacons="${v.id}" style="cursor:pointer;">
+      <td><strong>${v.propriedade||'—'}</strong></td>
+      <td>${fmtDate(v.data)||'—'}</td>
+      <td>${v.consultorNome||'—'}</td>
+      <td>${v.responsavelNome||'—'}</td>
+      <td>${v.objetivo||''}</td>
+      <td>${nAval}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirvisitaconsbtn="${v.id}">Abrir</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-abrirvisitacons]').forEach(tr=>{
+    tr.addEventListener('click', e=>{ if(e.target.closest('button')) return; abrirVisitaConsultoriaDetalhe(tr.dataset.abrirvisitacons); });
+  });
+  tbody.querySelectorAll('[data-abrirvisitaconsbtn]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirVisitaConsultoriaDetalhe(btn.dataset.abrirvisitaconsbtn));
+  });
+}
+
+/* ---- CRUD Visita ---- */
+function openVisitaConsultoriaNew(){
+  editingVisitaConsultoriaId = null;
+  document.getElementById('csvModalTitle').textContent = 'Nova Visita Técnica';
+  document.getElementById('btnDeleteVisitaConsultoria').style.display = 'none';
+  document.getElementById('csv_propriedade').value = '';
+  document.getElementById('csv_data').value = toISODate(new Date());
+  document.getElementById('csv_consultorNome').value = '';
+  document.getElementById('csv_responsavelNome').value = '';
+  document.getElementById('csv_objetivo').value = '';
+  document.getElementById('csv_obsGerais').value = '';
+  openModal('overlayConsultoriaVisita');
+}
+function openVisitaConsultoriaEdit(id){
+  const v = consultoriaVisitas.find(x=>x.id===id); if(!v) return;
+  editingVisitaConsultoriaId = id;
+  document.getElementById('csvModalTitle').textContent = v.propriedade || 'Editar Visita';
+  document.getElementById('btnDeleteVisitaConsultoria').style.display = 'inline-block';
+  document.getElementById('csv_propriedade').value = v.propriedade||'';
+  document.getElementById('csv_data').value = v.data||'';
+  document.getElementById('csv_consultorNome').value = v.consultorNome||'';
+  document.getElementById('csv_responsavelNome').value = v.responsavelNome||'';
+  document.getElementById('csv_objetivo').value = v.objetivo||'';
+  document.getElementById('csv_obsGerais').value = v.obsGerais||'';
+  openModal('overlayConsultoriaVisita');
+}
+document.getElementById('btnNewVisitaConsultoria').addEventListener('click', openVisitaConsultoriaNew);
+document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', async ()=>{
+  const propriedade = f('csv_propriedade').trim();
+  if(!propriedade){ showAlert('Informe a propriedade.'); document.getElementById('csv_propriedade').focus(); return; }
+  const existente = consultoriaVisitas.find(v=>v.id===editingVisitaConsultoriaId);
+  const eraNova = !editingVisitaConsultoriaId;
+  const data = { ...existente, id: editingVisitaConsultoriaId || ('csv_'+Date.now()),
+    propriedade, data: f('csv_data'), consultorNome: f('csv_consultorNome').trim(),
+    responsavelNome: f('csv_responsavelNome').trim(), objetivo: f('csv_objetivo').trim(),
+    obsGerais: f('csv_obsGerais'), criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  consultoriaVisitas = editingVisitaConsultoriaId ? consultoriaVisitas.map(v=>v.id===editingVisitaConsultoriaId?data:v) : [...consultoriaVisitas, data];
+  closeModal('overlayConsultoriaVisita');
+  renderConsultoriaVisitas();
+  salvarEmSegundoPlano('consultoria_visitas_list', consultoriaVisitas, ()=>renderConsultoriaVisitas());
+  if(eraNova) abrirVisitaConsultoriaDetalhe(data.id); // logo depois de criar, já facilita adicionar os animais avaliados
+});
+document.getElementById('btnDeleteVisitaConsultoria').addEventListener('click', async ()=>{
+  if(!editingVisitaConsultoriaId) return;
+  const idsAvaliacoes = consultoriaAvaliacoesDaVisita(editingVisitaConsultoriaId).map(a=>a.id);
+  const msg = idsAvaliacoes.length>0 ? `Excluir esta visita? As ${idsAvaliacoes.length} avaliação(ões) de animal registradas nela (e as fotos delas) também serão excluídas.` : 'Excluir esta visita?';
+  if(!(await showConfirm(msg, {danger:true, okLabel:'Excluir'}))) return;
+  consultoriaVisitas = consultoriaVisitas.filter(v=>v.id!==editingVisitaConsultoriaId);
+  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.visitaId!==editingVisitaConsultoriaId);
+  await storeSet('consultoria_visitas_list', consultoriaVisitas);
+  await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
+  if(idsAvaliacoes.length>0){
+    idsAvaliacoes.forEach(id=>{ delete consultoriaFotos[id]; });
+    await storeSet('consultoria_fotos', consultoriaFotos);
+  }
+  closeModal('overlayConsultoriaVisita');
+  closeModal('overlayConsultoriaVisitaDetalhe');
+  renderConsultoriaVisitas();
+});
+
+/* ---- Detalhe da visita: avaliações do animal ---- */
+function abrirVisitaConsultoriaDetalhe(id){
+  const v = consultoriaVisitas.find(x=>x.id===id); if(!v) return;
+  visitaConsultoriaDetalheId = id;
+  document.getElementById('csvdModalTitle').textContent = v.propriedade || 'Visita Técnica';
+  document.getElementById('csvdResumo').textContent = [fmtDate(v.data), v.consultorNome&&('Consultor: '+v.consultorNome), v.responsavelNome&&('Responsável: '+v.responsavelNome), v.objetivo].filter(Boolean).join(' · ');
+  renderConsultoriaAvaliacoesVisita();
+  openModal('overlayConsultoriaVisitaDetalhe');
+}
+function renderConsultoriaAvaliacoesVisita(){
+  const tbody = document.getElementById('csvdTbody');
+  const lista = consultoriaAvaliacoesDaVisita(visitaConsultoriaDetalheId).slice().sort((a,b)=>(a.animalNome||'').localeCompare(b.animalNome||'','pt'));
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhum animal avaliado ainda nesta visita.</td></tr>'; return; }
+  tbody.innerHTML = lista.map(a=>{
+    const nFotos = (consultoriaFotos[a.id]||[]).length;
+    return `<tr>
+      <td><button type="button" class="eye-inline" data-eyeid="${a.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${a.animalNome||''}</strong></td>
+      <td>${a.peso?a.peso+' kg':'—'}</td>
+      <td>${a.tamanho?a.tamanho+' cm':'—'}</td>
+      <td>${a.idadeAnos!==''&&a.idadeAnos!=null?a.idadeAnos+' anos':'—'}</td>
+      <td>${a.scoreCorporal||'—'}</td>
+      <td>${a.situacaoGeral||'—'}</td>
+      <td>${nFotos>0?nFotos+' foto(s)':'—'}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editaravaliacaocons="${a.id}">Editar</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-editaravaliacaocons]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openAvaliacaoConsultoriaEdit(btn.dataset.editaravaliacaocons));
+  });
+}
+document.getElementById('btnEditarVisitaConsultoria').addEventListener('click', ()=>{
+  if(visitaConsultoriaDetalheId) openVisitaConsultoriaEdit(visitaConsultoriaDetalheId);
+});
+document.getElementById('btnAddAvaliacaoConsultoria').addEventListener('click', ()=>{
+  if(visitaConsultoriaDetalheId) openAvaliacaoConsultoriaNew(visitaConsultoriaDetalheId);
+});
+
+/* ---- Ficha de avaliação do animal ---- */
+// Seleção do animal é feita com um <select> simples (1 animal por avaliação) — createAnimalSelector
+// (componente reutilizável de Manejos/Treinos/Dietas) foi desenhado pra marcar VÁRIOS animais ao mesmo
+// tempo; aqui cada avaliação é de UM animal só, então um select direto é mais simples e claro.
+function popularSelectAnimaisConsultoria(selectedId){
+  const sel = document.getElementById('csa_animalId');
+  const ativos = horses.filter(h=>h.situacao!=='E').slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  sel.innerHTML = '<option value="">Selecione...</option>' + ativos.map(h=>`<option value="${h.id}" ${h.id===selectedId?'selected':''}>${h.nome||''}${h.apelido?(' ('+h.apelido+')'):''}</option>`).join('');
+}
+function sugerirIdadeAnosConsultoria(animalId){
+  const h = horses.find(x=>x.id===animalId);
+  if(!h || !h.nascimento) return '';
+  const anos = (Date.now()-new Date(h.nascimento).getTime())/(1000*60*60*24*365.25);
+  return Math.round(anos*10)/10;
+}
+function openAvaliacaoConsultoriaNew(visitaId){
+  editingAvaliacaoConsultoriaId = null;
+  avaliacaoConsultoriaVisitaAtualId = visitaId;
+  document.getElementById('csaModalTitle').textContent = 'Nova Avaliação';
+  document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'none';
+  popularSelectAnimaisConsultoria('');
+  document.getElementById('csa_peso').value = '';
+  document.getElementById('csa_tamanho').value = '';
+  document.getElementById('csa_idadeAnos').value = '';
+  document.getElementById('csa_scoreCorporal').value = '';
+  document.getElementById('csa_situacaoGeral').value = '';
+  document.getElementById('csa_observacoes').value = '';
+  document.getElementById('csaFotosWrap').style.display = 'none';
+  document.getElementById('csaFotosHint').style.display = 'block';
+  document.getElementById('csa_animalId').onchange = ()=>{
+    const id = document.getElementById('csa_animalId').value;
+    const campoIdade = document.getElementById('csa_idadeAnos');
+    if(id && !campoIdade.value){
+      const sug = sugerirIdadeAnosConsultoria(id);
+      if(sug!=='') campoIdade.value = sug;
+    }
+  };
+  openModal('overlayConsultoriaAvaliacao');
+}
+function openAvaliacaoConsultoriaEdit(id){
+  const a = consultoriaAvaliacoes.find(x=>x.id===id); if(!a) return;
+  editingAvaliacaoConsultoriaId = id;
+  avaliacaoConsultoriaVisitaAtualId = a.visitaId;
+  document.getElementById('csaModalTitle').textContent = a.animalNome || 'Editar Avaliação';
+  document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'inline-block';
+  popularSelectAnimaisConsultoria(a.animalId);
+  document.getElementById('csa_peso').value = a.peso||'';
+  document.getElementById('csa_tamanho').value = a.tamanho||'';
+  document.getElementById('csa_idadeAnos').value = (a.idadeAnos!==undefined && a.idadeAnos!==null) ? a.idadeAnos : '';
+  document.getElementById('csa_scoreCorporal').value = a.scoreCorporal||'';
+  document.getElementById('csa_situacaoGeral').value = a.situacaoGeral||'';
+  document.getElementById('csa_observacoes').value = a.observacoes||'';
+  document.getElementById('csa_animalId').onchange = null;
+  document.getElementById('csaFotosWrap').style.display = 'block';
+  document.getElementById('csaFotosHint').style.display = 'none';
+  renderFotosConsultoria(a.id);
+  openModal('overlayConsultoriaAvaliacao');
+}
+document.getElementById('btnSaveAvaliacaoConsultoria').addEventListener('click', async ()=>{
+  const animalId = f('csa_animalId');
+  if(!animalId){ showAlert('Selecione o animal.'); return; }
+  const h = horses.find(x=>x.id===animalId);
+  const existente = consultoriaAvaliacoes.find(a=>a.id===editingAvaliacaoConsultoriaId);
+  const eraNova = !editingAvaliacaoConsultoriaId;
+  const visitaId = existente ? existente.visitaId : avaliacaoConsultoriaVisitaAtualId;
+  const visita = consultoriaVisitas.find(v=>v.id===visitaId);
+  const data = { ...existente, id: editingAvaliacaoConsultoriaId || ('csa_'+Date.now()),
+    visitaId, animalId, animalNome: h?h.nome:(existente?existente.animalNome:''),
+    data: visita?visita.data:(existente?existente.data:''),
+    peso: f('csa_peso'), tamanho: f('csa_tamanho'), idadeAnos: f('csa_idadeAnos'),
+    scoreCorporal: f('csa_scoreCorporal'), situacaoGeral: f('csa_situacaoGeral').trim(),
+    observacoes: f('csa_observacoes'), criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  consultoriaAvaliacoes = editingAvaliacaoConsultoriaId ? consultoriaAvaliacoes.map(a=>a.id===editingAvaliacaoConsultoriaId?data:a) : [...consultoriaAvaliacoes, data];
+  editingAvaliacaoConsultoriaId = data.id;
+  document.getElementById('csaModalTitle').textContent = data.animalNome || 'Editar Avaliação';
+  document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'inline-block';
+  document.getElementById('csaFotosWrap').style.display = 'block';
+  document.getElementById('csaFotosHint').style.display = 'none';
+  renderFotosConsultoria(data.id);
+  renderConsultoriaAvaliacoesVisita();
+  salvarEmSegundoPlano('consultoria_avaliacoes_list', consultoriaAvaliacoes, ()=>renderConsultoriaAvaliacoesVisita());
+  showAlert(eraNova ? 'Avaliação salva. Agora você já pode adicionar fotos.' : 'Avaliação atualizada.');
+});
+document.getElementById('btnDeleteAvaliacaoConsultoria').addEventListener('click', async ()=>{
+  if(!editingAvaliacaoConsultoriaId || !(await showConfirm('Excluir esta avaliação? As fotos dela também serão excluídas.', {danger:true, okLabel:'Excluir'}))) return;
+  const id = editingAvaliacaoConsultoriaId;
+  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.id!==id);
+  await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
+  delete consultoriaFotos[id];
+  await storeSet('consultoria_fotos', consultoriaFotos);
+  closeModal('overlayConsultoriaAvaliacao');
+  renderConsultoriaAvaliacoesVisita();
+});
+
+/* ---- Fotos da avaliação (reaproveita o pipeline de compressão de foto de animal, 900px/jpeg 0.72) ---- */
+function renderFotosConsultoria(avaliacaoId){
+  const host = document.getElementById('csaFotosHost');
+  const fotos = (consultoriaFotos[avaliacaoId]||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  if(fotos.length===0){ host.innerHTML = '<div class="hint-text">Nenhuma foto ainda.</div>'; return; }
+  host.innerHTML = fotos.map((foto,idx)=>`
+    <div style="width:150px;border:1px solid var(--line);border-radius:8px;padding:6px;">
+      <img src="${foto.dataUrl}" style="width:100%;height:110px;object-fit:cover;border-radius:5px;display:block;">
+      <input type="text" data-legendafoto="${foto.id}" value="${(foto.legenda||'').replace(/"/g,'&quot;')}" placeholder="Legenda (opcional)" style="width:100%;margin-top:6px;font-size:11.5px;padding:4px 6px;">
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span>
+          <button type="button" class="btn btn-sm btn-ghost" data-fotoup="${foto.id}" ${idx===0?'disabled':''} title="Mover pra cima">↑</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-fotodown="${foto.id}" ${idx===fotos.length-1?'disabled':''} title="Mover pra baixo">↓</button>
+        </span>
+        <button type="button" class="btn btn-sm btn-danger" data-fotodel="${foto.id}" title="Excluir">✕</button>
+      </div>
+    </div>`).join('');
+  host.querySelectorAll('[data-legendafoto]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const id = inp.dataset.legendafoto;
+      consultoriaFotos[avaliacaoId] = (consultoriaFotos[avaliacaoId]||[]).map(f2=> f2.id===id ? {...f2, legenda:inp.value} : f2);
+      salvarEmSegundoPlano('consultoria_fotos', consultoriaFotos);
+    });
+  });
+  host.querySelectorAll('[data-fotoup]').forEach(btn=>{
+    btn.addEventListener('click', ()=> moverFotoConsultoria(avaliacaoId, btn.dataset.fotoup, -1));
+  });
+  host.querySelectorAll('[data-fotodown]').forEach(btn=>{
+    btn.addEventListener('click', ()=> moverFotoConsultoria(avaliacaoId, btn.dataset.fotodown, 1));
+  });
+  host.querySelectorAll('[data-fotodel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir esta foto?'))) return;
+      consultoriaFotos[avaliacaoId] = (consultoriaFotos[avaliacaoId]||[]).filter(f2=>f2.id!==btn.dataset.fotodel);
+      await storeSet('consultoria_fotos', consultoriaFotos);
+      renderFotosConsultoria(avaliacaoId);
+      renderConsultoriaAvaliacoesVisita();
+    });
+  });
+}
+function moverFotoConsultoria(avaliacaoId, fotoId, delta){
+  const lista = (consultoriaFotos[avaliacaoId]||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  const idx = lista.findIndex(f2=>f2.id===fotoId);
+  const novoIdx = idx+delta;
+  if(idx<0 || novoIdx<0 || novoIdx>=lista.length) return;
+  const [item] = lista.splice(idx,1);
+  lista.splice(novoIdx,0,item);
+  lista.forEach((f2,i)=>{ f2.ordem=i; });
+  consultoriaFotos[avaliacaoId] = lista;
+  renderFotosConsultoria(avaliacaoId);
+  salvarEmSegundoPlano('consultoria_fotos', consultoriaFotos);
+}
+document.getElementById('btnAddFotoConsultoria').addEventListener('click', ()=>{
+  document.getElementById('csa_fotoFile').click();
+});
+document.getElementById('csa_fotoFile').addEventListener('change', e=>{
+  const files = [...(e.target.files||[])];
+  e.target.value = ''; // permite escolher os mesmos arquivos de novo depois, se precisar
+  if(files.length===0 || !editingAvaliacaoConsultoriaId) return;
+  const avaliacaoId = editingAvaliacaoConsultoriaId;
+  let processadas = 0;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const MAX_DIM = 900; // mesmo redimensionamento usado na foto do animal (5041-5082)
+        let w = img.width, h = img.height;
+        if(w>h && w>MAX_DIM){ h = Math.round(h*MAX_DIM/w); w = MAX_DIM; }
+        else if(h>=w && h>MAX_DIM){ w = Math.round(w*MAX_DIM/h); h = MAX_DIM; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+        const listaAtual = consultoriaFotos[avaliacaoId]||[];
+        const novaFoto = { id:'fcf_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), dataUrl, legenda:'', ordem: listaAtual.length };
+        consultoriaFotos[avaliacaoId] = [...listaAtual, novaFoto];
+        processadas++;
+        renderFotosConsultoria(avaliacaoId);
+        renderConsultoriaAvaliacoesVisita();
+        if(processadas===files.length) salvarEmSegundoPlano('consultoria_fotos', consultoriaFotos, ()=>renderFotosConsultoria(avaliacaoId));
+      };
+      img.onerror = ()=> showAlert('Não consegui ler uma dessas imagens.');
+      img.src = ev.target.result;
+    };
+    reader.onerror = ()=> showAlert('Não consegui ler um desses arquivos.');
+    reader.readAsDataURL(file);
+  });
+});
+
+/* ---- Histórico da Propriedade ---- */
+const chFiltroPeriodo = createDateRangePicker(document.getElementById('chFiltroPeriodo'), { onChange:()=>renderConsultoriaHistorico() });
+document.getElementById('chSearch').addEventListener('input', renderConsultoriaHistorico);
+function renderConsultoriaHistorico(){
+  const tbody = document.getElementById('chTbody');
+  const term = (document.getElementById('chSearch').value||'').toLowerCase();
+  const { de, ate } = chFiltroPeriodo.getRange();
+  const lista = consultoriaVisitas.filter(v=>{
+    const matchTerm = !term || (v.propriedade||'').toLowerCase().includes(term);
+    const matchDe = !de || (v.data && v.data>=de);
+    const matchAte = !ate || (v.data && v.data<=ate);
+    return matchTerm && matchDe && matchAte;
+  }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma visita encontrada.</td></tr>'; return; }
+  tbody.innerHTML = lista.map(v=>{
+    const nAval = consultoriaAvaliacoesDaVisita(v.id).length;
+    return `<tr>
+      <td><strong>${v.propriedade||'—'}</strong></td>
+      <td>${fmtDate(v.data)||'—'}</td>
+      <td>${v.consultorNome||'—'}</td>
+      <td>${v.responsavelNome||'—'}</td>
+      <td>${nAval}</td>
+      <td><button type="button" class="btn btn-sm btn-ghost" data-abrirhistvisita="${v.id}">Abrir</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-abrirhistvisita]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirVisitaConsultoriaDetalhe(btn.dataset.abrirhistvisita));
+  });
+}
+
+/* ---- Relatório da visita (PDF) — reaproveita baixarRelatorioManejoPDF (7877), sem alterá-la ---- */
+document.getElementById('btnGerarRelatorioConsultoria').addEventListener('click', ()=>{
+  if(!visitaConsultoriaDetalheId) return;
+  document.getElementById('csr_sugestoes').value = '';
+  document.getElementById('csr_conclusao').value = '';
+  openModal('overlayConsultoriaRelatorio');
+});
+function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
+  const cabecalho = `<h1 style="border:none;">Relatório de Visita Técnica</h1>
+    <div class="sub">${[visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — ')}</div>
+    <div class="grid-wrap"><table class="grid">
+      <tbody>
+        <tr><td><strong>Propriedade</strong></td><td>${visita.propriedade||'—'}</td></tr>
+        <tr><td><strong>Data</strong></td><td>${fmtDate(visita.data)||'—'}</td></tr>
+        <tr><td><strong>Consultor</strong></td><td>${visita.consultorNome||'—'}</td></tr>
+        <tr><td><strong>Responsável / Proprietário</strong></td><td>${visita.responsavelNome||'—'}</td></tr>
+        <tr><td><strong>Objetivo</strong></td><td>${visita.objetivo||'—'}</td></tr>
+      </tbody>
+    </table></div>
+    ${visita.obsGerais?`<div style="margin:10px 0;"><strong>Observações gerais:</strong><br>${visita.obsGerais.replace(/\n/g,'<br>')}</div>`:''}`;
+  const blocosAnimais = avaliacoes.length===0
+    ? '<div class="report-animal-block"><div class="empty">Nenhum animal avaliado nesta visita.</div></div>'
+    : avaliacoes.map(a=>{
+        const fotos = (consultoriaFotos[a.id]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
+        return `<div class="report-animal-block">
+          <div class="report-animal-name">${a.animalNome||''}</div>
+          <div class="grid-wrap"><table class="grid">
+            <tbody>
+              <tr><td><strong>Peso</strong></td><td>${a.peso?a.peso+' kg':'—'}</td><td><strong>Tamanho</strong></td><td>${a.tamanho?a.tamanho+' cm':'—'}</td></tr>
+              <tr><td><strong>Idade</strong></td><td>${a.idadeAnos!==''&&a.idadeAnos!=null?a.idadeAnos+' anos':'—'}</td><td><strong>Score corporal</strong></td><td>${a.scoreCorporal||'—'}</td></tr>
+              <tr><td><strong>Situação geral</strong></td><td colspan="3">${a.situacaoGeral||'—'}</td></tr>
+            </tbody>
+          </table></div>
+          ${a.observacoes?`<div style="margin:8px 0;"><strong>Observações:</strong><br>${a.observacoes.replace(/\n/g,'<br>')}</div>`:''}
+          ${fotos.length>0?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${fotos.map(foto=>`<div style="width:150px;"><img src="${foto.dataUrl}" style="width:100%;border-radius:4px;">${foto.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${foto.legenda}</div>`:''}</div>`).join('')}</div>`:''}
+        </div>`;
+      }).join('');
+  const secaoFase2 = `<div class="report-animal-block">
+      <div class="report-animal-name">Dietas avaliadas e Custos</div>
+      <div class="hint-text">Disponível na Fase 2.</div>
+    </div>`;
+  const secaoTexto = `<div class="report-animal-block">
+      <div class="report-animal-name">Sugestões Técnicas</div>
+      <div>${sugestoes ? sugestoes.replace(/\n/g,'<br>') : '<span class="hint-text">Nenhuma.</span>'}</div>
+      <div class="report-animal-name" style="margin-top:14px;">Conclusão</div>
+      <div>${conclusao ? conclusao.replace(/\n/g,'<br>') : '<span class="hint-text">Nenhuma.</span>'}</div>
+    </div>`;
+  return `<div class="report-card print-block">${cabecalho}${blocosAnimais}${secaoFase2}${secaoTexto}</div>`;
+}
+document.getElementById('btnBaixarRelatorioConsultoria').addEventListener('click', ()=>{
+  const visita = consultoriaVisitas.find(v=>v.id===visitaConsultoriaDetalheId);
+  if(!visita) return;
+  const html = gerarConteudoRelatorioConsultoriaPDF(visita, f('csr_sugestoes'), f('csr_conclusao'));
+  const nomeArquivo = 'Relatorio_Consultoria_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+'.pdf';
+  closeModal('overlayConsultoriaRelatorio');
+  baixarRelatorioManejoPDF(html, nomeArquivo);
+});
+
+/* ---- Integração com a Ficha do Animal (16096+): nova seção, sem tocar nas existentes ---- */
+function blocoConsultoriaAnimalFicha(h){
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===h.id).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const rows = avals.map(a=>{
+    const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+    return `<tr>
+      <td>${fmtDate(a.data)||'—'}</td>
+      <td data-col="propriedade">${visita?(visita.propriedade||'—'):'—'}</td>
+      <td data-col="peso">${a.peso?a.peso+' kg':'—'}</td>
+      <td data-col="tamanho">${a.tamanho?a.tamanho+' cm':'—'}</td>
+      <td data-col="score">${a.scoreCorporal||'—'}</td>
+      <td>${a.situacaoGeral||'—'}</td>
+    </tr>`;
+  }).join('');
+  // A tabela (com o <thead data-col>) fica sempre no DOM, mesmo sem nenhuma avaliação ainda — o seletor
+  // de colunas genérico (abrirSeletorColunas, 11099) lê as colunas a partir do <thead> da própria tabela,
+  // então escondê-la inteira quando a lista está vazia quebraria o botão "⚙ Colunas" (fica sem tabela
+  // pra abrir o seletor).
+  return `<div class="perfil-card">
+    <div class="perfil-card-head">🩺 Avaliações Técnicas <button type="button" class="btn btn-sm btn-ghost no-print" data-colpicker="consultoriaAvaliacoes" style="text-transform:none;">⚙ Colunas</button></div>
+    <div class="perfil-card-body">
+      <div class="grid-wrap"><table class="grid" data-lista="consultoriaAvaliacoes">
+        <thead><tr><th>Data</th><th data-col="propriedade">Propriedade</th><th data-col="peso">Peso</th><th data-col="tamanho">Tamanho</th><th data-col="score">Score corporal</th><th>Situação geral</th></tr></thead>
+        <tbody>${avals.length===0 ? '<tr><td colspan="6" class="empty">Nenhuma avaliação técnica registrada ainda.</td></tr>' : rows}</tbody>
+      </table></div>
+    </div>
+  </div>`;
 }
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
@@ -15623,10 +16229,10 @@ document.getElementById('btnDeleteFuncionario').addEventListener('click', async 
 // dentro de `permissoes.manejos`, um array `tipos` (ex: ['Casco']) restringe A QUAIS TIPOS de manejo
 // (Casco/Vacina/Vermífugo/Dente) o usuário tem acesso; array vazio ou ausente = todos os tipos.
 // Início e Calendário não entram nessa grade — todo usuário logado sempre vê os dois (é a base do app).
-const MODULOS_PERMISSAO = ['animais','grupos','nascimentos','manejos','veterinaria','transporte','treinos','estoque','funcionarios','financeiro','usuarios'];
-const MODULO_LABEL = { animais:'Animais', grupos:'Grupos', nascimentos:'Reprodução', manejos:'Manejos', veterinaria:'Veterinária', transporte:'Transporte', treinos:'Atividades', estoque:'Estoque', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários' };
+const MODULOS_PERMISSAO = ['animais','grupos','nascimentos','manejos','veterinaria','transporte','treinos','estoque','funcionarios','financeiro','usuarios','consultoria'];
+const MODULO_LABEL = { animais:'Animais', grupos:'Grupos', nascimentos:'Reprodução', manejos:'Manejos', veterinaria:'Veterinária', transporte:'Transporte', treinos:'Atividades', estoque:'Estoque', funcionarios:'Funcionários', financeiro:'Financeiro', usuarios:'Usuários', consultoria:'Consultoria' };
 // Agrupado igual o menu lateral, só pra desenhar a grade de permissões na mesma ordem que a pessoa já reconhece.
-const MODULO_GRUPO = { 'Animais':['animais','grupos','nascimentos'], 'Saúde':['manejos','veterinaria'], 'Operação':['transporte','treinos','estoque'], 'Administração':['funcionarios','financeiro','usuarios'] };
+const MODULO_GRUPO = { 'Animais':['animais','grupos','nascimentos'], 'Saúde':['manejos','veterinaria'], 'Operação':['transporte','treinos','estoque'], 'Consultoria':['consultoria'], 'Administração':['funcionarios','financeiro','usuarios'] };
 const ACOES_PERMISSAO = [['ver','Ver'],['inserir','Inserir'],['editar','Editar'],['excluir','Excluir']];
 const MANEJO_TIPOS_OPCOES = ['Casco','Vacina','Vermífugo','Dente'];
 function permissaoDe(user, modulo){
@@ -15676,7 +16282,7 @@ function descreverAcesso(user){
   return partes.length ? partes.join(', ') : 'Nenhum acesso configurado ainda';
 }
 // Cada botão "+ Novo X" só aparece pra quem tem permissão de "inserir" no módulo dono dele.
-const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnImportTreino:'treinos', btnNewNasc:'nascimentos', btnNewVisitaRepro:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios' };
+const BOTOES_NOVO_POR_MODULO = { btnNewUsuario:'usuarios', btnNewHorse:'animais', btnImportAnimais:'animais', btnNewGrupo:'grupos', btnNewManejo:'manejos', btnNewTransporte:'transporte', btnNewTreino:'treinos', btnImportTreino:'treinos', btnNewNasc:'nascimentos', btnNewVisitaRepro:'nascimentos', btnNewProduto:'estoque', btnNewDieta:'estoque', btnNewVisita:'veterinaria', btnNewTratamento:'veterinaria', btnNewLancamento:'financeiro', btnNewFuncionario:'funcionarios', btnNewVisitaConsultoria:'consultoria' };
 function aplicarPermissoesBotoesNovo(){
   Object.entries(BOTOES_NOVO_POR_MODULO).forEach(([id,modulo])=>{
     const btn = document.getElementById(id);
@@ -16346,6 +16952,8 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-head">📁 Grupos</div>
       <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${g.nome}</span>`).join('')}</div>
     </div>`:''}
+
+    ${blocoConsultoriaAnimalFicha(h)}
   `;
 
   const sidebar = `
