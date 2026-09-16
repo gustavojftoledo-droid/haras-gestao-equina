@@ -1625,6 +1625,8 @@
       <div class="subtabs">
         <span class="chip active" data-cstab="visitas" id="cstab_visitas">Visitas Técnicas</span>
         <span class="chip" data-cstab="historico" id="cstab_historico">Histórico da Propriedade</span>
+        <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
+        <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
       </div>
 
       <div id="csview_visitas">
@@ -1633,9 +1635,18 @@
         </div>
         <div class="lista-toolbar">
           <button class="btn" id="btnNewVisitaConsultoria" style="margin-right:auto;">+ Nova Visita Técnica</button>
+          <div class="menu-discreto-wrap">
+            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasConsultoria" data-relatorioselecao="consultoriaVisitas" title="1 animal por folha">📄 Baixar PDF (1 animal/folha)</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfVisitasConsultoriaCompacto" data-relatorioselecao="consultoriaVisitas" title="Cabe quantos animais couberem por folha, sem cortar nenhum no meio">📄 Baixar PDF (compacto)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="consultoriaVisitas">⚙ Colunas</button>
+            </div>
+          </div>
         </div>
+        <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaVisitas">
-          <thead><tr><th>Propriedade</th><th>Data</th><th>Consultor</th><th>Responsável</th><th>Objetivo</th><th>Animais avaliados</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaVisitas" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="objetivo">Objetivo</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
           <tbody id="cvTbody"></tbody>
         </table></div>
       </div>
@@ -1645,10 +1656,55 @@
           <div class="f grow"><label>Propriedade</label><input type="text" id="chSearch" placeholder="Nome da propriedade..."></div>
           <div class="f"><label>Período</label><div id="chFiltroPeriodo"></div></div>
         </div>
+        <div class="lista-toolbar">
+          <div class="menu-discreto-wrap">
+            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoria" data-relatorioselecao="consultoriaHistorico" title="1 animal por folha">📄 Baixar PDF (1 animal/folha)</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoriaCompacto" data-relatorioselecao="consultoriaHistorico" title="Cabe quantos animais couberem por folha, sem cortar nenhum no meio">📄 Baixar PDF (compacto)</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="consultoriaHistorico">⚙ Colunas</button>
+            </div>
+          </div>
+        </div>
+        <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
-          <thead><tr><th>Propriedade</th><th>Data</th><th>Consultor</th><th>Responsável</th><th>Animais avaliados</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
           <tbody id="chTbody"></tbody>
         </table></div>
+      </div>
+
+      <!-- CONSULTORIA (Fase 2): Formulação de dieta (simulação, independente das Dietas operacionais) -->
+      <div id="csview_formulacao" style="display:none;">
+        <div class="lista-toolbar">
+          <button class="btn" id="btnNewFormulacaoConsultoria" style="margin-right:auto;">+ Nova Formulação</button>
+          <div class="menu-discreto-wrap">
+            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop">
+              <button type="button" class="btn btn-ghost btn-sm" id="btnRelFinanceiroFormulacaoConsultoria" data-relatorioselecao="consultoriaFormulacoes" title="Ingredientes, custo por ingrediente, custo/kg, custo/dia, custo/mês">📄 Relatório Financeiro</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnRelNutricionalFormulacaoConsultoria" data-relatorioselecao="consultoriaFormulacoes" title="Exigência NRC × Fornecido × % de atendimento">📄 Relatório Nutricional</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="consultoriaFormulacoes">⚙ Colunas</button>
+            </div>
+          </div>
+        </div>
+        <div class="hint-text" style="margin-bottom:10px;">Simulação de dieta pra um animal, com cálculo de exigência nutricional (NRC 2007) × fornecido e custo. Não altera nem lê as Dietas operacionais. Marque o checkbox das formulações desejadas pra baixar o relatório só delas — sem marcar nenhuma, sai com a lista inteira.</div>
+        <div class="grid-wrap"><table class="grid" data-lista="consultoriaFormulacoes">
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoes" title="Selecionar todas"></th><th>Nome</th><th data-col="animal">Animal</th><th data-col="categoria">Categoria</th><th data-col="peso">Peso</th><th data-col="custo">Custo/mês (estimado)</th><th></th></tr></thead>
+          <tbody id="cfTbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- CONSULTORIA (Fase 2): Comparação entre formulações -->
+      <div id="csview_comparacao" style="display:none;">
+        <div class="hint-text" style="margin-bottom:10px;">Marque de 2 a 3 formulações pra comparar lado a lado (ingredientes, composição nutricional, exigência × atendimento e custo).</div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnCompararFormulacoesConsultoria" style="margin-right:auto;">Comparar selecionadas</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btnPdfComparacaoConsultoria" style="display:none;">📄 Baixar PDF da comparação</button>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="consultoriaFormulacoesComparacao">
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoesComparacao" title="Selecionar todas"></th><th>Nome</th><th>Animal</th><th>Categoria</th><th>Peso</th></tr></thead>
+          <tbody id="ccTbody"></tbody>
+        </table></div>
+        <div id="ccResultado" style="margin-top:20px;"></div>
       </div>
     </div>
 
@@ -1678,6 +1734,7 @@
         <div class="field"><label>Status</label><div style="display:flex;gap:6px;"><select id="f_status" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="status">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="status" data-selid="f_status" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="status" data-selid="f_status" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Data Nascimento</label><input type="date" id="f_nascimento"></div>
         <div class="field"><label>Data Falecimento</label><input type="date" id="f_falecimento"></div>
+        <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="f_peso" title="Usado na Consultoria pra calcular a exigência nutricional (NRC)"></div>
         <div class="field"><label>Pelagem</label><div style="display:flex;gap:6px;"><select id="f_pelagem" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="pelagem">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="pelagem" data-selid="f_pelagem" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="pelagem" data-selid="f_pelagem" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Raça</label><div style="display:flex;gap:6px;"><select id="f_raca" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="raca">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="raca" data-selid="f_raca" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="raca" data-selid="f_raca" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="f_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="categoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="categoria" data-selid="f_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="categoria" data-selid="f_categoria" title="Excluir valor selecionado">🗑</button></div></div>
@@ -1723,6 +1780,7 @@
   </div>
 </div>
 <datalist id="dl_machos"></datalist><datalist id="dl_femeas"></datalist><datalist id="dl_medicamentos"></datalist><datalist id="dl_vendedores"></datalist>
+<datalist id="dl_csv_propriedade"></datalist><datalist id="dl_csv_consultor"></datalist><datalist id="dl_csv_responsavel"></datalist>
 
 <!-- EDITAR EM LOTE (Animais) -->
 <div class="overlay" id="overlayEditLote">
@@ -2426,6 +2484,13 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </div>
         <div class="field"><label>Validade</label><input type="date" id="pd_validade"></div>
         <div class="field full"><label>Observações</label><textarea id="pd_obs" rows="2" spellcheck="true" lang="pt-BR"></textarea></div>
+        <!-- Consultoria (Fase 2): valores nutricionais do rótulo, só pra produtos tipo Alimento. Campo
+             100% opcional e aditivo — nunca lido por Dietas/Estoque, só pela Formulação da Consultoria. -->
+        <div class="field full nutrientes-field" style="display:none;"><label>Valores nutricionais (rótulo do fabricante) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional — usado na Consultoria pra calcular exigência × fornecido)</span></label></div>
+        <div class="field nutrientes-field" style="display:none;"><label>ED (Kcal/kg)</label><input type="number" step="0.01" min="0" id="pd_edKcalPorKg" placeholder="Ex: 2900"></div>
+        <div class="field nutrientes-field" style="display:none;"><label>PB (%)</label><input type="number" step="0.01" min="0" id="pd_pbPercent" placeholder="Ex: 12"></div>
+        <div class="field nutrientes-field" style="display:none;"><label>Cálcio (%)</label><input type="number" step="0.001" min="0" id="pd_caPercent" placeholder="Ex: 0.6"></div>
+        <div class="field nutrientes-field" style="display:none;"><label>Fósforo (%)</label><input type="number" step="0.001" min="0" id="pd_pPercent" placeholder="Ex: 0.4"></div>
       </div>
       <div id="pdMovBox" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);">
         <div class="section-label" style="border-top:none;padding-top:0;margin-bottom:10px;">Movimentar estoque</div>
@@ -2557,10 +2622,10 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="csvModalTitle">Nova Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisita">✕</button></div>
     <div class="form-grid">
-      <div class="field full"><label>Propriedade</label><input type="text" id="csv_propriedade" placeholder="Nome da propriedade/haras"></div>
+      <div class="field full"><label>Propriedade</label><input type="text" id="csv_propriedade" list="dl_csv_propriedade" placeholder="Nome da propriedade/haras"></div>
       <div class="field"><label>Data da visita</label><input type="date" id="csv_data"></div>
-      <div class="field"><label>Consultor</label><input type="text" id="csv_consultorNome" placeholder="Quem está realizando a visita"></div>
-      <div class="field"><label>Responsável / Proprietário</label><input type="text" id="csv_responsavelNome" placeholder="Quem recebeu a visita"></div>
+      <div class="field"><label>Consultor</label><input type="text" id="csv_consultorNome" list="dl_csv_consultor" placeholder="Quem está realizando a visita"></div>
+      <div class="field"><label>Responsável / Proprietário</label><input type="text" id="csv_responsavelNome" list="dl_csv_responsavel" placeholder="Quem recebeu a visita"></div>
       <div class="field full"><label>Objetivo da visita</label><input type="text" id="csv_objetivo" placeholder="Ex: avaliação nutricional, acompanhamento de escore..."></div>
       <div class="field full"><label>Observações gerais</label><textarea id="csv_obsGerais" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
     </div>
@@ -2595,22 +2660,21 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayConsultoriaAvaliacao">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="csaModalTitle">Avaliação do Animal</div><button class="modal-close" data-close="overlayConsultoriaAvaliacao">✕</button></div>
-    <div class="form-grid">
-      <div class="field full"><label>Animal</label><select id="csa_animalId"></select></div>
-      <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="csa_peso"></div>
-      <div class="field"><label>Tamanho (altura, cm)</label><input type="number" step="0.1" id="csa_tamanho"></div>
-      <div class="field"><label>Idade (anos)</label><input type="number" step="0.1" id="csa_idadeAnos" title="Sugerida a partir do nascimento cadastrado — editável"></div>
-      <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="csa_scoreCorporal"></div>
-      <div class="field full"><label>Situação geral</label><input type="text" id="csa_situacaoGeral" placeholder="Ex: bom estado, magro, sobrepeso..."></div>
-      <div class="field full"><label>Observações</label><textarea id="csa_observacoes" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+    <div id="csaSeletorWrap">
+      <div class="field full" style="margin-bottom:8px;"><label>Animais avaliados <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(marque um ou mais — dá pra combinar os filtros de categoria/localização/proprietário do próprio seletor)</span></label></div>
+      <div id="csaAnimalSelectorHost"></div>
     </div>
-    <div class="section-label" style="border-top:none;padding-top:0;">Fotos <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— podem ser adicionadas depois de salvar a avaliação</span></div>
-    <div id="csaFotosWrap" style="display:none;">
-      <div id="csaFotosHost" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;"></div>
-      <input type="file" id="csa_fotoFile" accept="image/*" multiple style="display:none;">
-      <button type="button" class="btn btn-sm btn-ghost" id="btnAddFotoConsultoria">+ Adicionar Fotos</button>
+    <div class="section-label" style="border-top:none;">Dados de cada animal</div>
+    <div id="csaBlocosHost"></div>
+    <div id="csaFotosSection" style="display:none;">
+      <div class="section-label" style="border-top:none;padding-top:0;">Fotos <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— podem ser adicionadas depois de salvar a avaliação</span></div>
+      <div id="csaFotosWrap" style="display:none;">
+        <div id="csaFotosHost" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;"></div>
+        <input type="file" id="csa_fotoFile" accept="image/*" multiple style="display:none;">
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddFotoConsultoria">+ Adicionar Fotos</button>
+      </div>
+      <div class="hint-text" id="csaFotosHint" style="margin-top:8px;">Salve a avaliação primeiro pra poder anexar fotos.</div>
     </div>
-    <div class="hint-text" id="csaFotosHint" style="margin-top:8px;">Salve a avaliação primeiro pra poder anexar fotos.</div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteAvaliacaoConsultoria" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaAvaliacao">Cancelar</button><button type="button" class="btn" id="btnSaveAvaliacaoConsultoria">Salvar Avaliação <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -2626,10 +2690,44 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field full"><label>Sugestões técnicas</label><textarea id="csr_sugestoes" rows="4" spellcheck="true" lang="pt-BR" placeholder="Texto livre — preenchido na hora de gerar o relatório"></textarea></div>
       <div class="field full"><label>Conclusão</label><textarea id="csr_conclusao" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
     </div>
-    <div class="hint-text">Seções de dietas avaliadas e custos entram no relatório como "Disponível na Fase 2" — o cálculo nutricional ainda não foi construído.</div>
+    <div class="hint-text">Se o(s) animal(is) avaliados tiverem Formulação cadastrada (aba Formulação), o resumo de exigência NRC × fornecido × custo entra automaticamente no relatório. Duas formas de baixar, pra você comparar e escolher qual prefere:</div>
     <div class="modal-actions">
       <div></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaRelatorio">Cancelar</button><button type="button" class="btn" id="btnBaixarRelatorioConsultoria">⬇ Baixar PDF</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaRelatorio">Cancelar</button><button type="button" class="btn btn-ghost" id="btnBaixarRelatorioConsultoriaCompacto" title="Cabe quantos animais couberem por folha (sem cortar nenhum no meio)">⬇ Baixar PDF (compacto)</button><button type="button" class="btn" id="btnBaixarRelatorioConsultoria">⬇ Baixar PDF (1 animal/folha)</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA (Fase 2): FORMULAÇÃO DE DIETA (simulação — NRC × fornecido × custo) -->
+<div class="overlay" id="overlayConsultoriaFormulacao">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="csfModalTitle">Nova Formulação</div><button class="modal-close" data-close="overlayConsultoriaFormulacao">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Nome da formulação</label><input type="text" id="csf_nome" placeholder="Ex: Dieta de manutenção — Trovão"></div>
+      <div class="field full">
+        <label>Usar os itens de uma formulação já existente <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional — pra testar a mesma dieta com outro animal, outro peso/categoria)</span></label>
+        <select id="csf_copiarDeFormulacao"><option value="">Não copiar — começar do zero</option></select>
+      </div>
+      <div class="field"><label>Animal</label><select id="csf_animalId"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="csf_pesoKg" title="Sugerido a partir da avaliação técnica mais recente do animal — editável"></div>
+      <div class="field"><label>Categoria de atividade</label><select id="csf_categoria"></select></div>
+    </div>
+    <div class="section-label" style="border-top:none;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>Itens (alimentos)</span>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAddItemFormulacaoConsultoria">+ Adicionar item</button>
+    </div>
+    <div id="csfItensHost"></div>
+    <div class="section-label" style="border-top:none;">Exigência NRC × Fornecido <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(recalcula sozinho a cada mudança)</span></div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
+      <tbody id="csfResultadoTbody"></tbody>
+    </table></div>
+    <div id="csfAvisos" style="margin-top:8px;"></div>
+    <div id="csfCusto" class="hint-text" style="margin-top:10px;"></div>
+    <div class="field full" style="margin-top:14px;"><label>Observações</label><textarea id="csf_obs" rows="2" spellcheck="true" lang="pt-BR"></textarea></div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteFormulacaoConsultoria" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaFormulacao">Cancelar</button><button type="button" class="btn" id="btnSaveFormulacaoConsultoria">Salvar Formulação <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -2919,7 +3017,8 @@ let editingHorseId=null, editingManejoId=null, editingTreinoId=null, editingProd
 let consultoriaVisitas = [];    // Firestore key: 'consultoria_visitas_list'
 let consultoriaAvaliacoes = []; // Firestore key: 'consultoria_avaliacoes_list'
 let consultoriaFotos = {};      // Firestore key: 'consultoria_fotos' — objeto { [avaliacaoId]: [{id,dataUrl,legenda,ordem}] }
-let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null;
+let consultoriaFormulacoes = []; // Firestore key: 'consultoria_formulacoes_list' — Fase 2 (Formulação/NRC)
+let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, editingFormulacaoConsultoriaId = null;
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
 // funcionário — o Salvar do modal de Lançamento usa isso pra ligar o registro ao funcionário
@@ -3045,6 +3144,7 @@ const AUDIT_KEYS = {
   semen_lotes:        { modulo:'Reprodução', nome: r=>['Sêmen', r.garanhao, r.lote].filter(Boolean).join(' · ') },
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -3142,6 +3242,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'consultoria_visitas_list': consultoriaVisitas = val; break;
     case 'consultoria_avaliacoes_list': consultoriaAvaliacoes = val; break;
     case 'consultoria_fotos': consultoriaFotos = val; break;
+    case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -3165,7 +3266,7 @@ const AUDIT_CAMPOS_IGNORADOS = new Set(['id','criadoEm']);
 // Campo fora dessa lista aparece com o nome interno mesmo (melhor isso do que esconder a alteração).
 const AUDIT_CAMPO_LABEL = {
   nome:'Nome', apelido:'Apelido', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
-  nascimento:'Nascimento', falecimento:'Falecimento', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
+  nascimento:'Nascimento', falecimento:'Falecimento', peso:'Peso', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
   avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
   comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', compradoDe:'Comprado de', obs:'Observações',
@@ -3359,7 +3460,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF] = await Promise.all([
+         rCV, rCA, rCF, rCFm] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3368,10 +3469,12 @@ async function loadAll(){
     storeGet('transportes_list'), storeGet('rel_selecoes'), storeGet('nf_aprendizado'),
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais'), storeGet('semen_lotes'),
-    storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos')
+    storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
+    storeGet('consultoria_formulacoes_list')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
+  consultoriaFormulacoes = rCFm.value||[];
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
@@ -3393,7 +3496,7 @@ async function loadAll(){
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
-    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -3943,6 +4046,9 @@ function refreshDatalists(){
   setDL('dl_allhorses', horses.map(h=>h.nome));
   setDL('dl_medicamentos', estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome));
   setDL('dl_vendedores', [...horses.map(h=>h.compradoDe), ...(aux.proprietarios||[])]);
+  setDL('dl_csv_propriedade', consultoriaVisitas.map(v=>v.propriedade));
+  setDL('dl_csv_consultor', consultoriaVisitas.map(v=>v.consultorNome));
+  setDL('dl_csv_responsavel', consultoriaVisitas.map(v=>v.responsavelNome));
 }
 
 function openModal(id){ document.getElementById(id).classList.add('show'); }
@@ -4421,9 +4527,20 @@ function createAnimalSelector(hostEl, opts){
     const tipoAtualDefault = mostrarTipo ? (document.getElementById('m_subtipoCasco') ? document.getElementById('m_subtipoCasco').value : '') : '';
     body.innerHTML = list.map((h,idx)=>{
       const sel = state.selected[h.id] || {checked:false, extra:'', valorExtra:'', valorExtra2:'', tipo:''};
+      // mostrarPais (opt-in, usado em Consultoria): nome do animal à esquerda numa fonte, pais (Mãe x
+      // Pai) alinhados à direita da mesma célula noutra fonte — ajuda a diferenciar animais de nome
+      // parecido sem abrir a ficha de cada um. Fica dentro de "if" pra não mudar em nada o HTML (nem o
+      // wrapping do nome) de quem usa este seletor sem essa opção (Manejos/Treinos/Dietas/etc).
+      const paisTxt = opts.mostrarPais ? [h.mae,h.pai].filter(Boolean).join(' x ') : '';
+      const colNome = opts.mostrarPais
+        ? `<span style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;overflow:hidden;">
+             <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.nome||''}</span>
+             ${paisTxt?`<span style="font-size:11px;color:var(--muted);white-space:nowrap;">${paisTxt}</span>`:''}
+           </span>`
+        : `<span>${h.nome||''}</span>`;
       return `<div class="srow" tabindex="0" data-id="${h.id}" data-idx="${idx}">
         <input type="checkbox" data-id="${h.id}" ${sel.checked?'checked':''}>
-        <span>${h.nome||''}</span>
+        ${colNome}
         <span style="color:var(--muted)">${h.apelido||''}</span>
         ${mostrarTipo ? `<select class="srow-tipo" data-idtipo="${h.id}" title="Tipo de ferrageamento deste animal">${(aux.subtipoFerrageamento||[]).map(t=>`<option value="${t}" ${((sel.tipo||tipoAtualDefault)===t)?'selected':''}>${t}</option>`).join('')}</select>` : ''}
         <input type="text" data-id="${h.id}" placeholder="${opts.extraPlaceholder||''}" value="${sel.extra||''}">
@@ -5162,7 +5279,7 @@ function openHorseEdit(id){
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
-  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
+  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
   populateAuxSelects();
   Object.entries(map).forEach(([k,id2])=>{ document.getElementById(id2).value=h[k]||''; });
   atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
@@ -5300,7 +5417,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   const existenteAnimal = editingHorseId ? horses.find(h=>h.id===editingHorseId) : null;
   const data={ ...(existenteAnimal||{}), id: editingHorseId || ('h_'+Date.now()),
     codigo, nome:titleCase(f('f_nome')),apelido:titleCase(f('f_apelido')),sexo:f('f_sexo'),situacao:f('f_situacao'),status:titleCase(f('f_status')),
-    nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
+    nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),peso:f('f_peso'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     // Quem não pode ver valores também não pode apagá-los sem querer: pra essas pessoas o campo nem
@@ -5470,8 +5587,13 @@ const listaSelecao = {}; // listaId -> Set de ids
 function selLista(id){ return listaSelecao[id] || (listaSelecao[id] = new Set()); }
 function atualizarBtnPdfSelecao(listaId){
   const n = selLista(listaId).size;
-  document.querySelectorAll('[data-pdftabela]').forEach(b=>{
-    if((b.dataset.pdftabela||'').indexOf('"'+listaId+'"') < 0) return;
+  // [data-pdftabela]: exporta a tabela genérica (qualquer lista). [data-relatorioselecao]: mesma
+  // contagem no rótulo, mas o botão dispara um gerador de relatório próprio (ex: Consultoria, que
+  // baixa o Relatório de Visita Técnica de verdade em vez de um dump genérico da tabela — ver
+  // gerarRelatoriosVisitasSelecionadas). Mesmo texto "(n)", fonte de dados diferente.
+  document.querySelectorAll('[data-pdftabela], [data-relatorioselecao]').forEach(b=>{
+    const alvo = b.dataset.pdftabela ? ((b.dataset.pdftabela||'').indexOf('"'+listaId+'"') >= 0) : (b.dataset.relatorioselecao===listaId);
+    if(!alvo) return;
     // Guarda o rótulo original na primeira vez: agora que esses botões moram dentro do menu "⋯" de
     // cada tela, cada um pode ter um complemento próprio ("Baixar PDF (Visita)") que não pode sumir
     // quando a contagem de selecionados entra no texto.
@@ -7903,7 +8025,11 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
   // do conteúdo de um dos lados. Nem o elemento nem a janela virtual precisam ser ditos: sem eles,
   // o html2canvas mede sozinho o tamanho real de cada elemento que captura, não importa a tela.
   const pdfOptsBase = {
-    margin: 10,
+    // opts.margin (opcional): quando um bloco é mais alto que 1 folha e continua na de baixo, a folha
+    // de continuação não repete a moldura/respiro do card (só a margem da própria página conta ali) —
+    // ficava espremido. Deixa configurável pra quem precisar de mais respiro; quem não passar nada
+    // continua exatamente igual a antes (10mm em volta).
+    margin: opts.margin!==undefined ? opts.margin : 10,
     filename: nomeArquivo,
     image: { type:'jpeg', quality:0.98 },
     html2canvas: { scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
@@ -7911,7 +8037,12 @@ async function baixarRelatorioManejoPDF(htmlConteudo, nomeArquivo, opts){
     pagebreak: { mode:'css' }
   };
   try{
-    if(itensPorBloco.length>1){
+    // opts.umPorPagina===false (opt-in, usado no relatório de Consultoria): em vez de forçar 1 bloco por
+    // página, deixa fluir naturalmente (mode:'css' + page-break-inside:avoid, já no CSS de cada bloco —
+    // ver .report-animal-block/.pdf-item-block no RELATORIO_MANEJO_ESTILO acima) — cabe quanto couber
+    // por folha, sem cortar nenhum bloco no meio, só quebra pro próximo quando não couber mais inteiro.
+    // Omitido (undefined) preserva o comportamento de sempre (1 por página) pra todo outro chamador.
+    if(itensPorBloco.length>1 && opts.umPorPagina!==false){
       // Vários blocos (animais, manejos...) — cada um vira a própria página, nunca corta um no meio.
       await gerarPdfUmBlocoPorPagina(itensPorBloco, larguraConteudo, pdfOptsBase);
     } else {
@@ -11109,7 +11240,8 @@ const LISTA_COLUNAS_TITULO = {
   protocoloAgenda:'Colunas — Vacinas previstas', dietas:'Colunas — Dietas', estoqueMov:'Colunas — Movimentações de estoque',
   vetLista:'Colunas — Veterinária (Lista)', vetVisitas:'Colunas — Visitas', vetTratamentos:'Colunas — Tratamentos',
   financeiro:'Colunas — Financeiro', funcionarios:'Colunas — Funcionários', auditoria:'Colunas — Auditoria',
-  consultoriaAvaliacoes:'Colunas — Avaliações Técnicas',
+  consultoriaAvaliacoes:'Colunas — Avaliações Técnicas', consultoriaVisitas:'Colunas — Visitas Técnicas',
+  consultoriaHistorico:'Colunas — Histórico da Propriedade', consultoriaFormulacoes:'Colunas — Formulação de Dietas',
 };
 function colunasOcultas(listaId){
   const salvo = (config.colunasListas && config.colunasListas[listaId]) || {};
@@ -11447,7 +11579,12 @@ function openProdutoNew(){
   document.getElementById('pd_valorPorPacote').value = 'nao';
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
+  atualizarNutrientesVisibilidade();
   atualizarValorTipoUI();
+  document.getElementById('pd_edKcalPorKg').value = '';
+  document.getElementById('pd_pbPercent').value = '';
+  document.getElementById('pd_caPercent').value = '';
+  document.getElementById('pd_pPercent').value = '';
   openModal('overlayProduto');
 }
 function openProdutoEdit(id){
@@ -11470,8 +11607,14 @@ function openProdutoEdit(id){
   document.getElementById('pd_valorPorPacote').value = p.valorPorPacote ? 'sim' : 'nao';
   document.getElementById('pd_validade').value=p.validade||'';
   document.getElementById('pd_obs').value=p.obs||'';
+  const nut = p.nutrientes||{};
+  document.getElementById('pd_edKcalPorKg').value = nut.edKcalPorKg!=null ? nut.edKcalPorKg : '';
+  document.getElementById('pd_pbPercent').value = nut.pbPercent!=null ? nut.pbPercent : '';
+  document.getElementById('pd_caPercent').value = nut.caPercent!=null ? nut.caPercent : '';
+  document.getElementById('pd_pPercent').value = nut.pPercent!=null ? nut.pPercent : '';
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
+  atualizarNutrientesVisibilidade();
   atualizarValorTipoUI();
   openModal('overlayProduto');
 }
@@ -11481,6 +11624,14 @@ function atualizarClasseMedicamentoVisibilidade(){
   wrap.style.display = (document.getElementById('pd_tipo_aux').value==='Medicamento') ? '' : 'none';
 }
 document.getElementById('pd_tipo_aux').addEventListener('change', atualizarClasseMedicamentoVisibilidade);
+// Consultoria (Fase 2): Valores nutricionais só fazem sentido (e só aparecem) quando o Tipo é "Alimento".
+// Mesmo padrão condicional de atualizarClasseMedicamentoVisibilidade acima, só que com várias .field
+// (não dá pra usar 1 wrapper só sem desmontar o grid), por isso a classe .nutrientes-field em cada uma.
+function atualizarNutrientesVisibilidade(){
+  const mostrar = document.getElementById('pd_tipo_aux').value==='Alimento';
+  document.querySelectorAll('.nutrientes-field').forEach(el=>{ el.style.display = mostrar ? '' : 'none'; });
+}
+document.getElementById('pd_tipo_aux').addEventListener('change', atualizarNutrientesVisibilidade);
 document.getElementById('btnNewProduto').addEventListener('click', openProdutoNew);
 const ORIGEM_MOV_LABEL = {manual:'Manual', dieta:'Dieta', veterinaria:'Veterinária', ajuste:'Reajuste', nota_fiscal:'Nota fiscal'};
 function fmtValorMov(v){ return v ? 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '—'; }
@@ -11564,6 +11715,15 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
   if(!f('pd_tipo_aux')){ showAlert('Escolha (ou cadastre com o "+") o tipo do produto.'); return; }
   if(Number(f('pd_quantidade'))<0){ showAlert('A quantidade em estoque não pode ser negativa.'); return; }
   const jaExistia = estoqueProdutos.find(p=>p.id===editingProdutoId);
+  // Consultoria (Fase 2): valores nutricionais são 100% opcionais — só entra a chave "nutrientes" (e só
+  // os campos preenchidos dentro dela) se pelo menos um valor foi digitado. Nunca undefined: o SDK do
+  // Firestore rejeita `undefined` em campo de documento, por isso campo vazio vira "ausente" (chave nem
+  // criada), não `undefined` — produtos sem nada preenchido ficam byte-a-byte iguais a antes desse Fase 2.
+  const nutrientesForm = {};
+  if(f('pd_edKcalPorKg')!=='') nutrientesForm.edKcalPorKg = Number(f('pd_edKcalPorKg'));
+  if(f('pd_pbPercent')!=='') nutrientesForm.pbPercent = Number(f('pd_pbPercent'));
+  if(f('pd_caPercent')!=='') nutrientesForm.caPercent = Number(f('pd_caPercent'));
+  if(f('pd_pPercent')!=='') nutrientesForm.pPercent = Number(f('pd_pPercent'));
   const data = {
     id: editingProdutoId || ('pd_'+Date.now()),
     tipo: f('pd_tipo_aux'), nome: f('pd_nome_sel'), classe: f('pd_tipo_aux')==='Medicamento' ? f('pd_classe') : '', unidade: f('pd_unidade'),
@@ -11573,7 +11733,8 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     minimo: f('pd_minimo')===''?'':Number(f('pd_minimo')),
     valor: f('pd_valor'), valorPorPacote: f('pd_valorPorPacote')==='sim',
     validade: f('pd_validade'), obs: f('pd_obs'),
-    dataCadastro: jaExistia ? jaExistia.dataCadastro : toISODate(new Date())
+    dataCadastro: jaExistia ? jaExistia.dataCadastro : toISODate(new Date()),
+    ...(Object.keys(nutrientesForm).length>0 ? { nutrientes: nutrientesForm } : {})
   };
   estoqueProdutos = editingProdutoId ? estoqueProdutos.map(p=>p.id===editingProdutoId?data:p) : [...estoqueProdutos, data];
   await storeSet('estoque_produtos', estoqueProdutos);
@@ -12535,7 +12696,12 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     const sub = tab.dataset.cstab;
     document.getElementById('csview_visitas').style.display = sub==='visitas' ? 'block' : 'none';
     document.getElementById('csview_historico').style.display = sub==='historico' ? 'block' : 'none';
+    // Fase 2: sub-abas de Formulação/Comparação — containers/render abaixo, banner "CONSULTORIA (Fase 2)".
+    document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
+    document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
     if(sub==='historico') renderConsultoriaHistorico();
+    if(sub==='formulacao') renderConsultoriaFormulacoes();
+    if(sub==='comparacao') renderConsultoriaComparacaoLista();
   });
 });
 
@@ -12545,6 +12711,22 @@ function consultoriaAvaliacoesDaVisita(visitaId){
 
 /* ---- Lista de Visitas ---- */
 document.getElementById('cvSearch').addEventListener('input', renderConsultoriaVisitas);
+function nomesAnimaisAvaliadosDaVisita(visitaId){
+  const nomes = consultoriaAvaliacoesDaVisita(visitaId).map(a=>a.animalNome).filter(Boolean);
+  return nomes.length ? nomes.join(', ') : '—';
+}
+// Valores (sem repetir) de um campo do CADASTRO do animal, pra cada animal avaliado nesta visita — ex:
+// raças diferentes numa visita com vários animais aparecem todas, separadas por vírgula.
+function valoresCadastroAnimaisDaVisita(visitaId, campo){
+  const valores = consultoriaAvaliacoesDaVisita(visitaId)
+    .map(a=>{ const h = horses.find(x=>x.id===a.animalId); return h ? h[campo] : ''; })
+    .filter(Boolean);
+  const unicos = [...new Set(valores)];
+  return unicos.length ? unicos.join(', ') : '—';
+}
+// Guarda a última lista filtrada renderizada (respeitando busca/período em tela) — é dela que o
+// "📄 Baixar PDF" do menu "⋯" parte quando nenhuma linha está marcada (ver gerarRelatoriosVisitasSelecionadas).
+let consultoriaVisitasListaAtual = [], consultoriaHistoricoListaAtual = [];
 function renderConsultoriaVisitas(){
   const tbody = document.getElementById('cvTbody');
   const term = (document.getElementById('cvSearch').value||'').toLowerCase();
@@ -12552,25 +12734,32 @@ function renderConsultoriaVisitas(){
     if(!term) return true;
     return [v.propriedade, v.consultorNome, v.responsavelNome].some(x=>(x||'').toLowerCase().includes(term));
   }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
-  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma visita técnica cadastrada.</td></tr>'; return; }
+  consultoriaVisitasListaAtual = lista;
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="10" class="empty">Nenhuma visita técnica cadastrada.</td></tr>'; sincronizarSelecaoLista('consultoriaVisitas', '#csview_visitas [data-lista="consultoriaVisitas"]'); return; }
   tbody.innerHTML = lista.map(v=>{
-    const nAval = consultoriaAvaliacoesDaVisita(v.id).length;
     return `<tr data-abrirvisitacons="${v.id}" style="cursor:pointer;">
+      ${tdCheck('consultoriaVisitas', v.id)}
       <td><strong>${v.propriedade||'—'}</strong></td>
-      <td>${fmtDate(v.data)||'—'}</td>
-      <td>${v.consultorNome||'—'}</td>
-      <td>${v.responsavelNome||'—'}</td>
-      <td>${v.objetivo||''}</td>
-      <td>${nAval}</td>
-      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirvisitaconsbtn="${v.id}">Abrir</button></td>
+      <td data-col="data">${fmtDate(v.data)||'—'}</td>
+      <td data-col="consultor">${v.consultorNome||'—'}</td>
+      <td data-col="responsavel">${v.responsavelNome||'—'}</td>
+      <td data-col="objetivo">${v.objetivo||''}</td>
+      <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
+      <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
+      <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirvisitaconsbtn="${v.id}">Abrir</button> <button type="button" class="btn btn-sm btn-danger" data-delvisitacons="${v.id}">🗑</button></td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-abrirvisitacons]').forEach(tr=>{
-    tr.addEventListener('click', e=>{ if(e.target.closest('button')) return; abrirVisitaConsultoriaDetalhe(tr.dataset.abrirvisitacons); });
+    tr.addEventListener('click', e=>{ if(e.target.closest('button, input')) return; abrirVisitaConsultoriaDetalhe(tr.dataset.abrirvisitacons); });
   });
   tbody.querySelectorAll('[data-abrirvisitaconsbtn]').forEach(btn=>{
     btn.addEventListener('click', ()=> abrirVisitaConsultoriaDetalhe(btn.dataset.abrirvisitaconsbtn));
   });
+  tbody.querySelectorAll('[data-delvisitacons]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); excluirVisitaConsultoria(btn.dataset.delvisitacons); });
+  });
+  sincronizarSelecaoLista('consultoriaVisitas', '#csview_visitas [data-lista="consultoriaVisitas"]');
 }
 
 /* ---- CRUD Visita ---- */
@@ -12615,22 +12804,28 @@ document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', as
   salvarEmSegundoPlano('consultoria_visitas_list', consultoriaVisitas, ()=>renderConsultoriaVisitas());
   if(eraNova) abrirVisitaConsultoriaDetalhe(data.id); // logo depois de criar, já facilita adicionar os animais avaliados
 });
-document.getElementById('btnDeleteVisitaConsultoria').addEventListener('click', async ()=>{
-  if(!editingVisitaConsultoriaId) return;
-  const idsAvaliacoes = consultoriaAvaliacoesDaVisita(editingVisitaConsultoriaId).map(a=>a.id);
+// Exclusão de visita — compartilhada entre o botão dentro do modal (edição) e o botão "🗑" direto na
+// linha da tabela (pedido pra ficar igual aos outros módulos: excluir sem precisar abrir o cadastro).
+// Sempre em cascata: apaga também as avaliações de animal daquela visita e as fotos delas.
+async function excluirVisitaConsultoria(id){
+  const idsAvaliacoes = consultoriaAvaliacoesDaVisita(id).map(a=>a.id);
   const msg = idsAvaliacoes.length>0 ? `Excluir esta visita? As ${idsAvaliacoes.length} avaliação(ões) de animal registradas nela (e as fotos delas) também serão excluídas.` : 'Excluir esta visita?';
   if(!(await showConfirm(msg, {danger:true, okLabel:'Excluir'}))) return;
-  consultoriaVisitas = consultoriaVisitas.filter(v=>v.id!==editingVisitaConsultoriaId);
-  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.visitaId!==editingVisitaConsultoriaId);
-  await storeSet('consultoria_visitas_list', consultoriaVisitas);
-  await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
+  consultoriaVisitas = consultoriaVisitas.filter(v=>v.id!==id);
+  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.visitaId!==id);
+  await storeSet('consultoria_visitas_list', consultoriaVisitas, true);
+  await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes, true);
   if(idsAvaliacoes.length>0){
-    idsAvaliacoes.forEach(id=>{ delete consultoriaFotos[id]; });
+    idsAvaliacoes.forEach(aid=>{ delete consultoriaFotos[aid]; });
     await storeSet('consultoria_fotos', consultoriaFotos);
   }
   closeModal('overlayConsultoriaVisita');
   closeModal('overlayConsultoriaVisitaDetalhe');
   renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') renderConsultoriaHistorico();
+}
+document.getElementById('btnDeleteVisitaConsultoria').addEventListener('click', ()=>{
+  if(editingVisitaConsultoriaId) excluirVisitaConsultoria(editingVisitaConsultoriaId);
 });
 
 /* ---- Detalhe da visita: avaliações do animal ---- */
@@ -12652,7 +12847,7 @@ function renderConsultoriaAvaliacoesVisita(){
       <td><button type="button" class="eye-inline" data-eyeid="${a.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${a.animalNome||''}</strong></td>
       <td>${a.peso?a.peso+' kg':'—'}</td>
       <td>${a.tamanho?a.tamanho+' cm':'—'}</td>
-      <td>${a.idadeAnos!==''&&a.idadeAnos!=null?a.idadeAnos+' anos':'—'}</td>
+      <td>${fmtIdadeAnos(a.idadeAnos)}</td>
       <td>${a.scoreCorporal||'—'}</td>
       <td>${a.situacaoGeral||'—'}</td>
       <td>${nFotos>0?nFotos+' foto(s)':'—'}</td>
@@ -12671,87 +12866,129 @@ document.getElementById('btnAddAvaliacaoConsultoria').addEventListener('click', 
 });
 
 /* ---- Ficha de avaliação do animal ---- */
-// Seleção do animal é feita com um <select> simples (1 animal por avaliação) — createAnimalSelector
-// (componente reutilizável de Manejos/Treinos/Dietas) foi desenhado pra marcar VÁRIOS animais ao mesmo
-// tempo; aqui cada avaliação é de UM animal só, então um select direto é mais simples e claro.
-function popularSelectAnimaisConsultoria(selectedId){
-  const sel = document.getElementById('csa_animalId');
-  const ativos = horses.filter(h=>h.situacao!=='E').slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  sel.innerHTML = '<option value="">Selecione...</option>' + ativos.map(h=>`<option value="${h.id}" ${h.id===selectedId?'selected':''}>${h.nome||''}${h.apelido?(' ('+h.apelido+')'):''}</option>`).join('');
-}
+// Seleção de animal(is) reaproveita createAnimalSelector (mesmo componente de Manejos/Treinos/Dietas),
+// com mostrarPais:true (nome + Mãe x Pai na linha) e onlyActive:true (nunca Externo/Vendido/falecido).
+// Ele já traz filtro por categoria/localização/proprietário embutido — nada de filtro próprio aqui.
+// Uma avaliação NOVA pode marcar vários animais de uma vez (ex: Potro e Potro 1) — cada um marcado vira
+// seu próprio bloco de peso/tamanho/idade/score/situação/observações em avaliacaoLoteState, e o Salvar
+// grava um registro de avaliação por animal. Editar uma avaliação JÁ salva continua sendo 1 animal só
+// (csaSeletorWrap fica escondido — trocar de animal numa avaliação existente não faz sentido).
+let avaliacaoLoteState = []; // [{avaliacaoId?, animalId, animalNome, peso, tamanho, idadeAnos, scoreCorporal, situacaoGeral, observacoes}]
+const csaAnimalSelector = createAnimalSelector(document.getElementById('csaAnimalSelectorHost'), {
+  onlyActive: true, mostrarPais: true, onChange: sincronizarLoteAvaliacaoComSelector
+});
 function sugerirIdadeAnosConsultoria(animalId){
   const h = horses.find(x=>x.id===animalId);
   if(!h || !h.nascimento) return '';
   const anos = (Date.now()-new Date(h.nascimento).getTime())/(1000*60*60*24*365.25);
   return Math.round(anos*10)/10;
 }
+// Sempre com 1 casa decimal (6 anos certinhos vira "6.0 anos", não só "6 anos") — Number()+toFixed(1)
+// em vez de exibir o valor cru, que perde o ".0" quando o resultado é um número redondo.
+function fmtIdadeAnos(v){
+  if(v===''||v===undefined||v===null||isNaN(Number(v))) return '—';
+  return Number(v).toFixed(1)+' anos';
+}
+// Reconcilia avaliacaoLoteState com o que está marcado no seletor: mantém os campos já preenchidos de
+// quem continua marcado, remove quem foi desmarcado, e cria um bloco novo (com idade sugerida) pra quem
+// acabou de ser marcado agora.
+function sincronizarLoteAvaliacaoComSelector(){
+  const selecionados = csaAnimalSelector.getSelected();
+  const idsAtuais = new Set(avaliacaoLoteState.map(it=>it.animalId));
+  const idsNovos = new Set(selecionados.map(s=>s.id));
+  avaliacaoLoteState = avaliacaoLoteState.filter(it=>idsNovos.has(it.animalId));
+  selecionados.forEach(s=>{
+    if(!idsAtuais.has(s.id)){
+      avaliacaoLoteState.push({ animalId:s.id, animalNome:s.nome, peso:'', tamanho:'', idadeAnos:sugerirIdadeAnosConsultoria(s.id), scoreCorporal:'', situacaoGeral:'', observacoes:'' });
+    }
+  });
+  renderBlocosAvaliacaoLote();
+}
+function renderBlocosAvaliacaoLote(){
+  const host = document.getElementById('csaBlocosHost');
+  if(avaliacaoLoteState.length===0){ host.innerHTML = '<div class="hint-text">Selecione ao menos um animal acima.</div>'; return; }
+  const podeRemover = avaliacaoLoteState.length>1 || !editingAvaliacaoConsultoriaId;
+  host.innerHTML = avaliacaoLoteState.map((item,idx)=>`
+    <div class="perfil-card" style="margin-bottom:14px;">
+      <div class="perfil-card-head">${item.animalNome||''}${podeRemover?` <button type="button" class="btn btn-sm btn-ghost no-print" data-loteremover="${idx}" title="Remover este animal da avaliação">✕</button>`:''}</div>
+      <div class="perfil-card-body">
+        <div class="form-grid">
+          <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" data-lotefield="peso" data-loteidx="${idx}" value="${item.peso}"></div>
+          <div class="field"><label>Tamanho (altura, cm)</label><input type="number" step="0.1" data-lotefield="tamanho" data-loteidx="${idx}" value="${item.tamanho}"></div>
+          <div class="field"><label>Idade (anos)</label><input type="number" step="0.1" data-lotefield="idadeAnos" data-loteidx="${idx}" value="${item.idadeAnos}" title="Sugerida a partir do nascimento cadastrado — editável"></div>
+          <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" data-lotefield="scoreCorporal" data-loteidx="${idx}" value="${item.scoreCorporal}"></div>
+          <div class="field full"><label>Situação geral</label><input type="text" data-lotefield="situacaoGeral" data-loteidx="${idx}" value="${(item.situacaoGeral||'').replace(/"/g,'&quot;')}" placeholder="Ex: bom estado, magro, sobrepeso..."></div>
+          <div class="field full"><label>Observações</label><textarea data-lotefield="observacoes" data-loteidx="${idx}" rows="2" spellcheck="true" lang="pt-BR">${item.observacoes||''}</textarea></div>
+        </div>
+      </div>
+    </div>`).join('');
+  host.querySelectorAll('[data-lotefield]').forEach(el=>{
+    el.addEventListener('input', ()=>{ avaliacaoLoteState[Number(el.dataset.loteidx)][el.dataset.lotefield] = el.value; });
+  });
+  host.querySelectorAll('[data-loteremover]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.loteremover);
+      avaliacaoLoteState.splice(idx,1);
+      csaAnimalSelector.setSelected(avaliacaoLoteState.map(it=>({id:it.animalId})));
+      renderBlocosAvaliacaoLote();
+    });
+  });
+}
 function openAvaliacaoConsultoriaNew(visitaId){
   editingAvaliacaoConsultoriaId = null;
   avaliacaoConsultoriaVisitaAtualId = visitaId;
+  avaliacaoLoteState = [];
   document.getElementById('csaModalTitle').textContent = 'Nova Avaliação';
   document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'none';
-  popularSelectAnimaisConsultoria('');
-  document.getElementById('csa_peso').value = '';
-  document.getElementById('csa_tamanho').value = '';
-  document.getElementById('csa_idadeAnos').value = '';
-  document.getElementById('csa_scoreCorporal').value = '';
-  document.getElementById('csa_situacaoGeral').value = '';
-  document.getElementById('csa_observacoes').value = '';
-  document.getElementById('csaFotosWrap').style.display = 'none';
-  document.getElementById('csaFotosHint').style.display = 'block';
-  document.getElementById('csa_animalId').onchange = ()=>{
-    const id = document.getElementById('csa_animalId').value;
-    const campoIdade = document.getElementById('csa_idadeAnos');
-    if(id && !campoIdade.value){
-      const sug = sugerirIdadeAnosConsultoria(id);
-      if(sug!=='') campoIdade.value = sug;
-    }
-  };
+  document.getElementById('csaSeletorWrap').style.display = 'block';
+  document.getElementById('csaFotosSection').style.display = 'none';
+  csaAnimalSelector.reset();
+  renderBlocosAvaliacaoLote();
   openModal('overlayConsultoriaAvaliacao');
 }
 function openAvaliacaoConsultoriaEdit(id){
   const a = consultoriaAvaliacoes.find(x=>x.id===id); if(!a) return;
   editingAvaliacaoConsultoriaId = id;
   avaliacaoConsultoriaVisitaAtualId = a.visitaId;
+  avaliacaoLoteState = [{ avaliacaoId:a.id, animalId:a.animalId, animalNome:a.animalNome, peso:a.peso||'', tamanho:a.tamanho||'',
+    idadeAnos:(a.idadeAnos!==undefined&&a.idadeAnos!==null)?a.idadeAnos:'', scoreCorporal:a.scoreCorporal||'', situacaoGeral:a.situacaoGeral||'', observacoes:a.observacoes||'' }];
   document.getElementById('csaModalTitle').textContent = a.animalNome || 'Editar Avaliação';
   document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'inline-block';
-  popularSelectAnimaisConsultoria(a.animalId);
-  document.getElementById('csa_peso').value = a.peso||'';
-  document.getElementById('csa_tamanho').value = a.tamanho||'';
-  document.getElementById('csa_idadeAnos').value = (a.idadeAnos!==undefined && a.idadeAnos!==null) ? a.idadeAnos : '';
-  document.getElementById('csa_scoreCorporal').value = a.scoreCorporal||'';
-  document.getElementById('csa_situacaoGeral').value = a.situacaoGeral||'';
-  document.getElementById('csa_observacoes').value = a.observacoes||'';
-  document.getElementById('csa_animalId').onchange = null;
+  // Editar uma avaliação já salva é sempre de 1 animal só — trocar de animal aqui não faz sentido
+  // (viraria um registro novo); pra avaliar outro animal, usa "+ Adicionar Animal" na visita.
+  document.getElementById('csaSeletorWrap').style.display = 'none';
+  document.getElementById('csaFotosSection').style.display = 'block';
   document.getElementById('csaFotosWrap').style.display = 'block';
   document.getElementById('csaFotosHint').style.display = 'none';
+  renderBlocosAvaliacaoLote();
   renderFotosConsultoria(a.id);
   openModal('overlayConsultoriaAvaliacao');
 }
 document.getElementById('btnSaveAvaliacaoConsultoria').addEventListener('click', async ()=>{
-  const animalId = f('csa_animalId');
-  if(!animalId){ showAlert('Selecione o animal.'); return; }
-  const h = horses.find(x=>x.id===animalId);
-  const existente = consultoriaAvaliacoes.find(a=>a.id===editingAvaliacaoConsultoriaId);
+  if(avaliacaoLoteState.length===0){ showAlert('Selecione ao menos um animal.'); return; }
   const eraNova = !editingAvaliacaoConsultoriaId;
-  const visitaId = existente ? existente.visitaId : avaliacaoConsultoriaVisitaAtualId;
+  const visitaId = editingAvaliacaoConsultoriaId
+    ? (consultoriaAvaliacoes.find(a=>a.id===editingAvaliacaoConsultoriaId)||{}).visitaId
+    : avaliacaoConsultoriaVisitaAtualId;
   const visita = consultoriaVisitas.find(v=>v.id===visitaId);
-  const data = { ...existente, id: editingAvaliacaoConsultoriaId || ('csa_'+Date.now()),
-    visitaId, animalId, animalNome: h?h.nome:(existente?existente.animalNome:''),
-    data: visita?visita.data:(existente?existente.data:''),
-    peso: f('csa_peso'), tamanho: f('csa_tamanho'), idadeAnos: f('csa_idadeAnos'),
-    scoreCorporal: f('csa_scoreCorporal'), situacaoGeral: f('csa_situacaoGeral').trim(),
-    observacoes: f('csa_observacoes'), criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
-  consultoriaAvaliacoes = editingAvaliacaoConsultoriaId ? consultoriaAvaliacoes.map(a=>a.id===editingAvaliacaoConsultoriaId?data:a) : [...consultoriaAvaliacoes, data];
-  editingAvaliacaoConsultoriaId = data.id;
-  document.getElementById('csaModalTitle').textContent = data.animalNome || 'Editar Avaliação';
-  document.getElementById('btnDeleteAvaliacaoConsultoria').style.display = 'inline-block';
-  document.getElementById('csaFotosWrap').style.display = 'block';
-  document.getElementById('csaFotosHint').style.display = 'none';
-  renderFotosConsultoria(data.id);
+  const registros = avaliacaoLoteState.map((item,idx)=>{
+    const existente = item.avaliacaoId ? consultoriaAvaliacoes.find(a=>a.id===item.avaliacaoId) : null;
+    return { ...existente, id: item.avaliacaoId || ('csa_'+Date.now()+'_'+idx),
+      visitaId, animalId: item.animalId, animalNome: item.animalNome,
+      data: visita?visita.data:(existente?existente.data:''),
+      peso: item.peso, tamanho: item.tamanho, idadeAnos: item.idadeAnos,
+      scoreCorporal: item.scoreCorporal, situacaoGeral: (item.situacaoGeral||'').trim(),
+      observacoes: item.observacoes, criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  });
+  registros.forEach(data=>{
+    consultoriaAvaliacoes = consultoriaAvaliacoes.some(a=>a.id===data.id) ? consultoriaAvaliacoes.map(a=>a.id===data.id?data:a) : [...consultoriaAvaliacoes, data];
+  });
+  closeModal('overlayConsultoriaAvaliacao');
   renderConsultoriaAvaliacoesVisita();
   salvarEmSegundoPlano('consultoria_avaliacoes_list', consultoriaAvaliacoes, ()=>renderConsultoriaAvaliacoesVisita());
-  showAlert(eraNova ? 'Avaliação salva. Agora você já pode adicionar fotos.' : 'Avaliação atualizada.');
+  // Fotos ficam pra depois de fechar (o campo de upload só existe dentro do modal, e só pra 1 avaliação
+  // já salva) — reabrir pelo "Editar" de cada avaliação já entra com a área de fotos liberada.
+  if(eraNova) showAlert(registros.length>1 ? `${registros.length} avaliações salvas. Pra adicionar fotos, clique em "Editar" em cada uma.` : 'Avaliação salva. Pra adicionar fotos, clique em "Editar" nesta avaliação.');
 });
 document.getElementById('btnDeleteAvaliacaoConsultoria').addEventListener('click', async ()=>{
   if(!editingAvaliacaoConsultoriaId || !(await showConfirm('Excluir esta avaliação? As fotos dela também serão excluídas.', {danger:true, okLabel:'Excluir'}))) return;
@@ -12867,21 +13104,28 @@ function renderConsultoriaHistorico(){
     const matchAte = !ate || (v.data && v.data<=ate);
     return matchTerm && matchDe && matchAte;
   }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
-  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma visita encontrada.</td></tr>'; return; }
+  consultoriaHistoricoListaAtual = lista;
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
   tbody.innerHTML = lista.map(v=>{
-    const nAval = consultoriaAvaliacoesDaVisita(v.id).length;
     return `<tr>
+      ${tdCheck('consultoriaHistorico', v.id)}
       <td><strong>${v.propriedade||'—'}</strong></td>
-      <td>${fmtDate(v.data)||'—'}</td>
-      <td>${v.consultorNome||'—'}</td>
-      <td>${v.responsavelNome||'—'}</td>
-      <td>${nAval}</td>
-      <td><button type="button" class="btn btn-sm btn-ghost" data-abrirhistvisita="${v.id}">Abrir</button></td>
+      <td data-col="data">${fmtDate(v.data)||'—'}</td>
+      <td data-col="consultor">${v.consultorNome||'—'}</td>
+      <td data-col="responsavel">${v.responsavelNome||'—'}</td>
+      <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
+      <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
+      <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirhistvisita="${v.id}">Abrir</button> <button type="button" class="btn btn-sm btn-danger" data-delvisitacons="${v.id}">🗑</button></td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-abrirhistvisita]').forEach(btn=>{
     btn.addEventListener('click', ()=> abrirVisitaConsultoriaDetalhe(btn.dataset.abrirhistvisita));
   });
+  tbody.querySelectorAll('[data-delvisitacons]').forEach(btn=>{
+    btn.addEventListener('click', ()=> excluirVisitaConsultoria(btn.dataset.delvisitacons));
+  });
+  sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]');
 }
 
 /* ---- Relatório da visita (PDF) — reaproveita baixarRelatorioManejoPDF (7877), sem alterá-la ---- */
@@ -12891,9 +13135,38 @@ document.getElementById('btnGerarRelatorioConsultoria').addEventListener('click'
   document.getElementById('csr_conclusao').value = '';
   openModal('overlayConsultoriaRelatorio');
 });
-function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
-  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
-  const cabecalho = `<h1 style="border:none;">Relatório de Visita Técnica</h1>
+// Bloco de UMA avaliação (dados + fotos) — reaproveitado no relatório completo da visita (um bloco por
+// animal, cada um vira 1 folha via gerarPdfUmBlocoPorPagina), no relatório individual da Ficha do Animal
+// (gerarRelatorioIndividualAvaliacao) e no PDF em lote de visitas selecionadas (gerarRelatoriosVisitasSelecionadas).
+// `contexto` (a visita) sempre mostra "Propriedade — Data" sob o nome do animal — necessário porque no
+// modo "1 animal por folha" (gerarPdfUmBlocoPorPagina) só a 1ª página repete o cabeçalho da visita; a
+// partir da 2ª, cada folha precisa se identificar sozinha, senão vira uma folha "órfã" sem dizer de quem/
+// onde é (foi exatamente isso que apareceu em teste: a 2ª folha sem nenhuma identificação).
+// classeBloco (opcional): normalmente "report-animal-block" (o que faz o bloco virar 1 folha via
+// gerarPdfUmBlocoPorPagina). No PDF em lote de VÁRIAS visitas, a visita inteira (não o animal) é quem
+// vira 1 folha — nesse caso os animais usam "report-animal-subitem" (só protege contra corte no meio,
+// sem contar como bloco individual), ver gerarRelatoriosVisitasSelecionadas.
+function blocoAvaliacaoConsultoriaHtml(a, contexto, classeBloco){
+  const fotos = (consultoriaFotos[a.id]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
+  const subtitulo = contexto ? `<div class="sub" style="margin-top:-4px;">${[contexto.propriedade, fmtDate(contexto.data)].filter(Boolean).join(' — ')}</div>` : '';
+  return `<div class="${classeBloco||'report-animal-block'}">
+    <div class="report-animal-name">${a.animalNome||''}</div>
+    ${subtitulo}
+    <div class="grid-wrap"><table class="grid">
+      <tbody>
+        <tr><td><strong>Peso</strong></td><td>${a.peso?a.peso+' kg':'—'}</td><td><strong>Tamanho</strong></td><td>${a.tamanho?a.tamanho+' cm':'—'}</td></tr>
+        <tr><td><strong>Idade</strong></td><td>${fmtIdadeAnos(a.idadeAnos)}</td><td><strong>Score corporal</strong></td><td>${a.scoreCorporal||'—'}</td></tr>
+        <tr><td><strong>Situação geral</strong></td><td colspan="3">${a.situacaoGeral||'—'}</td></tr>
+      </tbody>
+    </table></div>
+    ${a.observacoes?`<div style="margin:8px 0;"><strong>Observações:</strong><br>${a.observacoes.replace(/\n/g,'<br>')}</div>`:''}
+    ${fotos.length>0?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${fotos.map(foto=>`<div style="width:150px;"><img src="${foto.dataUrl}" style="width:100%;border-radius:4px;">${foto.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${foto.legenda}</div>`:''}</div>`).join('')}</div>`:''}
+  </div>`;
+}
+// Cabeçalho de identificação da visita — reaproveitado no relatório completo (1 visita, com sugestões/
+// conclusão) e no PDF em lote (várias visitas seguidas, sem sugestões/conclusão — ver função abaixo).
+function cabecalhoVisitaConsultoriaHtml(visita){
+  return `<h1 style="border:none;">Relatório de Visita Técnica</h1>
     <div class="sub">${[visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — ')}</div>
     <div class="grid-wrap"><table class="grid">
       <tbody>
@@ -12905,26 +13178,21 @@ function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
       </tbody>
     </table></div>
     ${visita.obsGerais?`<div style="margin:10px 0;"><strong>Observações gerais:</strong><br>${visita.obsGerais.replace(/\n/g,'<br>')}</div>`:''}`;
+}
+function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
   const blocosAnimais = avaliacoes.length===0
     ? '<div class="report-animal-block"><div class="empty">Nenhum animal avaliado nesta visita.</div></div>'
-    : avaliacoes.map(a=>{
-        const fotos = (consultoriaFotos[a.id]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
-        return `<div class="report-animal-block">
-          <div class="report-animal-name">${a.animalNome||''}</div>
-          <div class="grid-wrap"><table class="grid">
-            <tbody>
-              <tr><td><strong>Peso</strong></td><td>${a.peso?a.peso+' kg':'—'}</td><td><strong>Tamanho</strong></td><td>${a.tamanho?a.tamanho+' cm':'—'}</td></tr>
-              <tr><td><strong>Idade</strong></td><td>${a.idadeAnos!==''&&a.idadeAnos!=null?a.idadeAnos+' anos':'—'}</td><td><strong>Score corporal</strong></td><td>${a.scoreCorporal||'—'}</td></tr>
-              <tr><td><strong>Situação geral</strong></td><td colspan="3">${a.situacaoGeral||'—'}</td></tr>
-            </tbody>
-          </table></div>
-          ${a.observacoes?`<div style="margin:8px 0;"><strong>Observações:</strong><br>${a.observacoes.replace(/\n/g,'<br>')}</div>`:''}
-          ${fotos.length>0?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${fotos.map(foto=>`<div style="width:150px;"><img src="${foto.dataUrl}" style="width:100%;border-radius:4px;">${foto.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${foto.legenda}</div>`:''}</div>`).join('')}</div>`:''}
-        </div>`;
-      }).join('');
+    : avaliacoes.map(a=>blocoAvaliacaoConsultoriaHtml(a, visita)).join('');
+  // Fase 2: formulação(ões) de dieta vinculada(s) a cada animal avaliado nesta visita, com o resumo de
+  // exigência NRC × fornecido × custo (blocoFormulacoesAnimalRelatorioHtml, banner "CONSULTORIA — Fase 2"
+  // mais abaixo) — reaproveita a mesma função usada no painel ao vivo da Formulação e na Comparação, sem
+  // duplicar a lógica de cálculo/HTML. Não toca em nada da paginação: continua sendo 1 ".report-animal-block"
+  // só, exatamente como o placeholder que ela substitui.
   const secaoFase2 = `<div class="report-animal-block">
       <div class="report-animal-name">Dietas avaliadas e Custos</div>
-      <div class="hint-text">Disponível na Fase 2.</div>
+      ${avaliacoes.length===0 ? '<div class="hint-text">Nenhum animal avaliado nesta visita.</div>' :
+        avaliacoes.map(a=>`<div style="margin-top:10px;"><strong>${a.animalNome||''}</strong></div>${blocoFormulacoesAnimalRelatorioHtml(a.animalId)}`).join('')}
     </div>`;
   const secaoTexto = `<div class="report-animal-block">
       <div class="report-animal-name">Sugestões Técnicas</div>
@@ -12932,15 +13200,82 @@ function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
       <div class="report-animal-name" style="margin-top:14px;">Conclusão</div>
       <div>${conclusao ? conclusao.replace(/\n/g,'<br>') : '<span class="hint-text">Nenhuma.</span>'}</div>
     </div>`;
-  return `<div class="report-card print-block">${cabecalho}${blocosAnimais}${secaoFase2}${secaoTexto}</div>`;
+  return `<div class="report-card print-block">${cabecalhoVisitaConsultoriaHtml(visita)}${blocosAnimais}${secaoFase2}${secaoTexto}</div>`;
 }
-document.getElementById('btnBaixarRelatorioConsultoria').addEventListener('click', ()=>{
+function baixarRelatorioConsultoriaModal(umPorPagina){
   const visita = consultoriaVisitas.find(v=>v.id===visitaConsultoriaDetalheId);
   if(!visita) return;
   const html = gerarConteudoRelatorioConsultoriaPDF(visita, f('csr_sugestoes'), f('csr_conclusao'));
-  const nomeArquivo = 'Relatorio_Consultoria_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+'.pdf';
+  const nomeArquivo = 'Relatorio_Consultoria_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+(umPorPagina?'':'_compacto')+'.pdf';
   closeModal('overlayConsultoriaRelatorio');
+  // Margem maior no modo compacto: quando um bloco (visita/animal) é mais alto que 1 folha, a folha de
+  // continuação fica sem moldura nenhuma — só a margem da página dá respiro ali. Um pouco mais em cima
+  // e embaixo ajuda sem mudar a diagramação do resto.
+  baixarRelatorioManejoPDF(html, nomeArquivo, {umPorPagina, margin: umPorPagina?10:[16,10]});
+}
+document.getElementById('btnBaixarRelatorioConsultoria').addEventListener('click', ()=> baixarRelatorioConsultoriaModal(true));
+document.getElementById('btnBaixarRelatorioConsultoriaCompacto').addEventListener('click', ()=> baixarRelatorioConsultoriaModal(false));
+// PDF em lote (botão "📄 Baixar PDF" do menu "⋯" nas listas de Visitas Técnicas e Histórico da
+// Propriedade) — mesmo formato do Relatório de Visita Técnica (cabeçalho + 1 folha por animal), só que
+// pra uma ou mais visitas de uma vez. Marcou linha(s) = só essas; nenhuma marcada = a lista inteira que
+// está filtrada em tela (respeita busca/período, igual o "Baixar PDF" genérico do resto do app). Não
+// pede Sugestões/Conclusão (isso é texto livre por visita, só faz sentido no relatório de 1 visita só,
+// gerado de dentro dela — ver btnBaixarRelatorioConsultoria acima).
+function gerarRelatoriosVisitasSelecionadas(listaId, listaAtual, umPorPagina){
+  const sel = selLista(listaId);
+  const visitasSel = sel.size ? listaAtual.filter(v=>sel.has(String(v.id))) : listaAtual;
+  if(visitasSel.length===0){ showAlert('Nenhuma visita pra gerar relatório.'); return; }
+  const maisDeUma = visitasSel.length>1;
+  // Quebra de página só com CSS (page-break-before) se mostrou pouco confiável nessa biblioteca —
+  // em teste, o cabeçalho da visita aparecia cortado no fim de uma folha E duplicado no topo da
+  // seguinte. Trocado por reaproveitar o MESMO mecanismo que já funciona certinho no modo "1 animal por
+  // folha" (gerarPdfUmBlocoPorPagina, chamado por baixarRelatorioManejoPDF quando há mais de um bloco
+  // ".report-animal-block"): no modo compacto com VÁRIAS visitas, a visita inteira (cabeçalho + seus
+  // animais) vira UM bloco só dessa classe — assim ela sempre cai numa folha nova, do jeito comprovado.
+  // Os animais dentro dela usam "report-animal-subitem" (só protege contra corte no meio do animal, sem
+  // contar como bloco pra paginação) em vez de "report-animal-block", senão o seletor genérico pegaria
+  // os dois níveis (visita E animal) como blocos separados, bagunçando a contagem.
+  const agruparPorVisita = maisDeUma && umPorPagina===false;
+  const partes = visitasSel.map(v=>{
+    const avaliacoes = consultoriaAvaliacoesDaVisita(v.id);
+    const classeAnimal = agruparPorVisita ? 'report-animal-subitem' : 'report-animal-block';
+    const blocosAnimais = avaliacoes.length===0
+      ? `<div class="${classeAnimal}"><div class="empty">Nenhum animal avaliado nesta visita.</div></div>`
+      : avaliacoes.map(a=>blocoAvaliacaoConsultoriaHtml(a, v, classeAnimal)).join('');
+    const conteudo = `${cabecalhoVisitaConsultoriaHtml(v)}${blocosAnimais}`;
+    return agruparPorVisita ? `<div class="report-animal-block">${conteudo}</div>` : conteudo;
+  });
+  const nomeArquivo = (maisDeUma
+    ? 'Relatorio_Consultoria_'+visitasSel.length+'_Visitas'
+    : 'Relatorio_Consultoria_'+(visitasSel[0].propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visitasSel[0].data||'').replace(/-/g,'')) + (umPorPagina?'':'_compacto');
+  const estiloSubitem = agruparPorVisita ? '<style>.report-animal-subitem{page-break-inside:avoid;break-inside:avoid;}</style>' : '';
+  const html = `<div class="report-card print-block">${estiloSubitem}${partes.join('')}</div>`;
+  baixarRelatorioManejoPDF(html, nomeArquivo+'.pdf', {umPorPagina, margin: umPorPagina?10:[16,10]});
+}
+document.getElementById('btnPdfVisitasConsultoria').addEventListener('click', ()=> gerarRelatoriosVisitasSelecionadas('consultoriaVisitas', consultoriaVisitasListaAtual, true));
+document.getElementById('btnPdfHistoricoConsultoria').addEventListener('click', ()=> gerarRelatoriosVisitasSelecionadas('consultoriaHistorico', consultoriaHistoricoListaAtual, true));
+document.getElementById('btnPdfVisitasConsultoriaCompacto').addEventListener('click', ()=> gerarRelatoriosVisitasSelecionadas('consultoriaVisitas', consultoriaVisitasListaAtual, false));
+document.getElementById('btnPdfHistoricoConsultoriaCompacto').addEventListener('click', ()=> gerarRelatoriosVisitasSelecionadas('consultoriaHistorico', consultoriaHistoricoListaAtual, false));
+// Relatório individual de UMA avaliação — pedido pra sair direto da Ficha do Animal (👁 Avaliações
+// Técnicas → botão "📄 Relatório" por linha), sem precisar abrir a visita inteira. Mesmo bloco de
+// conteúdo do relatório da visita (blocoAvaliacaoConsultoriaHtml), só que sozinho — 1 folha.
+function gerarRelatorioIndividualAvaliacao(avaliacaoId){
+  const a = consultoriaAvaliacoes.find(x=>x.id===avaliacaoId);
+  if(!a) return;
+  const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+  const cabecalho = `<h1 style="border:none;">Relatório de Avaliação Técnica</h1>
+    <div class="sub">${[a.animalNome, visita&&visita.propriedade, fmtDate(a.data)].filter(Boolean).join(' — ')}</div>
+    ${visita?`<div class="grid-wrap"><table class="grid"><tbody>
+      <tr><td><strong>Propriedade</strong></td><td>${visita.propriedade||'—'}</td></tr>
+      <tr><td><strong>Consultor</strong></td><td>${visita.consultorNome||'—'}</td></tr>
+    </tbody></table></div>`:''}`;
+  const html = `<div class="report-card print-block">${cabecalho}${blocoAvaliacaoConsultoriaHtml(a)}</div>`;
+  const nomeArquivo = 'Avaliacao_'+(a.animalNome||'Animal').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(a.data||'').replace(/-/g,'')+'.pdf';
   baixarRelatorioManejoPDF(html, nomeArquivo);
+}
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-relatorioavaliacaocons]');
+  if(btn) gerarRelatorioIndividualAvaliacao(btn.dataset.relatorioavaliacaocons);
 });
 
 /* ---- Integração com a Ficha do Animal (16096+): nova seção, sem tocar nas existentes ---- */
@@ -12953,8 +13288,17 @@ function blocoConsultoriaAnimalFicha(h){
       <td data-col="propriedade">${visita?(visita.propriedade||'—'):'—'}</td>
       <td data-col="peso">${a.peso?a.peso+' kg':'—'}</td>
       <td data-col="tamanho">${a.tamanho?a.tamanho+' cm':'—'}</td>
+      <td data-col="idade">${fmtIdadeAnos(a.idadeAnos)}</td>
       <td data-col="score">${a.scoreCorporal||'—'}</td>
       <td>${a.situacaoGeral||'—'}</td>
+      <td data-col="observacoes">${a.observacoes||'—'}</td>
+      <td data-col="raca">${h.raca||'—'}</td>
+      <td data-col="pelagem">${h.pelagem||'—'}</td>
+      <td data-col="sexo">${h.sexo||'—'}</td>
+      <td data-col="categoria">${h.categoria||'—'}</td>
+      <td data-col="proprietario">${h.proprietario||'—'}</td>
+      <td data-col="localizacao">${h.localizacao||'—'}</td>
+      <td class="no-print"><button type="button" class="btn btn-sm btn-ghost" data-relatorioavaliacaocons="${a.id}" title="Baixar relatório desta avaliação em PDF">📄 Relatório</button></td>
     </tr>`;
   }).join('');
   // A tabela (com o <thead data-col>) fica sempre no DOM, mesmo sem nenhuma avaliação ainda — o seletor
@@ -12965,11 +13309,515 @@ function blocoConsultoriaAnimalFicha(h){
     <div class="perfil-card-head">🩺 Avaliações Técnicas <button type="button" class="btn btn-sm btn-ghost no-print" data-colpicker="consultoriaAvaliacoes" style="text-transform:none;">⚙ Colunas</button></div>
     <div class="perfil-card-body">
       <div class="grid-wrap"><table class="grid" data-lista="consultoriaAvaliacoes">
-        <thead><tr><th>Data</th><th data-col="propriedade">Propriedade</th><th data-col="peso">Peso</th><th data-col="tamanho">Tamanho</th><th data-col="score">Score corporal</th><th>Situação geral</th></tr></thead>
-        <tbody>${avals.length===0 ? '<tr><td colspan="6" class="empty">Nenhuma avaliação técnica registrada ainda.</td></tr>' : rows}</tbody>
+        <thead><tr><th>Data</th><th data-col="propriedade">Propriedade</th><th data-col="peso">Peso</th><th data-col="tamanho">Tamanho</th><th data-col="idade">Idade</th><th data-col="score">Score corporal</th><th>Situação geral</th><th data-col="observacoes">Observações</th><th data-col="raca">Raça</th><th data-col="pelagem">Pelagem</th><th data-col="sexo">Sexo</th><th data-col="categoria">Categoria</th><th data-col="proprietario">Proprietário</th><th data-col="localizacao">Localização</th><th class="no-print"></th></tr></thead>
+        <tbody>${avals.length===0 ? '<tr><td colspan="15" class="empty">Nenhuma avaliação técnica registrada ainda.</td></tr>' : rows}</tbody>
       </table></div>
     </div>
   </div>`;
+}
+
+/* ================= CONSULTORIA — Fase 2 (Formulação de Dieta + NRC + Comparação) =================
+   Módulo aditivo, igual a Fase 1: chave própria no Firestore (consultoria_formulacoes_list), nunca lê
+   nem grava em dietas_list/estoque_produtos — só LÊ produto.nutrientes, campo novo e opcional do Estoque
+   (ver overlayProduto/atualizarNutrientesVisibilidade). Simulação de dieta 100% separada da Dieta
+   operacional (dietas_list) — nenhuma relação entre as duas. */
+
+/* ================= CONSULTORIA — EXIGÊNCIA NUTRICIONAL =================
+   Energia (DE) e Proteína (PB): fórmula da planilha de referência do usuário — DE = 33,3 kcal/kg peso ×
+   fator de atividade (essa parte bate exatamente com o NRC 2007, validado por múltiplas fontes
+   independentes); PB = 4% da Energia (regra própria da planilha do usuário, confirmada explicitamente
+   nesta conversa — o NRC tabelado usa valores um pouco diferentes, mas o usuário optou por seguir a
+   planilha aqui). Como DE é linear em peso, essa fórmula já bate ponto a ponto com a tabela de
+   referência do usuário (300-600kg, de 50 em 50) pra qualquer peso, sem precisar de lookup por faixa.
+   Ca/P: só 2 pontos NRC confirmados (manutenção e trabalho intenso, a 500kg — a planilha do usuário não
+   calcula esses dois) — os demais níveis são extrapolação linear pelo MESMO fator de atividade da
+   energia (decisão aprovada explicitamente pelo usuário). Nunca inventar um 3º ponto de referência. */
+const NRC_FATOR_ATIVIDADE = { manutencao:1, leve:1.2, moderado:1.4, intenso:1.6, superintenso:1.9 };
+const NRC_CATEGORIA_LABEL = { manutencao:'Manutenção', leve:'Trabalho Leve', moderado:'Trabalho Moderado', intenso:'Trabalho Intenso', superintenso:'Trabalho Super Intenso' };
+function calcExigenciaNRC({ pesoKg, categoria }){
+  const fator = NRC_FATOR_ATIVIDADE[categoria] ?? 1;
+  const peso = Number(pesoKg)||0;
+  const deKcal = 33.3 * peso * fator;
+  const pbG = deKcal * 0.04;
+  const caG = (20 + (fator-1)/(1.6-1)*(40-20)) / 500 * peso;
+  const pG  = (14 + (fator-1)/(1.6-1)*(29-14)) / 500 * peso;
+  return { deKcal, pbG, caG, pG,
+    fontes: { deKcal:'Planilha do usuário / NRC 2007 (33,3 kcal/kg × fator de atividade)', pbG:'Planilha do usuário (4% da Energia)', caG:'NRC 2007 — extrapolado (2 pontos confirmados)', pG:'NRC 2007 — extrapolado (2 pontos confirmados)' } };
+}
+
+/* ---- Formulação de Dieta: estado do formulário + itens ---- */
+let consultoriaFormulacaoItensState = []; // [{produtoId, horario, quantidade}]
+const csf_categoriaSelect = document.getElementById('csf_categoria');
+csf_categoriaSelect.innerHTML = Object.keys(NRC_CATEGORIA_LABEL).map(k=>`<option value="${k}">${NRC_CATEGORIA_LABEL[k]}</option>`).join('');
+
+// Animal: <select> simples (1 animal só por formulação — diferente do seletor múltiplo createAnimalSelector
+// da Avaliação da Fase 1), listando só ativos — mesmo filtro isAtivo de createAnimalSelector (4306).
+function consultoriaAnimaisAtivosOrdenados(){
+  return horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+}
+function popularSelectAnimalFormulacaoConsultoria(selecionadoId){
+  const sel = document.getElementById('csf_animalId');
+  const animais = consultoriaAnimaisAtivosOrdenados();
+  sel.innerHTML = '<option value="">Selecione...</option>' + animais.map(h=>`<option value="${h.id}" ${h.id===selecionadoId?'selected':''}>${h.nome}</option>`).join('');
+}
+// Peso sugerido: primeiro o peso já cadastrado no Animal (f_peso, campo do cadastro) — se não tiver,
+// cai pra avaliação técnica (Fase 1) mais recente daquele animal. Sempre 100% editável. Ver também
+// btnSaveFormulacaoConsultoria: se o Animal ainda não tinha peso cadastrado, o valor digitado aqui
+// grava sozinho de volta no cadastro dele (pedido do usuário — "entrar sozinho no cadastro").
+function sugerirPesoConsultoriaFormulacao(animalId){
+  const h = horses.find(x=>x.id===animalId);
+  if(h && h.peso!=null && h.peso!=='') return h.peso;
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===animalId && a.peso!=='' && a.peso!=null)
+    .slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  return avals.length ? avals[0].peso : '';
+}
+document.getElementById('csf_animalId').addEventListener('change', ()=>{
+  const id = document.getElementById('csf_animalId').value;
+  document.getElementById('csf_pesoKg').value = id ? sugerirPesoConsultoriaFormulacao(id) : '';
+  renderConsultoriaFormulacaoResultado();
+});
+['csf_pesoKg','csf_categoria'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderConsultoriaFormulacaoResultado);
+  document.getElementById(id).addEventListener('change', renderConsultoriaFormulacaoResultado);
+});
+
+// Linhas de item — "+ Adicionar item" empurra uma linha (produto + horário + quantidade + remover),
+// mesmo espírito de renderDietaItens/dietaItensState (12207, NÃO tocada) — implementação paralela e
+// independente, com o formato de item já no shape salvo (1 linha = 1 {produtoId,horario,quantidade}).
+function renderConsultoriaFormulacaoItens(){
+  const host = document.getElementById('csfItensHost');
+  const alimentos = estoqueProdutos.filter(p=>p.tipo==='Alimento');
+  if(alimentos.length===0){ host.innerHTML = '<div class="empty" style="padding:20px;">Nenhum alimento cadastrado no Estoque ainda. Vá em Estoque → "+ Novo Produto" → tipo Alimento, e depois volte aqui.</div>'; renderConsultoriaFormulacaoResultado(); return; }
+  if(consultoriaFormulacaoItensState.length===0){ host.innerHTML = '<div class="empty" style="padding:20px;">Nenhum item ainda. Clique em "+ Adicionar item".</div>'; renderConsultoriaFormulacaoResultado(); return; }
+  host.innerHTML = `<div style="display:grid;grid-template-columns:1fr 110px 100px 32px;gap:8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>Alimento</div><div>Horário</div><div>Quantidade (kg)</div><div></div>
+    </div>` +
+    consultoriaFormulacaoItensState.map((it,idx)=>`
+      <div style="display:grid;grid-template-columns:1fr 110px 100px 32px;gap:8px;align-items:center;margin-bottom:8px;">
+        <select data-cffield="produtoId" data-idx="${idx}">
+          <option value="">Selecione...</option>
+          ${alimentos.map(a=>`<option value="${a.id}" ${it.produtoId===a.id?'selected':''}>${a.nome}${!a.nutrientes?' (sem nutrientes)':''}</option>`).join('')}
+        </select>
+        <select data-cffield="horario" data-idx="${idx}">
+          ${['Manhã','Tarde','Noite'].map(h=>`<option value="${h}" ${it.horario===h?'selected':''}>${h}</option>`).join('')}
+        </select>
+        <input type="number" step="0.01" min="0" data-cffield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="kg">
+        <button type="button" class="btn btn-sm btn-danger" data-cfiremove="${idx}" title="Remover item">✕</button>
+      </div>`).join('');
+  host.querySelectorAll('[data-cffield]').forEach(el=>{
+    el.addEventListener('input', atualizarItemFormulacaoConsultoria);
+    el.addEventListener('change', atualizarItemFormulacaoConsultoria);
+  });
+  host.querySelectorAll('[data-cfiremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ consultoriaFormulacaoItensState.splice(Number(btn.dataset.cfiremove),1); renderConsultoriaFormulacaoItens(); });
+  });
+  renderConsultoriaFormulacaoResultado();
+}
+function atualizarItemFormulacaoConsultoria(e){
+  const idx = Number(e.target.dataset.idx), field = e.target.dataset.cffield;
+  consultoriaFormulacaoItensState[idx][field] = e.target.value;
+  if(field==='produtoId') renderConsultoriaFormulacaoItens(); else renderConsultoriaFormulacaoResultado();
+}
+document.getElementById('btnAddItemFormulacaoConsultoria').addEventListener('click', ()=>{
+  consultoriaFormulacaoItensState.push({produtoId:'', horario:'Manhã', quantidade:''});
+  renderConsultoriaFormulacaoItens();
+});
+
+/* ---- Cálculo exigência × fornecido × custo — função única, reaproveitada no painel ao vivo da
+   Formulação, na Comparação e no Relatório da Visita, pra nunca duplicar a lógica de cálculo/HTML. ---- */
+function calcResumoFormulacao(formulacao){
+  const pesoKg = Number(formulacao.pesoKg)||0;
+  const exigencia = calcExigenciaNRC({ pesoKg, categoria: formulacao.categoriaAtividade });
+  const fornecido = { deKcal:0, pbG:0, caG:0, pG:0 };
+  let custoDia = 0;
+  const avisosMap = new Map(); // produtoId -> produtoNome (não avisa 2x o mesmo produto em horários diferentes)
+  (formulacao.itens||[]).forEach(it=>{
+    const qtd = Number(it.quantidade)||0;
+    if(qtd<=0) return;
+    const produto = estoqueProdutos.find(p=>p.id===it.produtoId);
+    if(!produto) return;
+    const nut = produto.nutrientes;
+    if(!nut){
+      avisosMap.set(produto.id, produto.nome);
+    } else {
+      if(nut.edKcalPorKg) fornecido.deKcal += qtd * nut.edKcalPorKg;
+      if(nut.pbPercent) fornecido.pbG += qtd * (nut.pbPercent/100) * 1000;
+      if(nut.caPercent) fornecido.caG += qtd * (nut.caPercent/100) * 1000;
+      if(nut.pPercent) fornecido.pG += qtd * (nut.pPercent/100) * 1000;
+    }
+    const custoUnit = custoUnitarioProduto(produto);
+    if(custoUnit) custoDia += custoUnit * qtd;
+  });
+  const pct = (forn,exig) => exig>0 ? (forn/exig)*100 : null;
+  return {
+    exigencia, fornecido,
+    pct: { deKcal: pct(fornecido.deKcal, exigencia.deKcal), pbG: pct(fornecido.pbG, exigencia.pbG), caG: pct(fornecido.caG, exigencia.caG), pG: pct(fornecido.pG, exigencia.pG) },
+    avisos: [...avisosMap.entries()].map(([produtoId,produtoNome])=>({produtoId,produtoNome})),
+    custoDia, custoMes: custoDia*30
+  };
+}
+function fmtNumNutriente(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0, maximumFractionDigits:0}); }
+function pillAtendimentoHtml(pct){
+  if(pct==null) return '<span class="pill st-outro">—</span>';
+  const cls = pct<95 ? 'st-descarte' : pct>110 ? 'st-warn' : 'st-ativo';
+  const label = pct<95 ? 'Abaixo' : pct>110 ? 'Acima' : 'Dentro';
+  return `<span class="pill ${cls}">${label}</span> ${pct.toFixed(0)}%`;
+}
+// Linhas Nutriente|Exigência|Fornecido|Diferença|%Atendimento — reaproveitada no modal ao vivo e no
+// Relatório PDF (blocoFormulacoesAnimalRelatorioHtml, mais abaixo).
+function linhasResumoNutrientesHtml(resumo){
+  const linhas = [
+    ['Energia Digestível (ED)', resumo.exigencia.deKcal, resumo.fornecido.deKcal, resumo.pct.deKcal, 'Kcal'],
+    ['Proteína Bruta (PB)', resumo.exigencia.pbG, resumo.fornecido.pbG, resumo.pct.pbG, 'g'],
+    ['Cálcio (Ca)', resumo.exigencia.caG, resumo.fornecido.caG, resumo.pct.caG, 'g'],
+    ['Fósforo (P)', resumo.exigencia.pG, resumo.fornecido.pG, resumo.pct.pG, 'g'],
+  ];
+  return linhas.map(([label,exig,forn,pct,un])=>`<tr>
+    <td>${label}</td><td>${fmtNumNutriente(exig)} ${un}</td><td>${fmtNumNutriente(forn)} ${un}</td>
+    <td>${fmtNumNutriente(forn-exig)} ${un}</td><td>${pillAtendimentoHtml(pct)}</td>
+  </tr>`).join('');
+}
+function avisosNutrientesHtml(resumo){
+  if(resumo.avisos.length===0) return '';
+  return resumo.avisos.map(a=>`<div class="hint-text" style="color:var(--alert-ink,#8a3b2f);">⚠ ${a.produtoNome} sem valores nutricionais cadastrados — <button type="button" class="btn btn-sm btn-ghost" data-abrirprodutonutriente="${a.produtoId}">cadastrar agora</button></div>`).join('');
+}
+function renderConsultoriaFormulacaoResultado(){
+  const pesoKg = Number(f('csf_pesoKg'))||0;
+  const categoria = f('csf_categoria');
+  const resumo = calcResumoFormulacao({ pesoKg, categoriaAtividade: categoria, itens: consultoriaFormulacaoItensState });
+  document.getElementById('csfResultadoTbody').innerHTML = linhasResumoNutrientesHtml(resumo);
+  document.getElementById('csfAvisos').innerHTML = avisosNutrientesHtml(resumo);
+  document.getElementById('csfCusto').textContent = `Custo estimado: ${fmtMoeda(resumo.custoDia,'BRL')}/dia · ${fmtMoeda(resumo.custoMes,'BRL')}/mês`;
+}
+// Abre o Estoque pra cadastrar os nutrientes de um produto SEM fechar (nem perder) a Formulação aberta:
+// só esconde ela visualmente (visibility, não display/close — o formulário em memória não se mexe) enquanto
+// o modal de Produto está por cima, e reaparece sozinha (com o resultado recalculado) assim que o Produto
+// for fechado. Não move nem altera nada do Estoque em si — só orquestra a UI a partir daqui.
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('[data-abrirprodutonutriente]');
+  if(!btn) return;
+  const produtoId = btn.dataset.abrirprodutonutriente;
+  const meuModal = document.getElementById('overlayConsultoriaFormulacao');
+  const estavaAberto = meuModal.classList.contains('show');
+  if(estavaAberto) meuModal.style.visibility = 'hidden';
+  openProdutoEdit(produtoId);
+  if(!estavaAberto) return;
+  const overlayProdutoEl = document.getElementById('overlayProduto');
+  const obs = new MutationObserver(()=>{
+    if(!overlayProdutoEl.classList.contains('show')){
+      meuModal.style.visibility = '';
+      renderConsultoriaFormulacaoItens(); // refaz os selects (produto pode ter virado "sem nutrientes"→com) e o resultado
+      obs.disconnect();
+    }
+  });
+  obs.observe(overlayProdutoEl, {attributes:true, attributeFilter:['class']});
+});
+
+/* ---- Lista de Formulações ---- */
+let consultoriaFormulacoesListaAtual = []; // última lista renderizada — fonte do "sem marcar nenhuma = todas" dos relatórios
+function renderConsultoriaFormulacoes(){
+  const tbody = document.getElementById('cfTbody');
+  const lista = consultoriaFormulacoes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  consultoriaFormulacoesListaAtual = lista;
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]'); return; }
+  tbody.innerHTML = lista.map(fo=>{
+    const resumo = calcResumoFormulacao(fo);
+    return `<tr>
+      ${tdCheck('consultoriaFormulacoes', fo.id)}
+      <td><strong>${fo.nome||'—'}</strong></td>
+      <td data-col="animal">${fo.animalNome||'—'}</td>
+      <td data-col="categoria">${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
+      <td data-col="peso">${fo.pesoKg?fo.pesoKg+' kg':'—'}</td>
+      <td data-col="custo">${fmtMoeda(resumo.custoMes,'BRL')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editarformulacaocons="${fo.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delformulacaocons="${fo.id}">🗑</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-editarformulacaocons]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openFormulacaoConsultoriaEdit(btn.dataset.editarformulacaocons));
+  });
+  tbody.querySelectorAll('[data-delformulacaocons]').forEach(btn=>{
+    btn.addEventListener('click', ()=> excluirFormulacaoConsultoria(btn.dataset.delformulacaocons));
+  });
+  sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]');
+}
+
+/* ---- CRUD Formulação ---- */
+// Copiar itens de uma formulação existente: útil pra testar a MESMA dieta com outro animal (peso/
+// categoria diferentes mudam a exigência, mas os ingredientes/quantidades continuam os mesmos) — só
+// copia `itens`, nunca nome/animal/peso/categoria, que continuam vindo dos campos do formulário atual.
+function popularSelectCopiarFormulacao(excluirId){
+  const sel = document.getElementById('csf_copiarDeFormulacao');
+  const opcoes = consultoriaFormulacoes.filter(fo=>fo.id!==excluirId).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  // Só o nome da dieta na opção — sem o nome do animal original, pra não parecer que ela "pertence" a
+  // ele: a ideia é justamente testar a MESMA dieta com outros animais.
+  sel.innerHTML = '<option value="">Não copiar — começar do zero</option>' +
+    opcoes.map(fo=>`<option value="${fo.id}">${fo.nome||'—'}</option>`).join('');
+}
+document.getElementById('csf_copiarDeFormulacao').addEventListener('change', async ()=>{
+  const origemId = document.getElementById('csf_copiarDeFormulacao').value;
+  document.getElementById('csf_copiarDeFormulacao').value = ''; // ação de um clique só, não fica "vinculado"
+  if(!origemId) return;
+  const origem = consultoriaFormulacoes.find(fo=>fo.id===origemId); if(!origem) return;
+  if(consultoriaFormulacaoItensState.some(it=>it.produtoId)){
+    if(!(await showConfirm(`Substituir os itens atuais pelos de "${origem.nome}"? O nome do campo acima vira "${origem.nome}" (pode editar); animal, peso e categoria continuam como estão, pra você preencher com quem vai testar essa dieta.`))) return;
+  }
+  // Nome da dieta copiada (só o nome — nunca o animal original, ver acima) pra confirmar visualmente o
+  // que foi copiado; animal/peso/categoria ficam em branco de propósito, pra serem preenchidos com o
+  // animal novo que vai ser testado com essa mesma dieta.
+  document.getElementById('csf_nome').value = origem.nome||'';
+  consultoriaFormulacaoItensState = (origem.itens||[]).map(it=>({produtoId:it.produtoId, horario:it.horario||'Manhã', quantidade:it.quantidade!=null?it.quantidade:''}));
+  renderConsultoriaFormulacaoItens();
+});
+function openFormulacaoConsultoriaNew(){
+  editingFormulacaoConsultoriaId = null;
+  document.getElementById('csfModalTitle').textContent = 'Nova Formulação';
+  document.getElementById('btnDeleteFormulacaoConsultoria').style.display = 'none';
+  document.getElementById('csf_nome').value = '';
+  popularSelectCopiarFormulacao(null);
+  popularSelectAnimalFormulacaoConsultoria('');
+  document.getElementById('csf_pesoKg').value = '';
+  document.getElementById('csf_categoria').value = 'manutencao';
+  document.getElementById('csf_obs').value = '';
+  consultoriaFormulacaoItensState = [];
+  renderConsultoriaFormulacaoItens();
+  openModal('overlayConsultoriaFormulacao');
+}
+function openFormulacaoConsultoriaEdit(id){
+  const fo = consultoriaFormulacoes.find(x=>x.id===id); if(!fo) return;
+  editingFormulacaoConsultoriaId = id;
+  document.getElementById('csfModalTitle').textContent = fo.nome || 'Editar Formulação';
+  document.getElementById('btnDeleteFormulacaoConsultoria').style.display = 'inline-block';
+  document.getElementById('csf_nome').value = fo.nome||'';
+  popularSelectCopiarFormulacao(id);
+  popularSelectAnimalFormulacaoConsultoria(fo.animalId||'');
+  document.getElementById('csf_pesoKg').value = fo.pesoKg!=null ? fo.pesoKg : '';
+  document.getElementById('csf_categoria').value = fo.categoriaAtividade || 'manutencao';
+  document.getElementById('csf_obs').value = fo.obs||'';
+  consultoriaFormulacaoItensState = (fo.itens||[]).map(it=>({produtoId:it.produtoId, horario:it.horario||'Manhã', quantidade:it.quantidade!=null?it.quantidade:''}));
+  renderConsultoriaFormulacaoItens();
+  openModal('overlayConsultoriaFormulacao');
+}
+document.getElementById('btnNewFormulacaoConsultoria').addEventListener('click', openFormulacaoConsultoriaNew);
+document.getElementById('btnSaveFormulacaoConsultoria').addEventListener('click', async ()=>{
+  const nome = f('csf_nome').trim();
+  if(!nome){ showAlert('Informe o nome da formulação.'); document.getElementById('csf_nome').focus(); return; }
+  const animalId = f('csf_animalId');
+  if(!animalId){ showAlert('Selecione o animal.'); return; }
+  const animal = horses.find(h=>h.id===animalId);
+  const itens = consultoriaFormulacaoItensState
+    .filter(it=>it.produtoId && Number(it.quantidade)>0)
+    .map(it=>{
+      const prod = estoqueProdutos.find(p=>p.id===it.produtoId);
+      return { produtoId: it.produtoId, produtoNome: prod?prod.nome:'', horario: it.horario||'Manhã', quantidade: Number(it.quantidade), unidade: prod?prod.unidade:'' };
+    });
+  if(itens.length===0){ showAlert('Adicione ao menos um item de alimento com quantidade.'); return; }
+  const existente = consultoriaFormulacoes.find(x=>x.id===editingFormulacaoConsultoriaId);
+  const data = { ...existente, id: editingFormulacaoConsultoriaId || ('csf_'+Date.now()),
+    nome, animalId, animalNome: animal?animal.nome:(existente?existente.animalNome:''),
+    pesoKg: f('csf_pesoKg')===''?'':Number(f('csf_pesoKg')), categoriaAtividade: f('csf_categoria'),
+    itens, obs: f('csf_obs'), criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  consultoriaFormulacoes = editingFormulacaoConsultoriaId ? consultoriaFormulacoes.map(x=>x.id===editingFormulacaoConsultoriaId?data:x) : [...consultoriaFormulacoes, data];
+  closeModal('overlayConsultoriaFormulacao');
+  renderConsultoriaFormulacoes();
+  salvarEmSegundoPlano('consultoria_formulacoes_list', consultoriaFormulacoes, ()=>renderConsultoriaFormulacoes());
+  // Pedido do usuário: o peso digitado aqui na formulação grava sozinho de volta no cadastro do Animal
+  // (Ficha do Animal → campo Peso) — é a pesagem mais recente dele, então sempre atualiza (sobrescreve),
+  // mesmo que ele já tivesse um peso cadastrado antes.
+  if(animal && data.pesoKg!=='' && data.pesoKg>0 && String(data.pesoKg)!==String(animal.peso||'')){
+    horses = horses.map(h=>h.id===animalId ? {...h, peso:String(data.pesoKg)} : h);
+    salvarEmSegundoPlano('horses_list', horses, ()=>atualizarTelasQueDependemDeAnimais());
+  }
+});
+async function excluirFormulacaoConsultoria(id){
+  if(!(await showConfirm('Excluir esta formulação?', {danger:true, okLabel:'Excluir'}))) return;
+  consultoriaFormulacoes = consultoriaFormulacoes.filter(x=>x.id!==id);
+  await storeSet('consultoria_formulacoes_list', consultoriaFormulacoes, true);
+  closeModal('overlayConsultoriaFormulacao');
+  renderConsultoriaFormulacoes();
+}
+document.getElementById('btnDeleteFormulacaoConsultoria').addEventListener('click', ()=>{
+  if(editingFormulacaoConsultoriaId) excluirFormulacaoConsultoria(editingFormulacaoConsultoriaId);
+});
+
+/* ---- Relatórios de Formulação (menu "⋯" da lista) — dois tipos, pra escolher conforme o foco:
+   Financeiro (ingrediente por ingrediente, custo e participação no custo total) e Nutricional
+   (exigência NRC × fornecido × % de atendimento, mesma tabela do painel ao vivo). Marcou linha(s) na
+   lista = só essas; nenhuma marcada = a lista inteira (mesma regra do resto do app). Reaproveita
+   baixarRelatorioManejoPDF sem alterá-la — com mais de 1 formulação, cada uma cai na própria folha
+   (gerarPdfUmBlocoPorPagina, mesmo mecanismo já comprovado pros relatórios de Visita). ---- */
+function calcDetalheCustoFormulacao(formulacao){
+  const itens = (formulacao.itens||[]).map(it=>{
+    const qtd = Number(it.quantidade)||0;
+    const produto = estoqueProdutos.find(p=>p.id===it.produtoId);
+    const custoUnit = produto ? custoUnitarioProduto(produto) : null;
+    return { produtoNome: produto?produto.nome:(it.produtoNome||'—'), horario:it.horario, quantidade:qtd,
+      unidade: produto?produto.unidade:'kg', custoUnit, subtotalDia: custoUnit ? custoUnit*qtd : 0 };
+  }).filter(it=>it.quantidade>0);
+  const custoDiaTotal = itens.reduce((s,it)=>s+it.subtotalDia,0);
+  const pesoTotalKg = itens.reduce((s,it)=>s+it.quantidade,0);
+  return {
+    itens: itens.map(it=>({...it, participacaoPct: custoDiaTotal>0 ? (it.subtotalDia/custoDiaTotal)*100 : null})),
+    custoDiaTotal, custoMesTotal: custoDiaTotal*30,
+    custoPorKg: pesoTotalKg>0 ? custoDiaTotal/pesoTotalKg : null
+  };
+}
+function selecaoFormulacoesConsultoria(){
+  const sel = selLista('consultoriaFormulacoes');
+  return sel.size ? consultoriaFormulacoesListaAtual.filter(fo=>sel.has(String(fo.id))) : consultoriaFormulacoesListaAtual;
+}
+function cabecalhoFormulacaoRelatorioHtml(fo){
+  return `<div class="sub" style="margin-top:-4px;">${[fo.animalNome, fo.categoriaAtividade&&NRC_CATEGORIA_LABEL[fo.categoriaAtividade], fo.pesoKg&&(fo.pesoKg+' kg')].filter(Boolean).join(' — ')}</div>`;
+}
+function gerarRelatorioFinanceiroFormulacoes(){
+  const selecionadas = selecaoFormulacoesConsultoria();
+  if(selecionadas.length===0){ showAlert('Nenhuma formulação pra gerar relatório.'); return; }
+  const blocos = selecionadas.map(fo=>{
+    const det = calcDetalheCustoFormulacao(fo);
+    const linhas = det.itens.length===0 ? '<tr><td colspan="6" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
+      <td>${it.produtoNome}</td><td>${it.horario||'—'}</td><td>${it.quantidade} ${it.unidade||'kg'}</td>
+      <td>${it.custoUnit!=null?fmtMoeda(it.custoUnit,'BRL'):'—'}</td>
+      <td>${fmtMoeda(it.subtotalDia,'BRL')}</td>
+      <td>${it.participacaoPct!=null?it.participacaoPct.toFixed(0)+'%':'—'}</td>
+    </tr>`).join('');
+    return `<div class="report-animal-block">
+      <div class="report-animal-name">${fo.nome||''}</div>
+      ${cabecalhoFormulacaoRelatorioHtml(fo)}
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia</th><th>% do custo</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>
+      <div style="margin-top:8px;"><strong>Custo/dia:</strong> ${fmtMoeda(det.custoDiaTotal,'BRL')} · <strong>Custo/mês:</strong> ${fmtMoeda(det.custoMesTotal,'BRL')}${det.custoPorKg!=null?(' · <strong>Custo/kg da dieta:</strong> '+fmtMoeda(det.custoPorKg,'BRL')):''}</div>
+    </div>`;
+  });
+  const cabecalho = `<h1 style="border:none;">Relatório Financeiro — Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${selecionadas.length} formulação(ões)</div>`;
+  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}</div>`;
+  const nomeArquivo = selecionadas.length===1
+    ? 'Relatorio_Financeiro_'+(selecionadas[0].nome||'Formulacao').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf'
+    : 'Relatorio_Financeiro_'+selecionadas.length+'_Formulacoes.pdf';
+  baixarRelatorioManejoPDF(html, nomeArquivo);
+}
+function gerarRelatorioNutricionalFormulacoes(){
+  const selecionadas = selecaoFormulacoesConsultoria();
+  if(selecionadas.length===0){ showAlert('Nenhuma formulação pra gerar relatório.'); return; }
+  const blocos = selecionadas.map(fo=>{
+    const resumo = calcResumoFormulacao(fo);
+    return `<div class="report-animal-block">
+      <div class="report-animal-name">${fo.nome||''}</div>
+      ${cabecalhoFormulacaoRelatorioHtml(fo)}
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
+        <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
+      </table></div>
+      ${avisosNutrientesHtml(resumo)}
+      <div class="hint-text" style="margin-top:8px;">Energia: 33,3 kcal/kg × fator de atividade (planilha do usuário / NRC 2007). Proteína: 4% da Energia (planilha do usuário). Cálcio e Fósforo: NRC 2007, extrapolado entre os pontos de manutenção e trabalho intenso confirmados na tabela.</div>
+    </div>`;
+  });
+  const cabecalho = `<h1 style="border:none;">Relatório Nutricional (NRC) — Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${selecionadas.length} formulação(ões)</div>`;
+  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}</div>`;
+  const nomeArquivo = selecionadas.length===1
+    ? 'Relatorio_Nutricional_'+(selecionadas[0].nome||'Formulacao').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf'
+    : 'Relatorio_Nutricional_'+selecionadas.length+'_Formulacoes.pdf';
+  baixarRelatorioManejoPDF(html, nomeArquivo);
+}
+document.getElementById('btnRelFinanceiroFormulacaoConsultoria').addEventListener('click', gerarRelatorioFinanceiroFormulacoes);
+document.getElementById('btnRelNutricionalFormulacaoConsultoria').addEventListener('click', gerarRelatorioNutricionalFormulacoes);
+
+/* ---- Comparação entre formulações ---- */
+function renderConsultoriaComparacaoLista(){
+  const tbody = document.getElementById('ccTbody');
+  const lista = consultoriaFormulacoes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]'); return; }
+  tbody.innerHTML = lista.map(fo=>`<tr>
+    ${tdCheck('consultoriaFormulacoesComparacao', fo.id)}
+    <td><strong>${fo.nome||'—'}</strong></td>
+    <td>${fo.animalNome||'—'}</td>
+    <td>${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
+    <td>${fo.pesoKg?fo.pesoKg+' kg':'—'}</td>
+  </tr>`).join('');
+  sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]');
+}
+function compararFormulacoesConsultoria(){
+  const sel = selLista('consultoriaFormulacoesComparacao');
+  const selecionadas = consultoriaFormulacoes.filter(fo=>sel.has(String(fo.id)));
+  const host = document.getElementById('ccResultado');
+  if(selecionadas.length<2 || selecionadas.length>3){
+    host.innerHTML = `<div class="hint-text">Marque de 2 a 3 formulações pra comparar (${selecionadas.length} marcada(s) agora).</div>`;
+    document.getElementById('btnPdfComparacaoConsultoria').style.display = 'none';
+    return;
+  }
+  const resumos = selecionadas.map(fo=>({ fo, resumo: calcResumoFormulacao(fo) }));
+  const linhaNutriente = (label, campo, un) => `<tr><td><strong>${label}</strong></td>${resumos.map(({resumo})=>{
+    const exig = resumo.exigencia[campo], forn = resumo.fornecido[campo], pct = resumo.pct[campo];
+    return `<td>${fmtNumNutriente(forn)} / ${fmtNumNutriente(exig)} ${un}<br>${pillAtendimentoHtml(pct)}</td>`;
+  }).join('')}</tr>`;
+  const todosIngredientes = [...new Set(resumos.flatMap(({fo})=>(fo.itens||[]).map(it=>it.produtoId)))];
+  const linhasIngredientes = todosIngredientes.map(produtoId=>{
+    const nomeProd = (estoqueProdutos.find(p=>p.id===produtoId)||{}).nome || (resumos.map(({fo})=>(fo.itens||[]).find(it=>it.produtoId===produtoId)).find(Boolean)||{}).produtoNome || '—';
+    return `<tr><td>${nomeProd}</td>${resumos.map(({fo})=>{
+      const itensDoProduto = (fo.itens||[]).filter(it=>it.produtoId===produtoId);
+      if(itensDoProduto.length===0) return '<td>—</td>';
+      const total = itensDoProduto.reduce((s,it)=>s+(Number(it.quantidade)||0),0);
+      return `<td>${total} kg (${itensDoProduto.map(it=>it.horario).join(', ')})</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+  host.innerHTML = `
+    <div class="section-label" style="border-top:none;">Ingredientes e quantidades</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
+      <tbody>${linhasIngredientes || '<tr><td colspan="'+(resumos.length+1)+'" class="empty">Nenhum item.</td></tr>'}</tbody>
+    </table></div>
+    <div class="section-label">Composição nutricional (Fornecido / Exigência do animal daquela formulação)</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Nutriente</th>${resumos.map(({fo})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${fo.animalNome||''}</span></th>`).join('')}</tr></thead>
+      <tbody>
+        ${linhaNutriente('Energia Digestível (ED)','deKcal','Kcal')}
+        ${linhaNutriente('Proteína Bruta (PB)','pbG','g')}
+        ${linhaNutriente('Cálcio (Ca)','caG','g')}
+        ${linhaNutriente('Fósforo (P)','pG','g')}
+      </tbody>
+    </table></div>
+    <div class="section-label">Custo</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
+      <tbody>
+        <tr><td>Custo/dia</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
+        <tr><td>Custo/mês</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoMes,'BRL')}</td>`).join('')}</tr>
+      </tbody>
+    </table></div>
+    ${resumos.some(({resumo})=>resumo.avisos.length>0) ? `<div style="margin-top:10px;">${resumos.map(({resumo})=>avisosNutrientesHtml(resumo)).join('')}</div>` : ''}
+  `;
+  document.getElementById('btnPdfComparacaoConsultoria').style.display = 'inline-block';
+}
+document.getElementById('btnCompararFormulacoesConsultoria').addEventListener('click', compararFormulacoesConsultoria);
+document.getElementById('btnPdfComparacaoConsultoria').addEventListener('click', ()=>{
+  const conteudo = document.getElementById('ccResultado').innerHTML;
+  if(!conteudo.trim()) return;
+  const cabecalho = `<h1 style="border:none;">Comparação de Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>`;
+  baixarRelatorioManejoPDF(`<div class="report-card print-block">${cabecalho}${conteudo}</div>`, 'Comparacao_Formulacoes.pdf');
+});
+
+/* ---- Relatório da visita: substitui o placeholder "Disponível na Fase 2" (ver gerarConteudoRelatorioConsultoriaPDF
+   mais abaixo) — reaproveita calcResumoFormulacao/linhasResumoNutrientesHtml/avisosNutrientesHtml (mesmas
+   funções do painel ao vivo da Formulação e da Comparação), sem duplicar lógica de cálculo/HTML. Usa a
+   classe "report-animal-subitem" (não "report-animal-block") pra não confundir a contagem de blocos da
+   paginação (gerarPdfUmBlocoPorPagina seleciona só .report-animal-block/.pdf-item-block). ---- */
+function blocoFormulacoesAnimalRelatorioHtml(animalId){
+  const formulacoesDoAnimal = consultoriaFormulacoes.filter(fo=>fo.animalId===animalId);
+  if(formulacoesDoAnimal.length===0){
+    return '<div class="hint-text">Nenhuma formulação registrada para este animal.</div>';
+  }
+  return formulacoesDoAnimal.map(fo=>{
+    const resumo = calcResumoFormulacao(fo);
+    return `<div class="report-animal-subitem" style="margin-top:8px;">
+      <div style="font-weight:600;">${fo.nome||''} <span style="font-weight:400;color:#666;">— ${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||''}${fo.pesoKg?(', '+fo.pesoKg+' kg'):''}</span></div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
+        <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
+      </table></div>
+      <div style="margin-top:4px;">Custo estimado: ${fmtMoeda(resumo.custoDia,'BRL')}/dia · ${fmtMoeda(resumo.custoMes,'BRL')}/mês</div>
+      ${resumo.avisos.length>0 ? `<div style="margin-top:4px;">${resumo.avisos.map(a=>'⚠ '+a.produtoNome+' sem valores nutricionais cadastrados').join('<br>')}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
