@@ -1696,7 +1696,7 @@
         </div>
         <div class="hint-text" style="margin-bottom:10px;">Simulação de dieta pra um animal, com cálculo de exigência nutricional (NRC 2007) × fornecido e custo. Não altera nem lê as Dietas operacionais. Marque o checkbox das formulações desejadas pra baixar o relatório só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaFormulacoes">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoes" title="Selecionar todas"></th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="animal" data-col="animal">Animal</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="peso" data-col="peso">Peso</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="custo" data-col="custo">Custo/mês (estimado)</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoes" title="Selecionar todas"></th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="animal" data-col="animal">Animal</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="peso" data-col="peso">Peso</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="custokg" data-col="custokg">Custo/kg da dieta</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="custo" data-col="custo">Custo/mês (estimado)</th><th></th></tr></thead>
           <tbody id="cfTbody"></tbody>
         </table></div>
       </div>
@@ -13544,12 +13544,13 @@ function renderConsultoriaFormulacoes(){
     if(col==='animal') return (fo.animalNome||'').toLowerCase();
     if(col==='categoria') return (NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'').toLowerCase();
     if(col==='peso') return Number(fo.pesoKg)||0;
+    if(col==='custokg') return calcResumoFormulacao(fo).custoPorKg||0;
     if(col==='custo') return calcResumoFormulacao(fo).custoMes||0;
     return '';
   });
   consultoriaFormulacoesListaAtual = lista;
   marcarSetasOrdenacao('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]');
-  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]'); return; }
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="8" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]'); return; }
   tbody.innerHTML = lista.map(fo=>{
     const resumo = calcResumoFormulacao(fo);
     return `<tr>
@@ -13558,6 +13559,7 @@ function renderConsultoriaFormulacoes(){
       <td data-col="animal">${fo.animalNome||'—'}</td>
       <td data-col="categoria">${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
       <td data-col="peso">${fo.pesoKg?fo.pesoKg+' kg':'—'}</td>
+      <td data-col="custokg">${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>
       <td data-col="custo">${fmtMoeda(resumo.custoMes,'BRL')}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editarformulacaocons="${fo.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delformulacaocons="${fo.id}">🗑</button></td>
     </tr>`;
