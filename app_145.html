@@ -13438,6 +13438,7 @@ function calcResumoFormulacao(formulacao){
   const exigencia = calcExigenciaNRC({ pesoKg, categoria: formulacao.categoriaAtividade });
   const fornecido = { deKcal:0, pbG:0, caG:0, pG:0 };
   let custoDia = 0;
+  let totalKgDia = 0;
   const avisosMap = new Map(); // produtoId -> produtoNome (não avisa 2x o mesmo produto em horários diferentes)
   (formulacao.itens||[]).forEach(it=>{
     const qtd = Number(it.quantidade)||0;
@@ -13455,13 +13456,15 @@ function calcResumoFormulacao(formulacao){
     }
     const custoUnit = custoUnitarioProduto(produto);
     if(custoUnit) custoDia += custoUnit * qtd;
+    totalKgDia += qtd;
   });
   const pct = (forn,exig) => exig>0 ? (forn/exig)*100 : null;
   return {
     exigencia, fornecido,
     pct: { deKcal: pct(fornecido.deKcal, exigencia.deKcal), pbG: pct(fornecido.pbG, exigencia.pbG), caG: pct(fornecido.caG, exigencia.caG), pG: pct(fornecido.pG, exigencia.pG) },
     avisos: [...avisosMap.entries()].map(([produtoId,produtoNome])=>({produtoId,produtoNome})),
-    custoDia, custoMes: custoDia*30
+    custoDia, custoMes: custoDia*30,
+    totalKgDia, custoPorKg: totalKgDia>0 ? custoDia/totalKgDia : null
   };
 }
 function fmtNumNutriente(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0, maximumFractionDigits:0}); }
@@ -13763,7 +13766,16 @@ function compararFormulacoesConsultoria(){
     document.getElementById('btnPdfComparacaoConsultoria').style.display = 'none';
     return;
   }
-  const resumos = selecionadas.map(fo=>({ fo, resumo: calcResumoFormulacao(fo) }));
+  // Da mais barata pra mais cara, pelo custo/kg da dieta (blend dos ingredientes) — não custo/dia nem
+  // custo/mês, que dependem de quanto se dá por dia e não servem pra comparar o "preço" da dieta em si.
+  const resumos = selecionadas.map(fo=>({ fo, resumo: calcResumoFormulacao(fo) }))
+    .sort((a,b)=>{
+      const ca = a.resumo.custoPorKg, cb = b.resumo.custoPorKg;
+      if(ca==null && cb==null) return 0;
+      if(ca==null) return 1;
+      if(cb==null) return -1;
+      return ca - cb;
+    });
   const linhaNutriente = (label, campo, un) => `<tr><td><strong>${label}</strong></td>${resumos.map(({resumo})=>{
     const exig = resumo.exigencia[campo], forn = resumo.fornecido[campo], pct = resumo.pct[campo];
     return `<td>${fmtNumNutriente(forn)} / ${fmtNumNutriente(exig)} ${un}<br>${pillAtendimentoHtml(pct)}</td>`;
@@ -13798,6 +13810,7 @@ function compararFormulacoesConsultoria(){
     <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>
+        <tr><td>Custo/kg da dieta</td>${resumos.map(({resumo})=>`<td>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`).join('')}</tr>
         <tr><td>Custo/dia</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
         <tr><td>Custo/mês</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoMes,'BRL')}</td>`).join('')}</tr>
       </tbody>
