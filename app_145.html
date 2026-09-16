@@ -18570,6 +18570,9 @@ function iniciarAppLogado(authUser){
     // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
     const paramAnimal = new URLSearchParams(location.search).get('animal');
     if(paramAnimal && horses.some(h=>h.id===paramAnimal)) abrirPerfilAnimal(paramAnimal);
+    // Link direto pra uma aba específica (ex: ?view=consultoria), pra compartilhar o link já na tela certa.
+    const paramView = new URLSearchParams(location.search).get('view');
+    if(paramView) irParaView(paramView);
   });
 }
 if(HAS_FIRESTORE){
@@ -18581,10 +18584,10 @@ if(HAS_FIRESTORE){
   firebase.auth().onAuthStateChanged((user)=>{
     if(user){
       if(_appJaIniciou) return;
-      // Aba aberta pelo 👁 (ficha de um animal, URL com ?animal=ID): já veio de dentro do app,
-      // não faz sentido pedir "Entrar" de novo — entra direto com a sessão que já existe.
-      const ehFichaDireta = !!new URLSearchParams(location.search).get('animal');
-      if(ehFichaDireta){ iniciarAppLogado(user); return; }
+      // Aba aberta pelo 👁 (ficha de um animal, ?animal=ID) ou por um link direto pra uma aba
+      // (?view=X): já veio de dentro do app, não faz sentido pedir "Entrar" de novo — entra direto.
+      const ehLinkDireto = !!new URLSearchParams(location.search).get('animal') || !!new URLSearchParams(location.search).get('view');
+      if(ehLinkDireto){ iniciarAppLogado(user); return; }
       loginMostrarConfirm(user);
     }else{
       _appJaIniciou = false;
