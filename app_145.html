@@ -7942,7 +7942,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
 });
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
-const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* Cada bloco (1 animal, 1 manejo, 1 visita...) fica inteiro na mesma folha — nunca corta um no meio pra começar o de baixo na próxima. */ .rel-manejo-pdf .report-animal-block,.rel-manejo-pdf .pdf-item-block{page-break-inside:avoid;break-inside:avoid;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
+const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* .grid-compare (Comparação de Formulações) cresce mais larga que o container de propósito, pra rolar na horizontal NA TELA — dentro do PDF isso estourava a largura da folha e cortava as últimas colunas. Aqui força de volta pro mesmo table-layout:fixed/width:100% das outras tabelas do relatório, que já espreme as colunas pra caber certinho. */ .rel-manejo-pdf table.grid.grid-compare{width:100% !important;min-width:0 !important;} /* Cada bloco (1 animal, 1 manejo, 1 visita...) fica inteiro na mesma folha — nunca corta um no meio pra começar o de baixo na próxima. */ .rel-manejo-pdf .report-animal-block,.rel-manejo-pdf .pdf-item-block{page-break-inside:avoid;break-inside:avoid;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
 /* Tabela de Presença (Relatório 2 de Treinos): não usar table-layout fixo, células compactas e centradas,
    nome do animal à esquerda, 👁 escondido no PDF, marca de presença destacada. */
 .rel-manejo-pdf table.matrix{table-layout:auto;margin-top:6px;}
@@ -13923,14 +13923,16 @@ function renderConsultoriaComparacaoLista(){
   const tbody = document.getElementById('ccTbody');
   const lista = consultoriaFormulacoes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
   if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]'); return; }
+  // Comparação sempre olha só o 1º animal de cada formulação, mesmo quando ela tem vários (pedido do
+  // usuário — mantém a tabela de comparação simples e legível, sem empilhar vários animais por coluna).
   tbody.innerHTML = lista.map(fo=>{
-    const animais = formulacaoAnimais(fo);
+    const animal = formulacaoAnimais(fo)[0];
     return `<tr>
     ${tdCheck('consultoriaFormulacoesComparacao', fo.id)}
     <td><strong>${fo.nome||'—'}</strong></td>
-    <td title="${animais.map(a=>a.animalNome).join(', ')}">${animais.length>1?animais.length+' animais':formulacaoAnimaisNomes(fo)}</td>
+    <td>${animal?animal.animalNome:'—'}</td>
     <td>${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
-    <td>${animais.length===1&&animais[0].pesoKg?animais[0].pesoKg+' kg':(animais.length>1?'vários':'—')}</td>
+    <td>${animal&&animal.pesoKg?animal.pesoKg+' kg':'—'}</td>
   </tr>`;
   }).join('');
   sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]');
@@ -13946,28 +13948,23 @@ function compararFormulacoesConsultoria(){
   }
   // Da mais barata pra mais cara, pelo custo/kg da dieta (blend dos ingredientes) — não custo/dia nem
   // custo/mês, que dependem de quanto se dá por dia e não servem pra comparar o "preço" da dieta em si.
-  // Fornecido/custo (base) são os mesmos pra qualquer animal do grupo (1 receita só); Exigência × %
-  // atendimento mudam com o peso de cada um — por isso cada linha de nutriente mostra o Fornecido 1x
-  // e depois a exigência/atendimento de cada animal daquela formulação, empilhados.
+  // Comparação sempre usa só o 1º animal de cada formulação (pedido do usuário), mesmo quando ela tem
+  // vários — Fornecido/Custo são os mesmos pra qualquer animal do grupo de qualquer forma (1 receita só).
   const resumos = selecionadas.map(fo=>{
-    const base = calcResumoFormulacao({ itens: fo.itens });
-    const animais = formulacaoAnimais(fo);
-    const porAnimal = (animais.length?animais:[{animalNome:'',pesoKg:null}]).map(a=>{
-      const r = calcResumoFormulacao({ pesoKg:Number(a.pesoKg)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
-      return { animalNome:a.animalNome, exigencia:r.exigencia, pct:r.pct };
-    });
-    return { fo, base, porAnimal, animaisTxt: formulacaoAnimaisNomes(fo) };
+    const animaisFo = formulacaoAnimais(fo);
+    const animal = animaisFo[0] || {animalNome:'', pesoKg:null};
+    const resumo = calcResumoFormulacao({ pesoKg:Number(animal.pesoKg)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
+    return { fo, resumo, animalNome: animal.animalNome, nAnimais: animaisFo.length||1 };
   }).sort((a,b)=>{
-    const ca = a.base.custoPorKg, cb = b.base.custoPorKg;
+    const ca = a.resumo.custoPorKg, cb = b.resumo.custoPorKg;
     if(ca==null && cb==null) return 0;
     if(ca==null) return 1;
     if(cb==null) return -1;
     return ca - cb;
   });
-  const linhaNutriente = (label, campo, un) => `<tr><td><strong>${label}</strong></td>${resumos.map(({base, porAnimal})=>{
-    const forn = base.fornecido[campo];
-    const linhasAnimais = porAnimal.map(a=> `${a.animalNome?a.animalNome+': ':''}${fmtNumNutriente(a.exigencia[campo])} ${un} ${pillAtendimentoHtml(a.pct[campo])}`).join('<br>');
-    return `<td>Fornecido: ${fmtNumNutriente(forn)} ${un}<br>${linhasAnimais}</td>`;
+  const linhaNutriente = (label, campo, un) => `<tr><td><strong>${label}</strong></td>${resumos.map(({resumo})=>{
+    const exig = resumo.exigencia[campo], forn = resumo.fornecido[campo], pct = resumo.pct[campo];
+    return `<td>${fmtNumNutriente(forn)} / ${fmtNumNutriente(exig)} ${un}<br>${pillAtendimentoHtml(pct)}</td>`;
   }).join('')}</tr>`;
   const todosIngredientes = [...new Set(resumos.flatMap(({fo})=>(fo.itens||[]).map(it=>it.produtoId)))];
   const linhasIngredientes = todosIngredientes.map(produtoId=>{
@@ -13985,9 +13982,9 @@ function compararFormulacoesConsultoria(){
       <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>${linhasIngredientes || '<tr><td colspan="'+(resumos.length+1)+'" class="empty">Nenhum item.</td></tr>'}</tbody>
     </table></div>
-    <div class="section-label">Composição nutricional (Fornecido / Exigência de cada animal daquela formulação)</div>
+    <div class="section-label">Composição nutricional (Fornecido / Exigência do animal daquela formulação)</div>
     <div class="grid-wrap"><table class="grid grid-compare">
-      <thead><tr><th>Nutriente</th>${resumos.map(({fo, animaisTxt})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${animaisTxt}</span></th>`).join('')}</tr></thead>
+      <thead><tr><th>Nutriente</th>${resumos.map(({fo, animalNome})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${animalNome||'—'}</span></th>`).join('')}</tr></thead>
       <tbody>
         ${linhaNutriente('Energia Digestível (ED)','deKcal','Kcal')}
         ${linhaNutriente('Proteína Bruta (PB)','pbG','g')}
@@ -13995,16 +13992,18 @@ function compararFormulacoesConsultoria(){
         ${linhaNutriente('Fósforo (P)','pG','g')}
       </tbody>
     </table></div>
-    <div class="section-label">Custo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(sempre por 1 animal seguindo essa dieta, não multiplica pelo grupo)</span></div>
+    <div class="section-label">Custo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">("total" já multiplica pelos animais reais daquela formulação; "por animal" é sempre de 1 só, pra comparar o preço da dieta em si)</span></div>
     <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>
-        <tr><td>Custo/kg da dieta</td>${resumos.map(({base})=>`<td>${base.custoPorKg!=null?fmtMoeda(base.custoPorKg,'BRL'):'—'}</td>`).join('')}</tr>
-        <tr><td>Custo/dia</td>${resumos.map(({base})=>`<td>${fmtMoeda(base.custoDia,'BRL')}</td>`).join('')}</tr>
-        <tr><td>Custo/mês</td>${resumos.map(({base})=>`<td>${fmtMoeda(base.custoMes,'BRL')}</td>`).join('')}</tr>
+        <tr><td>Custo/kg da dieta</td>${resumos.map(({resumo})=>`<td>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`).join('')}</tr>
+        <tr><td>Custo/dia total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
+        <tr><td>Custo/dia/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
+        <tr><td>Custo/mês total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
+        <tr><td>Custo/mês/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoMes,'BRL')}</td>`).join('')}</tr>
       </tbody>
     </table></div>
-    ${resumos.some(({base})=>base.avisos.length>0) ? `<div style="margin-top:10px;">${resumos.map(({base})=>avisosNutrientesHtml(base)).join('')}</div>` : ''}
+    ${resumos.some(({resumo})=>resumo.avisos.length>0) ? `<div style="margin-top:10px;">${resumos.map(({resumo})=>avisosNutrientesHtml(resumo)).join('')}</div>` : ''}
   `;
   document.getElementById('btnPdfComparacaoConsultoria').style.display = 'inline-block';
 }
@@ -14012,11 +14011,24 @@ document.getElementById('btnCompararFormulacoesConsultoria').addEventListener('c
 document.getElementById('btnPdfComparacaoConsultoria').addEventListener('click', ()=>{
   const conteudo = document.getElementById('ccResultado').innerHTML;
   if(!conteudo.trim()) return;
-  const cabecalho = `<h1 style="border:none;">Comparação de Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>`;
   // Paisagem quando dá pra encher a folha de colunas (mesmo critério de outros relatórios do app, ex:
   // Treinos/Coberturas com tabela larga) — com 2-3 formulações portrait ainda cabe, com mais fica apertado.
   const nComparadas = selLista('consultoriaFormulacoesComparacao').size;
-  baixarRelatorioManejoPDF(`<div class="report-card print-block">${cabecalho}${conteudo}</div>`, 'Comparacao_Formulacoes.pdf', nComparadas>=4?{orientation:'landscape'}:undefined);
+  const usarPaisagem = nComparadas>=4;
+  // Antes de gerar: soma quanto cada coluna (1 rótulo fixa + 1 por formulação) ocupa na largura fixa do
+  // PDF (LARGURA_CONTEUDO_*, mesma usada por baixarRelatorioManejoPDF — ajustarTabelasRelatorio força
+  // todas as colunas a ficarem do mesmo tamanho dentro dela). Se passar do mínimo legível — a tabela de
+  // nutrientes empilha "Fornecido" + exigência/% de cada animal, então precisa de uma largura mínima
+  // decente — avisa e NÃO gera, em vez de sair com letra espremida/ilegível.
+  const LABEL_COL_PX = 140, MIN_COL_PX = 120;
+  const larguraDisponivel = (usarPaisagem ? LARGURA_CONTEUDO_PAISAGEM : LARGURA_CONTEUDO_RETRATO) - LABEL_COL_PX;
+  const maxFormulacoes = Math.floor(larguraDisponivel / MIN_COL_PX);
+  if(nComparadas > maxFormulacoes){
+    showAlert(`Com ${nComparadas} formulações marcadas, as colunas ficam pequenas demais pra ler no PDF (cabem no máximo ${maxFormulacoes} de uma vez, mesmo em paisagem). Desmarque algumas na lista e gere de novo.`);
+    return;
+  }
+  const cabecalho = `<h1 style="border:none;">Comparação de Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>`;
+  baixarRelatorioManejoPDF(`<div class="report-card print-block">${cabecalho}${conteudo}</div>`, 'Comparacao_Formulacoes.pdf', usarPaisagem?{orientation:'landscape'}:undefined);
 });
 
 /* ---- Relatório da visita: substitui o placeholder "Disponível na Fase 2" (ver gerarConteudoRelatorioConsultoriaPDF
