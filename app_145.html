@@ -288,6 +288,14 @@
   .lista-toolbar .lista-toolbar-info{margin:0 auto 0 0;font-size:11.5px;color:var(--muted);max-width:60%;}
   table.grid th.col-check, table.grid td.col-check{width:34px;text-align:center;padding-left:6px;padding-right:6px;}
   .empty{text-align:center;padding:60px 20px;color:var(--muted);}
+  /* Tabelas de comparação (ex: Consultoria → Comparação de formulações) podem ter muitas colunas, uma
+     por item comparado — em vez de espremer tudo pra caber (como as listas normais, width:100%), essa
+     variante deixa a tabela crescer e o .grid-wrap (que já tem overflow:auto) rola na horizontal. A
+     1ª coluna (rótulo da linha) fica fixa (sticky) pra continuar visível ao rolar. */
+  table.grid.grid-compare{width:auto;min-width:100%;overflow:visible;}
+  table.grid.grid-compare th, table.grid.grid-compare td{min-width:130px;}
+  table.grid.grid-compare th:first-child, table.grid.grid-compare td:first-child{position:sticky;left:0;z-index:1;background:var(--card);min-width:170px;}
+  table.grid.grid-compare th:first-child{background:var(--green);z-index:2;}
 
   .overlay{position:fixed;inset:0;background:rgba(20,16,10,0.5);display:none;align-items:flex-start;justify-content:center;padding:36px 20px;overflow-y:auto;z-index:50;}
   .overlay.show{display:flex;}
@@ -1695,7 +1703,7 @@
 
       <!-- CONSULTORIA (Fase 2): Comparação entre formulações -->
       <div id="csview_comparacao" style="display:none;">
-        <div class="hint-text" style="margin-bottom:10px;">Marque de 2 a 3 formulações pra comparar lado a lado (ingredientes, composição nutricional, exigência × atendimento e custo).</div>
+        <div class="hint-text" style="margin-bottom:10px;">Marque 2 ou mais formulações pra comparar lado a lado (ingredientes, composição nutricional, exigência × atendimento e custo) — com muitas marcadas, a tabela rola na horizontal.</div>
         <div class="lista-toolbar">
           <button class="btn" id="btnCompararFormulacoesConsultoria" style="margin-right:auto;">Comparar selecionadas</button>
           <button type="button" class="btn btn-ghost btn-sm" id="btnPdfComparacaoConsultoria" style="display:none;">📄 Baixar PDF da comparação</button>
@@ -13750,8 +13758,8 @@ function compararFormulacoesConsultoria(){
   const sel = selLista('consultoriaFormulacoesComparacao');
   const selecionadas = consultoriaFormulacoes.filter(fo=>sel.has(String(fo.id)));
   const host = document.getElementById('ccResultado');
-  if(selecionadas.length<2 || selecionadas.length>3){
-    host.innerHTML = `<div class="hint-text">Marque de 2 a 3 formulações pra comparar (${selecionadas.length} marcada(s) agora).</div>`;
+  if(selecionadas.length<2){
+    host.innerHTML = `<div class="hint-text">Marque 2 ou mais formulações pra comparar (${selecionadas.length} marcada(s) agora).</div>`;
     document.getElementById('btnPdfComparacaoConsultoria').style.display = 'none';
     return;
   }
@@ -13772,12 +13780,12 @@ function compararFormulacoesConsultoria(){
   }).join('');
   host.innerHTML = `
     <div class="section-label" style="border-top:none;">Ingredientes e quantidades</div>
-    <div class="grid-wrap"><table class="grid">
+    <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>${linhasIngredientes || '<tr><td colspan="'+(resumos.length+1)+'" class="empty">Nenhum item.</td></tr>'}</tbody>
     </table></div>
     <div class="section-label">Composição nutricional (Fornecido / Exigência do animal daquela formulação)</div>
-    <div class="grid-wrap"><table class="grid">
+    <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th>Nutriente</th>${resumos.map(({fo})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${fo.animalNome||''}</span></th>`).join('')}</tr></thead>
       <tbody>
         ${linhaNutriente('Energia Digestível (ED)','deKcal','Kcal')}
@@ -13787,7 +13795,7 @@ function compararFormulacoesConsultoria(){
       </tbody>
     </table></div>
     <div class="section-label">Custo</div>
-    <div class="grid-wrap"><table class="grid">
+    <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>
         <tr><td>Custo/dia</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
