@@ -5053,6 +5053,7 @@ function renderHorses(){
   const soChip = document.getElementById('btnAnimSelSo');
   if(soChip){ soChip.classList.toggle('active', soSelecionadosAnimais); soChip.textContent = `👁 Só selecionados (${selectedHorseIds.size})`; }
   renderValorSelecaoBar(filtered);
+  aplicarOrdemColunas('animais');
 }
 document.getElementById('hSelectAll').addEventListener('change', (e)=>{
   const rows = document.querySelectorAll('#hTbody .hRowSelect');
@@ -5510,6 +5511,7 @@ function atualizarTelasQueDependemDeAnimais(){
    ordenarListaGenerica('X', arr, getVal) e chama marcarSetasOrdenacao('X', seletor). */
 const ordListaEstado = {}; // { listaId: {col, dir} }
 const ORD_RENDERERS = {};  // listaId -> função de re-render
+ORD_RENDERERS.animais = renderHorses; // renderHorses é definida bem antes desse bloco — função hoisted, sem problema
 function ordenarListaGenerica(listaId, arr, getVal){
   const st = ordListaEstado[listaId];
   if(!st || !st.col) return arr;
@@ -5763,6 +5765,7 @@ function renderManejos(){
   });
   updateManejoSelUI();
   marcarSetasOrdenacao('manejos', '#view-manejos [data-lista="manejos"]');
+  aplicarOrdemColunas('manejos');
 }
 ORD_RENDERERS.manejos = renderManejos;
 function updateManejoSelUI(){
@@ -9167,6 +9170,7 @@ function renderTransportes(){
     renderTransportes(); renderHorses();
     showAlert('Transporte marcado como realizado.'+(count>0?(' Localização atualizada em '+count+' animal(is).'):''));
   }));
+  aplicarOrdemColunas('transporte');
 }
 ORD_RENDERERS.transporte = renderTransportes;
 document.getElementById('tpSearch').addEventListener('input', debounce(renderTransportes));
@@ -9476,6 +9480,7 @@ function renderTreinos(){
     treinos = treinos.filter(t=>t.id!==b.dataset.del);
     await storeSet('treinos_list', treinos, true); renderTreinos(); renderFinanceiro();
   }));
+  aplicarOrdemColunas('treinos');
 }
 ORD_RENDERERS.treinos = renderTreinos;
 document.getElementById('tFiltroTipo').addEventListener('input', renderTreinos);
@@ -10498,6 +10503,7 @@ function renderNascimentos(){
     atualizarCoberturaSelAll();
   }));
   atualizarCoberturaSelAll();
+  aplicarOrdemColunas('coberturas');
 }
 const coberturaSel = new Set();
 function atualizarCoberturaSelAll(){
@@ -11285,16 +11291,65 @@ function aplicarColunasListas(){
     sty.textContent = ocultas.map(k=> `table[data-lista="${listaId}"] [data-col="${k}"]{display:none;}`).join('\n');
   });
 }
+/* ===== ORDEM DAS COLUNAS (setinhas ▲▼ dentro de "⚙ Colunas") =====
+   Além de mostrar/esconder, cada lista aqui listada também deixa reordenar as colunas opcionais
+   (as com data-col — a 1ª coluna de cada tabela, tipo "Nome", não entra: fica sempre fixa no início).
+   Pra ligar numa lista nova: 1) incluir o listaId aqui embaixo; 2) chamar aplicarOrdemColunas('X') no
+   fim da função que renderiza a tabela de X (mesmo lugar que já chama sincronizarSelecaoLista).
+   Fica de fora de propósito: 'dietas' — a Dieta operacional não é pra mexer em nada nela. */
+const ORDEM_COLUNAS_SUPORTADA = new Set([
+  'animais', 'manejos', 'transporte', 'treinos', 'coberturas', 'estoqueMov',
+  'vetLista', 'vetVisitas', 'vetTratamentos', 'financeiro', 'funcionarios',
+  'consultoriaVisitas', 'consultoriaHistorico', 'consultoriaFormulacoes',
+]);
+function ordemColunasSalva(listaId){
+  return ((config.colunasListas||{})[listaId]||{})._ordem || [];
+}
+function reordenarCelulasPorDataCol(tr, ordem){
+  const filhos = [...tr.children];
+  const comCol = filhos.filter(el=>el.dataset.col);
+  if(comCol.length===0) return;
+  const primeiroIdx = filhos.indexOf(comCol[0]);
+  const mapa = new Map(comCol.map(el=>[el.dataset.col, el]));
+  const novaOrdemEls = [
+    ...ordem.filter(k=>mapa.has(k)).map(k=>mapa.get(k)),
+    ...comCol.filter(el=>!ordem.includes(el.dataset.col)), // coluna nova que ainda não está na ordem salva vai pro fim
+  ];
+  comCol.forEach(el=>el.remove());
+  const ref = tr.children[primeiroIdx] || null; // depois de remover, é onde a 1ª coluna reordenável deve voltar
+  novaOrdemEls.forEach(el=> tr.insertBefore(el, ref));
+}
+// Reaplica a ordem salva na tabela renderizada agora — chamar no fim de todo re-render da lista (a
+// ordem não "gruda" sozinha: cada render monta as linhas do zero, então isso tem que rodar toda vez).
+function aplicarOrdemColunas(listaId){
+  const ordem = ordemColunasSalva(listaId);
+  if(!ordem.length) return;
+  const tabela = document.querySelector(`table[data-lista="${listaId}"]`);
+  if(!tabela) return;
+  const headTr = tabela.querySelector('thead tr');
+  if(headTr) reordenarCelulasPorDataCol(headTr, ordem);
+  tabela.querySelectorAll('tbody tr').forEach(tr=> reordenarCelulasPorDataCol(tr, ordem));
+}
 function abrirSeletorColunas(listaId){
   const tabela = document.querySelector(`table[data-lista="${listaId}"]`);
   if(!tabela){ showAlert('Essa lista ainda não abriu — abra a aba dela primeiro e tente de novo.'); return; }
   const ths = [...tabela.querySelectorAll('thead th[data-col]')];
   const ocultas = colunasOcultas(listaId);
   document.getElementById('colunasGenericoTitulo').textContent = LISTA_COLUNAS_TITULO[listaId] || 'Colunas da lista';
-  document.getElementById('colunasGenericoHost').innerHTML = ths.map(th=>{
-    const k = th.dataset.col;
+  const podeReordenar = ORDEM_COLUNAS_SUPORTADA.has(listaId);
+  const ordemSalva = ordemColunasSalva(listaId);
+  const chaves = ths.map(th=>th.dataset.col);
+  // Linhas do seletor na ordem atual das colunas (se já reordenou antes) — senão, na ordem natural da tabela.
+  const chavesOrdenadas = podeReordenar ? [...ordemSalva.filter(k=>chaves.includes(k)), ...chaves.filter(k=>!ordemSalva.includes(k))] : chaves;
+  const thPorChave = new Map(ths.map(th=>[th.dataset.col, th]));
+  document.getElementById('colunasGenericoHost').innerHTML = chavesOrdenadas.map((k,i)=>{
+    const th = thPorChave.get(k);
+    const setas = podeReordenar ? `<span style="margin-left:auto;display:flex;gap:2px;">
+      <button type="button" class="btn btn-sm btn-ghost" data-colmover="${k}" data-coldir="up" ${i===0?'disabled':''} title="Mover pra cima" style="padding:2px 7px;">▲</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-colmover="${k}" data-coldir="down" ${i===chavesOrdenadas.length-1?'disabled':''} title="Mover pra baixo" style="padding:2px 7px;">▼</button>
+    </span>` : '';
     return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-      <input type="checkbox" data-colgen="${k}" ${ocultas.has(k)?'':'checked'}> ${th.textContent.trim()||k}
+      <input type="checkbox" data-colgen="${k}" ${ocultas.has(k)?'':'checked'}> ${th.textContent.trim()||k}${setas}
     </label>`;
   }).join('') || '<div class="hint-text">Essa lista não tem colunas opcionais.</div>';
   document.getElementById('colunasGenericoHost').querySelectorAll('[data-colgen]').forEach(cb=>{
@@ -11307,6 +11362,25 @@ function abrirSeletorColunas(listaId){
       aplicarColunasListas();
     });
   });
+  if(podeReordenar){
+    document.getElementById('colunasGenericoHost').querySelectorAll('[data-colmover]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const chave = btn.dataset.colmover, dir = btn.dataset.coldir;
+        const nova = [...chavesOrdenadas];
+        const idx = nova.indexOf(chave);
+        const alvo = dir==='up' ? idx-1 : idx+1;
+        if(alvo<0 || alvo>=nova.length) return;
+        [nova[idx], nova[alvo]] = [nova[alvo], nova[idx]];
+        if(!config.colunasListas) config.colunasListas = {};
+        if(!config.colunasListas[listaId]) config.colunasListas[listaId] = {};
+        config.colunasListas[listaId]._ordem = nova;
+        salvarColunasPrefsLocais();
+        await storeSet('config', config);
+        const fn = ORD_RENDERERS[listaId]; if(fn) fn(); // já chama aplicarOrdemColunas no fim de cada render
+        abrirSeletorColunas(listaId); // reabre a mesma janela com as setinhas já refletindo a nova ordem
+      });
+    });
+  }
   openModal('overlayColunasGenerico');
 }
 document.addEventListener('click', e=>{
@@ -12778,7 +12852,9 @@ function renderConsultoriaVisitas(){
     btn.addEventListener('click', e=>{ e.stopPropagation(); excluirVisitaConsultoria(btn.dataset.delvisitacons); });
   });
   sincronizarSelecaoLista('consultoriaVisitas', '#csview_visitas [data-lista="consultoriaVisitas"]');
+  aplicarOrdemColunas('consultoriaVisitas');
 }
+ORD_RENDERERS.consultoriaVisitas = renderConsultoriaVisitas;
 
 /* ---- CRUD Visita ---- */
 function openVisitaConsultoriaNew(){
@@ -13144,7 +13220,9 @@ function renderConsultoriaHistorico(){
     btn.addEventListener('click', ()=> excluirVisitaConsultoria(btn.dataset.delvisitacons));
   });
   sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]');
+  aplicarOrdemColunas('consultoriaHistorico');
 }
+ORD_RENDERERS.consultoriaHistorico = renderConsultoriaHistorico;
 
 /* ---- Relatório da visita (PDF) — reaproveita baixarRelatorioManejoPDF (7877), sem alterá-la ---- */
 document.getElementById('btnGerarRelatorioConsultoria').addEventListener('click', ()=>{
@@ -13571,6 +13649,7 @@ function renderConsultoriaFormulacoes(){
     btn.addEventListener('click', ()=> excluirFormulacaoConsultoria(btn.dataset.delformulacaocons));
   });
   sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]');
+  aplicarOrdemColunas('consultoriaFormulacoes');
 }
 ORD_RENDERERS.consultoriaFormulacoes = renderConsultoriaFormulacoes;
 
@@ -14442,6 +14521,7 @@ function renderVisitas(){
     gerarRelatorioVisitaUnica(b.dataset.relvisita);
   }));
   if(typeof renderVetLista==='function') renderVetLista();
+  aplicarOrdemColunas('vetVisitas');
 }
 ORD_RENDERERS.vetVisitas = renderVisitas;
 let visitasFiltradasAtual = [];
@@ -15103,6 +15183,7 @@ function renderTratamentos(){
   });
   updateTratSelUI();
   if(typeof renderVetLista==='function') renderVetLista();
+  aplicarOrdemColunas('vetTratamentos');
 }
 ORD_RENDERERS.vetTratamentos = renderTratamentos;
 function updateTratSelUI(){
@@ -15179,6 +15260,7 @@ function renderVetLista(){
     const [tipo,id] = b.dataset.vleditar.split('|');
     if(tipo==='visita') openVisitaEdit(id); else openTratamentoEdit(id);
   }));
+  aplicarOrdemColunas('vetLista');
 }
 ORD_RENDERERS.vetLista = renderVetLista;
 document.getElementById('vlSearch').addEventListener('input', debounce(renderVetLista));
@@ -15607,6 +15689,7 @@ function renderMovimentos(){
   </tr>`).join('');
   sincronizarSelecaoLista('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]');
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'movimentos')));
+  aplicarOrdemColunas('estoqueMov');
 }
 ORD_RENDERERS.estoqueMov = renderMovimentos;
 ['movFiltroTipo','movFiltroOrigem'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
@@ -16316,6 +16399,7 @@ function renderFinanceiro(){
     navegarParaOrigemFinanceiro(b.dataset.tipoorigemfin, b.dataset.idorigemfin);
   }));
   if(finTabAtiva==='custoanimal') renderCustoPorAnimalTab();
+  aplicarOrdemColunas('financeiro');
 }
 ORD_RENDERERS.financeiro = renderFinanceiro;
 // Vai pra tela/aba/registro de origem de um lançamento derivado — usado tanto no "Ver em X" da lista
@@ -17060,6 +17144,7 @@ function renderFuncionarios(){
     irParaView('financeiro');
     setTimeout(()=>{ document.getElementById('finSearch').value = b.dataset.verlancfunc; renderFinanceiro(); }, 30);
   }));
+  aplicarOrdemColunas('funcionarios');
 }
 ORD_RENDERERS.funcionarios = renderFuncionarios;
 function openFuncionarioNew(){
