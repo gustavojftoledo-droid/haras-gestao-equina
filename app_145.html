@@ -11415,13 +11415,23 @@ function renderEstoque(){
               ? `Previsão: acaba em ${proj.diasRestantes===Infinity?'—':proj.diasRestantes+' dia(s)'} (consumo médio ${proj.consumoSemanal.toFixed(1)}${un}/semana)`
               : 'Previsão por consumo: ainda sem saídas registradas pra calcular';
           }
+          // Coluna Valor sempre mostra o preço JÁ CONVERTIDO por unidade (mesma conta de
+          // custoUnitarioProduto usada em custos/Dietas) — pra quem cadastrou "pela embalagem inteira"
+          // não precisar abrir o produto pra saber quanto sai o Kg/UN/ML.
+          const custoUnit = custoUnitarioProduto(p);
+          const unidadeValor = (p.unidade||'un').toLowerCase();
+          let valorTxt = '—', valorTitle = '';
+          if(custoUnit!=null){
+            valorTxt = fmtMoeda(custoUnit,'BRL')+'/'+unidadeValor;
+            if(p.valorPorPacote && Number(p.pesoSaco)>0) valorTitle = ` title="${fmtMoeda(parseValorLivre(p.valor),'BRL')} pela embalagem de ${p.pesoSaco} ${unidadeValor}"`;
+          }
           return `<tr data-id="${p.id}">
             <td><input type="checkbox" class="eRowSelect" data-id="${p.id}" ${selectedProdutoIds.has(p.id)?'checked':''} onclick="event.stopPropagation()"></td>
             <td><strong>${p.nome||''}</strong></td>
             ${cv.classe ? `<td>${p.classe||'—'}</td>` : ''}
             ${cv.unidade ? `<td>${p.unidade||''}</td>` : ''}
             ${cv.quantidade ? `<td>${pillClass?`<span class="pill ${pillClass}" ${titleProj?`title="${titleProj}"`:''}>${qtdTxt}</span>`:`<span ${titleProj?`title="${titleProj}"`:''}>${qtdTxt}</span>`}</td>` : ''}
-            ${cv.valor ? `<td>${p.valor||'—'}</td>` : ''}
+            ${cv.valor ? `<td${valorTitle}>${valorTxt}</td>` : ''}
             ${cv.validade ? `<td>${p.validade?fmtDate(p.validade):'—'}</td>` : ''}
             ${cv.obs ? `<td>${p.obs||''}</td>` : ''}
           </tr>`;
