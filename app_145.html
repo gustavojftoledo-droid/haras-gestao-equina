@@ -2722,10 +2722,21 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       </div>
       <div class="field full"><label>Categoria de atividade</label><select id="csf_categoria"></select></div>
     </div>
-    <div class="field full" style="margin-bottom:8px;"><label>Animal(is) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(marque um ou mais — a mesma receita pode ser testada em vários animais; o custo mostrado é sempre de 1 animal seguindo essa dieta, nunca multiplicado pelo grupo)</span></label></div>
+    <div class="field full" style="margin-bottom:8px;">
+      <label>Animal(is) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(marque um ou mais — a mesma receita pode ser testada em vários animais; o custo mostrado é sempre de 1 animal seguindo essa dieta, nunca multiplicado pelo grupo)</span></label>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button type="button" class="btn btn-sm" id="csfModoIndividual" data-csfmodo="individual">Selecionar animais</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="csfModoGrupo" data-csfmodo="grupo">Informar quantidade</button>
+      </div>
+    </div>
     <div id="csfAnimalSelectorHost"></div>
-    <div class="section-label" style="border-top:none;">Peso de cada animal <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(sugerido do cadastro — editável; usado só pra calcular a exigência nutricional de cada um)</span></div>
+    <div id="csfPesoBlocosLabel" class="section-label" style="border-top:none;">Peso de cada animal <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(sugerido do cadastro — editável; usado só pra calcular a exigência nutricional de cada um)</span></div>
     <div id="csfPesoBlocosHost"></div>
+    <div id="csfGrupoHost" class="form-grid" style="display:none;">
+      <div class="field"><label>Quantidade de animais</label><input type="number" step="1" min="1" id="csf_grupoQtd" placeholder="Ex: 12"></div>
+      <div class="field"><label>Peso médio (kg)</label><input type="number" step="0.1" min="0" id="csf_grupoPeso" placeholder="Ex: 350"></div>
+      <div class="field full hint-text">Sem escolher os animais um a um — usa esse peso médio pra calcular a exigência nutricional (de um animal "típico" do grupo) e multiplica o custo pela quantidade informada.</div>
+    </div>
     <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <span>Itens (alimentos)</span>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAddItemFormulacaoConsultoria">+ Adicionar item</button>
@@ -13498,6 +13509,24 @@ function renderPesoBlocosFormulacao(){
     });
   });
 }
+// Modo "quantidade de animais": alternativa a selecionar cada animal — pra grupos/lotes que não valem
+// a pena cadastrar um a um (ex: "12 animais de ~350kg"). Alterna a UI (mostra/esconde) sem apagar o que
+// já foi preenchido no outro modo, pra não perder trabalho se o usuário for e voltar.
+let csfModoAnimais = 'individual'; // 'individual' | 'grupo'
+function setCsfModoAnimais(modo){
+  csfModoAnimais = modo;
+  document.getElementById('csfModoIndividual').className = 'btn btn-sm' + (modo==='individual'?'':' btn-ghost');
+  document.getElementById('csfModoGrupo').className = 'btn btn-sm' + (modo==='grupo'?'':' btn-ghost');
+  document.getElementById('csfAnimalSelectorHost').style.display = modo==='individual' ? '' : 'none';
+  document.getElementById('csfPesoBlocosLabel').style.display = modo==='individual' ? '' : 'none';
+  document.getElementById('csfPesoBlocosHost').style.display = modo==='individual' ? '' : 'none';
+  document.getElementById('csfGrupoHost').style.display = modo==='grupo' ? '' : 'none';
+  renderConsultoriaFormulacaoResultado();
+}
+document.getElementById('csfModoIndividual').addEventListener('click', ()=>setCsfModoAnimais('individual'));
+document.getElementById('csfModoGrupo').addEventListener('click', ()=>setCsfModoAnimais('grupo'));
+document.getElementById('csf_grupoQtd').addEventListener('input', renderConsultoriaFormulacaoResultado);
+document.getElementById('csf_grupoPeso').addEventListener('input', renderConsultoriaFormulacaoResultado);
 document.getElementById('csf_categoria').addEventListener('input', renderConsultoriaFormulacaoResultado);
 document.getElementById('csf_categoria').addEventListener('change', renderConsultoriaFormulacaoResultado);
 
@@ -13549,11 +13578,21 @@ document.getElementById('btnAddItemFormulacaoConsultoria').addEventListener('cli
 function formulacaoAnimais(fo){
   if(Array.isArray(fo.animais) && fo.animais.length) return fo.animais;
   if(fo.animalId) return [{ animalId: fo.animalId, animalNome: fo.animalNome||'', pesoKg: fo.pesoKg }];
+  // Modo "quantidade de animais" (sem selecionar cada um): representa o grupo por 1 bloco só, com o peso
+  // médio informado — a Exigência NRC calculada aqui vale pro "animal típico" do grupo; ver formulacaoNumAnimais
+  // pra saber quantos animais de verdade multiplicam o custo (não repete o bloco N vezes, ficaria redundante).
+  if(fo.grupoQtd) return [{ animalId:null, animalNome:`Grupo de ${fo.grupoQtd} animais`, pesoKg: fo.grupoPesoKg }];
   return [];
 }
 // Nomes dos animais de uma formulação, juntos — usado nas listas/relatórios quando não cabe 1 bloco por animal.
 function formulacaoAnimaisNomes(fo){
   return formulacaoAnimais(fo).map(a=>a.animalNome).filter(Boolean).join(', ') || '—';
+}
+// Quantos animais de verdade essa formulação representa, pra multiplicar custo — no modo "quantidade" é o
+// número informado (não 1, que é só o tamanho do bloco de exigência retornado por formulacaoAnimais).
+function formulacaoNumAnimais(fo){
+  if(fo.grupoQtd) return Number(fo.grupoQtd)||1;
+  return formulacaoAnimais(fo).length || 1;
 }
 /* ---- Cálculo exigência × fornecido × custo — função única, reaproveitada no painel ao vivo da
    Formulação, na Comparação e no Relatório da Visita, pra nunca duplicar a lógica de cálculo/HTML. ---- */
@@ -13623,14 +13662,19 @@ function avisosNutrientesHtml(resumo){
 function renderConsultoriaFormulacaoResultado(){
   const categoria = f('csf_categoria');
   const host = document.getElementById('csfResultadoHost');
-  if(csfPesoLoteState.length===0){
-    host.innerHTML = '<div class="hint-text">Selecione ao menos um animal acima pra calcular a exigência nutricional.</div>';
+  // No modo grupo, o "peso lote" vira 1 bloco só — o animal "típico" do grupo, com o peso médio informado.
+  const blocos = csfModoAnimais==='grupo'
+    ? (f('csf_grupoQtd') && Number(f('csf_grupoQtd'))>0 ? [{ animalNome:`Grupo de ${f('csf_grupoQtd')} animais (peso médio)`, pesoKg:f('csf_grupoPeso') }] : [])
+    : csfPesoLoteState;
+  const nAnimaisGrupo = csfModoAnimais==='grupo' ? (Number(f('csf_grupoQtd'))||1) : 1;
+  if(blocos.length===0){
+    host.innerHTML = `<div class="hint-text">${csfModoAnimais==='grupo' ? 'Informe a quantidade de animais acima pra calcular a exigência nutricional.' : 'Selecione ao menos um animal acima pra calcular a exigência nutricional.'}</div>`;
     document.getElementById('csfAvisos').innerHTML = '';
     document.getElementById('csfCusto').textContent = '';
     return;
   }
   let resumoPrincipal = null;
-  host.innerHTML = csfPesoLoteState.map(item=>{
+  host.innerHTML = blocos.map(item=>{
     const resumo = calcResumoFormulacao({ pesoKg:Number(item.pesoKg)||0, categoriaAtividade:categoria, itens:consultoriaFormulacaoItensState });
     if(!resumoPrincipal) resumoPrincipal = resumo;
     return `<div style="margin-bottom:14px;">
@@ -13642,7 +13686,10 @@ function renderConsultoriaFormulacaoResultado(){
     </div>`;
   }).join('');
   document.getElementById('csfAvisos').innerHTML = resumoPrincipal ? avisosNutrientesHtml(resumoPrincipal) : '';
-  document.getElementById('csfCusto').textContent = resumoPrincipal ? `Custo estimado (por 1 animal seguindo essa dieta): ${fmtMoeda(resumoPrincipal.custoDia,'BRL')}/dia · ${fmtMoeda(resumoPrincipal.custoMes,'BRL')}/mês` : '';
+  document.getElementById('csfCusto').textContent = resumoPrincipal
+    ? `Custo estimado (por 1 animal seguindo essa dieta): ${fmtMoeda(resumoPrincipal.custoDia,'BRL')}/dia · ${fmtMoeda(resumoPrincipal.custoMes,'BRL')}/mês`
+      + (nAnimaisGrupo>1 ? ` · Total do grupo (${nAnimaisGrupo} animais): ${fmtMoeda(resumoPrincipal.custoDia*nAnimaisGrupo,'BRL')}/dia · ${fmtMoeda(resumoPrincipal.custoMes*nAnimaisGrupo,'BRL')}/mês` : '')
+    : '';
 }
 // Abre o Estoque pra cadastrar os nutrientes de um produto SEM fechar (nem perder) a Formulação aberta:
 // só esconde ela visualmente (visibility, não display/close — o formulário em memória não se mexe) enquanto
@@ -13682,7 +13729,7 @@ function renderConsultoriaFormulacoes(){
     if(col==='peso'){ const as=formulacaoAnimais(fo); return as.length===1?(Number(as[0].pesoKg)||0):0; }
     if(col==='custokg') return calcResumoFormulacao({itens:fo.itens}).custoPorKg||0;
     if(col==='custo') return calcResumoFormulacao({itens:fo.itens}).custoMes||0;
-    if(col==='custototal'){ const n=formulacaoAnimais(fo).length||1; return (calcResumoFormulacao({itens:fo.itens}).custoMes||0)*n; }
+    if(col==='custototal'){ const n=formulacaoNumAnimais(fo); return (calcResumoFormulacao({itens:fo.itens}).custoMes||0)*n; }
     return '';
   });
   consultoriaFormulacoesListaAtual = lista;
@@ -13691,7 +13738,7 @@ function renderConsultoriaFormulacoes(){
   tbody.innerHTML = lista.map(fo=>{
     const resumo = calcResumoFormulacao({itens:fo.itens});
     const animais = formulacaoAnimais(fo);
-    const nAnimais = animais.length||1;
+    const nAnimais = formulacaoNumAnimais(fo);
     const pesoTxt = animais.length===1 ? (animais[0].pesoKg?animais[0].pesoKg+' kg':'—') : (animais.length>1?'vários':'—');
     return `<tr>
       ${tdCheck('consultoriaFormulacoes', fo.id)}
@@ -13752,6 +13799,9 @@ function openFormulacaoConsultoriaNew(){
   csfPesoLoteState = [];
   csfAnimalSelector.reset();
   renderPesoBlocosFormulacao();
+  document.getElementById('csf_grupoQtd').value = '';
+  document.getElementById('csf_grupoPeso').value = '';
+  setCsfModoAnimais('individual');
   document.getElementById('csf_categoria').value = 'manutencao';
   document.getElementById('csf_obs').value = '';
   consultoriaFormulacaoItensState = [];
@@ -13765,9 +13815,21 @@ function openFormulacaoConsultoriaEdit(id){
   document.getElementById('btnDeleteFormulacaoConsultoria').style.display = 'inline-block';
   document.getElementById('csf_nome').value = fo.nome||'';
   popularSelectCopiarFormulacao(id);
-  csfPesoLoteState = formulacaoAnimais(fo).map(a=>({ animalId:a.animalId, animalNome:a.animalNome, pesoKg: a.pesoKg!=null?a.pesoKg:'' }));
-  csfAnimalSelector.setSelected(csfPesoLoteState.map(it=>({id:it.animalId}))); // não dispara onChange — não sobrescreve o peso já carregado acima
-  renderPesoBlocosFormulacao();
+  if(fo.grupoQtd){
+    csfPesoLoteState = [];
+    csfAnimalSelector.reset();
+    renderPesoBlocosFormulacao();
+    document.getElementById('csf_grupoQtd').value = fo.grupoQtd;
+    document.getElementById('csf_grupoPeso').value = fo.grupoPesoKg!=null?fo.grupoPesoKg:'';
+    setCsfModoAnimais('grupo');
+  } else {
+    document.getElementById('csf_grupoQtd').value = '';
+    document.getElementById('csf_grupoPeso').value = '';
+    csfPesoLoteState = formulacaoAnimais(fo).map(a=>({ animalId:a.animalId, animalNome:a.animalNome, pesoKg: a.pesoKg!=null?a.pesoKg:'' }));
+    csfAnimalSelector.setSelected(csfPesoLoteState.map(it=>({id:it.animalId}))); // não dispara onChange — não sobrescreve o peso já carregado acima
+    renderPesoBlocosFormulacao();
+    setCsfModoAnimais('individual');
+  }
   document.getElementById('csf_categoria').value = fo.categoriaAtividade || 'manutencao';
   document.getElementById('csf_obs').value = fo.obs||'';
   consultoriaFormulacaoItensState = (fo.itens||[]).map(it=>({produtoId:it.produtoId, horario:it.horario||'Manhã', quantidade:it.quantidade!=null?it.quantidade:''}));
@@ -13778,7 +13840,10 @@ document.getElementById('btnNewFormulacaoConsultoria').addEventListener('click',
 document.getElementById('btnSaveFormulacaoConsultoria').addEventListener('click', async ()=>{
   const nome = f('csf_nome').trim();
   if(!nome){ showAlert('Informe o nome da formulação.'); document.getElementById('csf_nome').focus(); return; }
-  if(csfPesoLoteState.length===0){ showAlert('Selecione ao menos um animal.'); return; }
+  const modoGrupo = csfModoAnimais==='grupo';
+  const grupoQtd = Number(f('csf_grupoQtd'))||0;
+  if(modoGrupo && grupoQtd<=0){ showAlert('Informe a quantidade de animais.'); return; }
+  if(!modoGrupo && csfPesoLoteState.length===0){ showAlert('Selecione ao menos um animal (ou use "Informar quantidade").'); return; }
   const itens = consultoriaFormulacaoItensState
     .filter(it=>it.produtoId && Number(it.quantidade)>0)
     .map(it=>{
@@ -13792,19 +13857,29 @@ document.getElementById('btnSaveFormulacaoConsultoria').addEventListener('click'
   }));
   const existente = consultoriaFormulacoes.find(x=>x.id===editingFormulacaoConsultoriaId);
   const data = { ...existente, id: editingFormulacaoConsultoriaId || ('csf_'+Date.now()),
-    nome, animais: animaisSalvos, categoriaAtividade: f('csf_categoria'),
+    nome, categoriaAtividade: f('csf_categoria'),
     itens, obs: f('csf_obs'), criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
-  // Campos antigos (1 animal só) não servem mais nesse registro — tira pra não ficar dado morto/
-  // contraditório junto do array novo (formulacaoAnimais só olha pra eles quando `animais` não existe).
+  if(modoGrupo){
+    data.grupoQtd = grupoQtd;
+    data.grupoPesoKg = f('csf_grupoPeso')===''?'':Number(f('csf_grupoPeso'));
+  } else {
+    data.animais = animaisSalvos;
+  }
+  // Cada registro usa só UM dos dois formatos (animais individuais OU grupo por quantidade) — tira o
+  // outro pra não ficar dado morto/contraditório junto do que foi escolhido agora. Campos antigos (1
+  // animal só, de antes dos dois formatos existirem) também somem — formulacaoAnimais só olha pra eles
+  // quando nem `animais` nem `grupoQtd` existem.
   delete data.animalId; delete data.animalNome; delete data.pesoKg;
+  if(modoGrupo) delete data.animais; else { delete data.grupoQtd; delete data.grupoPesoKg; }
   consultoriaFormulacoes = editingFormulacaoConsultoriaId ? consultoriaFormulacoes.map(x=>x.id===editingFormulacaoConsultoriaId?data:x) : [...consultoriaFormulacoes, data];
   closeModal('overlayConsultoriaFormulacao');
   renderConsultoriaFormulacoes();
   salvarEmSegundoPlano('consultoria_formulacoes_list', consultoriaFormulacoes, ()=>renderConsultoriaFormulacoes());
   // Pedido do usuário: o peso digitado aqui na formulação grava sozinho de volta no cadastro de CADA
   // animal do grupo (Ficha do Animal → campo Peso) — é a pesagem mais recente dele, então sempre
-  // atualiza (sobrescreve), mesmo que ele já tivesse um peso cadastrado antes.
-  const animaisParaAtualizar = animaisSalvos.filter(a=>{
+  // atualiza (sobrescreve), mesmo que ele já tivesse um peso cadastrado antes. Só se aplica no modo
+  // individual — no modo "quantidade" os animais não têm cadastro vinculado, não há o que atualizar.
+  const animaisParaAtualizar = modoGrupo ? [] : animaisSalvos.filter(a=>{
     const h = horses.find(x=>x.id===a.animalId);
     return h && a.pesoKg!=='' && a.pesoKg>0 && String(a.pesoKg)!==String(h.peso||'');
   });
@@ -13957,7 +14032,7 @@ function compararFormulacoesConsultoria(){
     const animaisFo = formulacaoAnimais(fo);
     const animal = animaisFo[0] || {animalNome:'', pesoKg:null};
     const resumo = calcResumoFormulacao({ pesoKg:Number(animal.pesoKg)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
-    return { fo, resumo, animalNome: animal.animalNome, nAnimais: animaisFo.length||1 };
+    return { fo, resumo, animalNome: animal.animalNome, nAnimais: formulacaoNumAnimais(fo) };
   }).sort((a,b)=>{
     const ca = a.resumo.custoPorKg, cb = b.resumo.custoPorKg;
     if(ca==null && cb==null) return 0;
@@ -14000,10 +14075,10 @@ function compararFormulacoesConsultoria(){
       <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>
         <tr><td>Custo/kg da dieta</td>${resumos.map(({resumo})=>`<td>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`).join('')}</tr>
-        <tr><td>Custo/dia total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
         <tr><td>Custo/dia/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
-        <tr><td>Custo/mês total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
+        <tr><td>Custo/dia total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
         <tr><td>Custo/mês/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoMes,'BRL')}</td>`).join('')}</tr>
+        <tr><td>Custo/mês total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
       </tbody>
     </table></div>
     ${resumos.some(({resumo})=>resumo.avisos.length>0) ? `<div style="margin-top:10px;">${resumos.map(({resumo})=>avisosNutrientesHtml(resumo)).join('')}</div>` : ''}
