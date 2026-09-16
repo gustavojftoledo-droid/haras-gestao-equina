@@ -1688,7 +1688,7 @@
         </div>
         <div class="hint-text" style="margin-bottom:10px;">Simulação de dieta pra um animal, com cálculo de exigência nutricional (NRC 2007) × fornecido e custo. Não altera nem lê as Dietas operacionais. Marque o checkbox das formulações desejadas pra baixar o relatório só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaFormulacoes">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoes" title="Selecionar todas"></th><th>Nome</th><th data-col="animal">Animal</th><th data-col="categoria">Categoria</th><th data-col="peso">Peso</th><th data-col="custo">Custo/mês (estimado)</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaFormulacoes" title="Selecionar todas"></th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="nome">Nome</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="animal" data-col="animal">Animal</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="categoria" data-col="categoria">Categoria</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="peso" data-col="peso">Peso</th><th class="sortable" data-ordlista="consultoriaFormulacoes" data-ordcol="custo" data-col="custo">Custo/mês (estimado)</th><th></th></tr></thead>
           <tbody id="cfTbody"></tbody>
         </table></div>
       </div>
@@ -13517,8 +13517,17 @@ document.addEventListener('click', e=>{
 let consultoriaFormulacoesListaAtual = []; // última lista renderizada — fonte do "sem marcar nenhuma = todas" dos relatórios
 function renderConsultoriaFormulacoes(){
   const tbody = document.getElementById('cfTbody');
-  const lista = consultoriaFormulacoes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const base = consultoriaFormulacoes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const lista = ordenarListaGenerica('consultoriaFormulacoes', base, (fo,col)=>{
+    if(col==='nome') return (fo.nome||'').toLowerCase();
+    if(col==='animal') return (fo.animalNome||'').toLowerCase();
+    if(col==='categoria') return (NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'').toLowerCase();
+    if(col==='peso') return Number(fo.pesoKg)||0;
+    if(col==='custo') return calcResumoFormulacao(fo).custoMes||0;
+    return '';
+  });
   consultoriaFormulacoesListaAtual = lista;
+  marcarSetasOrdenacao('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]');
   if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma formulação cadastrada ainda.</td></tr>'; sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]'); return; }
   tbody.innerHTML = lista.map(fo=>{
     const resumo = calcResumoFormulacao(fo);
@@ -13540,6 +13549,7 @@ function renderConsultoriaFormulacoes(){
   });
   sincronizarSelecaoLista('consultoriaFormulacoes', '#csview_formulacao [data-lista="consultoriaFormulacoes"]');
 }
+ORD_RENDERERS.consultoriaFormulacoes = renderConsultoriaFormulacoes;
 
 /* ---- CRUD Formulação ---- */
 // Copiar itens de uma formulação existente: útil pra testar a MESMA dieta com outro animal (peso/
