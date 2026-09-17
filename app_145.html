@@ -1405,9 +1405,14 @@
             </div>
           </div>
         </div>
+        <div class="filters" id="relEstContatoWrap" style="display:none;">
+          <div class="f"><label>WhatsApp do fornecedor deste tipo</label><input type="text" id="relEstContatoWhats" placeholder="Ex: 5534999998888 (com DDI 55)"></div>
+          <div class="f"><label>E-mail do fornecedor deste tipo</label><input type="text" id="relEstContatoEmail" placeholder="Ex: fornecedor@email.com"></div>
+        </div>
+        <div class="hint-text" id="relEstContatoHint" style="margin-top:-4px;margin-bottom:10px;display:none;">Fica salvo por tipo — pode deixar um WhatsApp/e-mail pra Medicamento, outro pra Ração, outro pra Feno, etc.</div>
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelEstoque">Gerar Relatório</button>
-          <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelEstoque" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelEstoque" style="display:none;">⬇ Baixar PDF</button>
+          <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelEstoque" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelEstoque" style="display:none;">⬇ Baixar PDF</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnWhatsRelEstoque" style="display:none;">📱 Pedido via WhatsApp</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnEmailRelEstoque" style="display:none;">✉ Pedido via E-mail</button>
         </div>
         <div id="relEstoqueResult" style="margin-top:14px;"></div>
       </div>
@@ -12673,25 +12678,51 @@ function renderDietasMedidores(){
    fornecedorEmail), nunca mexe em dietas/dietaItensState. Nunca envia nada sozinho: monta o link
    (wa.me/mailto) e deixa o navegador abrir o app do usuário já logado — ele confere e manda de lá. ---- */
 let pedidoRapidoProdutoId = null;
+// Consumo médio semanal olhando só os últimos N dias (em vez do histórico inteiro) — usado pra
+// comparar "ritmo recente" com a média geral do produto e saber se o consumo está acelerando ou não.
+function calcConsumoRecente(p, janelaDias){
+  const corte = new Date(); corte.setDate(corte.getDate()-janelaDias);
+  const corteISO = toISODate(corte);
+  const movs = estoqueMovimentos.filter(m=>m.produtoId===p.id && m.tipoMov==='saida' && m.data>=corteISO);
+  const total = movs.reduce((s,m)=>s+(Number(m.quantidade)||0),0);
+  return total/(janelaDias/7);
+}
+// Quantidade sugerida pro pedido: cobre entre 20 e 25 dias de consumo (nunca menos, nunca mais).
+// Se o ritmo dos últimos 7 dias estiver mais rápido que a média geral do produto, o consumo está
+// "alto" → pede pra só 20 dias (menos risco de sobrar/vencer). Se estiver mais lento, está "baixo"
+// → pede pra 25 dias (aproveita e compra com mais folga). Ritmo igual à média → meio do intervalo.
+// Se o produto tem "Conteúdo por embalagem" cadastrado (pesoSaco — ex: 30kg por fardo de Feno),
+// a quantidade sugerida e a mensagem já saem em fardos/pacotes fechados, não na unidade base (kg/ml).
+function calcFardosSugeridos(p, proj){
+  if(!proj.suficiente || !(proj.consumoSemanal>0)) return {targetDias:null, necessario:''};
+  const ratioBruto = calcConsumoRecente(p,7)/proj.consumoSemanal;
+  const ratio = Math.min(1.5, Math.max(0.5, ratioBruto));
+  const targetDias = Math.round(25 - (ratio-0.5)*5);
+  const alvo = (proj.consumoSemanal/7)*targetDias;
+  const falta = alvo - (Number(p.quantidade)||0);
+  const necessarioBase = falta>0 ? Math.ceil(falta) : 0;
+  const pesoEmbalagem = Number(p.pesoSaco)||0;
+  const necessario = pesoEmbalagem>0 ? Math.ceil(necessarioBase/pesoEmbalagem) : necessarioBase;
+  return {targetDias, necessario};
+}
 function atualizarMensagemPedidoRapido(){
   const p = estoqueProdutos.find(x=>x.id===pedidoRapidoProdutoId); if(!p) return;
   const proj = calcProjecaoConsumo(p);
   const dias = (proj.suficiente && proj.diasRestantes!==Infinity) ? Math.max(0,proj.diasRestantes) : null;
   const prazo = dias!=null ? `dentro de ${dias} dia${dias===1?'':'s'}` : 'em breve';
-  document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}. Obrigado.`;
+  const pesoEmbalagem = Number(p.pesoSaco)||0;
+  const qtd = f('pdr_quantidade').trim();
+  const un = pesoEmbalagem>0 ? (' fardo'+(Number(qtd)===1?'':'s')) : (p.unidade?(' '+p.unidade):'');
+  const linhaQtd = qtd ? `\nVamos precisar de ${qtd}${un}.` : '';
+  document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}.${linhaQtd}\nObrigado.`;
 }
 function abrirPedidoRapidoProduto(produtoId){
   const p = estoqueProdutos.find(x=>x.id===produtoId); if(!p) return;
   pedidoRapidoProdutoId = produtoId;
   document.getElementById('pdrModalTitle').textContent = 'Pedir mais: '+p.nome;
   const proj = calcProjecaoConsumo(p);
-  let qtdSugerida = '';
-  if(proj.suficiente && proj.consumoSemanal>0){
-    const alvoTrintaDias = proj.consumoSemanal/7*30;
-    const falta = alvoTrintaDias - (Number(p.quantidade)||0);
-    if(falta>0) qtdSugerida = Math.ceil(falta);
-  }
-  document.getElementById('pdr_quantidade').value = qtdSugerida;
+  const sugestao = calcFardosSugeridos(p, proj);
+  document.getElementById('pdr_quantidade').value = sugestao.necessario;
   document.getElementById('pdr_whats').value = p.fornecedorWhats || '';
   document.getElementById('pdr_email').value = p.fornecedorEmail || '';
   atualizarMensagemPedidoRapido();
@@ -12716,7 +12747,7 @@ document.getElementById('btnPedidoRapidoEmail').addEventListener('click', ()=>{
   salvarContatoFornecedorPedidoRapido();
   const p = estoqueProdutos.find(x=>x.id===pedidoRapidoProdutoId);
   const assunto = 'Pedido de compra - '+(p?p.nome:'');
-  window.location.href = `mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pdr_mensagem'))}`;
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pdr_mensagem'))}`, '_blank');
   closeModal('overlayPedidoRapidoProduto');
 });
 function renderDietas(){
@@ -16229,7 +16260,60 @@ function populateRelEstoqueTipos(){
   const cur = sel.value;
   sel.innerHTML = '<option value="">Todos os tipos</option>' + (aux.tipoProduto||[]).map(t=>`<option value="${t}">${TIPO_PRODUTO_LABEL[t]||t}</option>`).join('');
   sel.value = cur||'';
+  carregarContatoRelEstoque();
 }
+// Um WhatsApp/e-mail de fornecedor por Tipo de produto (Medicamento, Alimento...) — assim dá pra
+// pedir Ração e Feno de fornecedores diferentes do de Medicamento, cada um guardado à parte.
+function carregarContatoRelEstoque(){
+  const tipo = document.getElementById('relEstTipo').value;
+  const mostrar = !!tipo;
+  document.getElementById('relEstContatoWrap').style.display = mostrar ? 'flex' : 'none';
+  document.getElementById('relEstContatoHint').style.display = mostrar ? 'block' : 'none';
+  const c = (tipo && aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[tipo]) || {};
+  document.getElementById('relEstContatoWhats').value = c.whats || '';
+  document.getElementById('relEstContatoEmail').value = c.email || '';
+}
+document.getElementById('relEstTipo').addEventListener('change', carregarContatoRelEstoque);
+function salvarContatoRelEstoque(){
+  const tipo = document.getElementById('relEstTipo').value;
+  if(!tipo) return;
+  if(!aux.contatosFornecedorTipo) aux.contatosFornecedorTipo = {};
+  aux.contatosFornecedorTipo[tipo] = { whats: f('relEstContatoWhats').trim(), email: f('relEstContatoEmail').trim() };
+  storeSet('aux_lists', aux);
+}
+document.getElementById('relEstContatoWhats').addEventListener('change', salvarContatoRelEstoque);
+document.getElementById('relEstContatoEmail').addEventListener('change', salvarContatoRelEstoque);
+function montarMensagemPedidoEstoque(lista, tipo){
+  const linhas = lista.map(p=>{
+    const sit = situacaoEstoque(p);
+    const situTxt = sit==='zerado' ? 'zerado' : (sit==='perto' ? 'acabando' : null);
+    const un = p.unidade ? (' '+p.unidade) : '';
+    const qtd = (p.quantidade!==''&&p.quantidade!=null?p.quantidade:0)+un;
+    return `- ${p.nome}${situTxt?` (${situTxt}, ${qtd} em estoque)`:''}`;
+  });
+  const tipoLabel = tipo ? (TIPO_PRODUTO_LABEL[tipo]||tipo) : 'estoque';
+  return `Bom dia. Precisamos repor os itens abaixo (${tipoLabel}):\n${linhas.join('\n')}\nObrigado.`;
+}
+let lastRelEstoqueLista = [], lastRelEstoqueTipo = '';
+function atualizarBotoesEnvioRelEstoque(lista, tipo){
+  lastRelEstoqueLista = lista; lastRelEstoqueTipo = tipo;
+  const podeEnviar = !!tipo && lista.length>0;
+  document.getElementById('btnWhatsRelEstoque').style.display = podeEnviar ? 'inline-block' : 'none';
+  document.getElementById('btnEmailRelEstoque').style.display = podeEnviar ? 'inline-block' : 'none';
+}
+document.getElementById('btnWhatsRelEstoque').addEventListener('click', ()=>{
+  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastRelEstoqueTipo]) || {};
+  const numero = (c.whats||'').replace(/\D/g,'');
+  if(!numero){ showAlert('Informe o WhatsApp do fornecedor desse tipo, no campo acima.'); document.getElementById('relEstContatoWhats').focus(); return; }
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(montarMensagemPedidoEstoque(lastRelEstoqueLista, lastRelEstoqueTipo))}`, '_blank');
+});
+document.getElementById('btnEmailRelEstoque').addEventListener('click', ()=>{
+  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastRelEstoqueTipo]) || {};
+  const email = (c.email||'').trim();
+  if(!email){ showAlert('Informe o e-mail do fornecedor desse tipo, no campo acima.'); document.getElementById('relEstContatoEmail').focus(); return; }
+  const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastRelEstoqueTipo]||lastRelEstoqueTipo);
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(montarMensagemPedidoEstoque(lastRelEstoqueLista, lastRelEstoqueTipo))}`, '_blank');
+});
 function gerarRelatorioEstoque(){
   const tipo = document.getElementById('relEstTipo').value;
   const sitPerto = document.getElementById('relEstSitPerto').checked;
@@ -16248,6 +16332,7 @@ function gerarRelatorioEstoque(){
   if(sitZerado) partesSit.push('zerados');
   const subtitulo = `${tipo?(TIPO_PRODUTO_LABEL[tipo]||tipo):'Todos os tipos'}${partesSit.length?(' — '+partesSit.join(' e ')):''}`;
   renderRelatorioEstoqueHtml(lista, subtitulo, 'relEstoqueResult', 'btnPrintRelEstoque');
+  atualizarBotoesEnvioRelEstoque(lista, tipo);
 }
 document.getElementById('btnGerarRelEstoque').addEventListener('click', gerarRelatorioEstoque);
 document.getElementById('btnPrintRelEstoque').addEventListener('click', ()=>window.print());
@@ -16305,6 +16390,12 @@ document.getElementById('btnRelatorioProdutosLote').addEventListener('click', ()
   if(lista.length===0) return;
   document.querySelector('#view-estoque [data-etab="relatorio"]').click();
   renderRelatorioEstoqueHtml(lista, `${lista.length} produto(s) selecionado(s) manualmente`, 'relEstoqueResult', 'btnPrintRelEstoque');
+  // Pedido por WhatsApp/e-mail só quando os selecionados são todos do mesmo Tipo — é o Tipo que
+  // decide qual contato de fornecedor usar (ver carregarContatoRelEstoque).
+  const tiposDaLista = [...new Set(lista.map(p=>p.tipo||''))];
+  const tipoUnico = tiposDaLista.length===1 ? tiposDaLista[0] : '';
+  if(tipoUnico){ document.getElementById('relEstTipo').value = tipoUnico; carregarContatoRelEstoque(); }
+  atualizarBotoesEnvioRelEstoque(lista, tipoUnico);
 });
 
 const relFichaHost = document.getElementById('relFichaSelectorHost');
