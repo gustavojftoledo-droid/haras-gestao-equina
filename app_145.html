@@ -1636,7 +1636,7 @@
       </div>
       <div class="subtabs">
         <span class="chip active" data-cstab="visitas" id="cstab_visitas">Visitas Técnicas</span>
-        <span class="chip" data-cstab="historico" id="cstab_historico">Histórico da Propriedade</span>
+        <span class="chip" data-cstab="historico" id="cstab_historico">Histórico de Propriedade</span>
         <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
         <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
       </div>
@@ -1664,25 +1664,49 @@
       </div>
 
       <div id="csview_historico" style="display:none;">
-        <div class="filters">
-          <div class="f grow"><label>Propriedade</label><input type="text" id="chSearch" placeholder="Nome da propriedade..."></div>
-          <div class="f"><label>Período</label><div id="chFiltroPeriodo"></div></div>
-        </div>
-        <div class="lista-toolbar">
-          <div class="menu-discreto-wrap">
-            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
-            <div class="menu-discreto-pop">
-              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoria" data-relatorioselecao="consultoriaHistorico" title="1 animal por folha">📄 Baixar PDF (1 animal/folha)</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoriaCompacto" data-relatorioselecao="consultoriaHistorico" title="Cabe quantos animais couberem por folha, sem cortar nenhum no meio">📄 Baixar PDF (compacto)</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="consultoriaHistorico">⚙ Colunas</button>
+        <!-- Nível 1: lista de propriedades. Clicar numa abre o Nível 2 (visitas daquela propriedade). -->
+        <div id="chNivelPropriedades">
+          <div class="filters">
+            <div class="f grow"><label>Buscar</label><input type="text" id="chPropSearch" placeholder="Nome da propriedade..."></div>
+          </div>
+          <div class="lista-toolbar">
+            <div class="menu-discreto-wrap">
+              <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+              <div class="menu-discreto-pop">
+                <button type="button" class="btn btn-ghost btn-sm" id="btnPdfPropriedadesConsultoria">📄 Relatório de todas as propriedades</button>
+              </div>
             </div>
           </div>
+          <div class="hint-text" style="margin-bottom:10px;">Clique numa propriedade pra ver as visitas feitas nela.</div>
+          <div class="grid-wrap"><table class="grid" data-lista="chPropriedades">
+            <thead><tr><th>Propriedade</th><th data-col="proprietario">Proprietário</th><th data-col="cidade">Cidade</th><th data-col="visitas">Visitas</th><th data-col="ultima">Última visita</th><th></th></tr></thead>
+            <tbody id="chPropTbody"></tbody>
+          </table></div>
         </div>
-        <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
-        <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
-          <tbody id="chTbody"></tbody>
-        </table></div>
+        <!-- Nível 2: visitas de UMA propriedade (aberta a partir do Nível 1). -->
+        <div id="chNivelVisitas" style="display:none;">
+          <div class="lista-toolbar">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnVoltarPropriedadesHist">← Propriedades</button>
+            <div class="lista-toolbar-info" style="font-size:14px;color:var(--ink);font-weight:600;"><strong id="chPropTitulo"></strong></div>
+            <div class="menu-discreto-wrap">
+              <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+              <div class="menu-discreto-pop">
+                <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoria" data-relatorioselecao="consultoriaHistorico" title="1 animal por folha">📄 Baixar PDF (1 animal/folha)</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btnPdfHistoricoConsultoriaCompacto" data-relatorioselecao="consultoriaHistorico" title="Cabe quantos animais couberem por folha, sem cortar nenhum no meio">📄 Baixar PDF (compacto)</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-colpicker="consultoriaHistorico">⚙ Colunas</button>
+              </div>
+            </div>
+          </div>
+          <div class="filters">
+            <div class="f grow"><label>Buscar</label><input type="text" id="chSearch" placeholder="Consultor, responsável, objetivo..."></div>
+            <div class="f"><label>Período</label><div id="chFiltroPeriodo"></div></div>
+          </div>
+          <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
+          <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
+            <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
+            <tbody id="chTbody"></tbody>
+          </table></div>
+        </div>
       </div>
 
       <!-- CONSULTORIA (Fase 2): Formulação de dieta (simulação, independente das Dietas operacionais) -->
@@ -11310,7 +11334,7 @@ const LISTA_COLUNAS_TITULO = {
   vetLista:'Colunas — Veterinária (Lista)', vetVisitas:'Colunas — Visitas', vetTratamentos:'Colunas — Tratamentos',
   financeiro:'Colunas — Financeiro', funcionarios:'Colunas — Funcionários', auditoria:'Colunas — Auditoria',
   consultoriaAvaliacoes:'Colunas — Avaliações Técnicas', consultoriaVisitas:'Colunas — Visitas Técnicas',
-  consultoriaHistorico:'Colunas — Histórico da Propriedade', consultoriaFormulacoes:'Colunas — Formulação de Dietas',
+  consultoriaHistorico:'Colunas — Histórico de Propriedade', consultoriaFormulacoes:'Colunas — Formulação de Dietas',
 };
 function colunasOcultas(listaId){
   const salvo = (config.colunasListas && config.colunasListas[listaId]) || {};
@@ -12900,7 +12924,7 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     // Fase 2: sub-abas de Formulação/Comparação — containers/render abaixo, banner "CONSULTORIA (Fase 2)".
     document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
     document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
-    if(sub==='historico') renderConsultoriaHistorico();
+    if(sub==='historico') mostrarNivelPropriedadesHistorico();
     if(sub==='formulacao') renderConsultoriaFormulacoes();
     if(sub==='comparacao') renderConsultoriaComparacaoLista();
   });
@@ -12927,7 +12951,7 @@ function valoresCadastroAnimaisDaVisita(visitaId, campo){
 }
 // Guarda a última lista filtrada renderizada (respeitando busca/período em tela) — é dela que o
 // "📄 Baixar PDF" do menu "⋯" parte quando nenhuma linha está marcada (ver gerarRelatoriosVisitasSelecionadas).
-let consultoriaVisitasListaAtual = [], consultoriaHistoricoListaAtual = [];
+let consultoriaVisitasListaAtual = [], consultoriaHistoricoListaAtual = [], consultoriaPropriedadesHistListaAtual = [];
 function renderConsultoriaVisitas(){
   const tbody = document.getElementById('cvTbody');
   const term = (document.getElementById('cvSearch').value||'').toLowerCase();
@@ -13095,7 +13119,7 @@ async function excluirVisitaConsultoria(id){
   closeModal('overlayConsultoriaVisita');
   closeModal('overlayConsultoriaVisitaDetalhe');
   renderConsultoriaVisitas();
-  if(document.getElementById('csview_historico').style.display!=='none') renderConsultoriaHistorico();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
 }
 document.getElementById('btnDeleteVisitaConsultoria').addEventListener('click', ()=>{
   if(editingVisitaConsultoriaId) excluirVisitaConsultoria(editingVisitaConsultoriaId);
@@ -13364,18 +13388,95 @@ document.getElementById('csa_fotoFile').addEventListener('change', e=>{
   });
 });
 
-/* ---- Histórico da Propriedade ---- */
+/* ---- Histórico de Propriedade: 2 níveis — Nível 1 lista as propriedades (chPropriedadeAtual===null),
+   clicar numa abre o Nível 2 com as visitas só dela (chPropriedadeAtual = nome da propriedade). O
+   detalhe de 1 visita continua sendo o MESMO modal de sempre (abrirVisitaConsultoriaDetalhe), em
+   qualquer um dos 2 níveis. 100% aditivo: só reorganiza a navegação, não muda o formato salvo de
+   nenhuma visita. */
+let chPropriedadeAtual = null;
+function refreshHistoricoAtual(){
+  if(chPropriedadeAtual) renderConsultoriaHistorico(); else renderConsultoriaPropriedadesLista();
+}
+function mostrarNivelPropriedadesHistorico(){
+  chPropriedadeAtual = null;
+  document.getElementById('chNivelPropriedades').style.display = '';
+  document.getElementById('chNivelVisitas').style.display = 'none';
+  renderConsultoriaPropriedadesLista();
+}
+function abrirPropriedadeHistorico(nome){
+  chPropriedadeAtual = nome;
+  document.getElementById('chNivelPropriedades').style.display = 'none';
+  document.getElementById('chNivelVisitas').style.display = '';
+  const reg = encontrarPropriedade(nome);
+  const extra = reg ? [reg.proprietario, reg.cidade].filter(Boolean).join(' · ') : '';
+  document.getElementById('chPropTitulo').textContent = nome + (extra ? ' — '+extra : '');
+  document.getElementById('chSearch').value = '';
+  renderConsultoriaHistorico();
+}
+document.getElementById('btnVoltarPropriedadesHist').addEventListener('click', mostrarNivelPropriedadesHistorico);
+// Nome de propriedade sempre comparado sem diferenciar maiúscula/minúscula/espaço nas pontas (mesma
+// regra de encontrarPropriedade) — visitas antigas podem ter o nome digitado com variação de caixa.
+function nomePropriedadeNormalizado(nome){ return (nome||'').trim().toLowerCase(); }
+function renderConsultoriaPropriedadesLista(){
+  const tbody = document.getElementById('chPropTbody');
+  const term = (document.getElementById('chPropSearch').value||'').toLowerCase();
+  const porNome = new Map(); // nomeNormalizado -> {nome, visitas:[]}
+  consultoriaVisitas.forEach(v=>{
+    if(!v.propriedade) return;
+    const chave = nomePropriedadeNormalizado(v.propriedade);
+    if(!porNome.has(chave)) porNome.set(chave, { nome:v.propriedade, visitas:[] });
+    porNome.get(chave).visitas.push(v);
+  });
+  let linhas = [...porNome.values()].map(grupo=>{
+    const reg = encontrarPropriedade(grupo.nome);
+    const ultima = grupo.visitas.reduce((max,v)=> (!max || (v.data||'')>(max||'')) ? v.data : max, '');
+    return { nome:grupo.nome, nVisitas:grupo.visitas.length, ultima, proprietario:reg?reg.proprietario:'', cidade:reg?reg.cidade:'' };
+  });
+  if(term) linhas = linhas.filter(l=> l.nome.toLowerCase().includes(term));
+  linhas.sort((a,b)=>(b.ultima||'').localeCompare(a.ultima||''));
+  consultoriaPropriedadesHistListaAtual = linhas;
+  if(linhas.length===0){ tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma propriedade encontrada.</td></tr>'; return; }
+  tbody.innerHTML = linhas.map(l=>`<tr style="cursor:pointer;" data-abrirproprhist="${escHtml(l.nome)}">
+      <td><strong>${l.nome}</strong></td>
+      <td data-col="proprietario">${l.proprietario||'—'}</td>
+      <td data-col="cidade">${l.cidade||'—'}</td>
+      <td data-col="visitas">${l.nVisitas}</td>
+      <td data-col="ultima">${fmtDate(l.ultima)||'—'}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirproprhistbtn="${escHtml(l.nome)}">Abrir</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-abrirproprhist]').forEach(tr=>{
+    tr.addEventListener('click', e=>{ if(e.target.closest('button')) return; abrirPropriedadeHistorico(tr.dataset.abrirproprhist); });
+  });
+  tbody.querySelectorAll('[data-abrirproprhistbtn]').forEach(btn=>{
+    btn.addEventListener('click', ()=> abrirPropriedadeHistorico(btn.dataset.abrirproprhistbtn));
+  });
+}
+document.getElementById('chPropSearch').addEventListener('input', renderConsultoriaPropriedadesLista);
+document.getElementById('btnPdfPropriedadesConsultoria').addEventListener('click', ()=>{
+  const linhas = consultoriaPropriedadesHistListaAtual;
+  if(linhas.length===0){ showAlert('Nenhuma propriedade pra gerar relatório.'); return; }
+  const htmlConteudo = `<h1>Relatório de Propriedades</h1>
+    <div class="sub">Gerado em ${fmtDate(toISODate(new Date()))} · ${linhas.length} propriedade(s)</div>
+    <table><thead><tr><th>Propriedade</th><th>Proprietário</th><th>Cidade</th><th>Visitas</th><th>Última visita</th></tr></thead>
+    <tbody>${linhas.map(l=>`<tr><td>${escHtml(l.nome)}</td><td>${escHtml(l.proprietario||'—')}</td><td>${escHtml(l.cidade||'—')}</td><td>${l.nVisitas}</td><td>${fmtDate(l.ultima)||'—'}</td></tr>`).join('')}</tbody>
+    </table>`;
+  abrirPreviaRelatorio(htmlConteudo, 'Relatorio_Propriedades.pdf', 'Relatório de Propriedades');
+});
+
 const chFiltroPeriodo = createDateRangePicker(document.getElementById('chFiltroPeriodo'), { onChange:()=>renderConsultoriaHistorico() });
 document.getElementById('chSearch').addEventListener('input', renderConsultoriaHistorico);
 function renderConsultoriaHistorico(){
+  if(!chPropriedadeAtual) return; // nível 2 não está aberto — nada pra renderizar aqui agora
   const tbody = document.getElementById('chTbody');
   const term = (document.getElementById('chSearch').value||'').toLowerCase();
   const { de, ate } = chFiltroPeriodo.getRange();
+  const alvo = nomePropriedadeNormalizado(chPropriedadeAtual);
   const lista = consultoriaVisitas.filter(v=>{
-    const matchTerm = !term || (v.propriedade||'').toLowerCase().includes(term);
+    const matchPropriedade = nomePropriedadeNormalizado(v.propriedade)===alvo;
+    const matchTerm = !term || [v.consultorNome, v.responsavelNome, v.objetivo].some(x=>(x||'').toLowerCase().includes(term));
     const matchDe = !de || (v.data && v.data>=de);
     const matchAte = !ate || (v.data && v.data<=ate);
-    return matchTerm && matchDe && matchAte;
+    return matchPropriedade && matchTerm && matchDe && matchAte;
   }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   consultoriaHistoricoListaAtual = lista;
   if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
