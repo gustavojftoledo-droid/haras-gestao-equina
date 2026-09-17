@@ -2634,7 +2634,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="csvModalTitle">Nova Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisita">✕</button></div>
     <div class="form-grid">
-      <div class="field full"><label>Propriedade</label><input type="text" id="csv_propriedade" list="dl_csv_propriedade" placeholder="Nome da propriedade/haras"></div>
+      <div class="field full"><label>Propriedade</label><input type="text" id="csv_propriedade" list="dl_csv_propriedade" placeholder="Nome da propriedade/haras — se for nova, dê Enter pra completar os dados dela"><div id="csv_propriedadeInfo" class="hint-text" style="display:none;margin-top:2px;"></div></div>
       <div class="field"><label>Data da visita</label><input type="date" id="csv_data"></div>
       <div class="field"><label>Consultor</label><input type="text" id="csv_consultorNome" list="dl_csv_consultor" placeholder="Quem está realizando a visita"></div>
       <div class="field"><label>Responsável / Proprietário</label><input type="text" id="csv_responsavelNome" list="dl_csv_responsavel" placeholder="Quem recebeu a visita"></div>
@@ -2644,6 +2644,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaConsultoria" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: cadastro rápido de propriedade nova (aberto ao dar Enter numa propriedade que ainda não existe, dentro de Nova/Editar Visita) -->
+<div class="overlay" id="overlayConsultoriaPropriedadeRapida">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Nova propriedade</div><button class="modal-close" data-close="overlayConsultoriaPropriedadeRapida">✕</button></div>
+    <div class="hint-text" style="margin-bottom:10px;">"<span id="cprNomeLabel"></span>" ainda não estava cadastrada — complete os dados dela (opcional) e volta pra visita.</div>
+    <div class="form-grid">
+      <div class="field full"><label>Proprietário</label><input type="text" id="cpr_proprietario" placeholder="Dono da propriedade"></div>
+      <div class="field full"><label>Cidade</label><input type="text" id="cpr_cidade" placeholder="Cidade/UF"></div>
+      <div class="field full"><label>Observações</label><textarea id="cpr_obs" rows="2" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" id="btnPularPropriedadeRapida">Pular (só o nome)</button><button type="button" class="btn" id="btnSalvarPropriedadeRapida">OK <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -3040,6 +3057,7 @@ let consultoriaVisitas = [];    // Firestore key: 'consultoria_visitas_list'
 let consultoriaAvaliacoes = []; // Firestore key: 'consultoria_avaliacoes_list'
 let consultoriaFotos = {};      // Firestore key: 'consultoria_fotos' — objeto { [avaliacaoId]: [{id,dataUrl,legenda,ordem}] }
 let consultoriaFormulacoes = []; // Firestore key: 'consultoria_formulacoes_list' — Fase 2 (Formulação/NRC)
+let consultoriaPropriedades = []; // Firestore key: 'consultoria_propriedades_list' — cadastro leve de haras/propriedade (nome, proprietário, cidade, obs)
 let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, editingFormulacaoConsultoriaId = null;
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
@@ -3167,6 +3185,7 @@ const AUDIT_KEYS = {
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
+  consultoria_propriedades_list:{ modulo:'Consultoria', nome: r=>r.nome },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -3265,6 +3284,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'consultoria_avaliacoes_list': consultoriaAvaliacoes = val; break;
     case 'consultoria_fotos': consultoriaFotos = val; break;
     case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
+    case 'consultoria_propriedades_list': consultoriaPropriedades = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -3482,7 +3502,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3492,11 +3512,12 @@ async function loadAll(){
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
-    storeGet('consultoria_formulacoes_list')
+    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
+  consultoriaPropriedades = rCPr.value||[];
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
@@ -3518,7 +3539,7 @@ async function loadAll(){
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
-    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -4068,7 +4089,7 @@ function refreshDatalists(){
   setDL('dl_allhorses', horses.map(h=>h.nome));
   setDL('dl_medicamentos', estoqueProdutos.filter(p=>p.tipo==='Medicamento').map(p=>p.nome));
   setDL('dl_vendedores', [...horses.map(h=>h.compradoDe), ...(aux.proprietarios||[])]);
-  setDL('dl_csv_propriedade', consultoriaVisitas.map(v=>v.propriedade));
+  setDL('dl_csv_propriedade', [...consultoriaPropriedades.map(p=>p.nome), ...consultoriaVisitas.map(v=>v.propriedade)]);
   setDL('dl_csv_consultor', consultoriaVisitas.map(v=>v.consultorNome));
   setDL('dl_csv_responsavel', consultoriaVisitas.map(v=>v.responsavelNome));
 }
@@ -12870,6 +12891,67 @@ function renderConsultoriaVisitas(){
 }
 ORD_RENDERERS.consultoriaVisitas = renderConsultoriaVisitas;
 
+/* ---- Cadastro leve de Propriedade (haras): nome + proprietário/cidade/obs — alimentado a partir do
+   campo Propriedade da Visita. Dar Enter num nome que ainda não existe abre um mini-cadastro pra
+   completar os dados; dando OK (ou "Pular"), volta sozinho pra Visita, que segue exatamente de onde
+   parou. Módulo aditivo: chave própria (consultoria_propriedades_list), nunca lê/altera Dietas. ---- */
+function encontrarPropriedade(nome){
+  const alvo = (nome||'').trim().toLowerCase();
+  if(!alvo) return null;
+  return consultoriaPropriedades.find(p=>(p.nome||'').trim().toLowerCase()===alvo) || null;
+}
+function atualizarInfoPropriedadeVisita(){
+  const info = document.getElementById('csv_propriedadeInfo');
+  const p = encontrarPropriedade(f('csv_propriedade'));
+  const partes = p ? [p.proprietario&&('Proprietário: '+p.proprietario), p.cidade&&('Cidade: '+p.cidade)].filter(Boolean) : [];
+  info.textContent = partes.join(' · ');
+  info.style.display = partes.length ? '' : 'none';
+}
+let propriedadeRapidaPendenteNome = null;
+function abrirPropriedadeRapida(nome){
+  propriedadeRapidaPendenteNome = nome;
+  document.getElementById('cprNomeLabel').textContent = nome;
+  document.getElementById('cpr_proprietario').value = '';
+  document.getElementById('cpr_cidade').value = '';
+  document.getElementById('cpr_obs').value = '';
+  openModal('overlayConsultoriaPropriedadeRapida');
+}
+function salvarNovaPropriedade({proprietario, cidade, obs}){
+  const nome = propriedadeRapidaPendenteNome;
+  if(!nome || encontrarPropriedade(nome)) return; // já foi cadastrada (ex: 2 cliques) — não duplica
+  consultoriaPropriedades = [...consultoriaPropriedades, {
+    id: 'cpr_'+Date.now(), nome, proprietario: (proprietario||'').trim(), cidade: (cidade||'').trim(),
+    obs: (obs||'').trim(), criadoEm: new Date().toISOString()
+  }];
+  salvarEmSegundoPlano('consultoria_propriedades_list', consultoriaPropriedades);
+  refreshDatalists();
+}
+function fecharPropriedadeRapidaEVoltar(){
+  closeModal('overlayConsultoriaPropriedadeRapida');
+  propriedadeRapidaPendenteNome = null;
+  atualizarInfoPropriedadeVisita();
+  document.getElementById('csv_data').focus(); // volta o foco pra visita, de onde parou
+}
+document.getElementById('btnSalvarPropriedadeRapida').addEventListener('click', ()=>{
+  salvarNovaPropriedade({ proprietario: f('cpr_proprietario'), cidade: f('cpr_cidade'), obs: f('cpr_obs') });
+  fecharPropriedadeRapidaEVoltar();
+});
+document.getElementById('btnPularPropriedadeRapida').addEventListener('click', ()=>{
+  salvarNovaPropriedade({}); // registra só o nome, pra não perguntar de novo na próxima visita
+  fecharPropriedadeRapidaEVoltar();
+});
+document.getElementById('overlayConsultoriaPropriedadeRapida').addEventListener('keydown', e=>{
+  const isSaveShortcut = (e.ctrlKey || e.metaKey) && (e.key==='s' || e.key==='S');
+  if(isSaveShortcut){ e.preventDefault(); document.getElementById('btnSalvarPropriedadeRapida').click(); }
+});
+document.getElementById('csv_propriedade').addEventListener('input', atualizarInfoPropriedadeVisita);
+document.getElementById('csv_propriedade').addEventListener('keydown', e=>{
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  const nome = f('csv_propriedade').trim();
+  if(nome && !encontrarPropriedade(nome)) abrirPropriedadeRapida(nome);
+});
+
 /* ---- CRUD Visita ---- */
 function openVisitaConsultoriaNew(){
   editingVisitaConsultoriaId = null;
@@ -12881,6 +12963,7 @@ function openVisitaConsultoriaNew(){
   document.getElementById('csv_responsavelNome').value = '';
   document.getElementById('csv_objetivo').value = '';
   document.getElementById('csv_obsGerais').value = '';
+  atualizarInfoPropriedadeVisita();
   openModal('overlayConsultoriaVisita');
 }
 function openVisitaConsultoriaEdit(id){
@@ -12894,12 +12977,20 @@ function openVisitaConsultoriaEdit(id){
   document.getElementById('csv_responsavelNome').value = v.responsavelNome||'';
   document.getElementById('csv_objetivo').value = v.objetivo||'';
   document.getElementById('csv_obsGerais').value = v.obsGerais||'';
+  atualizarInfoPropriedadeVisita();
   openModal('overlayConsultoriaVisita');
 }
 document.getElementById('btnNewVisitaConsultoria').addEventListener('click', openVisitaConsultoriaNew);
 document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', async ()=>{
   const propriedade = f('csv_propriedade').trim();
   if(!propriedade){ showAlert('Informe a propriedade.'); document.getElementById('csv_propriedade').focus(); return; }
+  // Rede de segurança: se salvou sem passar pelo Enter (ex: colou o nome e clicou direto em Salvar),
+  // registra do mesmo jeito só com o nome — sem popup, sem interromper — pra não ficar "esquecida" fora
+  // do cadastro leve de propriedades. Quem quiser completar os dados, edita depois em qualquer visita.
+  if(!encontrarPropriedade(propriedade)){
+    propriedadeRapidaPendenteNome = propriedade;
+    salvarNovaPropriedade({});
+  }
   const existente = consultoriaVisitas.find(v=>v.id===editingVisitaConsultoriaId);
   const eraNova = !editingVisitaConsultoriaId;
   const data = { ...existente, id: editingVisitaConsultoriaId || ('csv_'+Date.now()),
