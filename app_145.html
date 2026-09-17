@@ -8244,6 +8244,7 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   // Gera o PDF ANTES de abrir o WhatsApp — a captura do PDF precisa da aba em foco/visível, e abrir
   // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
   await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo WhatsApp...`);
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
@@ -8254,6 +8255,7 @@ document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const mensagem = f('pce_mensagem');
   closeModal('overlayPedidoCompraEnvio');
   await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`);
   window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`, '_blank');
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
