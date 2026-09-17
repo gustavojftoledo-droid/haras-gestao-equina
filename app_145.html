@@ -13339,6 +13339,7 @@ document.getElementById('btnSaveAvaliacaoConsultoria').addEventListener('click',
   });
   closeModal('overlayConsultoriaAvaliacao');
   renderConsultoriaAvaliacoesVisita();
+  atualizarListasVisitasAposAvaliacao();
   salvarEmSegundoPlano('consultoria_avaliacoes_list', consultoriaAvaliacoes, ()=>renderConsultoriaAvaliacoesVisita());
   // Fotos ficam pra depois de fechar (o campo de upload só existe dentro do modal, e só pra 1 avaliação
   // já salva) — reabrir pelo "Editar" de cada avaliação já entra com a área de fotos liberada.
@@ -13353,7 +13354,16 @@ document.getElementById('btnDeleteAvaliacaoConsultoria').addEventListener('click
   await storeSet('consultoria_fotos', consultoriaFotos);
   closeModal('overlayConsultoriaAvaliacao');
   renderConsultoriaAvaliacoesVisita();
+  atualizarListasVisitasAposAvaliacao();
 });
+// Adicionar/editar/excluir uma avaliação muda o que aparece nas colunas "Animais avaliados",
+// "Proprietário(s)" e "Localização(ões)" das LISTAS de visita (Visitas Técnicas e Histórico de
+// Propriedade) — sem isso, essas listas ficavam desatualizadas até a página ser recarregada, mesmo o
+// detalhe da própria visita já mostrando os animais certinho.
+function atualizarListasVisitasAposAvaliacao(){
+  renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
+}
 
 /* ---- Fotos da avaliação (reaproveita o pipeline de compressão de foto de animal, 900px/jpeg 0.72) ---- */
 function renderFotosConsultoria(avaliacaoId){
