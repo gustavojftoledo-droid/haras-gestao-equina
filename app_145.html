@@ -4580,8 +4580,8 @@ function createAnimalSelector(hostEl, opts){
         });
       }
     });
-    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ relevantAnimals().forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); });
-    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); drawBody(); persistSelection(); });
+    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ relevantAnimals().forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
+    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
     hostEl.querySelector(`#${hostEl.id}_onlysel`).addEventListener('click', ()=>{ state.onlySelected = !state.onlySelected; draw(); });
     if(opts.reportFilter){
       hostEl.querySelectorAll('[data-inc]').forEach(chip=>{
