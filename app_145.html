@@ -2906,9 +2906,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
-<!-- Envio do Pedido de Compra (Estoque) por WhatsApp/e-mail — mesma ideia do "Pedir mais": não anexa
-     o PDF sozinho (nenhum site consegue), só abre o app já com a mensagem pronta; o PDF baixado
-     (botão da tela anterior) você anexa manualmente. -->
+<!-- Envio do Pedido de Compra (Estoque) por WhatsApp/e-mail — mesma ideia do "Pedir mais". Ao clicar,
+     baixa o PDF sozinho (mesmo conteúdo da prévia) e abre o app já com a mensagem pronta; anexar o
+     PDF no WhatsApp/e-mail continua manual — nenhum site consegue anexar arquivo sozinho. -->
 <div class="overlay" id="overlayPedidoCompraEnvio">
   <div class="modal">
     <div class="modal-head"><div class="modal-title">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
@@ -2917,7 +2917,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field"><label>E-mail do fornecedor</label><input type="email" id="pce_email" placeholder="fornecedor@exemplo.com"></div>
       <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
     </div>
-    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo pra esse Tipo de produto, pra próxima vez. Lembre de baixar o PDF antes (tela anterior) pra anexar manualmente — nada é enviado sozinho, abre seu WhatsApp/e-mail já com a mensagem pronta, você confere, anexa o PDF e manda de lá.</div>
+    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo pra esse Tipo de produto, pra próxima vez. Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho).</div>
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoCompraEnvio">Cancelar</button><button type="button" class="btn btn-ghost" id="btnPceEmail">✉ Abrir E-mail</button><button type="button" class="btn" id="btnPceWhats">📱 Abrir WhatsApp</button></div>
@@ -8217,6 +8217,7 @@ function calcularLinhasPorPagina(theadHtml, linhasHtmlAmostra, paisagem){
 // Mostra o relatório na tela ANTES de baixar — usado nos botões rápidos de relatório (📄 em
 // Manejos/Treinos/Nascimentos/Visitas), pra dar a chance de conferir antes de gerar o PDF.
 let lastPreviaTipoPedido = '';
+let lastPreviaHtmlConteudo = '', lastPreviaNomeArquivo = '', lastPreviaOptsPdf = null;
 function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Boa tarde'; }
 // Tela dedicada (igual o "Pedir mais" de 1 produto): WhatsApp, e-mail e mensagem ficam abertos pra
 // edição — nada é automático/escondido — mas vêm pré-preenchidos com o último contato usado nesse
@@ -8239,6 +8240,7 @@ document.getElementById('btnPceWhats').addEventListener('click', ()=>{
   if(!numero){ showAlert('Informe o WhatsApp do fornecedor.'); document.getElementById('pce_whats').focus(); return; }
   salvarContatoPedidoCompra();
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
+  baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
   closeModal('overlayPedidoCompraEnvio');
 });
 document.getElementById('btnPceEmail').addEventListener('click', ()=>{
@@ -8247,6 +8249,7 @@ document.getElementById('btnPceEmail').addEventListener('click', ()=>{
   salvarContatoPedidoCompra();
   const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido);
   window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
+  baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
   closeModal('overlayPedidoCompraEnvio');
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
@@ -8259,6 +8262,7 @@ function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   // produto cujo contato de fornecedor usar — mesmo contato por Tipo já configurado em Estoque >
   // Relatório). Sem tipoPedido (relatórios de Manejo/Treino/etc.), fica escondido, sem afetar nada.
   lastPreviaTipoPedido = (opts && opts.tipoPedido) || '';
+  lastPreviaHtmlConteudo = htmlConteudo; lastPreviaNomeArquivo = nomeArquivo; lastPreviaOptsPdf = opts;
   document.getElementById('previaRelatorioEnvioWrap').style.display = lastPreviaTipoPedido ? 'flex' : 'none';
   openModal('overlayRelatorioPrevia');
 }
