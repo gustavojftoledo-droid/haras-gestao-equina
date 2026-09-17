@@ -2900,7 +2900,26 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="relatorioPreviaTitulo">Prévia do Relatório</div><button class="modal-close" data-close="overlayRelatorioPrevia">✕</button></div>
     <div id="relatorioPreviaBody" style="max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:8px;"></div>
-    <div class="modal-actions"><div id="previaRelatorioEnvioWrap" style="display:none;"><button type="button" class="btn btn-ghost btn-sm" id="btnWhatsPreviaRelatorio" title="Baixe o PDF primeiro (botão à direita) e anexe ele manualmente no WhatsApp que abrir — nenhum site consegue anexar arquivo sozinho.">📱 WhatsApp</button> <button type="button" class="btn btn-ghost btn-sm" id="btnEmailPreviaRelatorio" title="Baixe o PDF primeiro (botão à direita) e anexe ele manualmente no e-mail que abrir — nenhum site consegue anexar arquivo sozinho.">✉ E-mail</button></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayRelatorioPrevia">Fechar</button><button type="button" class="btn" id="btnBaixarPreviaRelatorio">⬇ Baixar PDF</button></div></div>
+    <div class="modal-actions"><div id="previaRelatorioEnvioWrap" style="display:none;"><button type="button" class="btn btn-ghost btn-sm" id="btnAbrirPedidoCompraEnvio">📤 Pedido por WhatsApp/E-mail</button></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayRelatorioPrevia">Fechar</button><button type="button" class="btn" id="btnBaixarPreviaRelatorio">⬇ Baixar PDF</button></div></div>
+  </div>
+</div>
+
+<!-- Envio do Pedido de Compra (Estoque) por WhatsApp/e-mail — mesma ideia do "Pedir mais": não anexa
+     o PDF sozinho (nenhum site consegue), só abre o app já com a mensagem pronta; o PDF baixado
+     (botão da tela anterior) você anexa manualmente. -->
+<div class="overlay" id="overlayPedidoCompraEnvio">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>WhatsApp do fornecedor</label><input type="text" id="pce_whats" placeholder="Ex: 5534999998888 (com DDI 55)"></div>
+      <div class="field"><label>E-mail do fornecedor</label><input type="email" id="pce_email" placeholder="fornecedor@exemplo.com"></div>
+      <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo pra esse Tipo de produto, pra próxima vez. Lembre de baixar o PDF antes (tela anterior) pra anexar manualmente — nada é enviado sozinho, abre seu WhatsApp/e-mail já com a mensagem pronta, você confere, anexa o PDF e manda de lá.</div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoCompraEnvio">Cancelar</button><button type="button" class="btn btn-ghost" id="btnPceEmail">✉ Abrir E-mail</button><button type="button" class="btn" id="btnPceWhats">📱 Abrir WhatsApp</button></div>
+    </div>
   </div>
 </div>
 
@@ -8197,20 +8216,36 @@ function calcularLinhasPorPagina(theadHtml, linhasHtmlAmostra, paisagem){
 // Manejos/Treinos/Nascimentos/Visitas), pra dar a chance de conferir antes de gerar o PDF.
 let lastPreviaTipoPedido = '';
 function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Boa tarde'; }
-document.getElementById('btnWhatsPreviaRelatorio').addEventListener('click', ()=>{
+// Tela dedicada (igual o "Pedir mais" de 1 produto): WhatsApp, e-mail e mensagem ficam abertos pra
+// edição — nada é automático/escondido — mas vêm pré-preenchidos com o último contato usado nesse
+// Tipo de produto, e o que for editado aqui já atualiza esse "último usado" pra próxima vez.
+document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', ()=>{
   const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastPreviaTipoPedido]) || {};
-  const numero = (c.whats||'').replace(/\D/g,'');
-  if(!numero){ showAlert(`Cadastre o WhatsApp do fornecedor de "${TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido}" em Estoque → Relatório.`); return; }
-  const msg = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.`;
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(msg)}`, '_blank');
+  document.getElementById('pce_whats').value = c.whats || '';
+  document.getElementById('pce_email').value = c.email || '';
+  document.getElementById('pce_mensagem').value = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.`;
+  openModal('overlayPedidoCompraEnvio');
 });
-document.getElementById('btnEmailPreviaRelatorio').addEventListener('click', ()=>{
-  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastPreviaTipoPedido]) || {};
-  const email = (c.email||'').trim();
-  if(!email){ showAlert(`Cadastre o e-mail do fornecedor de "${TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido}" em Estoque → Relatório.`); return; }
-  const msg = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.`;
+function salvarContatoPedidoCompra(){
+  if(!lastPreviaTipoPedido) return;
+  if(!aux.contatosFornecedorTipo) aux.contatosFornecedorTipo = {};
+  aux.contatosFornecedorTipo[lastPreviaTipoPedido] = { whats: f('pce_whats').trim(), email: f('pce_email').trim() };
+  storeSet('aux_lists', aux);
+}
+document.getElementById('btnPceWhats').addEventListener('click', ()=>{
+  const numero = f('pce_whats').replace(/\D/g,'');
+  if(!numero){ showAlert('Informe o WhatsApp do fornecedor.'); document.getElementById('pce_whats').focus(); return; }
+  salvarContatoPedidoCompra();
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
+  closeModal('overlayPedidoCompraEnvio');
+});
+document.getElementById('btnPceEmail').addEventListener('click', ()=>{
+  const email = f('pce_email').trim();
+  if(!email){ showAlert('Informe o e-mail do fornecedor.'); document.getElementById('pce_email').focus(); return; }
+  salvarContatoPedidoCompra();
   const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido);
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(msg)}`, '_blank');
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
+  closeModal('overlayPedidoCompraEnvio');
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
