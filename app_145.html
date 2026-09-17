@@ -11845,7 +11845,7 @@ function openProdutoEdit(id){
   document.getElementById('pd_classe').value=p.classe||'';
   document.getElementById('pd_unidade').value=p.unidade||'';
   document.getElementById('pd_pesoSaco').value=p.pesoSaco!=null?p.pesoSaco:'';
-  document.getElementById('pd_nomeEmbalagem').value=p.nomeEmbalagem||'';
+  document.getElementById('pd_nomeEmbalagem').value=p.nomeEmbalagem||inferirNomeEmbalagem(p.nome);
   document.getElementById('pd_quantidade').value=p.quantidade!=null?p.quantidade:'';
   document.getElementById('pd_alertaModo').value=p.alertaModo==='projetado'?'projetado':'fixo';
   document.getElementById('pd_minimo').value=p.minimo!=null?p.minimo:'';
@@ -12774,6 +12774,15 @@ function calcFardosSugeridos(p, proj){
   const necessario = pesoEmbalagem>0 ? Math.ceil(necessarioBase/pesoEmbalagem) : necessarioBase;
   return {targetDias, necessario};
 }
+// Chuta o nome da embalagem a partir do nome do produto — assim já vem certo sem precisar
+// configurar nada antes (Ração = Saco, Feno = Fardo); "Nome da embalagem" no cadastro do produto
+// só existe pra corrigir esse chute quando ele erra, não pra ser obrigatório preencher.
+function inferirNomeEmbalagem(nomeProduto){
+  const n = (nomeProduto||'').toLowerCase();
+  if(n.includes('feno')) return 'Fardo';
+  if(n.includes('ração') || n.includes('racao')) return 'Saco';
+  return 'Embalagem';
+}
 function atualizarMensagemPedidoRapido(){
   const p = estoqueProdutos.find(x=>x.id===pedidoRapidoProdutoId); if(!p) return;
   const proj = calcProjecaoConsumo(p);
@@ -12781,7 +12790,7 @@ function atualizarMensagemPedidoRapido(){
   const prazo = dias!=null ? `dentro de ${dias} dia${dias===1?'':'s'}` : 'em breve';
   const pesoEmbalagem = Number(p.pesoSaco)||0;
   const qtd = f('pdr_quantidade').trim();
-  const nomeEmb = (p.nomeEmbalagem||'embalagem').trim();
+  const nomeEmb = (p.nomeEmbalagem || inferirNomeEmbalagem(p.nome)).trim();
   const un = pesoEmbalagem>0 ? (' '+nomeEmb+(Number(qtd)===1?'':'s')) : (p.unidade?(' '+p.unidade):'');
   const linhaQtd = qtd ? `\nVamos precisar de ${qtd}${un}.` : '';
   document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}.${linhaQtd}\nObrigado.`;
