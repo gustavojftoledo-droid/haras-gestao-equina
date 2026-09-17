@@ -2695,8 +2695,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <!-- CONSULTORIA: cadastro rápido de propriedade nova (aberto ao dar Enter numa propriedade que ainda não existe, dentro de Nova/Editar Visita) -->
 <div class="overlay" id="overlayConsultoriaPropriedadeRapida">
   <div class="modal">
-    <div class="modal-head"><div class="modal-title">Nova propriedade</div><button class="modal-close" data-close="overlayConsultoriaPropriedadeRapida">✕</button></div>
-    <div class="hint-text" style="margin-bottom:10px;">"<span id="cprNomeLabel"></span>" ainda não estava cadastrada — complete os dados dela (opcional) e volta pra visita.</div>
+    <div class="modal-head"><div class="modal-title" id="cprModalTitle">Nova propriedade</div><button class="modal-close" data-close="overlayConsultoriaPropriedadeRapida">✕</button></div>
+    <div class="hint-text" id="cprHint" style="margin-bottom:10px;">"<span id="cprNomeLabel"></span>" ainda não estava cadastrada — complete os dados dela (opcional) e volta pra visita.</div>
     <div class="form-grid">
       <div class="field full"><label>Proprietário</label><input type="text" id="cpr_proprietario" placeholder="Dono da propriedade"></div>
       <div class="field full"><label>Cidade</label><input type="text" id="cpr_cidade" placeholder="Cidade/UF"></div>
@@ -13006,36 +13006,63 @@ function atualizarInfoPropriedadeVisita(){
   info.style.display = partes.length ? '' : 'none';
 }
 let propriedadeRapidaPendenteNome = null;
+// De onde o modal foi aberto — muda o texto/botões e o que acontece ao fechar: 'visita' (Enter no campo
+// Propriedade da Visita, volta o foco pra lá) ou 'lista' (botão "Editar" no Histórico de Propriedade,
+// só fecha e atualiza a listagem).
+let propriedadeModalOrigem = 'visita';
 function abrirPropriedadeRapida(nome){
+  propriedadeModalOrigem = 'visita';
   propriedadeRapidaPendenteNome = nome;
+  document.getElementById('cprModalTitle').textContent = 'Nova propriedade';
+  document.getElementById('cprHint').style.display = '';
   document.getElementById('cprNomeLabel').textContent = nome;
+  document.getElementById('btnPularPropriedadeRapida').style.display = '';
   document.getElementById('cpr_proprietario').value = '';
   document.getElementById('cpr_cidade').value = '';
   document.getElementById('cpr_obs').value = '';
   openModal('overlayConsultoriaPropriedadeRapida');
 }
-function salvarNovaPropriedade({proprietario, cidade, obs}){
+// Editar propriedade que já existe (botão "Editar" na lista de Propriedades do Histórico) — mesmo modal,
+// só que pré-preenchido com o que já está salvo, sem o aviso de "propriedade nova" nem o botão "Pular".
+function abrirEditarPropriedadeLista(nome){
+  propriedadeModalOrigem = 'lista';
+  propriedadeRapidaPendenteNome = nome;
+  const reg = encontrarPropriedade(nome);
+  document.getElementById('cprModalTitle').textContent = 'Editar propriedade: '+nome;
+  document.getElementById('cprHint').style.display = 'none';
+  document.getElementById('btnPularPropriedadeRapida').style.display = 'none';
+  document.getElementById('cpr_proprietario').value = reg ? (reg.proprietario||'') : '';
+  document.getElementById('cpr_cidade').value = reg ? (reg.cidade||'') : '';
+  document.getElementById('cpr_obs').value = reg ? (reg.obs||'') : '';
+  openModal('overlayConsultoriaPropriedadeRapida');
+}
+// Cria se ainda não existir, atualiza se já existir (edição sobrescreve os campos) — mesma função serve
+// tanto pro fluxo de cadastro rápido quanto pro "Editar" da lista.
+function salvarDadosPropriedade({proprietario, cidade, obs}){
   const nome = propriedadeRapidaPendenteNome;
-  if(!nome || encontrarPropriedade(nome)) return; // já foi cadastrada (ex: 2 cliques) — não duplica
-  consultoriaPropriedades = [...consultoriaPropriedades, {
-    id: 'cpr_'+Date.now(), nome, proprietario: (proprietario||'').trim(), cidade: (cidade||'').trim(),
-    obs: (obs||'').trim(), criadoEm: new Date().toISOString()
-  }];
+  if(!nome) return;
+  const existente = encontrarPropriedade(nome);
+  const dados = { proprietario: (proprietario||'').trim(), cidade: (cidade||'').trim(), obs: (obs||'').trim() };
+  consultoriaPropriedades = existente
+    ? consultoriaPropriedades.map(p=> p.id===existente.id ? {...p, ...dados} : p)
+    : [...consultoriaPropriedades, { id:'cpr_'+Date.now(), nome, ...dados, criadoEm: new Date().toISOString() }];
   salvarEmSegundoPlano('consultoria_propriedades_list', consultoriaPropriedades);
   refreshDatalists();
 }
 function fecharPropriedadeRapidaEVoltar(){
   closeModal('overlayConsultoriaPropriedadeRapida');
+  const origem = propriedadeModalOrigem;
   propriedadeRapidaPendenteNome = null;
+  if(origem==='lista'){ renderConsultoriaPropriedadesLista(); return; }
   atualizarInfoPropriedadeVisita();
   document.getElementById('csv_data').focus(); // volta o foco pra visita, de onde parou
 }
 document.getElementById('btnSalvarPropriedadeRapida').addEventListener('click', ()=>{
-  salvarNovaPropriedade({ proprietario: f('cpr_proprietario'), cidade: f('cpr_cidade'), obs: f('cpr_obs') });
+  salvarDadosPropriedade({ proprietario: f('cpr_proprietario'), cidade: f('cpr_cidade'), obs: f('cpr_obs') });
   fecharPropriedadeRapidaEVoltar();
 });
 document.getElementById('btnPularPropriedadeRapida').addEventListener('click', ()=>{
-  salvarNovaPropriedade({}); // registra só o nome, pra não perguntar de novo na próxima visita
+  salvarDadosPropriedade({}); // registra só o nome, pra não perguntar de novo na próxima visita
   fecharPropriedadeRapidaEVoltar();
 });
 document.getElementById('overlayConsultoriaPropriedadeRapida').addEventListener('keydown', e=>{
@@ -13087,7 +13114,7 @@ document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', as
   // do cadastro leve de propriedades. Quem quiser completar os dados, edita depois em qualquer visita.
   if(!encontrarPropriedade(propriedade)){
     propriedadeRapidaPendenteNome = propriedade;
-    salvarNovaPropriedade({});
+    salvarDadosPropriedade({});
   }
   const existente = consultoriaVisitas.find(v=>v.id===editingVisitaConsultoriaId);
   const eraNova = !editingVisitaConsultoriaId;
@@ -13442,13 +13469,16 @@ function renderConsultoriaPropriedadesLista(){
       <td data-col="cidade">${l.cidade||'—'}</td>
       <td data-col="visitas">${l.nVisitas}</td>
       <td data-col="ultima">${fmtDate(l.ultima)||'—'}</td>
-      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirproprhistbtn="${escHtml(l.nome)}">Abrir</button></td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editarproprhist="${escHtml(l.nome)}">Editar</button> <button type="button" class="btn btn-sm btn-ghost" data-abrirproprhistbtn="${escHtml(l.nome)}">Abrir</button></td>
     </tr>`).join('');
   tbody.querySelectorAll('[data-abrirproprhist]').forEach(tr=>{
     tr.addEventListener('click', e=>{ if(e.target.closest('button')) return; abrirPropriedadeHistorico(tr.dataset.abrirproprhist); });
   });
   tbody.querySelectorAll('[data-abrirproprhistbtn]').forEach(btn=>{
     btn.addEventListener('click', ()=> abrirPropriedadeHistorico(btn.dataset.abrirproprhistbtn));
+  });
+  tbody.querySelectorAll('[data-editarproprhist]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); abrirEditarPropriedadeLista(btn.dataset.editarproprhist); });
   });
 }
 document.getElementById('chPropSearch').addEventListener('input', renderConsultoriaPropriedadesLista);
