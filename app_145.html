@@ -8235,22 +8235,26 @@ function salvarContatoPedidoCompra(){
   aux.contatosFornecedorTipo[lastPreviaTipoPedido] = { whats: f('pce_whats').trim(), email: f('pce_email').trim() };
   storeSet('aux_lists', aux);
 }
-document.getElementById('btnPceWhats').addEventListener('click', ()=>{
+document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const numero = f('pce_whats').replace(/\D/g,'');
   if(!numero){ showAlert('Informe o WhatsApp do fornecedor.'); document.getElementById('pce_whats').focus(); return; }
   salvarContatoPedidoCompra();
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
-  baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  const mensagem = f('pce_mensagem');
   closeModal('overlayPedidoCompraEnvio');
+  // Gera o PDF ANTES de abrir o WhatsApp — a captura do PDF precisa da aba em foco/visível, e abrir
+  // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
+  await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
-document.getElementById('btnPceEmail').addEventListener('click', ()=>{
+document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const email = f('pce_email').trim();
   if(!email){ showAlert('Informe o e-mail do fornecedor.'); document.getElementById('pce_email').focus(); return; }
   salvarContatoPedidoCompra();
   const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido);
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pce_mensagem'))}`, '_blank');
-  baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  const mensagem = f('pce_mensagem');
   closeModal('overlayPedidoCompraEnvio');
+  await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`, '_blank');
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
