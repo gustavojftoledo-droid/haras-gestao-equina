@@ -12675,9 +12675,10 @@ function renderDietasMedidores(){
 let pedidoRapidoProdutoId = null;
 function atualizarMensagemPedidoRapido(){
   const p = estoqueProdutos.find(x=>x.id===pedidoRapidoProdutoId); if(!p) return;
-  const un = p.unidade ? (' '+p.unidade) : '';
-  const qtd = f('pdr_quantidade').trim();
-  document.getElementById('pdr_mensagem').value = `Olá! Pedido de compra: ${qtd||'___'}${un} de ${p.nome}. Pode confirmar disponibilidade e prazo de entrega?`;
+  const proj = calcProjecaoConsumo(p);
+  const dias = (proj.suficiente && proj.diasRestantes!==Infinity) ? Math.max(0,proj.diasRestantes) : null;
+  const prazo = dias!=null ? `dentro de ${dias} dia${dias===1?'':'s'}` : 'em breve';
+  document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}. Obrigado.`;
 }
 function abrirPedidoRapidoProduto(produtoId){
   const p = estoqueProdutos.find(x=>x.id===produtoId); if(!p) return;
