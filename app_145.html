@@ -4144,15 +4144,13 @@ document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click', e=>{ if(e.target===o) closeModal(o.id); }));
 
 /* ---------- "← VOLTAR" DE ONDE VOCÊ SAIU ---------- */
-// Botões que pulam de uma tela pra outra por um motivo específico (👁 abrir Ficha do Animal, "Ver
-// origem" no Financeiro, "+ Inserir Manejo/Veterinária/Tratamento" na Ficha, "Por localização" no
-// Início...) chamam guardarPontoDeVolta() antes de navegar — empilha a tela atual e faz o botão
-// flutuante "← Voltar" aparecer na tela de destino, voltando pro lugar exato de onde saiu (em vez de
-// sempre cair num lugar fixo, tipo o antigo "Voltar" da Ficha do Animal que só ia pra Animais).
-// Navegar pelo menu lateral normalmente (sem passar por guardarPontoDeVolta) esvazia a pilha — senão
-// o botão ficaria oferecendo "voltar" pra um lugar que não faz mais sentido.
+// Histórico real (tipo navegador): TODA troca de tela empilha de onde você saiu — não só os atalhos
+// especiais (👁 Ficha do Animal, "Ver origem" no Financeiro, "+ Inserir Manejo" etc.), mas também um
+// clique normal no menu lateral. "← Voltar" sempre desempilha e leva pra tela anterior de verdade,
+// nunca pra um lugar fixo. navegandoDeVolta marca a navegação disparada pelo PRÓPRIO botão Voltar, pra
+// ela não se empilhar de novo (senão voltar-e-avançar ficaria alternando as duas telas pra sempre).
 let pilhaVoltar = [];
-let preservarPilhaVoltar = false;
+let navegandoDeVolta = false;
 function guardarPontoDeVolta(){
   const viewEl = document.querySelector('.view.active');
   if(!viewEl) return;
@@ -4160,8 +4158,9 @@ function guardarPontoDeVolta(){
   // Ficha do Animal não tem item de menu próprio (só se chega por um 👁) — guarda também QUAL animal
   // estava aberto, senão "Voltar" pra lá abriria o animal errado se você tiver ido de ficha em ficha.
   if(viewEl.id==='view-animalPerfil') ponto.animalId = perfilAnimalId;
+  const topo = pilhaVoltar[pilhaVoltar.length-1];
+  if(topo && topo.view===ponto.view && topo.animalId===ponto.animalId) return; // já empilhado agora mesmo (chamada explícita seguida do clique do menu)
   pilhaVoltar.push(ponto);
-  preservarPilhaVoltar = true;
 }
 function atualizarBotaoVoltar(){
   // Na Ficha do Animal o "Voltar" já aparece junto do nome (btnVoltarPerfil) — o flutuante junto
@@ -4171,11 +4170,12 @@ function atualizarBotaoVoltar(){
 }
 function voltarUmPasso(){
   const anterior = pilhaVoltar.pop();
-  preservarPilhaVoltar = true; // essa navegação (a de volta em si) não deve esvaziar o resto da pilha
+  navegandoDeVolta = true; // essa navegação é o próprio "voltar" — não deve se empilhar de novo
   if(!anterior){
     // Aba aberta a partir de um 👁 "Abrir ficha em nova aba" (window.opener aponta pra quem abriu) —
     // não tem pra onde "voltar" dentro dela mesma, então fecha e devolve o foco pra aba de origem.
     if(window.opener){ window.close(); return; }
+    navegandoDeVolta = false;
     irParaView('inicio');
   } else if(anterior.view==='view-animalPerfil' && anterior.animalId){
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -4183,9 +4183,10 @@ function voltarUmPasso(){
     perfilAnimalId = anterior.animalId;
     document.getElementById('view-animalPerfil').classList.add('active');
     renderAnimalPerfil(anterior.animalId);
-    preservarPilhaVoltar = false; // não passou pelo clique de .nav-item — consome a flag aqui (ver abrirPerfilAnimal)
+    navegandoDeVolta = false; // não passou pelo clique de .nav-item — consome a flag aqui
   } else {
     irParaView(anterior.view.replace(/^view-/,''));
+    navegandoDeVolta = false; // segurança: se o item de menu daquela view não existir/estiver oculto, irParaView não clica em nada e a flag nunca seria consumida
   }
   atualizarBotaoVoltar();
 }
@@ -4194,12 +4195,13 @@ document.getElementById('btnVoltarFlutuante').addEventListener('click', voltarUm
 /* ---------- NAV ---------- */
 document.querySelectorAll('.nav-item').forEach(item=>{
   item.addEventListener('click', ()=>{
+    const targetViewId = 'view-'+item.dataset.view;
+    if(!navegandoDeVolta && document.querySelector('.view.active')?.id!==targetViewId) guardarPontoDeVolta();
+    navegandoDeVolta = false;
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
     item.classList.add('active');
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    if(!preservarPilhaVoltar){ pilhaVoltar = []; }
-    preservarPilhaVoltar = false;
     atualizarBotaoVoltar();
     if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
@@ -18210,10 +18212,6 @@ function abrirPerfilAnimal(id){
   document.getElementById('view-animalPerfil').classList.add('active');
   renderAnimalPerfil(id);
   atualizarBotaoVoltar();
-  // Essa transição não passa pelo clique de .nav-item (a Ficha não tem item de menu), então é aqui
-  // que o "guarda-costas" da pilha precisa ser consumido — senão ele ficaria "true" esperando o
-  // PRÓXIMO clique de menu qualquer, e um clique manual normal deixaria de limpar a pilha por engano.
-  preservarPilhaVoltar = false;
 }
 document.getElementById('btnVoltarPerfil').addEventListener('click', ()=>{
   // Volta pro lugar exato de onde a ficha foi aberta (pilhaVoltar quase sempre tem algo, já que
