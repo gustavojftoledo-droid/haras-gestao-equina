@@ -1346,6 +1346,7 @@
           <button type="button" class="btn btn-sm btn-ghost" id="btnRelatorioProdutosLote">📄 Relatório dos selecionados</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnGerarPedidoLote">📝 Gerar Pedido dos selecionados</button>
           <button type="button" class="btn btn-sm btn-danger" id="btnExcluirProdutosLote">🗑 Excluir selecionados</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnLimparSelecaoProdutos" style="margin-left:auto;">Limpar seleção</button>
         </div>
         <div id="eProdutosHost"></div>
       </div>
@@ -2531,6 +2532,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <div class="field full" id="pd_classeWrap"><label>Classe do Medicamento <span style="font-weight:400;text-transform:none;letter-spacing:0;">(ex: Antiinflamatório, Antibiótico... — lista sua, edite/apague à vontade)</span></label><div class="field-plus"><select id="pd_classe" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="classeMedicamento">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="classeMedicamento" data-selid="pd_classe" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="classeMedicamento" data-selid="pd_classe" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Unidade de medida</label><div style="display:flex;gap:6px;"><select id="pd_unidade" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="unidade">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="unidade" data-selid="pd_unidade" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="unidade" data-selid="pd_unidade" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Conteúdo por embalagem <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional — ex: kg do saco de ração, ou ml do frasco do medicamento)</span></label><input type="number" step="0.01" id="pd_pesoSaco" placeholder="Ex: 25 (ração) ou 20 (ml por frasco)"></div>
+        <div class="field"><label>Nome da embalagem <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional — como chamar cada uma no pedido)</span></label><input type="text" id="pd_nomeEmbalagem" placeholder="Ex: Saco, Fardo, Caixa..."></div>
         <div class="field"><label>Quantidade em estoque</label><input type="number" step="0.01" min="0" id="pd_quantidade" placeholder="0"></div>
         <div class="field"><label>Alerta de estoque mínimo</label><select id="pd_alertaModo">
           <option value="fixo">Quantidade mínima fixa</option>
@@ -11688,6 +11690,10 @@ function renderEEditLoteBar(){
   bar.style.display='flex';
   document.getElementById('eEditLoteContagemBar').textContent = n+' produto(s) selecionado(s)';
 }
+document.getElementById('btnLimparSelecaoProdutos').addEventListener('click', ()=>{
+  selectedProdutoIds.clear();
+  renderEstoque();
+});
 document.getElementById('btnExcluirProdutosLote').addEventListener('click', async ()=>{
   const n = selectedProdutoIds.size;
   if(n===0) return;
@@ -11839,6 +11845,7 @@ function openProdutoEdit(id){
   document.getElementById('pd_classe').value=p.classe||'';
   document.getElementById('pd_unidade').value=p.unidade||'';
   document.getElementById('pd_pesoSaco').value=p.pesoSaco!=null?p.pesoSaco:'';
+  document.getElementById('pd_nomeEmbalagem').value=p.nomeEmbalagem||'';
   document.getElementById('pd_quantidade').value=p.quantidade!=null?p.quantidade:'';
   document.getElementById('pd_alertaModo').value=p.alertaModo==='projetado'?'projetado':'fixo';
   document.getElementById('pd_minimo').value=p.minimo!=null?p.minimo:'';
@@ -11967,6 +11974,7 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     id: editingProdutoId || ('pd_'+Date.now()),
     tipo: f('pd_tipo_aux'), nome: f('pd_nome_sel'), classe: f('pd_tipo_aux')==='Medicamento' ? f('pd_classe') : '', unidade: f('pd_unidade'),
     pesoSaco: f('pd_pesoSaco')===''?'':Number(f('pd_pesoSaco')),
+    nomeEmbalagem: f('pd_nomeEmbalagem').trim(),
     quantidade: f('pd_quantidade')===''?0:Number(f('pd_quantidade')),
     alertaModo: f('pd_alertaModo')==='projetado'?'projetado':'fixo',
     minimo: f('pd_minimo')===''?'':Number(f('pd_minimo')),
@@ -12773,7 +12781,8 @@ function atualizarMensagemPedidoRapido(){
   const prazo = dias!=null ? `dentro de ${dias} dia${dias===1?'':'s'}` : 'em breve';
   const pesoEmbalagem = Number(p.pesoSaco)||0;
   const qtd = f('pdr_quantidade').trim();
-  const un = pesoEmbalagem>0 ? (' fardo'+(Number(qtd)===1?'':'s')) : (p.unidade?(' '+p.unidade):'');
+  const nomeEmb = (p.nomeEmbalagem||'embalagem').trim();
+  const un = pesoEmbalagem>0 ? (' '+nomeEmb+(Number(qtd)===1?'':'s')) : (p.unidade?(' '+p.unidade):'');
   const linhaQtd = qtd ? `\nVamos precisar de ${qtd}${un}.` : '';
   document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}.${linhaQtd}\nObrigado.`;
 }
