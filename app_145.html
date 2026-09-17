@@ -13459,23 +13459,13 @@ function gerarConteudoRelatorioConsultoriaPDF(visita, sugestoes, conclusao){
   const blocosAnimais = avaliacoes.length===0
     ? '<div class="report-animal-block"><div class="empty">Nenhum animal avaliado nesta visita.</div></div>'
     : avaliacoes.map(a=>blocoAvaliacaoConsultoriaHtml(a, visita)).join('');
-  // Fase 2: formulação(ões) de dieta vinculada(s) a cada animal avaliado nesta visita, com o resumo de
-  // exigência NRC × fornecido × custo (blocoFormulacoesAnimalRelatorioHtml, banner "CONSULTORIA — Fase 2"
-  // mais abaixo) — reaproveita a mesma função usada no painel ao vivo da Formulação e na Comparação, sem
-  // duplicar a lógica de cálculo/HTML. Não toca em nada da paginação: continua sendo 1 ".report-animal-block"
-  // só, exatamente como o placeholder que ela substitui.
-  const secaoFase2 = `<div class="report-animal-block">
-      <div class="report-animal-name">Dietas avaliadas e Custos</div>
-      ${avaliacoes.length===0 ? '<div class="hint-text">Nenhum animal avaliado nesta visita.</div>' :
-        avaliacoes.map(a=>`<div style="margin-top:10px;"><strong>${a.animalNome||''}</strong></div>${blocoFormulacoesAnimalRelatorioHtml(a.animalId)}`).join('')}
-    </div>`;
   const secaoTexto = `<div class="report-animal-block">
       <div class="report-animal-name">Sugestões Técnicas</div>
       <div>${sugestoes ? sugestoes.replace(/\n/g,'<br>') : '<span class="hint-text">Nenhuma.</span>'}</div>
       <div class="report-animal-name" style="margin-top:14px;">Conclusão</div>
       <div>${conclusao ? conclusao.replace(/\n/g,'<br>') : '<span class="hint-text">Nenhuma.</span>'}</div>
     </div>`;
-  return `<div class="report-card print-block">${cabecalhoVisitaConsultoriaHtml(visita)}${blocosAnimais}${secaoFase2}${secaoTexto}</div>`;
+  return `<div class="report-card print-block">${cabecalhoVisitaConsultoriaHtml(visita)}${blocosAnimais}${secaoTexto}</div>`;
 }
 function baixarRelatorioConsultoriaModal(umPorPagina){
   const visita = consultoriaVisitas.find(v=>v.id===visitaConsultoriaDetalheId);
@@ -13802,8 +13792,8 @@ function pillAtendimentoHtml(pct){
   const label = pct<95 ? 'Abaixo' : pct>110 ? 'Acima' : 'Dentro';
   return `<span class="pill ${cls}">${label}</span> ${pct.toFixed(0)}%`;
 }
-// Linhas Nutriente|Exigência|Fornecido|Diferença|%Atendimento — reaproveitada no modal ao vivo e no
-// Relatório PDF (blocoFormulacoesAnimalRelatorioHtml, mais abaixo).
+// Linhas Nutriente|Exigência|Fornecido|Diferença|%Atendimento — reaproveitada no modal ao vivo da
+// Formulação e na Comparação.
 function linhasResumoNutrientesHtml(resumo){
   const linhas = [
     ['Energia Digestível (ED)', resumo.exigencia.deKcal, resumo.fornecido.deKcal, resumo.pct.deKcal, 'Kcal'],
@@ -14273,33 +14263,6 @@ document.getElementById('btnPdfComparacaoConsultoria').addEventListener('click',
   const cabecalho = `<h1 style="border:none;">Comparação de Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>`;
   baixarRelatorioManejoPDF(`<div class="report-card print-block">${cabecalho}${conteudo}</div>`, 'Comparacao_Formulacoes.pdf', usarPaisagem?{orientation:'landscape'}:undefined);
 });
-
-/* ---- Relatório da visita: substitui o placeholder "Disponível na Fase 2" (ver gerarConteudoRelatorioConsultoriaPDF
-   mais abaixo) — reaproveita calcResumoFormulacao/linhasResumoNutrientesHtml/avisosNutrientesHtml (mesmas
-   funções do painel ao vivo da Formulação e da Comparação), sem duplicar lógica de cálculo/HTML. Usa a
-   classe "report-animal-subitem" (não "report-animal-block") pra não confundir a contagem de blocos da
-   paginação (gerarPdfUmBlocoPorPagina seleciona só .report-animal-block/.pdf-item-block). ---- */
-function blocoFormulacoesAnimalRelatorioHtml(animalId){
-  const formulacoesDoAnimal = consultoriaFormulacoes.filter(fo=>formulacaoAnimais(fo).some(a=>a.animalId===animalId));
-  if(formulacoesDoAnimal.length===0){
-    return '<div class="hint-text">Nenhuma formulação registrada para este animal.</div>';
-  }
-  return formulacoesDoAnimal.map(fo=>{
-    // Usa o peso DESSE animal especificamente (a formulação pode ter outros animais junto, com pesos
-    // diferentes) — Fornecido/Custo são os mesmos pra qualquer um do grupo, só a Exigência muda.
-    const meuPeso = (formulacaoAnimais(fo).find(a=>a.animalId===animalId)||{}).pesoKg;
-    const resumo = calcResumoFormulacao({ pesoKg:Number(meuPeso)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
-    return `<div class="report-animal-subitem" style="margin-top:8px;">
-      <div style="font-weight:600;">${fo.nome||''} <span style="font-weight:400;color:#666;">— ${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||''}${meuPeso?(', '+meuPeso+' kg'):''}</span></div>
-      <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
-        <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
-      </table></div>
-      <div style="margin-top:4px;">Custo estimado: ${fmtMoeda(resumo.custoDia,'BRL')}/dia · ${fmtMoeda(resumo.custoMes,'BRL')}/mês</div>
-      ${resumo.avisos.length>0 ? `<div style="margin-top:4px;">${resumo.avisos.map(a=>'⚠ '+a.produtoNome+' sem valores nutricionais cadastrados').join('<br>')}</div>` : ''}
-    </div>`;
-  }).join('');
-}
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
    Segue o mesmo núcleo de baixa de estoque das Dietas (consumeEstoque), mas em vez de "todo dia",
