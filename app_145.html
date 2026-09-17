@@ -612,7 +612,7 @@
       <div class="nav-item" data-view="calendario" title="Atalho: Alt+Shift+C"><span class="dot"></span>Calendário</div>
       <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Reprodução</div>
 
-      <div class="nav-group open" data-group="animais-grp">
+      <div class="nav-group" data-group="animais-grp">
         <div class="nav-group-head"><span>Animais</span><span class="chev">›</span></div>
         <div class="nav-group-body">
           <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
@@ -19194,7 +19194,16 @@ function iniciarAppLogado(authUser){
     entrarNoApp();
     // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
     const paramAnimal = new URLSearchParams(location.search).get('animal');
-    if(paramAnimal && horses.some(h=>h.id===paramAnimal)) abrirPerfilAnimal(paramAnimal);
+    if(paramAnimal && horses.some(h=>h.id===paramAnimal)){
+      abrirPerfilAnimal(paramAnimal);
+      // abrirPerfilAnimal sempre empilha "de onde vim" (guardarPontoDeVolta) — mas aqui é a abertura
+      // inicial da aba, o "Início" que ficaria empilhado é só a tela padrão antes de entrar, não um
+      // lugar de verdade por onde o usuário passou. Sem isso, "← Voltar" mandava pra Início em vez de
+      // fechar a aba (quando abriu de verdade numa aba nova) ou ir pra Animais (quando o pop-up foi
+      // bloqueado pelo navegador e caiu nessa mesma aba).
+      pilhaVoltar = [];
+      atualizarBotaoVoltar();
+    }
     // Link direto pra uma aba específica (ex: ?view=consultoria), pra compartilhar o link já na tela certa.
     const paramView = new URLSearchParams(location.search).get('view');
     if(paramView) irParaView(paramView);
