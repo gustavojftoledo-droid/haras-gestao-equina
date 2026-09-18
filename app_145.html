@@ -11451,17 +11451,17 @@ function atualizarAlertaMedicamento(){
     el = document.createElement('button');
     el.id = 'alertaMedicamentoBtn';
     el.type = 'button';
-    el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:250;display:none;align-items:center;gap:6px;'
-      + 'background:var(--burgundy,#8B2E2E);color:#fff;border:none;font-size:13px;padding:8px 14px;border-radius:20px;'
-      + 'box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;cursor:pointer;';
+    el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:250;display:none;align-items:center;justify-content:center;'
+      + 'width:34px;height:34px;border-radius:50%;background:#E8B93B;border:none;font-size:16px;line-height:1;'
+      + 'box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;';
+    el.innerHTML = '⚠';
     document.body.appendChild(el);
     el.addEventListener('click', abrirPedidoAlertaMedicamento);
   }
   if(itens.length===0){ el.style.display='none'; return; }
   const zeradoN = itens.filter(p=>situacaoEstoque(p)==='zerado').length;
-  el.title = `${zeradoN} zerado(s), ${itens.length-zeradoN} perto do mínimo — clique pra gerar o pedido`;
+  el.title = `${itens.length} medicamento(s) precisando de pedido (${zeradoN} zerado(s), ${itens.length-zeradoN} perto do mínimo) — clique pra gerar o pedido`;
   el.style.display = 'flex';
-  el.textContent = `⚠ ${itens.length} medicamento(s) precisando de pedido`;
 }
 function abrirPedidoAlertaMedicamento(){
   if(alertaMedicamentoIds.length===0) return;
