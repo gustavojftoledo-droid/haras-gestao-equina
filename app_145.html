@@ -6659,6 +6659,7 @@ function dashCardHead(icone, titulo, destino){
 let inicioAgendaView = 'semana'; // 'dia' | 'semana' — o chip "Mês" não é um estado aqui, ele navega pra aba Calendário
 
 function renderInicio(){
+  atualizarAlertaMedicamento();
   renderInicioHero();
   renderInicioPilares();
   renderInicioAgenda();
@@ -11405,6 +11406,43 @@ function situacaoEstoque(p){
   const min = (p.minimo!=='' && p.minimo!=null) ? Number(p.minimo) : null;
   if(min!=null && qtd<=min) return 'perto';
   return null;
+}
+
+// Alerta fixo (canto superior, visível em qualquer tela) só de Medicamento zerado/perto do mínimo —
+// clicar já leva pro Estoque com esses produtos marcados e abre direto a tela de "Gerar Pedido".
+// Zerado sempre aparece antes de perto do mínimo (mais urgente primeiro).
+let alertaMedicamentoIds = [];
+function atualizarAlertaMedicamento(){
+  const itens = estoqueProdutos.filter(p=>p.tipo==='Medicamento' && ['zerado','perto'].includes(situacaoEstoque(p)))
+    .sort((a,b)=>{
+      const ordem = {zerado:0, perto:1};
+      const diff = ordem[situacaoEstoque(a)] - ordem[situacaoEstoque(b)];
+      return diff!==0 ? diff : (a.nome||'').localeCompare(b.nome||'','pt');
+    });
+  alertaMedicamentoIds = itens.map(p=>p.id);
+  let el = document.getElementById('alertaMedicamentoBtn');
+  if(!el){
+    el = document.createElement('button');
+    el.id = 'alertaMedicamentoBtn';
+    el.type = 'button';
+    el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:250;display:none;align-items:center;gap:6px;'
+      + 'background:var(--burgundy,#8B2E2E);color:#fff;border:none;font-size:13px;padding:8px 14px;border-radius:20px;'
+      + 'box-shadow:0 4px 14px rgba(0,0,0,.28);font-family:Inter,sans-serif;cursor:pointer;';
+    document.body.appendChild(el);
+    el.addEventListener('click', abrirPedidoAlertaMedicamento);
+  }
+  if(itens.length===0){ el.style.display='none'; return; }
+  const zeradoN = itens.filter(p=>situacaoEstoque(p)==='zerado').length;
+  el.title = `${zeradoN} zerado(s), ${itens.length-zeradoN} perto do mínimo — clique pra gerar o pedido`;
+  el.style.display = 'flex';
+  el.textContent = `⚠ ${itens.length} medicamento(s) precisando de pedido`;
+}
+function abrirPedidoAlertaMedicamento(){
+  if(alertaMedicamentoIds.length===0) return;
+  selectedProdutoIds = new Set(alertaMedicamentoIds);
+  irParaView('estoque');
+  document.querySelector('#view-estoque [data-etab="produtos"]').click();
+  document.getElementById('btnGerarPedidoLote').click();
 }
 
 let eSortColumn=null, eSortDir='asc';
