@@ -1645,6 +1645,7 @@
         <span class="chip" data-cstab="historico" id="cstab_historico">Histórico de Propriedade</span>
         <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
         <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
+        <span class="chip" data-cstab="recomendacao" id="cstab_recomendacao">Recomendação</span>
       </div>
 
       <div id="csview_visitas">
@@ -1748,6 +1749,41 @@
           <tbody id="ccTbody"></tbody>
         </table></div>
         <div id="ccResultado" style="margin-top:20px;"></div>
+      </div>
+
+      <!-- CONSULTORIA (Fase 3): Recomendação de ração — cruza perfil do animal (peso/idade do cadastro +
+           objetivo/esforço/preço informados aqui) com a QUALIDADE da fonte dos ingredientes de cada
+           Alimento do Estoque (não só o % garantido), e sugere quanto dar de cada concentrado pra fechar
+           a exigência de energia que sobrou depois do volumoso já informado. Não grava nada — é só uma
+           calculadora de apoio à decisão; formalizar a dieta escolhida continua sendo feito em Formulação. -->
+      <div id="csview_recomendacao" style="display:none;">
+        <div class="hint-text" style="margin-bottom:10px;">Preencha o perfil do animal e do trabalho — peso e idade já vêm do cadastro. O sistema calcula quanto de cada ração do Estoque fecharia a exigência de energia que sobra depois do volumoso, e monta um relatório com os dados de cada uma (inclusive as Observações do cadastro) pra você levar pra análise.</div>
+        <div class="form-grid">
+          <div class="field"><label>Animal</label><select id="csr_animal"><option value="">Selecione...</option></select></div>
+          <div class="field"><label>Peso (kg)</label><input type="text" id="csr_pesoView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
+          <div class="field"><label>Idade</label><input type="text" id="csr_idadeView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
+          <div class="field"><label>Categoria de atividade (NRC)</label><select id="csr_categoria"></select></div>
+          <div class="field"><label>Objetivo</label><select id="csr_objetivo">
+            <option value="hobby">Lazer / Hobby</option>
+            <option value="performance">Alta performance</option>
+          </select></div>
+          <div class="field"><label>Natureza do esforço</label><select id="csr_esforco">
+            <option value="equilibrado">Equilibrado</option>
+            <option value="aerobico">Mais aeróbico (resistência/fundo)</option>
+            <option value="explosivo">Mais explosivo (velocidade/força)</option>
+          </select></div>
+          <div class="field"><label>Prioridade de custo</label><select id="csr_custo">
+            <option value="neutro">Neutro</option>
+            <option value="baixo_custo">Priorizar menor custo</option>
+            <option value="preco_nao_e_problema">Preço não é problema</option>
+          </select></div>
+          <div class="field"><label>Volumoso atual</label><select id="csr_forragem"><option value="">Selecione...</option></select></div>
+          <div class="field"><label>Quantidade do volumoso (kg/dia)</label><input type="number" step="0.1" min="0" id="csr_forragemQtd" placeholder="Ex: 6"></div>
+        </div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnSugerirRacaoConsultoria" style="margin-right:auto;">Sugerir ração</button>
+        </div>
+        <div id="csrResultado" style="margin-top:10px;"></div>
       </div>
     </div>
 
@@ -2913,8 +2949,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal">
     <div class="modal-head"><div class="modal-title">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
     <div class="form-grid">
-      <div class="field"><label>WhatsApp do fornecedor</label><input type="text" id="pce_whats" placeholder="Ex: 5534999998888 (com DDI 55)"></div>
+      <div class="field"><label>WhatsApp do fornecedor</label><div class="field-plus"><input type="text" id="pce_whats" placeholder="Ex: 5534999998888 (com DDI 55)" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnPceWhats2Add" title="Adicionar outro WhatsApp">+</button></div></div>
       <div class="field"><label>E-mail do fornecedor</label><input type="email" id="pce_email" placeholder="fornecedor@exemplo.com"></div>
+      <div class="field" id="pce_whats2Wrap" style="display:none;"><label>Outro WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><div class="field-plus"><input type="text" id="pce_whats2" placeholder="Ex: 5534999998888 (com DDI 55)" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnPceWhats2Remove" title="Remover">🗑</button></div></div>
       <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
     </div>
     <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo pra esse Tipo de produto, pra próxima vez. Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho).</div>
@@ -8226,17 +8263,28 @@ document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', (
   const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastPreviaTipoPedido]) || {};
   document.getElementById('pce_whats').value = c.whats || '';
   document.getElementById('pce_email').value = c.email || '';
+  document.getElementById('pce_whats2').value = c.whats2 || '';
+  document.getElementById('pce_whats2Wrap').style.display = c.whats2 ? 'flex' : 'none';
   document.getElementById('pce_mensagem').value = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.`;
   openModal('overlayPedidoCompraEnvio');
+});
+document.getElementById('btnPceWhats2Add').addEventListener('click', ()=>{
+  document.getElementById('pce_whats2Wrap').style.display = 'flex';
+  document.getElementById('pce_whats2').focus();
+});
+document.getElementById('btnPceWhats2Remove').addEventListener('click', ()=>{
+  document.getElementById('pce_whats2').value = '';
+  document.getElementById('pce_whats2Wrap').style.display = 'none';
 });
 function salvarContatoPedidoCompra(){
   if(!lastPreviaTipoPedido) return;
   if(!aux.contatosFornecedorTipo) aux.contatosFornecedorTipo = {};
-  aux.contatosFornecedorTipo[lastPreviaTipoPedido] = { whats: f('pce_whats').trim(), email: f('pce_email').trim() };
+  aux.contatosFornecedorTipo[lastPreviaTipoPedido] = { whats: f('pce_whats').trim(), email: f('pce_email').trim(), whats2: f('pce_whats2').trim() };
   storeSet('aux_lists', aux);
 }
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const numero = f('pce_whats').replace(/\D/g,'');
+  const numero2 = f('pce_whats2').replace(/\D/g,'');
   if(!numero){ showAlert('Informe o WhatsApp do fornecedor.'); document.getElementById('pce_whats').focus(); return; }
   salvarContatoPedidoCompra();
   const mensagem = f('pce_mensagem');
@@ -8246,6 +8294,7 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
   showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo WhatsApp...`);
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
+  if(numero2) window.open(`https://wa.me/${numero2}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const email = f('pce_email').trim();
@@ -11560,6 +11609,7 @@ function renderEstoque(){
       let va=a[eSortColumn], vb=b[eSortColumn];
       let cmp;
       if(eSortColumn==='quantidade'){ cmp = (Number(va)||0) - (Number(vb)||0); }
+      else if(eSortColumn==='valor'){ cmp = (custoUnitarioProduto(a)||0) - (custoUnitarioProduto(b)||0); }
       else { cmp = (va||'').toString().toLowerCase().localeCompare((vb||'').toString().toLowerCase(),'pt'); }
       return eSortDir==='asc' ? cmp : -cmp;
     });
@@ -11625,10 +11675,10 @@ function renderEstoque(){
         <thead><tr>
           <th style="width:26px;"><input type="checkbox" class="eGroupSelectAll" data-grupo="${tipo}" title="Selecionar todos deste grupo"></th>
           <th class="sortable ${eSortColumn==='nome'?'sort-active':''}" data-esort="nome">Nome ${sortArrow('nome')}</th>
-          ${cv.classe ? '<th>Classe do Medicamento</th>' : ''}
-          ${cv.unidade ? '<th>Unidade</th>' : ''}
+          ${cv.classe ? `<th class="sortable ${eSortColumn==='classe'?'sort-active':''}" data-esort="classe">Classe do Medicamento ${sortArrow('classe')}</th>` : ''}
+          ${cv.unidade ? `<th class="sortable ${eSortColumn==='unidade'?'sort-active':''}" data-esort="unidade">Unidade ${sortArrow('unidade')}</th>` : ''}
           ${cv.quantidade ? `<th class="sortable ${eSortColumn==='quantidade'?'sort-active':''}" data-esort="quantidade">Em estoque ${sortArrow('quantidade')}</th>` : ''}
-          ${cv.valor ? '<th>Valor</th>' : ''}
+          ${cv.valor ? `<th class="sortable ${eSortColumn==='valor'?'sort-active':''}" data-esort="valor">Valor ${sortArrow('valor')}</th>` : ''}
           ${cv.validade ? '<th>Validade</th>' : ''}
           ${cv.obs ? '<th>Observações</th>' : ''}
         </tr></thead>
@@ -13047,9 +13097,11 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     // Fase 2: sub-abas de Formulação/Comparação — containers/render abaixo, banner "CONSULTORIA (Fase 2)".
     document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
     document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
+    document.getElementById('csview_recomendacao').style.display = sub==='recomendacao' ? 'block' : 'none';
     if(sub==='historico') mostrarNivelPropriedadesHistorico();
     if(sub==='formulacao') renderConsultoriaFormulacoes();
     if(sub==='comparacao') renderConsultoriaComparacaoLista();
+    if(sub==='recomendacao') renderConsultoriaRecomendacaoForm();
   });
 });
 
@@ -14468,6 +14520,7 @@ function renderConsultoriaComparacaoLista(){
   }).join('');
   sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]');
 }
+let consultoriaComposicaoModo = 'ambos'; // 'ambos' | 'valores' | 'porcentagem' — só como o relatório de Composição nutricional exibe, não mexe no cálculo
 function compararFormulacoesConsultoria(){
   const sel = selLista('consultoriaFormulacoesComparacao');
   const selecionadas = consultoriaFormulacoes.filter(fo=>sel.has(String(fo.id)));
@@ -14495,7 +14548,11 @@ function compararFormulacoesConsultoria(){
   });
   const linhaNutriente = (label, campo, un) => `<tr><td><strong>${label}</strong></td>${resumos.map(({resumo})=>{
     const exig = resumo.exigencia[campo], forn = resumo.fornecido[campo], pct = resumo.pct[campo];
-    return `<td>${fmtNumNutriente(forn)} / ${fmtNumNutriente(exig)} ${un}<br>${pillAtendimentoHtml(pct)}</td>`;
+    const valores = `${fmtNumNutriente(forn)} / ${fmtNumNutriente(exig)} ${un}`;
+    const pill = pillAtendimentoHtml(pct);
+    if(consultoriaComposicaoModo==='valores') return `<td>${valores}</td>`;
+    if(consultoriaComposicaoModo==='porcentagem') return `<td>${pill}</td>`;
+    return `<td>${valores}<br>${pill}</td>`;
   }).join('')}</tr>`;
   const todosIngredientes = [...new Set(resumos.flatMap(({fo})=>(fo.itens||[]).map(it=>it.produtoId)))];
   const linhasIngredientes = todosIngredientes.map(produtoId=>{
@@ -14513,7 +14570,14 @@ function compararFormulacoesConsultoria(){
       <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>${linhasIngredientes || '<tr><td colspan="'+(resumos.length+1)+'" class="empty">Nenhum item.</td></tr>'}</tbody>
     </table></div>
-    <div class="section-label">Composição nutricional (Fornecido / Exigência do animal daquela formulação)</div>
+    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>Composição nutricional (Fornecido / Exigência do animal daquela formulação)</span>
+      <select id="ccModoComposicao" style="font-size:11px;padding:2px 6px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted);border:1px solid var(--border);border-radius:4px;background:transparent;">
+        <option value="ambos" ${consultoriaComposicaoModo==='ambos'?'selected':''}>Valores e %</option>
+        <option value="valores" ${consultoriaComposicaoModo==='valores'?'selected':''}>Só valores</option>
+        <option value="porcentagem" ${consultoriaComposicaoModo==='porcentagem'?'selected':''}>Só %</option>
+      </select>
+    </div>
     <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th>Nutriente</th>${resumos.map(({fo, animalNome})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${animalNome||'—'}</span></th>`).join('')}</tr></thead>
       <tbody>
@@ -14539,9 +14603,26 @@ function compararFormulacoesConsultoria(){
   document.getElementById('btnPdfComparacaoConsultoria').style.display = 'inline-block';
 }
 document.getElementById('btnCompararFormulacoesConsultoria').addEventListener('click', compararFormulacoesConsultoria);
+document.addEventListener('change', (ev)=>{
+  if(ev.target && ev.target.id==='ccModoComposicao'){
+    consultoriaComposicaoModo = ev.target.value;
+    compararFormulacoesConsultoria();
+  }
+});
 document.getElementById('btnPdfComparacaoConsultoria').addEventListener('click', ()=>{
-  const conteudo = document.getElementById('ccResultado').innerHTML;
-  if(!conteudo.trim()) return;
+  const host = document.getElementById('ccResultado');
+  if(!host.innerHTML.trim()) return;
+  // No PDF o seletor de modo vira um textinho fixo (sem dropdown, que não faz sentido em papel).
+  const clone = host.cloneNode(true);
+  const sel = clone.querySelector('#ccModoComposicao');
+  if(sel){
+    const label = sel.options[sel.selectedIndex].text;
+    const span = document.createElement('span');
+    span.style.cssText = 'font-size:11px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted);';
+    span.textContent = label;
+    sel.replaceWith(span);
+  }
+  const conteudo = clone.innerHTML;
   // Paisagem quando dá pra encher a folha de colunas (mesmo critério de outros relatórios do app, ex:
   // Treinos/Coberturas com tabela larga) — com 2-3 formulações portrait ainda cabe, com mais fica apertado.
   const nComparadas = selLista('consultoriaFormulacoesComparacao').size;
@@ -14561,6 +14642,162 @@ document.getElementById('btnPdfComparacaoConsultoria').addEventListener('click',
   const cabecalho = `<h1 style="border:none;">Comparação de Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>`;
   baixarRelatorioManejoPDF(`<div class="report-card print-block">${cabecalho}${conteudo}</div>`, 'Comparacao_Formulacoes.pdf', usarPaisagem?{orientation:'landscape'}:undefined);
 });
+
+/* ================= CONSULTORIA (Fase 3): Recomendação de ração =================
+   Ferramenta de apoio à decisão — NÃO grava nada, não classifica nem pontua produto nenhum, e não
+   acrescenta campo nenhum ao cadastro do Estoque (pedido explícito do usuário). Ela só calcula (NRC,
+   igual Formulação/Comparação) quanto de cada Alimento do Estoque fecharia a exigência de ENERGIA que
+   sobrou depois do volumoso informado, e monta um relatório com os dados que já existem de cada um —
+   inclusive as Observações do cadastro, onde a composição/ingredientes pode já estar anotada. O "senso
+   crítico" sobre qual ração é melhor pro perfil daquele animal (fonte de energia, proteína, aeróbico ×
+   explosivo etc. — ver reference_racao_decision_framework na memória) é aplicado na conversa, lendo esse
+   relatório junto com o usuário, não por uma pontuação automática aqui dentro. */
+function renderConsultoriaRecomendacaoForm(){
+  const animalSel = document.getElementById('csr_animal');
+  const valorAnimalAtual = animalSel.value;
+  const isAtivoCsr = h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento;
+  const ativos = horses.filter(isAtivoCsr).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  animalSel.innerHTML = '<option value="">Selecione...</option>' + ativos.map(h=>`<option value="${h.id}">${h.nome}</option>`).join('');
+  animalSel.value = valorAnimalAtual;
+
+  const catSel = document.getElementById('csr_categoria');
+  if(!catSel.dataset.filled){
+    catSel.innerHTML = Object.keys(NRC_CATEGORIA_LABEL).map(k=>`<option value="${k}">${NRC_CATEGORIA_LABEL[k]}</option>`).join('');
+    catSel.dataset.filled = '1';
+  }
+
+  const forSel = document.getElementById('csr_forragem');
+  const valorForragemAtual = forSel.value;
+  const alimentos = estoqueProdutos.filter(p=>p.tipo==='Alimento').slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  forSel.innerHTML = '<option value="">Nenhum / não informar</option>' + alimentos.map(p=>`<option value="${p.id}">${p.nome}${!p.nutrientes?' (sem nutrientes)':''}</option>`).join('');
+  forSel.value = valorForragemAtual;
+
+  atualizarCsrPesoIdadeView();
+}
+function atualizarCsrPesoIdadeView(){
+  const animalId = f('csr_animal');
+  const h = horses.find(x=>x.id===animalId);
+  document.getElementById('csr_pesoView').value = h ? (sugerirPesoConsultoriaFormulacao(animalId) || '—') + (h.peso!=null&&h.peso!=='' ? ' kg' : '') : '—';
+  document.getElementById('csr_idadeView').value = h ? fmtIdadeAnos(sugerirIdadeAnosConsultoria(animalId)) : '—';
+}
+document.getElementById('csr_animal').addEventListener('change', atualizarCsrPesoIdadeView);
+
+function gerarRecomendacaoRacao(){
+  const host = document.getElementById('csrResultado');
+  const animalId = f('csr_animal');
+  const h = horses.find(x=>x.id===animalId);
+  if(!h){ host.innerHTML = '<div class="hint-text">Selecione um animal.</div>'; return; }
+  const pesoKg = Number(sugerirPesoConsultoriaFormulacao(animalId)) || 0;
+  if(pesoKg<=0){ host.innerHTML = '<div class="hint-text">Esse animal ainda não tem peso cadastrado (nem no cadastro, nem em avaliação técnica) — informe o peso antes de continuar.</div>'; return; }
+  const idadeAnos = sugerirIdadeAnosConsultoria(animalId);
+  const jovem = idadeAnos!=='' && Number(idadeAnos) < 3;
+  const categoria = f('csr_categoria');
+  const objetivo = f('csr_objetivo');
+  const esforco = f('csr_esforco');
+  const custoPrioridade = f('csr_custo');
+
+  const exigencia = calcExigenciaNRC({ pesoKg, categoria });
+
+  // Volumoso: mesmo produto/quantidade vale pra todos os candidatos — só reduz a exigência que sobra.
+  const forragemProduto = estoqueProdutos.find(p=>p.id===f('csr_forragem'));
+  const forragemQtd = Number(f('csr_forragemQtd'))||0;
+  const fornecidoVolumoso = { deKcal:0, pbG:0, caG:0, pG:0 };
+  let avisoVolumoso = '';
+  if(forragemProduto && forragemQtd>0){
+    const nutF = forragemProduto.nutrientes;
+    if(nutF){
+      if(nutF.edKcalPorKg) fornecidoVolumoso.deKcal = forragemQtd * nutF.edKcalPorKg;
+      if(nutF.pbPercent) fornecidoVolumoso.pbG = forragemQtd * (nutF.pbPercent/100) * 1000;
+      if(nutF.caPercent) fornecidoVolumoso.caG = forragemQtd * (nutF.caPercent/100) * 1000;
+      if(nutF.pPercent) fornecidoVolumoso.pG = forragemQtd * (nutF.pPercent/100) * 1000;
+    } else {
+      avisoVolumoso = `⚠ ${forragemProduto.nome} não tem valores nutricionais cadastrados — o cálculo abaixo considera que o volumoso não contribui em nada (conservador). Cadastre os valores dele no Estoque pra refinar.`;
+    }
+  }
+  const restante = {
+    deKcal: Math.max(0, exigencia.deKcal - fornecidoVolumoso.deKcal),
+    pbG: Math.max(0, exigencia.pbG - fornecidoVolumoso.pbG),
+    caG: Math.max(0, exigencia.caG - fornecidoVolumoso.caG),
+    pG: Math.max(0, exigencia.pG - fornecidoVolumoso.pG),
+  };
+
+  // Candidatos: todo Alimento do estoque, exceto o volumoso escolhido (esse já é a base fixa, não concorre).
+  const candidatosBrutos = estoqueProdutos.filter(p=>p.tipo==='Alimento' && p.id!==f('csr_forragem'));
+  const semDados = candidatosBrutos.filter(p=>!p.nutrientes || !p.nutrientes.edKcalPorKg);
+  const candidatos = candidatosBrutos.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg);
+  if(candidatos.length===0){
+    host.innerHTML = `<div class="hint-text">Nenhum Alimento do Estoque tem ED (Kcal/kg) cadastrado ainda — sem isso não dá pra calcular quantidade sugerida. Vá em Estoque → editar o produto → preencha "Valores nutricionais".</div>`;
+    return;
+  }
+
+  // Sem pontuação/ranking automático — só ordena pelo custo/dia (menor primeiro) pra facilitar a leitura;
+  // a decisão de qual é "melhor" pro perfil do animal é feita na conversa, lendo este relatório.
+  const linhas = candidatos.map(p=>{
+    const nut = p.nutrientes;
+    const qtdSugerida = restante.deKcal>0 ? restante.deKcal / nut.edKcalPorKg : 0;
+    const fornecidoConcentrado = {
+      deKcal: qtdSugerida * nut.edKcalPorKg,
+      pbG: qtdSugerida * ((nut.pbPercent||0)/100) * 1000,
+      caG: qtdSugerida * ((nut.caPercent||0)/100) * 1000,
+      pG: qtdSugerida * ((nut.pPercent||0)/100) * 1000,
+    };
+    const pctFinal = {
+      deKcal: exigencia.deKcal>0 ? ((fornecidoVolumoso.deKcal+fornecidoConcentrado.deKcal)/exigencia.deKcal)*100 : null,
+      pbG: exigencia.pbG>0 ? ((fornecidoVolumoso.pbG+fornecidoConcentrado.pbG)/exigencia.pbG)*100 : null,
+      caG: exigencia.caG>0 ? ((fornecidoVolumoso.caG+fornecidoConcentrado.caG)/exigencia.caG)*100 : null,
+      pG: exigencia.pG>0 ? ((fornecidoVolumoso.pG+fornecidoConcentrado.pG)/exigencia.pG)*100 : null,
+    };
+    const custoKg = custoUnitarioProduto(p);
+    const custoDia = custoKg!=null ? custoKg*qtdSugerida : null;
+    return { produto:p, qtdSugerida, pctFinal, custoKg, custoDia };
+  }).sort((a,b)=>{
+    if(a.custoDia==null && b.custoDia==null) return 0;
+    if(a.custoDia==null) return 1;
+    if(b.custoDia==null) return -1;
+    return a.custoDia - b.custoDia;
+  });
+
+  const esforcoLabel = {equilibrado:'Equilibrado', aerobico:'Mais aeróbico (resistência/fundo)', explosivo:'Mais explosivo (velocidade/força)'}[esforco];
+  const custoLabel = {neutro:'Neutro', baixo_custo:'Priorizar menor custo', preco_nao_e_problema:'Preço não é problema'}[custoPrioridade];
+
+  host.innerHTML = `
+    <div class="section-label" style="border-top:none;">Exigência do animal (NRC) e o que o volumoso já cobre</div>
+    ${avisoVolumoso ? `<div class="hint-text" style="color:var(--alert-ink,#8a3b2f);margin-bottom:8px;">${avisoVolumoso}</div>` : ''}
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Nutriente</th><th>Exigência total</th><th>Fornecido pelo volumoso</th><th>Falta pro concentrado fechar</th></tr></thead>
+      <tbody>
+        <tr><td>Energia (ED)</td><td>${fmtNumNutriente(exigencia.deKcal)} Kcal</td><td>${fmtNumNutriente(fornecidoVolumoso.deKcal)} Kcal</td><td>${fmtNumNutriente(restante.deKcal)} Kcal</td></tr>
+        <tr><td>Proteína (PB)</td><td>${fmtNumNutriente(exigencia.pbG)} g</td><td>${fmtNumNutriente(fornecidoVolumoso.pbG)} g</td><td>${fmtNumNutriente(restante.pbG)} g</td></tr>
+        <tr><td>Cálcio (Ca)</td><td>${fmtNumNutriente(exigencia.caG)} g</td><td>${fmtNumNutriente(fornecidoVolumoso.caG)} g</td><td>${fmtNumNutriente(restante.caG)} g</td></tr>
+        <tr><td>Fósforo (P)</td><td>${fmtNumNutriente(exigencia.pG)} g</td><td>${fmtNumNutriente(fornecidoVolumoso.pG)} g</td><td>${fmtNumNutriente(restante.pG)} g</td></tr>
+      </tbody>
+    </table></div>
+    <div class="hint-text" style="margin:8px 0 16px;">Perfil considerado: ${h.nome} — ${pesoKg} kg, ${fmtIdadeAnos(idadeAnos)}${jovem?' (jovem)':''} · ${NRC_CATEGORIA_LABEL[categoria]} · ${objetivo==='performance'?'Alta performance':'Lazer/Hobby'} · ${esforcoLabel} · ${custoLabel}</div>
+
+    <div class="section-label">Rações candidatas no Estoque (ordenadas por custo estimado)</div>
+    ${linhas.map(l=>`
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${l.produto.nome}</div>
+        <div style="font-size:12.5px;color:var(--ink);margin-bottom:6px;">
+          Quantidade sugerida pra fechar a energia: <strong>${l.qtdSugerida.toFixed(2)} kg/dia</strong>
+          ${l.custoDia!=null ? ` · Custo estimado: <strong>${fmtMoeda(l.custoDia,'BRL')}/dia</strong> (${fmtMoeda(l.custoDia*30,'BRL')}/mês)` : ' · Custo: — (sem valor cadastrado)'}
+        </div>
+        <div class="grid-wrap"><table class="grid" style="font-size:12.5px;">
+          <thead><tr><th>ED</th><th>PB</th><th>Ca</th><th>P</th></tr></thead>
+          <tbody><tr>
+            <td>${pillAtendimentoHtml(l.pctFinal.deKcal)}</td>
+            <td>${pillAtendimentoHtml(l.pctFinal.pbG)}</td>
+            <td>${pillAtendimentoHtml(l.pctFinal.caG)}</td>
+            <td>${pillAtendimentoHtml(l.pctFinal.pG)}</td>
+          </tr></tbody>
+        </table></div>
+        ${l.produto.obs ? `<div class="hint-text" style="margin-top:8px;"><strong>Observações do cadastro:</strong> ${l.produto.obs}</div>` : ''}
+      </div>`).join('')}
+    ${semDados.length>0 ? `<div class="hint-text" style="margin-top:8px;">${semDados.length} alimento(s) do Estoque ficaram de fora por não ter ED (Kcal/kg) cadastrado: ${semDados.map(p=>p.nome).join(', ')}.</div>` : ''}
+    <div class="hint-text" style="margin-top:10px;">Isso é um relatório de dados, não um veredito automático — nenhuma ração foi classificada por qualidade aqui. Pra avaliar qual delas é a melhor pro perfil desse animal (fonte de energia, proteína, aeróbico × explosivo etc.), leve este relatório pra conversa e peça a análise.</div>
+  `;
+}
+document.getElementById('btnSugerirRacaoConsultoria').addEventListener('click', gerarRecomendacaoRacao);
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
    Segue o mesmo núcleo de baixa de estoque das Dietas (consumeEstoque), mas em vez de "todo dia",
