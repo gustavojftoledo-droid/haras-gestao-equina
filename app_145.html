@@ -1094,6 +1094,16 @@
       </table></div>
     </div>
 
+    <!-- Ver animais de um transporte — clicar na linha (fora dos botões) mostra só a lista de quem
+         foi, sem precisar abrir o formulário inteiro de edição. -->
+    <div class="overlay" id="overlayTransporteAnimais">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-head"><div class="modal-title" id="tpAnimaisModalTitle">Animais no transporte</div><button class="modal-close" data-close="overlayTransporteAnimais">✕</button></div>
+        <div id="tpAnimaisModalBody"></div>
+        <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTransporteAnimais">Fechar</button></div></div>
+      </div>
+    </div>
+
     <!-- TREINOS -->
     <div class="view" id="view-treinos">
       <div class="topbar">
@@ -9351,7 +9361,7 @@ function renderTransportes(){
       <td data-col="meio">${t.meioTransporte||'—'}</td>
       <td data-col="motorista">${t.motorista||'—'}</td>
       <td data-col="motivo">${t.motivo||'—'}</td>
-      <td data-col="qtdAnimais">${nAnimais}</td>
+      <td data-col="qtdAnimais" style="cursor:pointer;text-decoration:underline dotted;" title="Clique pra ver quais animais">${nAnimais}</td>
       <td data-col="gta">${t.gta==='sim'?`<span class="pill st-ativo"${t.gtaNumero?` title="Nº ${t.gtaNumero}"`:''}>✓ Sim${t.gtaNumero?(' — '+t.gtaNumero):''}</span>`:(t.gta==='nao'?'<span class="pill st-descarte">✕ Não</span>':'—')}</td>
       <td data-col="valorFrete">${fmtMoeda(Number(t.valorFrete)||0,'BRL')}</td>
       <td data-col="situacao"><span class="pill ${situ?'st-ativo':'st-outro'}">${situ?'Realizado':'Planejado'}</span></td>
@@ -9359,6 +9369,13 @@ function renderTransportes(){
     </tr>`;
   }).join('');
   sincronizarSelecaoLista('transporte', '#view-transporte [data-lista="transporte"]');
+  document.getElementById('tpTbody').querySelectorAll('tr[data-id]').forEach(tr=>{
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', (e)=>{
+      if(e.target.closest('input, button')) return; // não interfere no checkbox nem nos botões de ação
+      abrirAnimaisTransporte(tr.dataset.id);
+    });
+  });
   document.getElementById('tpTbody').querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>openTransporteEdit(b.dataset.edit)));
   document.getElementById('tpTbody').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', async ()=>{
     if(!(await showConfirm('Excluir este transporte do histórico? Isso NÃO desfaz a mudança de localização já aplicada (se ele já tiver sido marcado como realizado) — ajuste a localização do animal na mão se precisar.'))) return;
@@ -9412,6 +9429,15 @@ document.getElementById('btnNewTransporte').addEventListener('click', ()=>{
   atualizarValorTotalTransporte();
   openModal('overlayTransporte');
 });
+function abrirAnimaisTransporte(id){
+  const t = transportes.find(x=>x.id===id); if(!t) return;
+  const animais = t.animais||[];
+  document.getElementById('tpAnimaisModalTitle').textContent = `Animais — ${fmtDate(t.data)} (${t.origem||'—'} → ${t.destino||'—'})`;
+  document.getElementById('tpAnimaisModalBody').innerHTML = animais.length===0
+    ? '<div class="empty">Nenhum animal registrado nesse transporte.</div>'
+    : `<ul style="margin:8px 0 0;padding-left:20px;">${animais.map(a=>`<li>${a.nome||'—'}</li>`).join('')}</ul>`;
+  openModal('overlayTransporteAnimais');
+}
 function openTransporteEdit(id){
   const t = transportes.find(x=>x.id===id); if(!t) return;
   editingTransporteId = id;
