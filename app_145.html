@@ -109,6 +109,8 @@
   .menu-discreto-pop{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,0.18);z-index:60;min-width:230px;flex-direction:column;gap:4px;}
   .menu-discreto-pop.show{display:flex;}
   .menu-discreto-pop button{width:100%;justify-content:flex-start;}
+  .custo-clicavel{cursor:pointer;text-decoration:underline dotted;text-decoration-color:var(--muted);}
+  .custo-clicavel:hover{background:var(--chip-bg);}
   /* Botão "..." em cima de um fundo escuro (ex: perfil-card-head verde) — o .btn-ghost padrão fica
      com texto escuro em cima de fundo transparente, invisível ali; e no hover ele vira fundo branco
      (regra geral do .btn-ghost), que apagaria um texto branco também. Essa variante resolve os dois. */
@@ -14584,8 +14586,65 @@ function renderConsultoriaComparacaoLista(){
   }).join('');
   sincronizarSelecaoLista('consultoriaFormulacoesComparacao', '#csview_comparacao [data-lista="consultoriaFormulacoesComparacao"]');
 }
+// Popover "como chegamos nesse número" pros custos da Comparação de Formulações — abre a continha
+// (ingrediente por ingrediente: quantidade × preço = subtotal) mais a conta final daquela célula
+// específica. custoBreakdownMap é remontado a cada compararFormulacoesConsultoria(); nada é salvo.
+let custoBreakdownMap = {};
+function montarBreakdownCustoHtml(fo, resumo, nAnimais, tipoLinha){
+  const linhasIng = (fo.itens||[]).map(it=>{
+    const qtd = Number(it.quantidade)||0;
+    if(qtd<=0) return null;
+    const produto = estoqueProdutos.find(p=>p.id===it.produtoId);
+    if(!produto) return null;
+    const preco = custoUnitarioProduto(produto);
+    const subtotal = (preco||0)*qtd;
+    return `<tr><td>${produto.nome}</td><td>${qtd} kg/dia</td><td>${preco!=null?fmtMoeda(preco,'BRL')+'/kg':'sem preço'}</td><td>${fmtMoeda(subtotal,'BRL')}</td></tr>`;
+  }).filter(Boolean).join('');
+  const linhasFinal = {
+    custokg: `${fmtMoeda(resumo.custoDia,'BRL')} (custo/dia) ÷ ${resumo.totalKgDia} kg/dia = <strong>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}/kg</strong>`,
+    custodia: `Soma dos subtotais/dia acima = <strong>${fmtMoeda(resumo.custoDia,'BRL')}/dia</strong>`,
+    custodiatotal: `${fmtMoeda(resumo.custoDia,'BRL')} (custo/dia de 1 animal) × ${nAnimais} animal(is) = <strong>${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}/dia</strong>`,
+    customes: `${fmtMoeda(resumo.custoDia,'BRL')} (custo/dia) × 30 dias = <strong>${fmtMoeda(resumo.custoMes,'BRL')}/mês</strong>`,
+    customestotal: `${fmtMoeda(resumo.custoMes,'BRL')} (custo/mês de 1 animal) × ${nAnimais} animal(is) = <strong>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}/mês</strong>`
+  }[tipoLinha] || '';
+  return `<div style="font-size:12px;margin-bottom:6px;"><strong>${fo.nome}</strong> — como chegamos nesse número:</div>
+    <table class="grid" style="font-size:11.5px;"><thead><tr><th>Ingrediente</th><th>Qtd</th><th>Preço</th><th>Subtotal/dia</th></tr></thead>
+    <tbody>${linhasIng||'<tr><td colspan="4" class="empty">Sem itens.</td></tr>'}</tbody></table>
+    <div class="hint-text" style="margin-top:8px;margin-bottom:0;">${linhasFinal}</div>`;
+}
+function fecharCustoBreakdownPopover(){
+  const pop = document.getElementById('custoBreakdownPopover');
+  if(pop) pop.remove();
+}
+function abrirCustoBreakdownPopover(target, key){
+  const jaAberto = document.getElementById('custoBreakdownPopover');
+  const eraEssaChave = jaAberto && jaAberto.dataset.openFor===key;
+  fecharCustoBreakdownPopover();
+  if(eraEssaChave) return; // clicar de novo na mesma célula fecha, não reabre
+  const info = custoBreakdownMap[key]; if(!info) return;
+  const pop = document.createElement('div');
+  pop.id = 'custoBreakdownPopover';
+  pop.dataset.openFor = key;
+  pop.style.cssText = 'position:fixed;z-index:400;background:var(--card,#fff);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:0 12px 30px rgba(0,0,0,.25);max-width:380px;font-family:Inter,sans-serif;';
+  pop.innerHTML = montarBreakdownCustoHtml(info.fo, info.resumo, info.nAnimais, info.tipo);
+  document.body.appendChild(pop);
+  const r = target.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let left = Math.min(r.left, window.innerWidth - popRect.width - 10);
+  let top = r.bottom + 6;
+  if(top + popRect.height > window.innerHeight - 10) top = r.top - popRect.height - 6;
+  pop.style.left = Math.max(10,left)+'px';
+  pop.style.top = Math.max(10,top)+'px';
+}
+document.addEventListener('click', (e)=>{
+  const cell = e.target.closest('[data-custobreak]');
+  if(cell){ e.stopPropagation(); abrirCustoBreakdownPopover(cell, cell.dataset.custobreak); return; }
+  if(!e.target.closest('#custoBreakdownPopover')) fecharCustoBreakdownPopover();
+});
 let consultoriaComposicaoModo = 'ambos'; // 'ambos' | 'valores' | 'porcentagem' — só como o relatório de Composição nutricional exibe, não mexe no cálculo
 function compararFormulacoesConsultoria(){
+  custoBreakdownMap = {};
+  fecharCustoBreakdownPopover();
   const sel = selLista('consultoriaFormulacoesComparacao');
   const selecionadas = consultoriaFormulacoes.filter(fo=>sel.has(String(fo.id)));
   const host = document.getElementById('ccResultado');
@@ -14655,13 +14714,14 @@ function compararFormulacoesConsultoria(){
     <div class="grid-wrap"><table class="grid grid-compare">
       <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
       <tbody>
-        <tr><td>Custo/kg da dieta</td>${resumos.map(({resumo})=>`<td>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`).join('')}</tr>
-        <tr><td>Custo/dia/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoDia,'BRL')}</td>`).join('')}</tr>
-        <tr><td>Custo/dia total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
-        <tr><td>Custo/mês/animal</td>${resumos.map(({resumo})=>`<td>${fmtMoeda(resumo.custoMes,'BRL')}</td>`).join('')}</tr>
-        <tr><td>Custo/mês total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({resumo,nAnimais})=>`<td>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`).join('')}</tr>
+        <tr><td>Custo/kg da dieta</td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_custokg`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'custokg'}; return `<td class="custo-clicavel" data-custobreak="${k}">${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`; }).join('')}</tr>
+        <tr><td>Custo/dia/animal</td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_custodia`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'custodia'}; return `<td class="custo-clicavel" data-custobreak="${k}">${fmtMoeda(resumo.custoDia,'BRL')}</td>`; }).join('')}</tr>
+        <tr><td>Custo/dia total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_custodiatotal`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'custodiatotal'}; return `<td class="custo-clicavel" data-custobreak="${k}">${fmtMoeda(resumo.custoDia*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`; }).join('')}</tr>
+        <tr><td>Custo/mês/animal</td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_customes`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'customes'}; return `<td class="custo-clicavel" data-custobreak="${k}">${fmtMoeda(resumo.custoMes,'BRL')}</td>`; }).join('')}</tr>
+        <tr><td>Custo/mês total <span style="font-weight:400;color:var(--muted);">(do grupo)</span></td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_customestotal`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'customestotal'}; return `<td class="custo-clicavel" data-custobreak="${k}">${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}${nAnimais>1?' <span style="color:var(--muted);">('+nAnimais+' animais)</span>':''}</td>`; }).join('')}</tr>
       </tbody>
     </table></div>
+    <div class="hint-text" style="margin-top:-6px;">Clique em qualquer número de custo pra ver a continha.</div>
     ${resumos.some(({resumo})=>resumo.avisos.length>0) ? `<div style="margin-top:10px;">${resumos.map(({resumo})=>avisosNutrientesHtml(resumo)).join('')}</div>` : ''}
   `;
   document.getElementById('btnPdfComparacaoConsultoria').style.display = 'inline-block';
