@@ -1981,6 +1981,11 @@
       <select id="el_pelagem" disabled style="margin-top:6px;width:100%;"></select>
     </div>
     <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkPeso"> Alterar Peso para:</label>
+      <input type="number" id="el_peso" disabled style="margin-top:6px;width:100%;" placeholder="kg" min="0" step="0.1">
+      <div class="hint-text" style="margin-top:4px;">Mesmo peso pra todos os selecionados — também entra na Linha do Tempo de cada um, como um registro de hoje.</div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
       <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkSituacao"> Alterar Situação para:</label>
       <select id="el_situacao" disabled style="margin-top:6px;width:100%;">
         <option value="P">Interno</option>
@@ -5441,6 +5446,7 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   document.getElementById('el_chkProprietario').checked = false;
   document.getElementById('el_chkRaca').checked = false;
   document.getElementById('el_chkPelagem').checked = false;
+  document.getElementById('el_chkPeso').checked = false;
   document.getElementById('el_chkSituacao').checked = false;
   document.getElementById('el_chkDoador').checked = false;
   document.getElementById('el_chkFreqManejo').checked = false;
@@ -5452,6 +5458,8 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   document.getElementById('el_proprietario').disabled = true;
   document.getElementById('el_raca').disabled = true;
   document.getElementById('el_pelagem').disabled = true;
+  document.getElementById('el_peso').disabled = true;
+  document.getElementById('el_peso').value = '';
   document.getElementById('el_situacao').disabled = true;
   document.getElementById('el_doador').disabled = true;
   document.getElementById('el_freqManejoTipo').disabled = true;
@@ -5473,6 +5481,7 @@ document.getElementById('el_chkStatus').addEventListener('change', e=>{ document
 document.getElementById('el_chkProprietario').addEventListener('change', e=>{ document.getElementById('el_proprietario').disabled = !e.target.checked; });
 document.getElementById('el_chkRaca').addEventListener('change', e=>{ document.getElementById('el_raca').disabled = !e.target.checked; });
 document.getElementById('el_chkPelagem').addEventListener('change', e=>{ document.getElementById('el_pelagem').disabled = !e.target.checked; });
+document.getElementById('el_chkPeso').addEventListener('change', e=>{ document.getElementById('el_peso').disabled = !e.target.checked; });
 document.getElementById('el_chkSituacao').addEventListener('change', e=>{ document.getElementById('el_situacao').disabled = !e.target.checked; });
 document.getElementById('el_chkDoador').addEventListener('change', e=>{ document.getElementById('el_doador').disabled = !e.target.checked; });
 document.getElementById('el_chkFreqManejo').addEventListener('change', e=>{
@@ -5494,18 +5503,20 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const alterarProp = document.getElementById('el_chkProprietario').checked;
   const alterarRaca = document.getElementById('el_chkRaca').checked;
   const alterarPelagem = document.getElementById('el_chkPelagem').checked;
+  const alterarPeso = document.getElementById('el_chkPeso').checked;
   const alterarSituacao = document.getElementById('el_chkSituacao').checked;
   const alterarDoador = document.getElementById('el_chkDoador').checked;
   const alterarFreqManejo = document.getElementById('el_chkFreqManejo').checked;
   const alterarAie = document.getElementById('el_chkAie').checked;
   const alterarMormo = document.getElementById('el_chkMormo').checked;
-  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
+  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarPeso && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
   const novaLoc = document.getElementById('el_localizacao').value;
   const novaCat = document.getElementById('el_categoria').value;
   const novoStatus = document.getElementById('el_status').value;
   const novoProp = document.getElementById('el_proprietario').value;
   const novaRaca = document.getElementById('el_raca').value;
   const novaPelagem = document.getElementById('el_pelagem').value;
+  const novoPeso = document.getElementById('el_peso').value;
   const novaSituacao = document.getElementById('el_situacao').value;
   const novoDoador = document.getElementById('el_doador').value === '1';
   const freqManejoTipo = document.getElementById('el_freqManejoTipo').value;
@@ -5520,6 +5531,7 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   if(alterarProp && !novoProp){ showAlert('Escolha um Proprietário.'); return; }
   if(alterarRaca && !novaRaca){ showAlert('Escolha uma Raça.'); return; }
   if(alterarPelagem && !novaPelagem){ showAlert('Escolha uma Pelagem.'); return; }
+  if(alterarPeso && (novoPeso==='' || isNaN(Number(novoPeso)) || Number(novoPeso)<=0)){ showAlert('Informe um peso válido.'); return; }
   if(alterarFreqManejo && (freqManejoValor==='' || isNaN(Number(freqManejoValor)) || Number(freqManejoValor)<=0)){ showAlert('Informe um novo valor de frequência válido.'); return; }
   if(alterarAie && (!aieData || isNaN(Number(aieDias)) || Number(aieDias)<=0)){ showAlert('Informe a data e a validade (em dias) do exame de AIE.'); return; }
   if(alterarMormo && (!mormoData || isNaN(Number(mormoDias)) || Number(mormoDias)<=0)){ showAlert('Informe a data e a validade (em dias) do exame de Mormo.'); return; }
@@ -5531,6 +5543,9 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   // salvamento individual, ver comentário lá no horseForm).
   const releituraLote = await storeGet('horses_list');
   const baseLote = (releituraLote.ok && Array.isArray(releituraLote.value) && releituraLote.value.length>0) ? releituraLote.value : horses;
+  // Peso mudou aqui em lote? Vira, pra cada animal cujo peso de fato mudou, um ponto datado (hoje) na
+  // Linha do Tempo Visual — mesmo comportamento do cadastro individual (ver comentário lá no horseForm).
+  const novosRegistrosPeso = [];
   horses = baseLote.map(h=>{
     if(!selectedHorseIds.has(h.id)) return h;
     const nh = {...h};
@@ -5540,6 +5555,11 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     if(alterarProp) nh.proprietario = novoProp;
     if(alterarRaca) nh.raca = novaRaca;
     if(alterarPelagem) nh.pelagem = novaPelagem;
+    if(alterarPeso && h.peso!==novoPeso){
+      nh.peso = novoPeso;
+      novosRegistrosPeso.push({ id:'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+        animalId: h.id, animalNome: h.nome, data: toISODate(new Date()), peso: novoPeso, scoreCorporal:'', fotoDataUrl:'', obs:'' });
+    }
     if(alterarSituacao) nh.situacao = novaSituacao;
     if(alterarDoador && nh.sexo==='FEMININO') nh.doador = novoDoador;
     if(alterarFreqManejo) nh[freqCampo] = freqManejoValor;
@@ -5551,6 +5571,10 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     return nh;
   });
   await storeSet('horses_list', horses);
+  if(novosRegistrosPeso.length>0){
+    animalRegistros = [...animalRegistros, ...novosRegistrosPeso];
+    await storeSet('animal_registros_list', animalRegistros);
+  }
   closeModal('overlayEditLote');
   renderHorses();
   showAlert(`${n} animal(is) atualizado(s).`);
