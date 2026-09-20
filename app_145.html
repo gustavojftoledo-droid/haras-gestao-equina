@@ -433,7 +433,15 @@
   #perfilWrap{zoom:1.12;}
   .perfil-card{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(30,23,16,0.06);}
   .perfil-card-head{background:var(--green);color:#fff;padding:12px 18px;font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;justify-content:space-between;border-bottom:2px solid var(--brass);}
+  /* Botão "🩺 Avaliações Técnicas ⚙ Colunas" / "🐣 Reprodução + Exame reprodutivo": .btn-ghost é
+     pensado pra fundo claro (letra escura) — dentro do cabeçalho verde-escuro do card ficava quase
+     invisível (letra escura em fundo escuro). Corrige só aqui dentro do cabeçalho do card. */
+  .perfil-card-head .btn-ghost{color:#fff;border-color:rgba(255,255,255,.5);}
+  .perfil-card-head .btn-ghost:hover{background:rgba(255,255,255,.12);}
   .perfil-card-body{padding:18px 20px;}
+  /* Quadro sem cabeçalho (Foto, Estatísticas): o body é o 1º filho, então o botão ⠿ (posicionado no
+     canto do quadro) ficava em cima da 1ª linha de conteúdo. Abre espaço só nesse caso. */
+  .perfil-card-wrap .perfil-card > .perfil-card-body:first-child{padding-top:36px;}
   .perfil-photo{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--chip-bg);display:block;}
   .perfil-photo-placeholder{width:100%;aspect-ratio:4/3;border-radius:6px;border:1px dashed var(--line);background:var(--chip-bg);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:14px;}
   .perfil-fields{display:flex;flex-wrap:wrap;gap:12px 34px;}
@@ -631,7 +639,9 @@
       <!-- "Grupos" saiu do menu lateral — agora é um chip dentro da tela de Animais (ao lado de
            Ativos/Internos/Vendidos/etc, ver viewModeChips). Esse item continua aqui, só escondido:
            o restante do app ainda navega pra Grupos clicando nele (irParaView('grupos') e afins). -->
-      <div class="nav-item" data-view="grupos" style="display:none;"><span class="dot"></span>Grupos</div>
+      <div class="nav-item" data-view="grupos" style="position:absolute;left:-9999px;"><span class="dot"></span>Grupos</div>
+
+      <div class="nav-item" data-view="consultoria"><span class="dot"></span>Consultoria</div>
 
       <div class="nav-group" data-group="saude-grp">
         <div class="nav-group-head"><span>Saúde</span><span class="chev">›</span></div>
@@ -650,8 +660,6 @@
           <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
         </div>
       </div>
-
-      <div class="nav-item" data-view="consultoria"><span class="dot"></span>Consultoria</div>
 
       <div class="nav-group" data-group="admin-grp">
         <div class="nav-group-head"><span>Administração</span><span class="chev">›</span></div>
@@ -842,7 +850,7 @@
           <span class="chip" data-mode="vendidos">Vendidos</span>
           <span class="chip" data-mode="falecidos">Falecidos</span>
           <span class="chip" data-mode="externos">Externos</span>
-          <span class="chip" id="chipGruposEmAnimais" title="Abre a tela de Grupos" style="border-left:2px solid var(--line);margin-left:4px;padding-left:14px;">📁 Grupos</span>
+          <span class="chip" id="chipGruposEmAnimais" title="Abre a tela de Grupos" style="font-size:13px;padding:7px 14px;">Grupos</span>
         </div>
         <div class="stats" id="horseStats"></div>
         <div id="valorSelecaoBar" style="display:none;background:var(--card);border:1px solid var(--brass-light);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;"></div>
@@ -14284,8 +14292,9 @@ function calcResumoFormulacao(formulacao){
 function fmtNumNutriente(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0, maximumFractionDigits:0}); }
 function pillAtendimentoHtml(pct){
   if(pct==null) return '<span class="pill st-outro">—</span>';
-  const cls = pct<95 ? 'st-descarte' : pct>110 ? 'st-warn' : 'st-ativo';
-  const label = pct<95 ? 'Abaixo' : pct>110 ? 'Acima' : 'Dentro';
+  // Abaixo de 100% é sempre vermelho — não existe "quase lá" quando o assunto é fechar a exigência do animal.
+  const cls = pct<100 ? 'st-descarte' : pct>110 ? 'st-warn' : 'st-ativo';
+  const label = pct<100 ? 'Abaixo' : pct>110 ? 'Acima' : 'Dentro';
   return `<span class="pill ${cls}">${label}</span> ${pct.toFixed(0)}%`;
 }
 // Linhas Nutriente|Exigência|Fornecido|Diferença|%Atendimento — reaproveitada no modal ao vivo da
@@ -14757,7 +14766,11 @@ function compararFormulacoesConsultoria(){
     if(consultoriaComposicaoModo==='porcentagem') return `<td>${pill}</td>`;
     return `<td>${valores}<br>${pill}</td>`;
   }).join('')}</tr>`;
-  const todosIngredientes = [...new Set(resumos.flatMap(({fo})=>(fo.itens||[]).map(it=>it.produtoId)))];
+  // Feno sempre por último na lista de ingredientes (pedido do usuário) — o resto mantém a ordem de
+  // aparição normal.
+  const ehFeno = pid => /feno/i.test((estoqueProdutos.find(p=>p.id===pid)||{}).nome||'');
+  const todosIngredientes = [...new Set(resumos.flatMap(({fo})=>(fo.itens||[]).map(it=>it.produtoId)))]
+    .sort((a,b)=> (ehFeno(a)?1:0) - (ehFeno(b)?1:0));
   const linhasIngredientes = todosIngredientes.map(produtoId=>{
     const nomeProd = (estoqueProdutos.find(p=>p.id===produtoId)||{}).nome || (resumos.map(({fo})=>(fo.itens||[]).find(it=>it.produtoId===produtoId)).find(Boolean)||{}).produtoNome || '—';
     return `<tr><td>${nomeProd}</td>${resumos.map(({fo})=>{
@@ -18408,10 +18421,9 @@ function aplicarPermissoes(){
     item.style.display = permitidas.includes(view) ? '' : 'none';
   });
   // "Grupos" não é mais um item do menu lateral (virou um chip dentro de Animais — ver
-  // viewModeChips) — o elemento continua no DOM só pra navegação por código continuar funcionando
-  // (irParaView('grupos') etc.), então força ele escondido de novo depois do loop de permissões acima.
-  const navItemGrupos = document.querySelector('.nav-item[data-view="grupos"]');
-  if(navItemGrupos) navItemGrupos.style.display = 'none';
+  // viewModeChips). O elemento continua no DOM (fora da tela via position:absolute, não
+  // display:none — irParaView() recusa clicar em item com display:none) só pra navegação por
+  // código continuar funcionando (irParaView('grupos') etc.).
   atualizarGruposVaziosMenu();
   aplicarPermissoesBotoesNovo();
   aplicarRestricaoTiposManejoUI();
@@ -19128,7 +19140,7 @@ function renderAnimalPerfil(id){
 
   cardsDefs.push({ key:'stats', defaultCol:'lateral', html:`
     <div class="perfil-card">
-      <div class="perfil-card-body" style="padding:4px 0;">
+      <div class="perfil-card-body" style="padding:36px 0 4px;">
         <div class="stat-list-row ${competicoesDoAnimal.length?'clicavel':''}" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
         <div class="stat-list-row clicavel" data-statclick="videos"><span>Vídeos</span><strong>${(h.videos||[]).length}</strong></div>
         <div class="stat-list-row clicavel" data-statclick="exames"><span>Exames</span><strong>${(examesPorAnimal[h.id]||[]).length}</strong></div>
@@ -19540,22 +19552,23 @@ function computeLinhaDoTempoVisualDados(h, de, ate){
   const dentro = d => d && (!de || d>=de) && (!ate || d<=ate);
   const out = { filho:[], manejo:[], treino:[], premio:[], score:[], peso:[], foto:[] };
   const nomeH = normNomeParentesco(h.nome);
-  // Filhos/nascimentos — mesma lógica de computeTimelineAnimal (cobertura/nascimento + filiação direta no cadastro).
+  // Filhos/nascimentos SEMPRE aparecem, mesmo fora do período escolhido — é raro e importante demais
+  // (nascimento) pra ficar escondido só porque o preset de período é curto (ex: 20 dias, 1 ano).
   const filhosJaVistos = new Set();
   nascimentos.forEach(n=>{
-    if(n.animalId===h.id && dentro(n.datanasc||n.datacob)){
+    if(n.animalId===h.id && (n.datanasc||n.datacob)){
       out.filho.push({ data:n.datanasc||n.datacob, titulo:'Nasceu', detalhe:['Pai: '+(n.pai||'—'),'Mãe: '+(n.matriz||'—')].join(' · ') });
     }
     const ehMae = nomeH && normNomeParentesco(n.matriz)===nomeH;
     const ehPai = nomeH && normNomeParentesco(n.pai)===nomeH;
-    if((ehMae||ehPai) && dentro(n.datanasc||n.datacob)){
+    if((ehMae||ehPai) && (n.datanasc||n.datacob)){
       filhosJaVistos.add(n.animalId);
       out.filho.push({ data:n.datanasc||n.datacob, titulo:(n.confirm==='S'?'Filho nasceu':'Cobertura registrada'), detalhe:(ehMae?('Pai: '+(n.pai||'—')):('Mãe: '+(n.matriz||'—'))) });
     }
   });
   if(nomeH){
     horses.forEach(x=>{
-      if(x.id===h.id || filhosJaVistos.has(x.id) || !x.nascimento || !dentro(x.nascimento)) return;
+      if(x.id===h.id || filhosJaVistos.has(x.id) || !x.nascimento) return;
       const ehFilhoDele = normNomeParentesco(x.pai)===nomeH, ehFilhoDela = normNomeParentesco(x.mae)===nomeH;
       if(!ehFilhoDele && !ehFilhoDela) return;
       out.filho.push({ data:x.nascimento, titulo:'Nasceu: '+x.nome, detalhe: ehFilhoDele?('Mãe: '+(x.mae||'—')):('Pai: '+(x.pai||'—')) });
@@ -19875,6 +19888,73 @@ function custoDiretoAnimal(animalId, de, ate){
   });
   return { total, porCategoria };
 }
+// Mesma conta de custoDiretoAnimal, mas também guarda CADA lançamento que compôs cada categoria —
+// usado só no Relatório 3 (Custo por Animal), pra clicar num valor e ver de onde ele veio.
+function custoDiretoAnimalDetalhado(animalId, de, ate){
+  let total = 0;
+  const porCategoria = {};
+  const itensPorCategoria = {};
+  todosLancamentosFinanceiro().forEach(l=>{
+    if(l.moeda==='USD') return;
+    if(de && l.data<de) return;
+    if(ate && l.data>ate) return;
+    if(!l.rateio || l.rateio.length===0) return;
+    let meuValor = 0;
+    l.rateio.forEach(r=>{
+      if(r.destino){
+        const n = nascimentos.find(x=>x.id===r.destino);
+        if(n && n.animalId===animalId) meuValor += (Number(r.valor)||0);
+        return;
+      }
+      if(r.animalId===animalId) meuValor += (Number(r.valor)||0);
+    });
+    if(meuValor<=0) return;
+    total += meuValor;
+    const cat = CATEGORIA_CUSTO_ANIMAL[l.categoria] || 'Outros';
+    porCategoria[cat] = (porCategoria[cat]||0) + meuValor;
+    if(!itensPorCategoria[cat]) itensPorCategoria[cat] = [];
+    itensPorCategoria[cat].push({ data:l.data, descricao:l.descricao||l.categoria, valor:meuValor });
+  });
+  return { total, porCategoria, itensPorCategoria };
+}
+// Popover "de onde veio esse valor" — clicar num número do Relatório 3 (Custo por Animal) mostra os
+// lançamentos que compuseram aquele total. Mesmo esquema visual do popover de custo da Consultoria,
+// mas independente (dados bem diferentes), pra não acoplar os dois.
+let relCustoBreakdownMap = {};
+function montarBreakdownRelCustoHtml(info){
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const itens = (info.itens||[]).slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const linhas = itens.map(it=>`<tr><td>${fmtDate(it.data)}</td><td>${escHtml(it.descricao||'—')}</td><td>${fmtR(it.valor)}</td></tr>`).join('');
+  return `<div style="font-size:12px;margin-bottom:6px;"><strong>${escHtml(info.animalNome)}</strong> — ${escHtml(info.categoria)}</div>
+    <table class="grid" style="font-size:11.5px;"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead>
+    <tbody>${linhas||'<tr><td colspan="3" class="empty">Sem lançamentos.</td></tr>'}</tbody></table>
+    <div class="hint-text" style="margin-top:8px;margin-bottom:0;">Total: <strong>${fmtR(info.total)}</strong></div>`;
+}
+function fecharRelCustoPopover(){ const p=document.getElementById('relCustoPopover'); if(p) p.remove(); }
+function abrirRelCustoPopover(target, key){
+  const jaAberto = document.getElementById('relCustoPopover');
+  const eraEssaChave = jaAberto && jaAberto.dataset.openFor===key;
+  fecharRelCustoPopover();
+  if(eraEssaChave) return;
+  const info = relCustoBreakdownMap[key]; if(!info) return;
+  const pop = document.createElement('div');
+  pop.id = 'relCustoPopover'; pop.dataset.openFor = key;
+  pop.style.cssText = 'position:fixed;z-index:400;background:var(--card,#fff);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:0 12px 30px rgba(0,0,0,.25);max-width:380px;font-family:Inter,sans-serif;';
+  pop.innerHTML = montarBreakdownRelCustoHtml(info);
+  document.body.appendChild(pop);
+  const r = target.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let left = Math.min(r.left, window.innerWidth - popRect.width - 10);
+  let top = r.bottom + 6;
+  if(top + popRect.height > window.innerHeight - 10) top = r.top - popRect.height - 6;
+  pop.style.left = Math.max(10,left)+'px';
+  pop.style.top = Math.max(10,top)+'px';
+}
+document.addEventListener('click', (e)=>{
+  const cell = e.target.closest('[data-relcustobreak]');
+  if(cell){ e.stopPropagation(); abrirRelCustoPopover(cell, cell.dataset.relcustobreak); return; }
+  if(!e.target.closest('#relCustoPopover')) fecharRelCustoPopover();
+});
 // Card "Custo do Animal" na Ficha — só aparece pra quem tem acesso ao Financeiro (é informação
 // financeira, mesma regra do resto do módulo). Total de sempre + últimos 12 meses + detalhe por
 // categoria, tudo em cima do mesmo motor único (custoDiretoAnimal) — nunca a parte rateada dos
@@ -19964,31 +20044,51 @@ function gerarRelatorioFicha3(){
   const host = document.getElementById('relFichaResult');
   let totalGeral = 0;
   const totalPorCategoria = {};
+  relCustoBreakdownMap = {};
   const linhas = lista.map(h=>{
-    const { total, porCategoria } = custoDiretoAnimal(h.id, de, ate);
+    const { total, porCategoria, itensPorCategoria } = custoDiretoAnimalDetalhado(h.id, de, ate);
     totalGeral += total;
     CATEGORIAS_CUSTO_ANIMAL_ORDEM.forEach(c=>{ totalPorCategoria[c] = (totalPorCategoria[c]||0) + (porCategoria[c]||0); });
-    return { h, total, porCategoria };
+    return { h, total, porCategoria, itensPorCategoria };
   });
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
-    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Ração, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais.</div>
+    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Ração, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais. Clique num valor pra ver de onde ele veio.</div>
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
-      <tbody>${linhas.map(r=>`<tr>
+      <tbody>${linhas.map((r,i)=>`<tr>
         <td><button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.h.nome||''}</strong></td>
-        ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${r.porCategoria[c]>0?fmtR(r.porCategoria[c]):'<span style="color:var(--muted);">—</span>'}</td>`).join('')}
-        <td style="font-weight:600;">${fmtR(r.total)}</td>
+        ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>{
+          if(!(r.porCategoria[c]>0)) return `<td><span style="color:var(--muted);">—</span></td>`;
+          const k = `l${i}_${c}`;
+          relCustoBreakdownMap[k] = { animalNome:r.h.nome, categoria:c, total:r.porCategoria[c], itens:r.itensPorCategoria[c]||[] };
+          return `<td class="custo-clicavel" data-relcustobreak="${k}">${fmtR(r.porCategoria[c])}</td>`;
+        }).join('')}
+        <td style="font-weight:600;" class="${r.total>0?'custo-clicavel':''}" ${r.total>0?`data-relcustobreak="l${i}_total"`:''}>${fmtR(r.total)}</td>
       </tr>`).join('')}</tbody>
       <tfoot><tr style="font-weight:600;border-top:2px solid #333;"><td>Total</td>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${fmtR(totalPorCategoria[c]||0)}</td>`).join('')}<td>${fmtR(totalGeral)}</td></tr></tfoot>
     </table></div>
   </div>`;
+  // Linha "Total" de cada animal: junta os itens de todas as categorias daquele animal num popover só.
+  linhas.forEach((r,i)=>{
+    if(r.total>0) relCustoBreakdownMap[`l${i}_total`] = { animalNome:r.h.nome, categoria:'Total', total:r.total,
+      itens: CATEGORIAS_CUSTO_ANIMAL_ORDEM.flatMap(c=>(r.itensPorCategoria[c]||[]).map(it=>({...it, descricao:`${c} — ${it.descricao||''}`}))) };
+  });
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
 document.getElementById('btnGerarRel1Ficha').addEventListener('click', gerarRelatorioFicha1);
 document.getElementById('btnGerarRel2Ficha').addEventListener('click', gerarRelatorioFicha2);
 document.getElementById('btnGerarRel3Ficha').addEventListener('click', gerarRelatorioFicha3);
 document.getElementById('btnPrintRelFicha').addEventListener('click', ()=>window.print());
+// Marca visualmente qual dos 4 relatórios foi gerado por último (o botão dele fica escuro/sólido,
+// os outros voltam a ficar claros) — antes só o Relatório 1 ficava escuro sempre, os outros nunca.
+['btnGerarRel1Ficha','btnGerarRel2Ficha','btnGerarRel3Ficha','btnGerarRel4Ficha'].forEach(id=>{
+  document.getElementById(id).addEventListener('click', ()=>{
+    ['btnGerarRel1Ficha','btnGerarRel2Ficha','btnGerarRel3Ficha','btnGerarRel4Ficha'].forEach(id2=>{
+      document.getElementById(id2).classList.toggle('btn-ghost', id2!==id);
+    });
+  });
+});
 
 // Baixar PDF de verdade (não só imprimir) pros relatórios que hoje só tinham "🖨 Imprimir" — reaproveita
 // o mesmo conteúdo já montado na tela e usa o mesmo gerador de PDF (html2pdf.js) usado em Manejos/Treinos.
