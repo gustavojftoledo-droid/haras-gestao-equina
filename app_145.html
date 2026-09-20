@@ -2670,6 +2670,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-ghost" id="btnEntradaProduto">+ Registrar Entrada</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnSaidaProduto">− Registrar Saída</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnSaidaPiquete" title="Saída pra um piquete — divide o custo entre os animais que usam ele">🌾 Saída pro Piquete</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnReajusteProduto">🔧 Reajuste de estoque</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnHistoricoProduto">📋 Ver Histórico</button>
         </div>
@@ -2679,6 +2680,31 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayProduto">Cancelar</button><button type="submit" class="btn">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- SAÍDA PRO PIQUETE — mesmo espírito do consumo de Dieta: a saída já sai marcada com quais animais
+     usaram (mv.animais), e o custo vira um lançamento de "Ração" no Financeiro, dividido em partes
+     iguais entre eles (ver lancamentosDerivadosPiquete). "Usuários" de um piquete ficam salvos por
+     localização (config.piqueteUsuarios), pra já vir marcado da próxima vez — mesmo animal solto só
+     algumas horas/dias por lá continua contando, já que é você quem marca, não é automático pela
+     Localização atual do cadastro dele. -->
+<div class="overlay" id="overlaySaidaPiquete">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">🌾 Saída pro Piquete</div><button class="modal-close" data-close="overlaySaidaPiquete">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Piquete / Localização</label><select id="spq_localizacao"></select></div>
+      <div class="field"><label>Quantidade</label><input type="number" step="0.01" min="0" id="spq_quantidade"></div>
+      <div class="field"><label>Data</label><input type="date" id="spq_data"></div>
+      <div class="field full"><label>Motivo <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><input type="text" id="spq_motivo" placeholder="Ex: Feno pro piquete 1"></div>
+    </div>
+    <div class="section-label" style="border-top:none;padding-top:0;">Animais usuários desse piquete <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— o custo é dividido em partes iguais entre eles</span></div>
+    <div id="spqAnimalSelectorHost" style="margin:10px 0 16px;"></div>
+    <div class="hint-text" style="margin-top:-10px;">A marcação fica salva por piquete — da próxima vez já vem preenchida (edite à vontade, nem todo animal precisa estar lá o tempo todo).</div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlaySaidaPiquete">Cancelar</button><button type="button" class="btn" id="btnSalvarSaidaPiquete">Registrar saída</button></div>
+    </div>
   </div>
 </div>
 
@@ -12754,6 +12780,56 @@ document.getElementById('btnSaidaProduto').addEventListener('click', async ()=>{
   showAlert('Saída registrada.');
   openProdutoEdit(editingProdutoId); renderEstoque();
 });
+let spqSelector = null;
+function inicializarSpqSelector(){
+  if(spqSelector) return;
+  spqSelector = createAnimalSelector(document.getElementById('spqAnimalSelectorHost'), {onlyActive:true});
+}
+document.getElementById('btnSaidaPiquete').addEventListener('click', ()=>{
+  if(!editingProdutoId) return;
+  inicializarSpqSelector();
+  const sel = document.getElementById('spq_localizacao');
+  sel.innerHTML = '<option value="">Selecione...</option>' + (aux.localizacao||[]).map(l=>`<option value="${l}">${l}</option>`).join('');
+  sel.value = '';
+  document.getElementById('spq_quantidade').value = '';
+  document.getElementById('spq_data').value = toISODate(new Date());
+  document.getElementById('spq_motivo').value = '';
+  spqSelector.reset();
+  openModal('overlaySaidaPiquete');
+});
+// Trocar o piquete já carrega quem são os "usuários" salvos dele (config.piqueteUsuarios) — sem
+// nada salvo ainda, sugere quem está com essa Localização no cadastro AGORA, como ponto de partida.
+document.getElementById('spq_localizacao').addEventListener('change', ()=>{
+  const loc = f('spq_localizacao');
+  if(!loc){ spqSelector.reset(); return; }
+  const salvos = (config.piqueteUsuarios||{})[loc];
+  if(salvos && salvos.length){
+    spqSelector.setSelected(salvos.map(a=>({id:a.id})));
+  } else {
+    const ativos = horses.filter(h=>h.localizacao===loc && h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
+    spqSelector.setSelected(ativos.map(h=>({id:h.id})));
+  }
+});
+document.getElementById('btnSalvarSaidaPiquete').addEventListener('click', async ()=>{
+  if(!editingProdutoId) return;
+  const loc = f('spq_localizacao');
+  if(!loc){ showAlert('Escolha o piquete/localização.'); document.getElementById('spq_localizacao').focus(); return; }
+  const qtd = Number(f('spq_quantidade'));
+  if(!qtd || qtd<=0){ showAlert('Informe a quantidade.'); document.getElementById('spq_quantidade').focus(); return; }
+  const selecionados = spqSelector.getSelected();
+  if(selecionados.length===0){ showAlert('Marque ao menos um animal usuário desse piquete.'); return; }
+  const animais = selecionados.map(a=>({ id:a.id, nome:(horses.find(h=>h.id===a.id)||{}).nome||'' }));
+  const data = f('spq_data') || toISODate(new Date());
+  const motivo = f('spq_motivo').trim() || ('Piquete: '+loc);
+  const r = await registrarMovimento(editingProdutoId, 'saida', qtd, 'piquete', motivo, data, '', animais);
+  if(!r.ok){ showAlert('Não é possível dar essa saída — saldo em estoque insuficiente (falta '+r.faltando+(r.produto&&r.produto.unidade?(' '+r.produto.unidade):'')+'). Registre uma entrada primeiro.'); return; }
+  if(!config.piqueteUsuarios) config.piqueteUsuarios = {};
+  config.piqueteUsuarios[loc] = animais;
+  await storeSet('config', config);
+  showAlert(`Saída registrada — custo dividido entre ${animais.length} animal(is) desse piquete.`);
+  closeModal('overlaySaidaPiquete');
+  openProdutoEdit(editingProdutoId); renderEstoque(); renderFinanceiro();
+});
 document.getElementById('btnReajusteProduto').addEventListener('click', async ()=>{
   if(!editingProdutoId) return;
   const p = estoqueProdutos.find(x=>x.id===editingProdutoId); if(!p) return;
@@ -17291,6 +17367,32 @@ function lancamentosDerivadosDietas(){
   });
   return out;
 }
+// Saída pro Piquete (ex: Feno jogado no cocho de um piquete) — mesma ideia de lancamentosDerivadosDietas:
+// o produto já saiu do caixa quando foi COMPRADO, então isso é alocação, não uma saída de dinheiro nova.
+// Entra como categoria "Ração" (mesmo grupo de custo da Dieta) pra não precisar de coluna nova no
+// Relatório 3 / card de Custo do Animal — é literalmente o mesmo tipo de gasto (alimentação).
+function lancamentosDerivadosPiquete(){
+  const out = [];
+  estoqueMovimentos.filter(mv=>mv.origem==='piquete' && mv.tipoMov==='saida').forEach(mv=>{
+    const qtd = Number(mv.quantidade)||0;
+    const animaisMv = mv.animais||[];
+    if(qtd<=0 || animaisMv.length===0) return;
+    const produto = estoqueProdutos.find(p=>p.id===mv.produtoId);
+    const valorUnit = custoUnitarioProduto(produto);
+    if(!valorUnit) return;
+    const total = qtd * valorUnit;
+    if(total<=0) return;
+    const valorPorAnimal = total/animaisMv.length;
+    out.push({
+      id: 'auto_pq_'+mv.id, origemId: mv.produtoId, origem: 'piquete',
+      data: mv.data, tipo: 'saida', categoria: 'Ração', natureza: 'alocacao',
+      descricao: `${mv.motivo||('Piquete: '+(mv.produtoNome||''))} — ${animaisMv.length} ${pluralAnimal(animaisMv.length)}`,
+      valor: total, moeda: 'BRL',
+      rateio: animaisMv.map(a=>({animalId:a.id, valor:valorPorAnimal}))
+    });
+  });
+  return out;
+}
 // Frete de Transporte — hoje é o único custo real (dinheiro saindo do bolso) que não aparecia em lugar
 // nenhum do Financeiro. Só conta quando o transporte já foi de fato REALIZADO (não um planejado ainda
 // não executado) — mesmo gatilho que já move a localização do animal. O valor de cada animal já vem
@@ -17404,6 +17506,7 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosVisitas(),
     ...lancamentosDerivadosTratamentos(),
     ...lancamentosDerivadosDietas(),
+    ...lancamentosDerivadosPiquete(),
     ...lancamentosDerivadosTransporte(),
     ...lancamentosDerivadosVendas()
   ];
