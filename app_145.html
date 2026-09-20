@@ -418,6 +418,19 @@
   .perfil-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start;}
   .perfil-wrap>div{min-width:0;} /* mesmo remendo do .main — sem isso a árvore de genealogia larga empurra a coluna (e a página) mais larga que a tela */
   @media (max-width:900px){ .perfil-wrap{grid-template-columns:1fr;} }
+  /* Quadros arrastáveis da Ficha do Animal: reordenar pega pelo ⠿ — ordem fica salva em
+     config.fichaLayout, valendo pra qualquer animal. */
+  .perfil-card-wrap{position:relative;margin-bottom:18px;}
+  .perfil-card-wrap .perfil-card{margin-bottom:0;transition:box-shadow .15s;}
+  .perfil-card-wrap.arrastando .perfil-card{opacity:.45;}
+  .perfil-card-wrap.dropalvo .perfil-card{box-shadow:0 0 0 2px var(--brass), 0 4px 14px rgba(30,23,16,0.18);}
+  .perfil-card-controles{position:absolute;top:8px;right:8px;z-index:5;display:flex;gap:2px;align-items:center;background:rgba(255,255,255,.85);border-radius:14px;padding:2px 4px;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .perfil-card-handle{cursor:grab;font-size:14px;color:var(--muted);opacity:.8;padding:2px 4px;user-select:none;}
+  .perfil-card-handle:hover{opacity:1;}
+  /* Teste: aumenta a fonte (e tudo mais junto — ícones, espaçamentos) de toda a Ficha do Animal de
+     uma vez, sem precisar caçar cada tamanho de fonte espalhado pelos quadros um por um. Fácil de
+     tirar/ajustar depois — é só essa linha. */
+  #perfilWrap{zoom:1.12;}
   .perfil-card{background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(30,23,16,0.06);}
   .perfil-card-head{background:var(--green);color:#fff;padding:12px 18px;font-family:'Fraunces',serif;font-size:15.5px;font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;justify-content:space-between;border-bottom:2px solid var(--brass);}
   .perfil-card-body{padding:18px 20px;}
@@ -614,19 +627,18 @@
       <div class="nav-item" data-view="calendario" title="Atalho: Alt+Shift+C"><span class="dot"></span>Calendário</div>
       <div class="nav-item" data-view="nascimentos" title="Atalho: Alt+Shift+N"><span class="dot"></span>Reprodução</div>
 
-      <div class="nav-group" data-group="animais-grp">
-        <div class="nav-group-head"><span>Animais</span><span class="chev">›</span></div>
-        <div class="nav-group-body">
-          <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
-          <div class="nav-item" data-view="grupos" title="Atalho: Alt+Shift+G"><span class="dot"></span>Grupos</div>
-        </div>
-      </div>
+      <div class="nav-item" data-view="animais" title="Atalho: Alt+Shift+A"><span class="dot"></span>Animais</div>
+      <!-- "Grupos" saiu do menu lateral — agora é um chip dentro da tela de Animais (ao lado de
+           Ativos/Internos/Vendidos/etc, ver viewModeChips). Esse item continua aqui, só escondido:
+           o restante do app ainda navega pra Grupos clicando nele (irParaView('grupos') e afins). -->
+      <div class="nav-item" data-view="grupos" style="display:none;"><span class="dot"></span>Grupos</div>
 
       <div class="nav-group" data-group="saude-grp">
         <div class="nav-group-head"><span>Saúde</span><span class="chev">›</span></div>
         <div class="nav-group-body">
           <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
           <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
+          <div class="nav-item" data-view="dietas" title="Atalho: Alt+Shift+D"><span class="dot"></span>Dietas</div>
         </div>
       </div>
 
@@ -639,12 +651,7 @@
         </div>
       </div>
 
-      <div class="nav-group" data-group="consultoria-grp">
-        <div class="nav-group-head"><span>Consultoria</span><span class="chev">›</span></div>
-        <div class="nav-group-body">
-          <div class="nav-item" data-view="consultoria"><span class="dot"></span>Consultoria</div>
-        </div>
-      </div>
+      <div class="nav-item" data-view="consultoria"><span class="dot"></span>Consultoria</div>
 
       <div class="nav-group" data-group="admin-grp">
         <div class="nav-group-head"><span>Administração</span><span class="chev">›</span></div>
@@ -807,9 +814,11 @@
       <div class="topbar">
         <div><div class="title">Animais</div><div class="subtitle">Cadastro geral do plantel</div></div>
         <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn" id="btnNewHorse" title="Atalho: Alt+A">+ Novo Animal</button>
           <div class="menu-discreto-wrap">
             <button class="btn btn-ghost btn-sm" id="btnMenuAnimaisMais" title="Mais opções">⋯</button>
             <div class="menu-discreto-pop" id="menuAnimaisMaisPop">
+              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="animais">⚙ Colunas</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnNormalizeCasing" title="Corrige Nome, Pai, Mãe, Avós e Proprietário para Primeira Letra Maiúscula">Aa Padronizar textos</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnFindDuplicates">🔍 Possíveis Duplicados</button>
               <button type="button" class="btn btn-ghost btn-sm" id="btnImportAnimais">⬆ Importar Animais</button>
@@ -817,10 +826,13 @@
           </div>
         </div>
       </div>
-      <div class="subtabs">
-        <span class="chip active" data-atab="lista" id="atab_lista">Lista</span>
-        <span class="chip" data-atab="relatorios" id="atab_relatorios">Relatórios</span>
-      </div>
+      <!-- "Lista" e "Relatórios" deixaram de ser abas separadas (pedido do usuário) — agora é uma
+           página só: a Lista continua com a mesma cara de sempre, e os Relatórios ficam logo abaixo
+           dela. atab_lista/atab_relatorios continuam existindo (escondidos, sempre "active") só
+           porque os atalhos de teclado Alt+R e Alt+1/2/3 (ver RELATORIO_CONTEXTUAL/
+           RELATORIO_NUMERO_CONTEXTUAL) checam essas classes pra saber se pode disparar o relatório. -->
+      <div class="chip active" data-atab="lista" id="atab_lista" style="display:none;"></div>
+      <div class="chip active" data-atab="relatorios" id="atab_relatorios" style="display:none;"></div>
 
       <div id="aview_lista">
         <div id="grupoFiltroBanner" style="display:none;background:var(--card);border:1px solid var(--brass-light);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;justify-content:space-between;align-items:center;"></div>
@@ -830,6 +842,7 @@
           <span class="chip" data-mode="vendidos">Vendidos</span>
           <span class="chip" data-mode="falecidos">Falecidos</span>
           <span class="chip" data-mode="externos">Externos</span>
+          <span class="chip" id="chipGruposEmAnimais" title="Abre a tela de Grupos" style="border-left:2px solid var(--line);margin-left:4px;padding-left:14px;">📁 Grupos</span>
         </div>
         <div class="stats" id="horseStats"></div>
         <div id="valorSelecaoBar" style="display:none;background:var(--card);border:1px solid var(--brass-light);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;"></div>
@@ -845,15 +858,6 @@
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelTodos">Selecionar todos</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnAnimSelLimpar">Limpar seleção</button>
           <span class="chip" id="btnAnimSelSo" title="Mostrar só os animais já marcados, pra conferir mais fácil">👁 Só selecionados</span>
-        </div>
-        <div class="lista-toolbar">
-          <button class="btn" id="btnNewHorse" title="Atalho: Alt+A" style="margin-right:auto;">+ Novo Animal</button>
-          <div class="menu-discreto-wrap">
-            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
-            <div class="menu-discreto-pop">
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="animais">⚙ Colunas</button>
-            </div>
-          </div>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="animais">
           <thead><tr>
@@ -875,20 +879,21 @@
         </table></div>
       </div>
 
-      <div id="aview_relatorios" style="display:none;">
+      <div id="aview_relatorios" style="margin-top:32px;border-top:2px solid var(--line);padding-top:20px;">
+        <div class="title" style="font-size:19px;margin-bottom:12px;">📄 Relatórios</div>
         <div class="subtabs">
           <span class="chip active" data-rtab="fichas" id="rtab_fichas">Relatórios de Animais</span>
           <span class="chip" data-rtab="lista" id="rtab_lista">Lista &amp; Conferência</span>
         </div>
 
         <div id="rview_fichas">
-          <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
+          <div class="hint-text" style="margin:0 0 10px;">Usa os animais já marcados (☑) na Lista, lá em cima — marque/desmarque por lá antes de gerar.</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 6px;">
             <span class="hint-text" style="margin:0;">Ordenar o relatório por:</span>
             <span class="chip active" data-relordem="nome" id="relOrdemNome">Nome (A–Z)</span>
             <span class="chip" data-relordem="idade" id="relOrdemIdade">Idade (mais velho primeiro)</span>
           </div>
-          <div id="relFichaSelectorHost" style="margin:10px 0 16px;"></div>
+          <div id="relFichaSelectorHost" style="display:none;"></div>
           <div class="filters" style="margin-bottom:10px;">
             <div class="f"><label>Custo por Animal — período</label><div id="relCustoPeriodo"></div></div>
             <div class="f" style="justify-content:flex-end;"><label>&nbsp;</label><span class="hint-text" style="margin:0;">Vale só pro Relatório 3 (Custo por Animal). Sem período = todo o histórico.</span></div>
@@ -1333,7 +1338,6 @@
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <span class="chip active" data-etab="produtos" id="etab_produtos">Produtos</span>
-        <span class="chip" data-etab="dietas" id="etab_dietas">Dietas</span>
         <span class="chip" data-etab="movimentos" id="etab_movimentos">Movimentações</span>
         <span class="chip" data-etab="relatorio" id="etab_relatorio">Relatório</span>
       </div>
@@ -1361,27 +1365,6 @@
           <button type="button" class="btn btn-sm btn-ghost" id="btnLimparSelecaoProdutos" style="margin-left:auto;">Limpar seleção</button>
         </div>
         <div id="eProdutosHost"></div>
-      </div>
-
-      <div id="eview_dietas" style="display:none;">
-        <div class="topbar" style="margin-bottom:14px;">
-          <div class="subtitle" style="margin:0;">Horário, alimento e quantidade (por animal) de cada dieta</div>
-        </div>
-        <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
-        <div class="lista-toolbar">
-          <button class="btn" id="btnNewDieta" title="Atalho: Alt+D" style="margin-right:auto;">+ Nova Dieta</button>
-          <div class="menu-discreto-wrap">
-            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
-            <div class="menu-discreto-pop">
-              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#eview_dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button>
-            </div>
-          </div>
-        </div>
-        <div class="grid-wrap"><table class="grid" data-lista="dietas">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="dietas" title="Selecionar todos"></th><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
-          <tbody id="dtTbody"></tbody>
-        </table></div>
       </div>
 
       <div id="eview_movimentos" style="display:none;">
@@ -1429,6 +1412,29 @@
         </div>
         <div id="relEstoqueResult" style="margin-top:14px;"></div>
       </div>
+    </div>
+
+    <!-- DIETAS (fora do Estoque, dentro de Saúde no menu lateral — só mudou o local de acesso, nada
+         da lógica/cálculo da dieta em si foi tocado) -->
+    <div class="view" id="view-dietas">
+      <div class="topbar">
+        <div><div class="title">Dietas</div><div class="subtitle">Horário, alimento e quantidade (por animal) de cada dieta</div></div>
+      </div>
+      <div id="dietasMedidoresHost" style="margin-bottom:18px;"></div>
+      <div class="lista-toolbar">
+        <button class="btn" id="btnNewDieta" title="Atalho: Alt+D" style="margin-right:auto;">+ Nova Dieta</button>
+        <div class="menu-discreto-wrap">
+          <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+          <div class="menu-discreto-pop">
+            <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#view-dietas [data-lista="dietas"]' data-pdftitulo="Dietas" data-pdfarquivo="Dietas">📄 Baixar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-colpicker="dietas">⚙ Colunas</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid-wrap"><table class="grid" data-lista="dietas">
+        <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="dietas" title="Selecionar todos"></th><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+        <tbody id="dtTbody"></tbody>
+      </table></div>
     </div>
 
     <!-- VETERINARIA -->
@@ -1637,13 +1643,59 @@
           <button class="btn btn-sm no-print" id="btnPerfilNovaVisita">+ Visita Veterinária</button>
           <button class="btn btn-sm no-print" id="btnPerfilNovoTratamento">+ Tratamento</button>
           <button class="btn btn-sm no-print" id="btnPerfilNovoExameRepro" style="display:none;">+ Exame reprodutivo</button>
+          <button class="btn btn-sm no-print" id="btnPerfilNovoRegistro">+ Peso/Score/Foto</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilEditar">✎ Editar cadastro</button>
           <button class="btn btn-ghost btn-sm no-print" id="btnPerfilImprimir">🖨 Imprimir</button><button class="btn btn-ghost btn-sm no-print" id="btnPdfPerfil">⬇ Baixar PDF</button>
         </div>
       </div>
       <div class="perfil-wrap" id="perfilWrap"></div>
-      <div id="perfilTreinosWrap" style="margin-top:14px;"></div>
       <div id="perfilTimelineWrap" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- Linha do Tempo Visual — modal largo (precisa de espaço pra ficar legível), aberta por um botão
+         dentro do card "🕐 Linha do Tempo" de sempre (boa visibilidade, fácil de achar). Mistura TODOS
+         os eventos importantes do animal: nascimento de filho, manejos, treinos/competições, score
+         corporal, peso e fotos — com filtro de quais categorias mostrar e de período. -->
+    <div class="overlay" id="overlayLinhaDoTempoVisual">
+      <div class="modal wide">
+        <div class="modal-head"><div class="modal-title">📊 Linha do Tempo Visual — <span id="ltvNomeAnimal"></span></div><button class="modal-close" data-close="overlayLinhaDoTempoVisual">✕</button></div>
+        <div id="ltvControles" style="margin-bottom:10px;"></div>
+        <div id="ltvCorpo" style="max-height:65vh;overflow:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Registro avulso de Peso/Score corporal/Foto — com data, fora de uma visita de Consultoria,
+         pra alimentar a Linha do Tempo Visual mesmo em animal sem acompanhamento técnico. -->
+    <div class="overlay" id="overlayAnimalRegistro">
+      <div class="modal">
+        <div class="modal-head"><div class="modal-title" id="arModalTitle">Novo registro</div><button class="modal-close" data-close="overlayAnimalRegistro">✕</button></div>
+        <div class="form-grid">
+          <div class="field"><label>Data</label><input type="date" id="ar_data"></div>
+          <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="ar_peso" placeholder="Opcional"></div>
+          <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="ar_score" placeholder="Opcional"></div>
+          <div class="field full">
+            <label>Foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
+            <input type="file" id="ar_fotoFile" accept="image/*" style="display:none;">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnArEscolherFoto">📷 Escolher foto</button>
+            <span id="ar_fotoStatus" class="hint-text" style="margin:6px 0 0;"></span>
+            <img id="ar_fotoPreview" style="display:none;max-width:160px;border-radius:8px;margin-top:8px;">
+          </div>
+          <div class="field full"><label>Observação <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><input type="text" id="ar_obs"></div>
+        </div>
+        <div class="hint-text" style="margin-top:-4px;">Preencha só o que fizer sentido nesse registro — pode ser só peso, só foto, ou os três juntos. Cada um vira um ponto datado na Linha do Tempo Visual.</div>
+        <div class="modal-actions">
+          <div><button type="button" class="btn btn-danger btn-sm" id="btnArExcluir" style="display:none;">🗑 Excluir</button></div>
+          <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayAnimalRegistro">Cancelar</button><button type="button" class="btn" id="btnArSalvar">Salvar</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
+    <div class="overlay" id="overlayFotoTimeline">
+      <div class="modal" style="max-width:min(90vw,640px);">
+        <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
+        <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
+      </div>
     </div>
 
     <!-- CONSULTORIA (Fase 1: Visitas Técnicas + Histórico da Propriedade. Fase 2 vai acrescentar sub-abas
@@ -1826,6 +1878,7 @@
         <div class="field"><label>Data Nascimento</label><input type="date" id="f_nascimento"></div>
         <div class="field"><label>Data Falecimento</label><input type="date" id="f_falecimento"></div>
         <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="f_peso" title="Usado na Consultoria pra calcular a exigência nutricional (NRC)"></div>
+        <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="f_scoreCorporal" placeholder="Opcional"></div>
         <div class="field"><label>Pelagem</label><div style="display:flex;gap:6px;"><select id="f_pelagem" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="pelagem">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="pelagem" data-selid="f_pelagem" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="pelagem" data-selid="f_pelagem" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Raça</label><div style="display:flex;gap:6px;"><select id="f_raca" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="raca">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="raca" data-selid="f_raca" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="raca" data-selid="f_raca" title="Excluir valor selecionado">🗑</button></div></div>
         <div class="field"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="f_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="categoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="categoria" data-selid="f_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="categoria" data-selid="f_categoria" title="Excluir valor selecionado">🗑</button></div></div>
@@ -3180,6 +3233,10 @@ let consultoriaFormulacoes = []; // Firestore key: 'consultoria_formulacoes_list
 let consultoriaPropriedades = []; // Firestore key: 'consultoria_propriedades_list' — cadastro leve de haras/propriedade (nome, proprietário, cidade, obs)
 let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, editingFormulacaoConsultoriaId = null;
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
+// Registro avulso de Peso/Score corporal/Foto por animal, com data — pra alimentar a Linha do Tempo
+// Visual mesmo em animal que nunca passou por visita de Consultoria. 100% aditivo, chave própria.
+let animalRegistros = []; // Firestore key: 'animal_registros_list' — {id, animalId, data, peso, scoreCorporal, fotoDataUrl, obs}
+let editingAnimalRegistroId = null;
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
 // funcionário — o Salvar do modal de Lançamento usa isso pra ligar o registro ao funcionário
 // (l.origemFuncionarioId), sem precisar de um campo visível no formulário.
@@ -3306,6 +3363,7 @@ const AUDIT_KEYS = {
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
   consultoria_propriedades_list:{ modulo:'Consultoria', nome: r=>r.nome },
+  animal_registros_list: { modulo:'Animais', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -3405,6 +3463,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'consultoria_fotos': consultoriaFotos = val; break;
     case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
     case 'consultoria_propriedades_list': consultoriaPropriedades = val; break;
+    case 'animal_registros_list': animalRegistros = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -3428,7 +3487,7 @@ const AUDIT_CAMPOS_IGNORADOS = new Set(['id','criadoEm']);
 // Campo fora dessa lista aparece com o nome interno mesmo (melhor isso do que esconder a alteração).
 const AUDIT_CAMPO_LABEL = {
   nome:'Nome', apelido:'Apelido', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
-  nascimento:'Nascimento', falecimento:'Falecimento', peso:'Peso', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
+  nascimento:'Nascimento', falecimento:'Falecimento', peso:'Peso', scoreCorporal:'Score corporal', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
   avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
   comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', compradoDe:'Comprado de', obs:'Observações',
@@ -3622,7 +3681,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3632,9 +3691,10 @@ async function loadAll(){
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
-    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list')
+    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
+  animalRegistros = rARz.value||[];
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
   consultoriaPropriedades = rCPr.value||[];
@@ -3659,7 +3719,8 @@ async function loadAll(){
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
-    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades,
+    animal_registros_list:animalRegistros
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -4278,12 +4339,13 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
-      if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); }
+      if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); showAnimaisTab('relatorios'); }
       if(view==='estoque') renderEstoque();
+      if(view==='dietas') renderDietas();
       if(view==='veterinaria') renderVetLista();
       if(view==='grupos') renderGrupos();
       if(view==='transporte') renderTransportes();
@@ -4371,7 +4433,7 @@ const ATALHOS_NOVO = {
   't': { view:'treinos', action:()=>document.getElementById('btnNewTreino').click() },
   'n': { view:'nascimentos', action:()=>document.getElementById('btnNewNasc').click() },
   'e': { view:'estoque', action:()=>{ document.querySelector('#view-estoque [data-etab="produtos"]').click(); document.getElementById('btnNewProduto').click(); } },
-  'd': { view:'estoque', action:()=>{ document.querySelector('#view-estoque [data-etab="dietas"]').click(); document.getElementById('btnNewDieta').click(); } },
+  'd': { view:'dietas', action:()=>document.getElementById('btnNewDieta').click() },
   'g': { view:'grupos', action:()=>document.getElementById('btnNewGrupo').click() },
   'v': { view:'veterinaria', action:()=>document.getElementById('btnNewTratamento').click() },
   'p': { view:'funcionarios', action:()=>document.getElementById('btnNewFuncionario').click() },
@@ -4395,7 +4457,8 @@ document.addEventListener('keydown', (e)=>{
   const key = e.key.toLowerCase();
   const atalho = ATALHOS_NOVO[key];
   if(!atalho) return;
-  if(!temPermissao(atalho.view,'inserir')) return; // esse usuário não pode inserir nesse módulo
+  // Dietas não tem módulo de permissão próprio — usa a mesma permissão de Estoque de sempre.
+  if(!temPermissao(atalho.view==='dietas' ? 'estoque' : atalho.view, 'inserir')) return;
   const modalAberto = document.querySelector('.overlay.show');
   if(modalAberto) return; // já tem um cadastro aberto, não empilha outro
   e.preventDefault();
@@ -4414,6 +4477,7 @@ const ATALHOS_NAVEGACAO = {
   't': 'treinos',
   'n': 'nascimentos',
   'e': 'estoque',
+  'd': 'dietas',
   'v': 'veterinaria',
   'p': 'funcionarios',
   'f': 'financeiro',
@@ -4456,7 +4520,7 @@ const NOVO_CONTEXTUAL = {
 // Alt+R: "Ir para Relatórios" — também sempre o mesmo atalho, mas leva pra aba de relatório da tela em
 // que você já está (cada área tem a sua). Se a tela atual não tiver relatório próprio, não faz nada.
 const RELATORIO_CONTEXTUAL = {
-  animais: ()=>document.getElementById('atab_relatorios').click(),
+  animais: ()=>document.getElementById('aview_relatorios').scrollIntoView({behavior:'smooth', block:'start'}),
   grupos: ()=>document.getElementById('grtab_relatorio').click(),
   manejos: ()=>document.getElementById('mtab_relatorios').click(),
   treinos: ()=>document.getElementById('ttab_relatorios').click(),
@@ -5001,13 +5065,17 @@ function populateSelectFilter(id, values){
 
 let viewMode = 'ativos';
 let grupoFiltroAtivo = null; // quando setado (via "Ver Grupo"), restringe a lista de Animais só aos membros desse grupo
-document.querySelectorAll('#viewModeChips .chip').forEach(chip=>{
+document.querySelectorAll('#viewModeChips .chip[data-mode]').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     viewMode = chip.dataset.mode;
-    document.querySelectorAll('#viewModeChips .chip').forEach(c=>c.classList.toggle('active', c===chip));
+    document.querySelectorAll('#viewModeChips .chip[data-mode]').forEach(c=>c.classList.toggle('active', c===chip));
     renderHorses();
   });
 });
+// "Grupos" dentro de Animais é um atalho pra tela de Grupos de sempre (não um filtro da lista de
+// animais) — clica no item de menu escondido, que já faz toda a navegação certinha (guarda ponto de
+// voltar, marca ativo, renderiza). Ver o nav-item escondido perto de "Animais" no menu lateral.
+document.getElementById('chipGruposEmAnimais').addEventListener('click', ()=> irParaView('grupos'));
 
 function titleCase(str){
   if(!str) return str;
@@ -5187,7 +5255,7 @@ function renderHorses(){
     if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:4px;">Vendido</span>');
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
-      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()">👁</button> <strong>${h.nome||''}</strong>${tags.join('')}</td>
+      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${h.fotoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> <strong>${h.nome||''}</strong>${tags.join('')}</td>
       <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
       <td data-col="pai">${h.pai||''}</td><td data-col="mae">${h.mae||''}</td><td data-col="pelagem">${h.pelagem||''}</td><td data-col="raca">${h.raca||''}</td><td data-col="categoria">${h.categoria||''}</td>
@@ -5444,7 +5512,7 @@ function openHorseEdit(id){
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
-  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
+  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',scoreCorporal:'f_scoreCorporal',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
   populateAuxSelects();
   Object.entries(map).forEach(([k,id2])=>{ document.getElementById(id2).value=h[k]||''; });
   atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
@@ -5582,7 +5650,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   const existenteAnimal = editingHorseId ? horses.find(h=>h.id===editingHorseId) : null;
   const data={ ...(existenteAnimal||{}), id: editingHorseId || ('h_'+Date.now()),
     codigo, nome:titleCase(f('f_nome')),apelido:titleCase(f('f_apelido')),sexo:f('f_sexo'),situacao:f('f_situacao'),status:titleCase(f('f_status')),
-    nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),peso:f('f_peso'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
+    nascimento:f('f_nascimento'),falecimento:f('f_falecimento'),peso:f('f_peso'),scoreCorporal:f('f_scoreCorporal'),pelagem:titleCase(f('f_pelagem')),raca:titleCase(f('f_raca')),categoria:titleCase(f('f_categoria')),localizacao:titleCase(f('f_localizacao')),
     pai:titleCase(f('f_pai')),mae:titleCase(f('f_mae')),avopat:titleCase(f('f_avopat')),avopatmat:titleCase(f('f_avopatmat')),avomatpat:titleCase(f('f_avomatpat')),avomat:titleCase(f('f_avomat')),
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     // Quem não pode ver valores também não pode apagá-los sem querer: pra essas pessoas o campo nem
@@ -5618,6 +5686,19 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   ensureExternalAnimal(data.mae,'FEMININO',{pai:data.avomatpat, mae:data.avomat});
   ensureExternalAnimal(data.avopat,'MASCULINO'); ensureExternalAnimal(data.avopatmat,'FEMININO');
   ensureExternalAnimal(data.avomatpat,'MASCULINO'); ensureExternalAnimal(data.avomat,'FEMININO');
+  // Peso/Score corporal/Foto mudaram aqui no cadastro normal? Vira sozinho um ponto datado (hoje) na
+  // Linha do Tempo Visual — sem precisar passar pelo modal dedicado "+ Peso/Score/Foto". Só registra o
+  // que de fato mudou (evita ponto duplicado quando só outro campo do cadastro foi editado).
+  const pesoMudou = (existenteAnimal?existenteAnimal.peso:'') !== data.peso && data.peso!=='';
+  const scoreMudou = (existenteAnimal?existenteAnimal.scoreCorporal:'') !== data.scoreCorporal && data.scoreCorporal!=='';
+  const fotoMudou = (existenteAnimal?existenteAnimal.fotoUrl:'') !== data.fotoUrl && data.fotoUrl!=='';
+  if(pesoMudou || scoreMudou || fotoMudou){
+    animalRegistros = [...animalRegistros, { id:'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      animalId: data.id, animalNome: data.nome, data: toISODate(new Date()),
+      peso: pesoMudou ? data.peso : '', scoreCorporal: scoreMudou ? data.scoreCorporal : '',
+      fotoDataUrl: fotoMudou ? data.fotoUrl : '', obs:'' }];
+    salvarEmSegundoPlano('animal_registros_list', animalRegistros);
+  }
   closeModal('overlayHorse'); refreshDatalists();
   atualizarTelasQueDependemDeAnimais();
   salvarEmSegundoPlano('horses_list', horses, ()=>{ atualizarTelasQueDependemDeAnimais(); });
@@ -11398,9 +11479,8 @@ document.querySelectorAll('#view-estoque [data-etab]').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     document.querySelectorAll('#view-estoque [data-etab]').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
-    ['produtos','dietas','movimentos','relatorio'].forEach(t=>{ document.getElementById('eview_'+t).style.display = (t===chip.dataset.etab) ? 'block':'none'; });
+    ['produtos','movimentos','relatorio'].forEach(t=>{ document.getElementById('eview_'+t).style.display = (t===chip.dataset.etab) ? 'block':'none'; });
     atualizarMenuContextual(document.getElementById('view-estoque'));
-    if(chip.dataset.etab==='dietas') renderDietas();
     if(chip.dataset.etab==='movimentos') renderMovimentos();
     if(chip.dataset.etab==='relatorio') populateRelEstoqueTipos();
   });
@@ -12958,7 +13038,7 @@ document.getElementById('btnPedidoRapidoEmail').addEventListener('click', ()=>{
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
   renderDietasMedidores();
-  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhuma dieta cadastrada.</td></tr>`; sincronizarSelecaoLista('dietas', '#eview_dietas [data-lista="dietas"]'); return; }
+  if(dietas.length===0){ tbody.innerHTML=`<tr><td colspan="7" class="empty">Nenhuma dieta cadastrada.</td></tr>`; sincronizarSelecaoLista('dietas', '#view-dietas [data-lista="dietas"]'); return; }
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const listaD = ordenarListaGenerica('dietas', dietas, (d,col)=>{
     if(col==='nome') return (d.nome||'').toLowerCase();
@@ -12968,7 +13048,7 @@ function renderDietas(){
     if(col==='obs') return (d.obs||'').toLowerCase();
     return '';
   });
-  marcarSetasOrdenacao('dietas', '#eview_dietas [data-lista="dietas"]');
+  marcarSetasOrdenacao('dietas', '#view-dietas [data-lista="dietas"]');
   tbody.innerHTML = listaD.map(d=>{
     const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
     const nAnimais = (d.animais||[]).length;
@@ -12994,7 +13074,7 @@ function renderDietas(){
       </td>
     </tr>`;
   }).join('');
-  sincronizarSelecaoLista('dietas', '#eview_dietas [data-lista="dietas"]');
+  sincronizarSelecaoLista('dietas', '#view-dietas [data-lista="dietas"]');
   tbody.querySelectorAll('[data-editar]').forEach(b=>b.addEventListener('click', ()=>openDietaEdit(b.dataset.editar)));
   tbody.querySelectorAll('[data-animais]').forEach(b=>b.addEventListener('click', ()=>openDietaAnimais(b.dataset.animais)));
   tbody.querySelectorAll('[data-consumir]').forEach(b=>b.addEventListener('click', ()=>registrarConsumoDieta(b.dataset.consumir)));
@@ -16676,16 +16756,13 @@ ORD_RENDERERS.estoqueMov = renderMovimentos;
 ['movFiltroTipo','movFiltroOrigem'].forEach(id=>document.getElementById(id).addEventListener('input', renderMovimentos));
 
 /* ================= ANIMAIS: Lista / Relatórios ================= */
+// Lista e Relatórios de Animais viraram uma página só (sem troca de aba) — essa função não
+// esconde/mostra nada mais, só inicializa o seletor de animais do relatório (chamada 1x quando a
+// tela de Animais abre). atab_lista/atab_relatorios ficam sempre "active" no DOM (escondidos) só
+// pros atalhos de teclado Alt+R/Alt+1/2/3 continuarem funcionando (ver RELATORIO_CONTEXTUAL).
 function showAnimaisTab(tab){
-  ['lista','relatorios'].forEach(t=>{
-    document.getElementById('atab_'+t).classList.toggle('active', t===tab);
-    document.getElementById('aview_'+t).style.display = (t===tab) ? 'block' : 'none';
-  });
-  atualizarMenuContextual(document.getElementById('view-animais'));
   if(tab==='relatorios') showRelatoriosTab('fichas');
 }
-document.getElementById('atab_lista').addEventListener('click', ()=>showAnimaisTab('lista'));
-document.getElementById('atab_relatorios').addEventListener('click', ()=>showAnimaisTab('relatorios'));
 
 function showRelatoriosTab(tab){
   ['fichas','lista'].forEach(t=>{
@@ -17463,8 +17540,7 @@ function navegarParaOrigemFinanceiro(tipoOrigem, id){
     irParaView('veterinaria');
     setTimeout(()=>{ document.getElementById('vtrtab_lista').click(); openTratamentoEdit(id); }, 30);
   } else if(tipoOrigem==='dietas'){
-    irParaView('estoque');
-    setTimeout(()=>document.querySelector('#view-estoque [data-etab="dietas"]').click(), 30);
+    irParaView('dietas');
   } else if(tipoOrigem==='transportes'){
     irParaView('transporte');
     setTimeout(()=>openTransporteEdit(id), 30);
@@ -18273,8 +18349,12 @@ function podeVerValoresAnimais(){
 // então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
   if(!user) return [];
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'auditoria', 'filtrosanimais'];
-  return ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
+  // Dietas não tem módulo de permissão próprio — continua governada pela mesma permissão de
+  // Estoque de sempre (só mudou de onde se acessa na tela, não quem pode ver).
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'auditoria', 'filtrosanimais'];
+  const base = ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
+  if(permissaoDe(user,'estoque').ver) base.push('dietas');
+  return base;
 }
 // Pra Manejos, além de liberar a tela, dá pra restringir A QUAIS TIPOS o usuário tem acesso — o caso
 // de um Ferrador, que só deve ver/mexer em lançamentos do tipo Casco.
@@ -18327,6 +18407,11 @@ function aplicarPermissoes(){
     const view = item.dataset.view;
     item.style.display = permitidas.includes(view) ? '' : 'none';
   });
+  // "Grupos" não é mais um item do menu lateral (virou um chip dentro de Animais — ver
+  // viewModeChips) — o elemento continua no DOM só pra navegação por código continuar funcionando
+  // (irParaView('grupos') etc.), então força ele escondido de novo depois do loop de permissões acima.
+  const navItemGrupos = document.querySelector('.nav-item[data-view="grupos"]');
+  if(navItemGrupos) navItemGrupos.style.display = 'none';
   atualizarGruposVaziosMenu();
   aplicarPermissoesBotoesNovo();
   aplicarRestricaoTiposManejoUI();
@@ -18748,7 +18833,9 @@ function abrirPerfilAnimal(id){
   guardarPontoDeVolta(); // cobre todo 👁 do app de uma vez — um hook só, "Voltar" funciona em qualquer um
   perfilAnimalId = id;
   timelineFiltro = 'todos';
-  treinosPerfilFiltro = 'todos';
+  timelineBuscaAberta = false;
+  timelineBuscaTexto = '';
+  timelinePeriodoPreset = '20d';
   document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-animalPerfil').classList.add('active');
@@ -18823,6 +18910,63 @@ function tarefaBadge(situacao){
   return `<span class="pill ${cls}">${label}</span>`;
 }
 
+/* ================= LAYOUT ARRASTÁVEL DA FICHA DO ANIMAL =================
+   Ordem e "destaque" (⭐, deixa o quadro visualmente maior) dos quadros da Ficha — salvo uma vez só
+   em config.fichaLayout, valendo pra TODOS os animais (não é por animal). */
+function carregarLayoutFicha(){
+  const l = config.fichaLayout || {};
+  return { ordem: Array.isArray(l.ordem)?l.ordem.slice():[], coluna: {...(l.coluna||{})} };
+}
+function salvarLayoutFicha(layout){
+  config.fichaLayout = layout;
+  salvarEmSegundoPlano('config', config);
+}
+function renderCardsComLayout(cardsDefs){
+  const layout = carregarLayoutFicha();
+  const porKey = new Map(cardsDefs.map(c=>[c.key,c]));
+  const usados = new Set();
+  const ordenados = [];
+  layout.ordem.forEach(k=>{ if(porKey.has(k) && !usados.has(k)){ ordenados.push(porKey.get(k)); usados.add(k); } });
+  cardsDefs.forEach(c=>{ if(!usados.has(c.key)) ordenados.push(c); }); // quadro novo (nunca salvo) entra no fim, na coluna padrão dele
+  const colunaDe = k => layout.coluna[k] || porKey.get(k).defaultCol;
+  const principal = ordenados.filter(c=>colunaDe(c.key)==='principal');
+  const lateral = ordenados.filter(c=>colunaDe(c.key)==='lateral');
+  const montar = c => `<div class="perfil-card-wrap" data-cardkey="${c.key}" draggable="true">
+      <div class="perfil-card-controles no-print"><span class="perfil-card-handle" title="Arrastar pra reordenar">⠿</span></div>
+      ${c.html}
+    </div>`;
+  document.getElementById('perfilWrap').innerHTML = `<div>${principal.map(montar).join('')}</div><div>${lateral.map(montar).join('')}</div>`;
+  wireDragDropFicha();
+}
+function wireDragDropFicha(){
+  let dragKey = null;
+  document.querySelectorAll('#perfilWrap .perfil-card-wrap').forEach(el=>{
+    el.addEventListener('dragstart', ()=>{ dragKey = el.dataset.cardkey; el.classList.add('arrastando'); });
+    el.addEventListener('dragend', ()=> el.classList.remove('arrastando'));
+    el.addEventListener('dragover', e=>{ e.preventDefault(); if(el.dataset.cardkey!==dragKey) el.classList.add('dropalvo'); });
+    el.addEventListener('dragleave', ()=> el.classList.remove('dropalvo'));
+    el.addEventListener('drop', e=>{
+      e.preventDefault(); el.classList.remove('dropalvo');
+      const alvoKey = el.dataset.cardkey;
+      if(!dragKey || dragKey===alvoKey) return;
+      aplicarNovaOrdemFicha(dragKey, alvoKey);
+    });
+  });
+}
+function aplicarNovaOrdemFicha(dragKey, alvoKey){
+  const layout = carregarLayoutFicha();
+  const chavesNaTela = [...document.querySelectorAll('#perfilWrap .perfil-card-wrap')].map(el=>el.dataset.cardkey);
+  const semArrastado = chavesNaTela.filter(k=>k!==dragKey);
+  const idxAlvo = semArrastado.indexOf(alvoKey);
+  semArrastado.splice(idxAlvo, 0, dragKey);
+  layout.ordem = semArrastado;
+  const containers = document.querySelectorAll('#perfilWrap > div');
+  const alvoEl = document.querySelector(`#perfilWrap .perfil-card-wrap[data-cardkey="${alvoKey}"]`);
+  layout.coluna[dragKey] = (alvoEl && alvoEl.parentElement===containers[1]) ? 'lateral' : 'principal';
+  salvarLayoutFicha(layout);
+  renderAnimalPerfil(perfilAnimalId);
+}
+
 function renderAnimalPerfil(id){
   const h = horses.find(x=>x.id===id);
   if(!h){ document.getElementById('btnVoltarPerfil').click(); return; }
@@ -18861,7 +19005,8 @@ function renderAnimalPerfil(id){
   // amistoso, torneio...), pra separar prática de competição de verdade.
   const competicoesDoAnimal = treinos.filter(t=> t.tipo && t.tipo!=='Treino' && (t.animais||[]).some(a=>a.id===h.id));
 
-  const main = `
+  const cardsDefs = [];
+  cardsDefs.push({ key:'dados', defaultCol:'principal', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">📋 Dados do Animal</div>
       <div class="perfil-card-body">
@@ -18899,13 +19044,15 @@ function renderAnimalPerfil(id){
 
         ${h.obs?`<div class="perfil-subsection">Observações</div><div class="perfil-fields full"><div class="perfil-field"><div class="val">${h.obs}</div></div></div>`:''}
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'genealogia', defaultCol:'principal', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">🌳 Genealogia</div>
       <div class="perfil-card-body">${buildPedigreeTree(h)}${blocoEndogamia(h)}</div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'premiacoes', defaultCol:'principal', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">🏆 Premiações</div>
       <div class="perfil-card-body">
@@ -18927,8 +19074,9 @@ function renderAnimalPerfil(id){
         </div>
         <button type="button" class="btn btn-sm no-print" id="btnAddPremiacao" style="margin-top:8px;">+ Adicionar premiação</button>
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'examesValidade', defaultCol:'principal', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">🩺 Exames com validade — AIE · Mormo</div>
       <div class="perfil-card-body">
@@ -18959,24 +19107,26 @@ function renderAnimalPerfil(id){
           <button type="button" class="btn btn-sm" id="btnAddExameSaude">Registrar exame</button>
         </div>
       </div>
-    </div>
+    </div>` });
 
-    ${gruposDoAnimal.length>0?`<div class="perfil-card">
+  if(gruposDoAnimal.length>0) cardsDefs.push({ key:'grupos', defaultCol:'principal', html:`
+    <div class="perfil-card">
       <div class="perfil-card-head">📁 Grupos</div>
       <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${g.nome}</span>`).join('')}</div>
-    </div>`:''}
+    </div>` });
 
-    ${blocoConsultoriaAnimalFicha(h)}
-  `;
+  const consultoriaCardHtml = blocoConsultoriaAnimalFicha(h);
+  if(consultoriaCardHtml && consultoriaCardHtml.trim()) cardsDefs.push({ key:'consultoria', defaultCol:'principal', html:consultoriaCardHtml });
 
-  const sidebar = `
+  cardsDefs.push({ key:'foto', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-body">
-        ${h.fotoUrl ? `<img class="perfil-photo" src="${h.fotoUrl}" alt="Foto de ${h.nome}" onerror="this.outerHTML='<div class=perfil-photo-placeholder>Não consegui carregar essa imagem. Confira se o link é público e aponta direto pro arquivo.</div>';">`
+        ${h.fotoUrl ? `<img class="perfil-photo" id="perfilFotoPrincipal" src="${h.fotoUrl}" alt="Foto de ${h.nome}" style="cursor:pointer;" title="Clique pra ampliar" onerror="this.outerHTML='<div class=perfil-photo-placeholder>Não consegui carregar essa imagem. Confira se o link é público e aponta direto pro arquivo.</div>';">`
           : `<div class="perfil-photo-placeholder no-print">Sem foto ainda.<br>Cole um link (Google Drive, Imgur...) no cadastro do animal.</div>`}
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'stats', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-body" style="padding:4px 0;">
         <div class="stat-list-row ${competicoesDoAnimal.length?'clicavel':''}" data-statclick="competicoes"><span>Competições</span><strong>${competicoesDoAnimal.length}</strong></div>
@@ -18987,8 +19137,9 @@ function renderAnimalPerfil(id){
         <div class="stat-list-row ${irmaosProprios.length?'clicavel':''}" data-statclick="irmaosProprios"><span>Irmãos próprios <span style="color:var(--muted);font-weight:400;">(pai e mãe)</span></span><strong>${irmaosProprios.length}</strong></div>
         <div class="stat-list-row ${filhos.length?'clicavel':''}" data-statclick="filhos"><span>Descendência <span style="color:var(--muted);font-weight:400;">(filhos)</span></span><strong>${filhos.length}</strong></div>
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'videos', defaultCol:'lateral', html:`
     <div class="perfil-card" id="perfilVideosCard">
       <div class="perfil-card-head">🎬 Vídeos</div>
       <div class="perfil-card-body">
@@ -19002,8 +19153,9 @@ function renderAnimalPerfil(id){
           <button type="button" class="btn btn-sm" id="btnAddVideoPerfil">+ Adicionar</button>
         </div>
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'exames', defaultCol:'lateral', html:`
     <div class="perfil-card" id="perfilExamesCard">
       <div class="perfil-card-head">📎 Exames</div>
       <div class="perfil-card-body">
@@ -19021,10 +19173,10 @@ function renderAnimalPerfil(id){
           <input type="file" id="perfilNovoExame" style="flex:1;font-size:12px;">
           <button type="button" class="btn btn-sm btn-ghost" id="btnAddExamePerfil">+ Anexar arquivo</button>
         </div>
-        <div class="hint-text no-print" style="margin-top:6px;">Prefira o <b>link do Drive</b> (sem limite de tamanho e não pesa o cadastro) — compartilhe a pasta/arquivo no Drive e cole o link aqui. Anexar arquivo direto: até 400 KB, num espaço compartilhado entre todos os animais.</div>
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'tarefas', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">🔔 Próximas Tarefas</div>
       <div class="perfil-card-body">
@@ -19035,22 +19187,32 @@ function renderAnimalPerfil(id){
               <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(toISODate(t.proxima))):''}</div>
             </div>`).join('')}
       </div>
-    </div>
+    </div>` });
 
+  cardsDefs.push({ key:'estado', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">💰 Estado do Animal</div>
       <div class="perfil-card-body">
         ${podeVerValoresAnimais()?`<div class="perfil-field"><label>Valor cadastrado</label><div class="val">${h.valor||'—'}</div></div>`:''}
         <div class="perfil-field" style="${podeVerValoresAnimais()?'margin-top:10px;':''}"><label>Doador</label><div class="val">${h.doador?'Sim':'Não'}</div></div>
       </div>
-    </div>
-    ${temPermissao('financeiro','ver') ? blocoCustoAnimalFicha(h) : ''}
-    ${blocoReproducaoFicha(h)}
-  `;
+    </div>` });
 
-  document.getElementById('perfilWrap').innerHTML = `<div>${main}</div><div>${sidebar}</div>`;
-  renderTreinosPerfil(h);
+  if(temPermissao('financeiro','ver')){
+    const custoCardHtml = blocoCustoAnimalFicha(h);
+    if(custoCardHtml && custoCardHtml.trim()) cardsDefs.push({ key:'custo', defaultCol:'lateral', html:custoCardHtml });
+  }
+  const reproCardHtml = blocoReproducaoFicha(h);
+  if(reproCardHtml && reproCardHtml.trim()) cardsDefs.push({ key:'reproducao', defaultCol:'lateral', html:reproCardHtml });
+
+  renderCardsComLayout(cardsDefs);
   renderAnimalTimeline(h);
+  const fotoPrincipalEl = document.getElementById('perfilFotoPrincipal');
+  if(fotoPrincipalEl) fotoPrincipalEl.addEventListener('click', ()=>{
+    document.getElementById('ftFotoGrande').src = h.fotoUrl;
+    document.getElementById('ftModalTitulo').textContent = 'Foto de '+(h.nome||'');
+    openModal('overlayFotoTimeline');
+  });
 
   document.querySelectorAll('[data-abrircob]').forEach(el=>{
     el.addEventListener('click', ()=>{ guardarPontoDeVolta(); irParaView('nascimentos'); setTimeout(()=>{ showNascTab('lista'); openNascEdit(el.dataset.abrircob); }, 30); });
@@ -19069,11 +19231,12 @@ function renderAnimalPerfil(id){
       else if(chave==='irmaosProprios' && irmaosProprios.length) abrirAnimaisNoFront('Irmãos próprios de '+h.nome, irmaosProprios.map(x=>({id:x.id,nome:x.nome})));
       else if(chave==='filhos' && filhos.length) abrirAnimaisNoFront('Filhos de '+h.nome, filhos.map(x=>({id:x.id,nome:x.nome})));
       else if(chave==='competicoes' && competicoesDoAnimal.length){
-        // Vai direto pro card de Atividades logo abaixo, já filtrado só nas competições (qualquer
-        // tipo que não seja "Treino" simples) — sem sair da ficha do animal.
-        treinosPerfilFiltro = '__competicoes';
-        renderTreinosPerfil(h);
-        document.getElementById('perfilAtividadesCard').scrollIntoView({behavior:'smooth', block:'start'});
+        // Vai direto pra Linha do Tempo logo abaixo, já filtrada em Treinos (jogos/competições contam
+        // junto — mesma categoria) e com a busca aberta, sem sair da ficha do animal.
+        timelineFiltro = 'treino';
+        timelineBuscaAberta = true;
+        renderAnimalTimeline(h);
+        document.getElementById('perfilTimelineWrap').scrollIntoView({behavior:'smooth', block:'start'});
       }
       else if(chave==='videos'){
         document.getElementById('perfilVideosCard').scrollIntoView({behavior:'smooth', block:'start'});
@@ -19180,51 +19343,20 @@ function renderAnimalPerfil(id){
    ordenados por data (mais recente primeiro). Eventos manuais (linha do tempo escrita à mão) ficam
    pra uma próxima etapa, se fizer falta além do que já é puxado automático daqui. */
 let timelineFiltro = 'todos';
-// Área ampla exclusiva de Treinos na Ficha do Animal (Fase 6) — separada da Linha do Tempo geral
-// (que mistura Manejos/Treinos/Nascimentos). Filtros pequenos e dinâmicos: um chip por tipo de treino
-// que esse animal já tem registrado (Jogo, Treino, Montada, Bate-bola...) — assim que um tipo novo é
-// usado num treino desse animal, o filtro dele aparece sozinho aqui, sem precisar cadastrar nada.
-let treinosPerfilFiltro = 'todos';
-function renderTreinosPerfil(h){
-  const host = document.getElementById('perfilTreinosWrap');
-  if(!host) return;
-  const todos = treinos.filter(t=>(t.animais||[]).some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
-  const porTipo = {};
-  todos.forEach(t=>{ const tp = t.tipo||'Sem tipo'; porTipo[tp] = (porTipo[tp]||0)+1; });
-  const tipos = Object.keys(porTipo).sort((a,b)=>a.localeCompare(b,'pt'));
-  const filtroValido = treinosPerfilFiltro==='todos' || treinosPerfilFiltro==='__competicoes' || tipos.includes(treinosPerfilFiltro);
-  if(!filtroValido) treinosPerfilFiltro = 'todos';
-  const filtrados = treinosPerfilFiltro==='todos' ? todos
-    : treinosPerfilFiltro==='__competicoes' ? todos.filter(t=>t.tipo && t.tipo!=='Treino')
-    : todos.filter(t=>(t.tipo||'Sem tipo')===treinosPerfilFiltro);
-  const chip = (val,label,n)=>`<span class="chip ${treinosPerfilFiltro===val?'active':''}" data-trf="${val}" style="font-size:11px;padding:4px 10px;">${label}${n!=null?(' ('+n+')'):''}</span>`;
-  host.innerHTML = `<div class="perfil-card" id="perfilAtividadesCard">
-    <div class="perfil-card-head">🐴 Atividades</div>
-    <div class="perfil-card-body">
-      ${todos.length===0 ? '<div class="hint-text">Nenhuma atividade registrada ainda pra esse animal.</div>' : `
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-        ${chip('todos','Todos', todos.length)}
-        ${tipos.map(tp=>chip(tp, tp, porTipo[tp])).join('')}
-      </div>
-      <div style="max-height:max(420px, calc(100vh - 430px));overflow-y:auto;">
-        ${filtrados.length===0 ? '<div class="hint-text">Nenhuma atividade desse tipo.</div>' : filtrados.map(t=>{
-          const a = (t.animais||[]).find(x=>x.id===h.id);
-          const valorCobrado = t.cobranca ? fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda) : null;
-          const detalhe = [t.treinadores, a&&a.extra].filter(Boolean).join(' · ');
-          return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div><strong>${fmtDate(t.data)}</strong>${t.tipo?(' · '+t.tipo):''}${t.local?(' · '+t.local):''}</div>
-              ${valorCobrado?`<span class="pill st-ativo">💰 ${valorCobrado}</span>`:''}
-            </div>
-            ${detalhe?`<div style="font-size:12px;color:var(--muted);margin-top:2px;">${detalhe}</div>`:''}
-          </div>`;
-        }).join('')}
-      </div>`}
-    </div>
-  </div>`;
-  host.querySelectorAll('[data-trf]').forEach(chipEl=>{
-    chipEl.addEventListener('click', ()=>{ treinosPerfilFiltro = chipEl.dataset.trf; renderTreinosPerfil(h); });
-  });
+// Período padrão: últimos 20 dias — dá pra trocar pra um período maior (ou "Tudo") clicando no chip.
+let timelinePeriodoPreset = '20d';
+let timelinePeriodoDe = '', timelinePeriodoAte = ''; // só usados quando timelinePeriodoPreset==='custom'
+// Busca dentro da categoria: aparece com um duplo-clique num chip de categoria (Manejos/Treinos/
+// Visitas/Filhos) — igual pedido, "um quadro pra pesquisar" — sem precisar de card separado.
+let timelineBuscaAberta = false;
+let timelineBuscaTexto = '';
+function timelineCalcularRange(){
+  const hoje = toISODate(new Date());
+  if(timelinePeriodoPreset==='tudo') return { de:'', ate:'' };
+  if(timelinePeriodoPreset==='custom') return { de:timelinePeriodoDe, ate:timelinePeriodoAte };
+  const dias = { '20d':20, '3m':90, '6m':180, '1a':365 }[timelinePeriodoPreset] || 20;
+  const d = new Date(); d.setDate(d.getDate()-dias);
+  return { de: toISODate(d), ate: hoje };
 }
 const TIMELINE_ICON = { manejo:'💉', treino:'🐴', filho:'🍼', visita:'🩺' };
 function computeTimelineAnimal(h){
@@ -19310,24 +19442,44 @@ function computeTimelineAnimal(h){
   return eventos.filter(e=>e.data).sort((a,b)=> b.data.localeCompare(a.data));
 }
 function renderAnimalTimeline(h){
-  const todos = computeTimelineAnimal(h);
-  const filtrados = timelineFiltro==='todos' ? todos : todos.filter(e=>e.tipo===timelineFiltro);
+  const { de, ate } = timelineCalcularRange();
+  const todosSemPeriodo = computeTimelineAnimal(h);
+  const todos = todosSemPeriodo.filter(e=> (!de||e.data>=de) && (!ate||e.data<=ate) );
+  let filtrados = timelineFiltro==='todos' ? todos : todos.filter(e=>e.tipo===timelineFiltro);
+  if(timelineBuscaAberta && timelineBuscaTexto.trim()){
+    const termo = timelineBuscaTexto.trim().toLowerCase();
+    filtrados = filtrados.filter(e=> (e.titulo||'').toLowerCase().includes(termo) || (e.detalhe||'').toLowerCase().includes(termo));
+  }
   const counts = { manejo:0, treino:0, visita:0, filho:0 };
   todos.forEach(e=>counts[e.tipo]++);
   const chip = (val,label,n)=>`<span class="chip ${timelineFiltro===val?'active':''}" data-tf="${val}">${label}${n!=null?(' ('+n+')'):''}</span>`;
+  const periodoChip = (val,label)=>`<span class="chip ${timelinePeriodoPreset===val?'active':''}" data-tperiodo="${val}" style="font-size:11px;padding:4px 10px;">${label}</span>`;
   const host = document.getElementById('perfilTimelineWrap');
   host.innerHTML = `
     <div class="perfil-card">
-      <div class="perfil-card-head">🕐 Linha do Tempo</div>
+      <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span>🕐 Linha do Tempo</span>
+        <button type="button" class="btn btn-sm" id="btnAbrirLinhaDoTempoVisual" style="text-transform:none;letter-spacing:0;font-weight:600;">📊 Ver linha do tempo visual</button>
+      </div>
       <div class="perfil-card-body">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+          <span class="hint-text" style="margin:0;">Período:</span>
+          ${periodoChip('20d','Últimos 20 dias')}${periodoChip('3m','3 meses')}${periodoChip('6m','6 meses')}${periodoChip('1a','1 ano')}${periodoChip('tudo','Tudo')}${periodoChip('custom','Escolher datas...')}
+        </div>
+        ${timelinePeriodoPreset==='custom' ? `<div class="filters" style="margin-bottom:10px;">
+          <div class="f"><label>De</label><input type="date" id="tlPeriodoDe" value="${timelinePeriodoDe}"></div>
+          <div class="f"><label>Até</label><input type="date" id="tlPeriodoAte" value="${timelinePeriodoAte}"></div>
+        </div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
           ${chip('todos','Todos', todos.length)}
           ${chip('manejo','💉 Manejos', counts.manejo)}
-          ${chip('treino','🐴 Treinos', counts.treino)}
+          ${chip('treino','🐴 Atividade Esportiva', counts.treino)}
           ${chip('visita','🩺 Visitas', counts.visita)}
           ${chip('filho','🍼 Filhos', counts.filho)}
         </div>
-        ${filtrados.length===0 ? '<div class="hint-text">Nenhum evento encontrado ainda pra esse animal (ou pra esse filtro).</div>' :
+        <div class="hint-text" style="margin:0 0 12px;">Clique duas vezes num chip de categoria pra abrir a busca dentro dela.</div>
+        ${timelineBuscaAberta ? `<div class="field" style="margin-bottom:12px;"><input type="text" id="tlBusca" placeholder="Buscar dentro de ${timelineFiltro==='todos'?'todos os eventos':'“'+({manejo:'Manejos',treino:'Atividade Esportiva',visita:'Visitas',filho:'Filhos'}[timelineFiltro]||timelineFiltro)+'”'}..." value="${escHtml(timelineBuscaTexto)}"></div>` : ''}
+        ${filtrados.length===0 ? '<div class="hint-text">Nenhum evento encontrado nesse período (ou pra esse filtro/busca).</div>' :
           `<div class="timeline">${filtrados.map(e=>`
             <div class="timeline-item">
               <div class="timeline-dot">${TIMELINE_ICON[e.tipo]||'•'}</div>
@@ -19339,8 +19491,268 @@ function renderAnimalTimeline(h){
     </div>`;
   host.querySelectorAll('[data-tf]').forEach(chipEl=>{
     chipEl.addEventListener('click', ()=>{ timelineFiltro = chipEl.dataset.tf; renderAnimalTimeline(h); });
+    chipEl.addEventListener('dblclick', ()=>{ timelineFiltro = chipEl.dataset.tf; timelineBuscaAberta = true; renderAnimalTimeline(h); setTimeout(()=>{ const i=document.getElementById('tlBusca'); if(i) i.focus(); }, 0); });
+  });
+  host.querySelectorAll('[data-tperiodo]').forEach(chipEl=>{
+    chipEl.addEventListener('click', ()=>{ timelinePeriodoPreset = chipEl.dataset.tperiodo; renderAnimalTimeline(h); });
+  });
+  const tlBusca = document.getElementById('tlBusca');
+  if(tlBusca) tlBusca.addEventListener('input', ()=>{ timelineBuscaTexto = tlBusca.value; renderAnimalTimeline(h); });
+  const tlDe = document.getElementById('tlPeriodoDe'), tlAte = document.getElementById('tlPeriodoAte');
+  if(tlDe) tlDe.addEventListener('change', ()=>{ timelinePeriodoDe = tlDe.value; renderAnimalTimeline(h); });
+  if(tlAte) tlAte.addEventListener('change', ()=>{ timelinePeriodoAte = tlAte.value; renderAnimalTimeline(h); });
+  document.getElementById('btnAbrirLinhaDoTempoVisual').addEventListener('click', ()=> abrirLinhaDoTempoVisual(h));
+}
+
+/* ================= LINHA DO TEMPO VISUAL =================
+   Mistura TODOS os acontecimentos importantes do animal num eixo horizontal único: nascimento de
+   filho, manejos, treinos/competições, premiações, score corporal, peso e fotos. 100% aditivo — só
+   LÊ dados que já existem em outros módulos (nunca escreve neles), mais o novo animalRegistros
+   (peso/score/foto avulso, ver perto de "overlayAnimalRegistro"). Período fixo por preset (a largura
+   da faixa não muda — quanto maior o período, mais compacto cada evento fica, igual pedido). */
+// Treino e Jogo/Competição viraram uma categoria só (pedido do usuário — pra ele é "uma coisa só").
+const LTV_CATEGORIAS = [
+  { key:'filho',   label:'🍼 Filhos/Nascimentos', cor:'#8a5a3b' },
+  { key:'manejo',  label:'💉 Manejos', cor:'#5a7a9c' },
+  { key:'treino',  label:'🐴 Atividade Esportiva', cor:'#4d7a52' },
+  { key:'premio',  label:'🏅 Premiações', cor:'#a8482e' },
+  { key:'score',   label:'📋 Score corporal', cor:'#6a4d8a' },
+  { key:'peso',    label:'⚖ Peso', cor:'#2e6b7a' },
+  { key:'foto',    label:'📷 Fotos', cor:'#555' },
+];
+let ltvAnimalAtual = null;
+let ltvCategoriasOn = new Set(LTV_CATEGORIAS.map(c=>c.key));
+let ltvPeriodoPreset = '1a'; // '3m'|'6m'|'1a'|'2a'|'tudo'
+function ltvCalcularRange(){
+  const hoje = new Date();
+  if(ltvPeriodoPreset==='tudo'){
+    const eventos = computeLinhaDoTempoVisualDados(ltvAnimalAtual, null, null);
+    const todasDatas = Object.values(eventos).flat().map(e=>e.data).filter(Boolean).sort();
+    const de = todasDatas.length ? todasDatas[0] : toISODate(new Date(hoje.getFullYear()-1, hoje.getMonth(), 1));
+    return { de, ate: toISODate(hoje) };
+  }
+  const meses = { '3m':3, '6m':6, '1a':12, '2a':24 }[ltvPeriodoPreset] || 12;
+  const de = new Date(hoje); de.setMonth(de.getMonth()-meses);
+  return { de: toISODate(de), ate: toISODate(hoje) };
+}
+// Junta tudo num objeto por categoria — cada entrada {data, titulo, detalhe, extra}. `de`/`ate` nulos = sem filtro de período (usado só pra descobrir o alcance total no preset "Tudo").
+function computeLinhaDoTempoVisualDados(h, de, ate){
+  const dentro = d => d && (!de || d>=de) && (!ate || d<=ate);
+  const out = { filho:[], manejo:[], treino:[], premio:[], score:[], peso:[], foto:[] };
+  const nomeH = normNomeParentesco(h.nome);
+  // Filhos/nascimentos — mesma lógica de computeTimelineAnimal (cobertura/nascimento + filiação direta no cadastro).
+  const filhosJaVistos = new Set();
+  nascimentos.forEach(n=>{
+    if(n.animalId===h.id && dentro(n.datanasc||n.datacob)){
+      out.filho.push({ data:n.datanasc||n.datacob, titulo:'Nasceu', detalhe:['Pai: '+(n.pai||'—'),'Mãe: '+(n.matriz||'—')].join(' · ') });
+    }
+    const ehMae = nomeH && normNomeParentesco(n.matriz)===nomeH;
+    const ehPai = nomeH && normNomeParentesco(n.pai)===nomeH;
+    if((ehMae||ehPai) && dentro(n.datanasc||n.datacob)){
+      filhosJaVistos.add(n.animalId);
+      out.filho.push({ data:n.datanasc||n.datacob, titulo:(n.confirm==='S'?'Filho nasceu':'Cobertura registrada'), detalhe:(ehMae?('Pai: '+(n.pai||'—')):('Mãe: '+(n.matriz||'—'))) });
+    }
+  });
+  if(nomeH){
+    horses.forEach(x=>{
+      if(x.id===h.id || filhosJaVistos.has(x.id) || !x.nascimento || !dentro(x.nascimento)) return;
+      const ehFilhoDele = normNomeParentesco(x.pai)===nomeH, ehFilhoDela = normNomeParentesco(x.mae)===nomeH;
+      if(!ehFilhoDele && !ehFilhoDela) return;
+      out.filho.push({ data:x.nascimento, titulo:'Nasceu: '+x.nome, detalhe: ehFilhoDele?('Mãe: '+(x.mae||'—')):('Pai: '+(x.pai||'—')) });
+    });
+  }
+  // Manejos
+  manejos.forEach(m=>{
+    const a = (m.animais||[]).find(x=>x.id===h.id);
+    if(!a || !dentro(m.data)) return;
+    out.manejo.push({ data:m.data, titulo:m.tipo, detalhe:[a.extra, m.obs].filter(Boolean).join(' — ') });
+  });
+  // Treinos e Jogos/Competições contam juntos, na mesma categoria (pedido do usuário).
+  treinos.forEach(t=>{
+    const a = (t.animais||[]).find(x=>x.id===h.id);
+    if(!a || !dentro(t.data)) return;
+    out.treino.push({ data:t.data, titulo:t.tipo||'Treino', detalhe:[t.local, t.treinadores].filter(Boolean).join(' · ') });
+  });
+  // Premiações — já existem prontas no cadastro do animal
+  (h.premiacoes||[]).forEach(p=>{
+    if(!dentro(p.data)) return;
+    out.premio.push({ data:p.data, titulo:[p.colocacao, p.evento].filter(Boolean).join(' — '), detalhe:p.premio||p.obs||'' });
+  });
+  // Score/Peso/Fotos — junta os 2 lugares onde isso é registrado: avaliações da Consultoria (com
+  // data da visita) e os registros avulsos novos (animalRegistros).
+  consultoriaAvaliacoes.filter(a=>a.animalId===h.id).forEach(a=>{
+    const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+    const data = visita ? visita.data : null;
+    if(!dentro(data)) return;
+    if(a.scoreCorporal) out.score.push({ data, titulo:'Score '+a.scoreCorporal, detalhe:'Avaliação Consultoria' });
+    if(a.peso) out.peso.push({ data, titulo:a.peso+' kg', detalhe:'Avaliação Consultoria' });
+    (consultoriaFotos[a.id]||[]).forEach(f2=>out.foto.push({ data, titulo:'Foto', detalhe:'Avaliação Consultoria', fotoUrl:f2.dataUrl }));
+  });
+  animalRegistros.filter(r=>r.animalId===h.id).forEach(r=>{
+    if(!dentro(r.data)) return;
+    if(r.scoreCorporal) out.score.push({ data:r.data, titulo:'Score '+r.scoreCorporal, detalhe:r.obs||'', registroId:r.id });
+    if(r.peso) out.peso.push({ data:r.data, titulo:r.peso+' kg', detalhe:r.obs||'', registroId:r.id });
+    if(r.fotoDataUrl) out.foto.push({ data:r.data, titulo:'Foto', detalhe:r.obs||'', fotoUrl:r.fotoDataUrl, registroId:r.id });
+  });
+  // Peso/Foto do cadastro do animal existem desde sempre, mas só passaram a virar ponto datado na
+  // linha do tempo a partir de agora (ver storeSet horses_list) — sem isso, animal cadastrado antes
+  // dessa mudança fica com a linha vazia mesmo já tendo peso/foto. Enquanto não houver NENHUM ponto
+  // ainda, mostra o valor atual "hoje" — assim que a pessoa editar peso/foto de novo, o histórico de
+  // verdade assume e esse ponto de hoje some sozinho (não é mais o único).
+  const hoje = toISODate(new Date());
+  if(out.peso.length===0 && h.peso) out.peso.push({ data:hoje, titulo:h.peso+' kg', detalhe:'Valor atual do cadastro (sem histórico anterior registrado)' });
+  if(out.foto.length===0 && h.fotoUrl) out.foto.push({ data:hoje, titulo:'Foto', detalhe:'Foto atual do cadastro (sem histórico anterior registrado)', fotoUrl:h.fotoUrl });
+  Object.keys(out).forEach(k=>out[k].sort((a,b)=>(a.data||'').localeCompare(b.data||'')));
+  return out;
+}
+function abrirLinhaDoTempoVisual(h){
+  ltvAnimalAtual = h;
+  document.getElementById('ltvNomeAnimal').textContent = h.nome||'';
+  renderLinhaDoTempoVisual();
+  openModal('overlayLinhaDoTempoVisual');
+}
+function renderLinhaDoTempoVisual(){
+  const h = ltvAnimalAtual; if(!h) return;
+  const { de, ate } = ltvCalcularRange();
+  const dados = computeLinhaDoTempoVisualDados(h, de, ate);
+  const presetBtn = (val,label) => `<span class="chip ${ltvPeriodoPreset===val?'active':''}" data-ltvperiodo="${val}">${label}</span>`;
+  const catToggle = c => `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:14px;cursor:pointer;background:${ltvCategoriasOn.has(c.key)?'var(--chip-bg)':'transparent'};">
+    <input type="checkbox" data-ltvcat="${c.key}" ${ltvCategoriasOn.has(c.key)?'checked':''} style="margin:0;"> ${c.label} <span style="color:var(--muted);">(${dados[c.key].length})</span>
+  </label>`;
+  document.getElementById('ltvControles').innerHTML = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+      ${presetBtn('3m','3 meses')}${presetBtn('6m','6 meses')}${presetBtn('1a','1 ano')}${presetBtn('2a','2 anos')}${presetBtn('tudo','Tudo')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">${LTV_CATEGORIAS.map(catToggle).join('')}</div>`;
+  document.getElementById('ltvControles').querySelectorAll('[data-ltvperiodo]').forEach(el=>{
+    el.addEventListener('click', ()=>{ ltvPeriodoPreset = el.dataset.ltvperiodo; renderLinhaDoTempoVisual(); });
+  });
+  document.getElementById('ltvControles').querySelectorAll('[data-ltvcat]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      if(el.checked) ltvCategoriasOn.add(el.dataset.ltvcat); else ltvCategoriasOn.delete(el.dataset.ltvcat);
+      renderLinhaDoTempoVisual();
+    });
+  });
+  const corpo = document.getElementById('ltvCorpo');
+  const categoriasAtivas = LTV_CATEGORIAS.filter(c=>ltvCategoriasOn.has(c.key));
+  if(categoriasAtivas.every(c=>dados[c.key].length===0)){
+    corpo.innerHTML = '<div class="empty">Nenhum evento nesse período (ou nas categorias marcadas).</div>';
+    return;
+  }
+  const deMs = new Date(de+'T00:00:00').getTime(), ateMs = new Date(ate+'T00:00:00').getTime();
+  const span = Math.max(1, ateMs-deMs);
+  const pct = data => Math.min(100, Math.max(0, ((new Date(data+'T00:00:00').getTime()-deMs)/span)*100));
+  // Marcas de data no eixo — quantidade adaptada ao tamanho do período (não lota de texto num período curto nem fica vazio num período longo).
+  const diasTotais = span/86400000;
+  const nMarcas = diasTotais<=100 ? 5 : diasTotais<=400 ? 6 : diasTotais<=800 ? 8 : 10;
+  const marcas = Array.from({length:nMarcas+1}, (_,i)=>{
+    const t = new Date(deMs + span*(i/nMarcas));
+    return { pct: i/nMarcas*100, label: t.toLocaleDateString('pt-BR', diasTotais>400?{month:'short',year:'2-digit'}:{day:'2-digit',month:'short'}) };
+  });
+  let linhasHtml = '';
+  categoriasAtivas.forEach(c=>{
+    const eventos = dados[c.key];
+    linhasHtml += `<div style="position:relative;height:46px;border-bottom:1px dashed var(--line);">
+      <div style="position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);width:150px;">${c.label}</div>
+      <div style="position:relative;margin-left:150px;height:100%;">
+        ${eventos.map(ev=>{
+          const left = pct(ev.data);
+          if(c.key==='foto' && ev.fotoUrl){
+            return `<img src="${ev.fotoUrl}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
+          }
+          const info = encodeURIComponent(`${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}`);
+          return `<div data-ltvponto="${info}" title="${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}" style="position:absolute;left:${left}%;top:12px;width:14px;height:14px;border-radius:50%;background:${c.cor};cursor:pointer;transform:translateX(-50%);border:2px solid var(--card,#fff);"></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  const eixoHtml = `<div style="position:relative;height:26px;margin-left:150px;border-top:1px solid var(--line);">
+    ${marcas.map(m=>`<div style="position:absolute;left:${m.pct}%;top:6px;font-size:10px;color:var(--muted);transform:translateX(-50%);white-space:nowrap;">${m.label}</div>`).join('')}
+  </div>`;
+  corpo.innerHTML = `<div style="min-width:640px;">${linhasHtml}${eixoHtml}</div>`;
+  corpo.querySelectorAll('[data-ltvfoto]').forEach(img=>{
+    img.addEventListener('click', ()=>{
+      document.getElementById('ftFotoGrande').src = decodeURIComponent(img.dataset.ltvfoto);
+      document.getElementById('ftModalTitulo').textContent = 'Foto — '+fmtDate(img.dataset.ltvfotodata);
+      openModal('overlayFotoTimeline');
+    });
+  });
+  corpo.querySelectorAll('[data-ltvponto]').forEach(pt=>{
+    pt.addEventListener('click', ()=> showAlert(decodeURIComponent(pt.dataset.ltvponto)));
   });
 }
+
+/* ---- Registro avulso de Peso/Score corporal/Foto (data escolhida à mão — útil pra registrar uma
+   medição de dias atrás, o que o auto-registro do cadastro do animal não cobre, já que aquele sempre
+   usa a data de hoje). ---- */
+function abrirAnimalRegistroForm(){
+  if(!ltvAnimalAtual) return;
+  editingAnimalRegistroId = null;
+  document.getElementById('arModalTitle').textContent = 'Novo registro — '+(ltvAnimalAtual.nome||'');
+  document.getElementById('ar_data').value = toISODate(new Date());
+  document.getElementById('ar_peso').value = '';
+  document.getElementById('ar_score').value = '';
+  document.getElementById('ar_obs').value = '';
+  document.getElementById('ar_fotoPreview').style.display = 'none';
+  document.getElementById('ar_fotoPreview').dataset.dataurl = '';
+  document.getElementById('ar_fotoStatus').textContent = '';
+  document.getElementById('btnArExcluir').style.display = 'none';
+  openModal('overlayAnimalRegistro');
+}
+document.getElementById('btnPerfilNovoRegistro').addEventListener('click', ()=>{
+  if(!perfilAnimalId) return;
+  ltvAnimalAtual = horses.find(x=>x.id===perfilAnimalId) || null;
+  abrirAnimalRegistroForm();
+});
+document.getElementById('btnArEscolherFoto').addEventListener('click', ()=> document.getElementById('ar_fotoFile').click());
+document.getElementById('ar_fotoFile').addEventListener('change', e=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const MAX_DIM = 900;
+      let w = img.width, hh = img.height;
+      if(w>hh && w>MAX_DIM){ hh = Math.round(hh*MAX_DIM/w); w = MAX_DIM; }
+      else if(hh>=w && hh>MAX_DIM){ w = Math.round(w*MAX_DIM/hh); hh = MAX_DIM; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = hh;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, hh);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      const prev = document.getElementById('ar_fotoPreview');
+      prev.src = dataUrl; prev.dataset.dataurl = dataUrl; prev.style.display = 'block';
+      document.getElementById('ar_fotoStatus').textContent = 'Foto escolhida.';
+    };
+    img.onerror = ()=> showAlert('Não consegui ler essa imagem.');
+    img.src = ev.target.result;
+  };
+  reader.onerror = ()=> showAlert('Não consegui ler esse arquivo.');
+  reader.readAsDataURL(file);
+});
+document.getElementById('btnArSalvar').addEventListener('click', ()=>{
+  if(!ltvAnimalAtual) return;
+  const data = document.getElementById('ar_data').value;
+  if(!data){ showAlert('Informe a data.'); return; }
+  const peso = document.getElementById('ar_peso').value.trim();
+  const score = document.getElementById('ar_score').value.trim();
+  const fotoDataUrl = document.getElementById('ar_fotoPreview').dataset.dataurl || '';
+  const obs = document.getElementById('ar_obs').value.trim();
+  if(!peso && !score && !fotoDataUrl){ showAlert('Preencha ao menos peso, score corporal ou foto.'); return; }
+  const registro = { id: editingAnimalRegistroId || ('areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
+    animalId: ltvAnimalAtual.id, animalNome: ltvAnimalAtual.nome, data, peso, scoreCorporal:score, fotoDataUrl, obs };
+  animalRegistros = editingAnimalRegistroId ? animalRegistros.map(r=>r.id===editingAnimalRegistroId?registro:r) : [...animalRegistros, registro];
+  salvarEmSegundoPlano('animal_registros_list', animalRegistros, ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
+  closeModal('overlayAnimalRegistro');
+});
+document.getElementById('btnArExcluir').addEventListener('click', async ()=>{
+  if(!editingAnimalRegistroId || !(await showConfirm('Excluir esse registro?'))) return;
+  animalRegistros = animalRegistros.filter(r=>r.id!==editingAnimalRegistroId);
+  await storeSet('animal_registros_list', animalRegistros, true);
+  closeModal('overlayAnimalRegistro');
+  if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual();
+});
 
 let relFichaOrdem = 'nome'; // 'nome' (alfabética) ou 'idade' (mais velho primeiro)
 function ordenarAnimaisRel(lista){
@@ -19359,8 +19771,10 @@ function ordenarAnimaisRel(lista){
   }
   return arr;
 }
+// Usa a MESMA seleção (checkbox) já marcada na Lista de Animais, lá em cima — não existe mais um
+// seletor separado só pro relatório, pra não ter duas listas fazendo a mesma coisa.
 function fichaSelecionados(){
-  return ordenarAnimaisRel(relFichaSelector.getSelected().map(s=>horses.find(x=>x.id===s.id)).filter(Boolean));
+  return ordenarAnimaisRel([...selectedHorseIds].map(id=>horses.find(x=>x.id===id)).filter(Boolean));
 }
 
 function gerarRelatorioFicha1(){
