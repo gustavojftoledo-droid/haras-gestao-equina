@@ -658,6 +658,7 @@
           <div class="nav-item" data-view="transporte"><span class="dot"></span>Transporte</div>
           <div class="nav-item" data-view="treinos" title="Atalho: Alt+Shift+T"><span class="dot"></span>Atividades</div>
           <div class="nav-item" data-view="estoque" title="Atalho: Alt+Shift+E"><span class="dot"></span>Estoque</div>
+          <div class="nav-item" data-view="piquetes"><span class="dot"></span>Piquetes</div>
         </div>
       </div>
 
@@ -1442,6 +1443,21 @@
       <div class="grid-wrap"><table class="grid" data-lista="dietas">
         <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="dietas" title="Selecionar todos"></th><th class="sortable" data-ordlista="dietas" data-ordcol="nome">Dieta</th><th class="sortable" data-ordlista="dietas" data-ordcol="animais" data-col="animais">Animais</th><th class="sortable" data-ordlista="dietas" data-ordcol="itens" data-col="itens">Itens</th><th class="sortable" data-ordlista="dietas" data-ordcol="custoMes" data-col="custoMes">Custo estimado/mês</th><th class="sortable" data-ordlista="dietas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
         <tbody id="dtTbody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- PIQUETES (Operação) — cadastro de piquetes + quem são os animais usuários de cada um. A
+         "Saída pro Piquete" (Estoque) usa esses animais pra dividir o custo de Feno igual entre eles. -->
+    <div class="view" id="view-piquetes">
+      <div class="topbar">
+        <div><div class="title">Piquetes</div><div class="subtitle">Cadastro dos piquetes e quem são os animais usuários de cada um</div></div>
+      </div>
+      <div class="lista-toolbar">
+        <button class="btn" id="btnNewPiquete" style="margin-right:auto;">+ Novo Piquete</button>
+      </div>
+      <div class="grid-wrap"><table class="grid" data-lista="piquetes">
+        <thead><tr><th class="sortable" data-ordlista="piquetes" data-ordcol="nome">Piquete</th><th class="sortable" data-ordlista="piquetes" data-ordcol="animais" data-col="animais">Animais</th><th data-col="obs">Observações</th><th></th></tr></thead>
+        <tbody id="pqTbody"></tbody>
       </table></div>
     </div>
 
@@ -2685,22 +2701,19 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 
 <!-- SAÍDA PRO PIQUETE — mesmo espírito do consumo de Dieta: a saída já sai marcada com quais animais
      usaram (mv.animais), e o custo vira um lançamento de "Ração" no Financeiro, dividido em partes
-     iguais entre eles (ver lancamentosDerivadosPiquete). "Usuários" de um piquete ficam salvos por
-     localização (config.piqueteUsuarios), pra já vir marcado da próxima vez — mesmo animal solto só
-     algumas horas/dias por lá continua contando, já que é você quem marca, não é automático pela
-     Localização atual do cadastro dele. -->
+     iguais entre eles (ver lancamentosDerivadosPiquete). Os animais usuários vêm do cadastro de
+     Piquetes (Operação > Piquetes) — editáveis ali a qualquer momento, com um atalho aqui também. -->
 <div class="overlay" id="overlaySaidaPiquete">
   <div class="modal">
     <div class="modal-head"><div class="modal-title">🌾 Saída pro Piquete</div><button class="modal-close" data-close="overlaySaidaPiquete">✕</button></div>
     <div class="form-grid">
-      <div class="field"><label>Piquete / Localização</label><select id="spq_localizacao"></select></div>
+      <div class="field"><label>Piquete</label><select id="spq_piquete"></select></div>
       <div class="field"><label>Quantidade</label><input type="number" step="0.01" min="0" id="spq_quantidade"></div>
       <div class="field"><label>Data</label><input type="date" id="spq_data"></div>
       <div class="field full"><label>Motivo <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><input type="text" id="spq_motivo" placeholder="Ex: Feno pro piquete 1"></div>
     </div>
-    <div class="section-label" style="border-top:none;padding-top:0;">Animais usuários desse piquete <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— o custo é dividido em partes iguais entre eles</span></div>
-    <div id="spqAnimalSelectorHost" style="margin:10px 0 16px;"></div>
-    <div class="hint-text" style="margin-top:-10px;">A marcação fica salva por piquete — da próxima vez já vem preenchida (edite à vontade, nem todo animal precisa estar lá o tempo todo).</div>
+    <div class="hint-text" id="spq_semPiquetes" style="display:none;">Nenhum piquete cadastrado ainda — vá em <b>Operação → Piquetes</b> pra criar um primeiro, com os animais usuários dele.</div>
+    <div class="hint-text" id="spq_infoAnimais" style="margin-top:-4px;"></div>
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlaySaidaPiquete">Cancelar</button><button type="button" class="btn" id="btnSalvarSaidaPiquete">Registrar saída</button></div>
@@ -2812,6 +2825,35 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayDietaAnimais">Fechar</button><button type="button" class="btn" id="btnSaveDietaAnimais">Salvar Animais <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- PIQUETE MODAL -->
+<div class="overlay" id="overlayPiquete">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="pqModalTitle">Novo Piquete</div><button class="modal-close" data-close="overlayPiquete">✕</button></div>
+    <div class="form-grid">
+      <div class="field full"><label>Nome do piquete</label><input type="text" id="pq_nome" placeholder="Ex: Piquete 1"></div>
+      <div class="field full"><label>Observações</label><input type="text" id="pq_obs" spellcheck="true" lang="pt-BR"></div>
+    </div>
+    <div class="hint-text" style="margin-top:10px;">Depois de salvar, você escolhe quais animais usam este piquete.</div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeletePiquete" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPiquete">Cancelar</button><button type="button" class="btn" id="btnSavePiquete">Salvar Piquete</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- PIQUETE ANIMAIS MODAL (etapa 2: quem usa o piquete) -->
+<div class="overlay" id="overlayPiqueteAnimais">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="pqaModalTitle">Quem usa este piquete?</div><button class="modal-close" data-close="overlayPiqueteAnimais">✕</button></div>
+    <div class="subtitle" style="margin:0 0 14px;">Marque os animais usuários deste piquete — não precisa ser quem está lá o tempo todo, é quem usa (mesmo que só algumas horas ou dias por semana). É essa lista que divide o custo do consumo (ex: Feno) registrado pra este piquete.</div>
+    <div id="piqueteAnimaisSelectorHost"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPiqueteAnimais">Fechar</button><button type="button" class="btn" id="btnSavePiqueteAnimais">Salvar Animais</button></div>
     </div>
   </div>
 </div>
@@ -3271,6 +3313,10 @@ let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — 
 // Visual mesmo em animal que nunca passou por visita de Consultoria. 100% aditivo, chave própria.
 let animalRegistros = []; // Firestore key: 'animal_registros_list' — {id, animalId, data, peso, scoreCorporal, fotoDataUrl, obs}
 let editingAnimalRegistroId = null;
+// Piquetes: cadastro próprio (Operação > Piquetes) — nome + quem são os animais usuários dele.
+// A "Saída pro Piquete" (Estoque) usa essa lista pra saber quem divide o custo, em vez da Localização.
+let piquetes = []; // Firestore key: 'piquetes_list' — {id, nome, obs, animais:[{id,nome}]}
+let editingPiqueteId = null;
 // Quando um lançamento é aberto a partir de "Lançar custo" na aba Funcionários, guarda aqui o id do
 // funcionário — o Salvar do modal de Lançamento usa isso pra ligar o registro ao funcionário
 // (l.origemFuncionarioId), sem precisar de um campo visível no formulário.
@@ -3398,6 +3444,7 @@ const AUDIT_KEYS = {
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
   consultoria_propriedades_list:{ modulo:'Consultoria', nome: r=>r.nome },
   animal_registros_list: { modulo:'Animais', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  piquetes_list: { modulo:'Operação', nome: r=>r.nome },
 };
 // O log inteiro vive num documento só no banco, e documento tem teto de tamanho — se estourar, a
 // gravação falha e o log PARA de registrar em silêncio, que é o pior desfecho possível pra uma
@@ -3498,6 +3545,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
     case 'consultoria_propriedades_list': consultoriaPropriedades = val; break;
     case 'animal_registros_list': animalRegistros = val; break;
+    case 'piquetes_list': piquetes = val; break;
     case 'dismissed_manejo_tasks': dismissedManejoTasks = new Set(val); break;
     case 'dismissed_duplicates': dismissedDuplicates = new Set(val); break;
     case 'dismissed_anomalias_estoque': dismissedAnomaliasEstoque = new Set(val); break;
@@ -3715,7 +3763,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr, rARz] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3725,10 +3773,12 @@ async function loadAll(){
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
-    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list')
+    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
+    storeGet('piquetes_list')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   animalRegistros = rARz.value||[];
+  piquetes = rPq.value||[];
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
   consultoriaPropriedades = rCPr.value||[];
@@ -3754,7 +3804,7 @@ async function loadAll(){
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
     consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades,
-    animal_registros_list:animalRegistros
+    animal_registros_list:animalRegistros, piquetes_list:piquetes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
   // examesPorAnimal, lá em cima) — um único documento (horses_list) grande demais TRAVAVA a gravação
@@ -4373,13 +4423,14 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
       if(view==='animais'){ grupoFiltroAtivo=null; renderHorses(); showAnimaisTab('relatorios'); }
       if(view==='estoque') renderEstoque();
       if(view==='dietas') renderDietas();
+      if(view==='piquetes') renderPiquetes();
       if(view==='veterinaria') renderVetLista();
       if(view==='grupos') renderGrupos();
       if(view==='transporte') renderTransportes();
@@ -5670,6 +5721,24 @@ bindSaveShortcut('overlayLancamento','btnSaveLancamento');
 bindSaveShortcut('overlayFuncionario','btnSaveFuncionario');
 bindSaveShortcut('overlayDietaAnimais','btnSaveDietaAnimais');
 bindSaveShortcut('overlayTransporte','btnSaveTransporte');
+// Enter (sozinho, sem Ctrl) já salva em QUALQUER modal aberto — não precisa mais decorar Ctrl+S.
+// Genérico: acha sozinho o botão "Salvar" de cada modal (o .btn sólido — não-ghost, não-danger —
+// dentro de .modal-actions/.modal-actions-right, convenção usada em todo o app), então funciona em
+// modal novo automaticamente, sem precisar listar cada um na mão feito bindSaveShortcut acima.
+// Não mexe em Textarea (Enter ali é quebra de linha, não salvar) nem quando algum handler mais
+// específico já tratou a tecla (campo de diálogo/confirmação, navegação por setas em lista, etc. —
+// ver e.defaultPrevented, que só fica true se algum desses já chamou preventDefault antes).
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter' || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.isComposing || e.defaultPrevented) return;
+  const tag = e.target.tagName;
+  if(tag==='TEXTAREA' || tag==='BUTTON' || tag==='A') return;
+  const overlay = e.target.closest('.overlay.show');
+  if(!overlay) return;
+  const primario = overlay.querySelector('.modal-actions-right .btn:not(.btn-ghost):not(.btn-danger):not(:disabled), .modal-actions .btn:not(.btn-ghost):not(.btn-danger):not(:disabled)');
+  if(!primario) return;
+  e.preventDefault();
+  primario.click();
+});
 document.getElementById('horseForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if(!f('f_nome').trim()){ showAlert('Informe ao menos o nome do animal.'); document.getElementById('f_nome').focus(); return; }
@@ -12780,53 +12849,43 @@ document.getElementById('btnSaidaProduto').addEventListener('click', async ()=>{
   showAlert('Saída registrada.');
   openProdutoEdit(editingProdutoId); renderEstoque();
 });
-let spqSelector = null;
-function inicializarSpqSelector(){
-  if(spqSelector) return;
-  spqSelector = createAnimalSelector(document.getElementById('spqAnimalSelectorHost'), {onlyActive:true});
-}
 document.getElementById('btnSaidaPiquete').addEventListener('click', ()=>{
   if(!editingProdutoId) return;
-  inicializarSpqSelector();
-  const sel = document.getElementById('spq_localizacao');
-  sel.innerHTML = '<option value="">Selecione...</option>' + (aux.localizacao||[]).map(l=>`<option value="${l}">${l}</option>`).join('');
+  const sel = document.getElementById('spq_piquete');
+  const lista = piquetes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(pq=>`<option value="${pq.id}">${pq.nome} (${(pq.animais||[]).length} animal(is))</option>`).join('');
   sel.value = '';
+  document.getElementById('spq_semPiquetes').style.display = lista.length===0 ? 'block' : 'none';
+  document.getElementById('spq_infoAnimais').textContent = '';
   document.getElementById('spq_quantidade').value = '';
   document.getElementById('spq_data').value = toISODate(new Date());
   document.getElementById('spq_motivo').value = '';
-  spqSelector.reset();
   openModal('overlaySaidaPiquete');
 });
-// Trocar o piquete já carrega quem são os "usuários" salvos dele (config.piqueteUsuarios) — sem
-// nada salvo ainda, sugere quem está com essa Localização no cadastro AGORA, como ponto de partida.
-document.getElementById('spq_localizacao').addEventListener('change', ()=>{
-  const loc = f('spq_localizacao');
-  if(!loc){ spqSelector.reset(); return; }
-  const salvos = (config.piqueteUsuarios||{})[loc];
-  if(salvos && salvos.length){
-    spqSelector.setSelected(salvos.map(a=>({id:a.id})));
+document.getElementById('spq_piquete').addEventListener('change', ()=>{
+  const pq = piquetes.find(x=>x.id===f('spq_piquete'));
+  const info = document.getElementById('spq_infoAnimais');
+  if(!pq || (pq.animais||[]).length===0){
+    info.innerHTML = pq ? `Esse piquete ainda não tem animais marcados — <button type="button" class="btn btn-sm btn-ghost" id="btnAjustarAnimaisPiqueteAqui" style="padding:2px 8px;">👥 Marcar agora</button>` : '';
   } else {
-    const ativos = horses.filter(h=>h.localizacao===loc && h.situacao!=='E' && h.situacao!=='V' && !h.falecimento);
-    spqSelector.setSelected(ativos.map(h=>({id:h.id})));
+    info.innerHTML = `Divide entre: ${pq.animais.map(a=>a.nome).join(', ')} <button type="button" class="btn btn-sm btn-ghost" id="btnAjustarAnimaisPiqueteAqui" style="padding:2px 8px;">✎ Ajustar</button>`;
   }
+  const btnAjustar = document.getElementById('btnAjustarAnimaisPiqueteAqui');
+  if(btnAjustar) btnAjustar.addEventListener('click', ()=>{ if(pq) openPiqueteAnimais(pq.id); });
 });
 document.getElementById('btnSalvarSaidaPiquete').addEventListener('click', async ()=>{
   if(!editingProdutoId) return;
-  const loc = f('spq_localizacao');
-  if(!loc){ showAlert('Escolha o piquete/localização.'); document.getElementById('spq_localizacao').focus(); return; }
+  const pq = piquetes.find(x=>x.id===f('spq_piquete'));
+  if(!pq){ showAlert('Escolha o piquete.'); document.getElementById('spq_piquete').focus(); return; }
+  const animais = pq.animais||[];
+  if(animais.length===0){ showAlert('Esse piquete ainda não tem animais marcados — clique em "Marcar agora" pra escolher quem usa ele.'); return; }
   const qtd = Number(f('spq_quantidade'));
   if(!qtd || qtd<=0){ showAlert('Informe a quantidade.'); document.getElementById('spq_quantidade').focus(); return; }
-  const selecionados = spqSelector.getSelected();
-  if(selecionados.length===0){ showAlert('Marque ao menos um animal usuário desse piquete.'); return; }
-  const animais = selecionados.map(a=>({ id:a.id, nome:(horses.find(h=>h.id===a.id)||{}).nome||'' }));
   const data = f('spq_data') || toISODate(new Date());
-  const motivo = f('spq_motivo').trim() || ('Piquete: '+loc);
+  const motivo = f('spq_motivo').trim() || ('Piquete: '+pq.nome);
   const r = await registrarMovimento(editingProdutoId, 'saida', qtd, 'piquete', motivo, data, '', animais);
   if(!r.ok){ showAlert('Não é possível dar essa saída — saldo em estoque insuficiente (falta '+r.faltando+(r.produto&&r.produto.unidade?(' '+r.produto.unidade):'')+'). Registre uma entrada primeiro.'); return; }
-  if(!config.piqueteUsuarios) config.piqueteUsuarios = {};
-  config.piqueteUsuarios[loc] = animais;
-  await storeSet('config', config);
-  showAlert(`Saída registrada — custo dividido entre ${animais.length} animal(is) desse piquete.`);
+  showAlert(`Saída registrada — custo dividido entre ${animais.length} animal(is) do piquete "${pq.nome}".`);
   closeModal('overlaySaidaPiquete');
   openProdutoEdit(editingProdutoId); renderEstoque(); renderFinanceiro();
 });
@@ -12985,6 +13044,77 @@ document.getElementById('btnSaveDietaAnimais').addEventListener('click', async (
   await storeSet('dietas_list', dietas);
   closeModal('overlayDietaAnimais'); renderDietas();
   showAlert('Animais desta dieta atualizados: '+animaisSel.length+'.');
+});
+
+/* ================= PIQUETES (Operação) =================
+   Cadastro próprio: nome + observação + quem são os animais usuários. Mesmo padrão de 2 etapas da
+   Dieta (salva o básico, depois marca os animais). A "Saída pro Piquete" (Estoque) lê piquete.animais
+   direto daqui pra dividir o custo — nada de Localização nem de config solto envolvido. */
+function renderPiquetes(){
+  const tbody = document.getElementById('pqTbody');
+  if(piquetes.length===0){ tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum piquete cadastrado ainda.</td></tr>'; return; }
+  const lista = piquetes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  tbody.innerHTML = lista.map(pq=>`<tr data-id="${pq.id}">
+    <td><strong>${pq.nome||''}</strong></td>
+    <td>${(pq.animais||[]).length}</td>
+    <td>${pq.obs||''}</td>
+    <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editpiqueteanimais="${pq.id}">👥 Animais</button> <button type="button" class="btn btn-sm btn-ghost" data-editpiquete="${pq.id}">Editar</button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('[data-editpiquete]').forEach(b=>b.addEventListener('click', ()=>openPiqueteEdit(b.dataset.editpiquete)));
+  tbody.querySelectorAll('[data-editpiqueteanimais]').forEach(b=>b.addEventListener('click', ()=>openPiqueteAnimais(b.dataset.editpiqueteanimais)));
+}
+document.getElementById('btnNewPiquete').addEventListener('click', ()=>{
+  editingPiqueteId = null;
+  document.getElementById('pqModalTitle').textContent = 'Novo Piquete';
+  document.getElementById('pq_nome').value = '';
+  document.getElementById('pq_obs').value = '';
+  document.getElementById('btnDeletePiquete').style.display = 'none';
+  openModal('overlayPiquete');
+});
+function openPiqueteEdit(id){
+  const pq = piquetes.find(x=>x.id===id); if(!pq) return;
+  editingPiqueteId = id;
+  document.getElementById('pqModalTitle').textContent = pq.nome||'Editar Piquete';
+  document.getElementById('pq_nome').value = pq.nome||'';
+  document.getElementById('pq_obs').value = pq.obs||'';
+  document.getElementById('btnDeletePiquete').style.display = 'inline-block';
+  openModal('overlayPiquete');
+}
+document.getElementById('btnSavePiquete').addEventListener('click', ()=>{
+  const nome = f('pq_nome').trim();
+  if(!nome){ showAlert('Informe o nome do piquete.'); document.getElementById('pq_nome').focus(); return; }
+  const existente = editingPiqueteId ? piquetes.find(x=>x.id===editingPiqueteId) : null;
+  const eraNovo = !editingPiqueteId;
+  const data = { id: editingPiqueteId || ('pq_'+Date.now()), nome, obs: f('pq_obs').trim(), animais: existente ? (existente.animais||[]) : [] };
+  piquetes = editingPiqueteId ? piquetes.map(x=>x.id===editingPiqueteId?data:x) : [...piquetes, data];
+  closeModal('overlayPiquete'); renderPiquetes();
+  salvarEmSegundoPlano('piquetes_list', piquetes, ()=>renderPiquetes());
+  if(eraNovo) openPiqueteAnimais(data.id); // logo depois de criar, já facilita marcar quem usa
+});
+document.getElementById('btnDeletePiquete').addEventListener('click', async ()=>{
+  if(!editingPiqueteId || !(await showConfirm('Excluir este piquete? Saídas de estoque já registradas pra ele continuam no histórico.'))) return;
+  piquetes = piquetes.filter(x=>x.id!==editingPiqueteId);
+  await storeSet('piquetes_list', piquetes);
+  closeModal('overlayPiquete'); renderPiquetes();
+});
+const piqueteAnimaisHost = document.getElementById('piqueteAnimaisSelectorHost');
+const piqueteAnimaisSelector = createAnimalSelector(piqueteAnimaisHost, {onlyActive:true});
+let editingPiqueteAnimaisId = null;
+function openPiqueteAnimais(id){
+  const pq = piquetes.find(x=>x.id===id); if(!pq) return;
+  editingPiqueteAnimaisId = id;
+  document.getElementById('pqaModalTitle').textContent = 'Quem usa "'+pq.nome+'"?';
+  piqueteAnimaisSelector.reset();
+  piqueteAnimaisSelector.setSelected((pq.animais||[]).map(a=>({id:a.id})));
+  openModal('overlayPiqueteAnimais');
+}
+document.getElementById('btnSavePiqueteAnimais').addEventListener('click', async ()=>{
+  if(!editingPiqueteAnimaisId) return;
+  const animaisSel = piqueteAnimaisSelector.getSelected();
+  piquetes = piquetes.map(pq=> pq.id===editingPiqueteAnimaisId ? {...pq, animais: animaisSel.map(a=>({id:a.id, nome:a.nome}))} : pq);
+  await storeSet('piquetes_list', piquetes);
+  closeModal('overlayPiqueteAnimais'); renderPiquetes();
+  showAlert('Animais deste piquete atualizados: '+animaisSel.length+'.');
 });
 
 // Medidor tipo "combustível" de um alimento: barra cheia = 30+ dias de estoque no ritmo de consumo
@@ -18465,11 +18595,11 @@ function podeVerValoresAnimais(){
 // então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
   if(!user) return [];
-  // Dietas não tem módulo de permissão próprio — continua governada pela mesma permissão de
-  // Estoque de sempre (só mudou de onde se acessa na tela, não quem pode ver).
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'auditoria', 'filtrosanimais'];
+  // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
+  // permissão de Estoque de sempre.
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais'];
   const base = ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
-  if(permissaoDe(user,'estoque').ver) base.push('dietas');
+  if(permissaoDe(user,'estoque').ver){ base.push('dietas'); base.push('piquetes'); }
   return base;
 }
 // Pra Manejos, além de liberar a tela, dá pra restringir A QUAIS TIPOS o usuário tem acesso — o caso
