@@ -2680,6 +2680,14 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <div class="field nutrientes-field" style="display:none;"><label>PB (%)</label><input type="number" step="0.01" min="0" id="pd_pbPercent" placeholder="Ex: 12"></div>
         <div class="field nutrientes-field" style="display:none;"><label>Cálcio (%)</label><input type="number" step="0.001" min="0" id="pd_caPercent" placeholder="Ex: 0.6"></div>
         <div class="field nutrientes-field" style="display:none;"><label>Fósforo (%)</label><input type="number" step="0.001" min="0" id="pd_pPercent" placeholder="Ex: 0.4"></div>
+        <div class="field nutrientes-field" style="display:none;"><label>Fibra Bruta (%)</label><input type="number" step="0.01" min="0" id="pd_fibraBrutaPercent" placeholder="Ex: 8"></div>
+        <div class="field nutrientes-field" style="display:none;"><label>Fonte de energia principal</label><select id="pd_fonteEnergia">
+          <option value="">Não informado</option>
+          <option value="carboidratos">Carboidratos (açúcares/amido)</option>
+          <option value="lipidios">Lipídios (gordura)</option>
+          <option value="equilibrada">Equilibrada</option>
+        </select></div>
+        <div class="field nutrientes-field" style="display:none;align-self:end;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="pd_indicadoIdosos" style="width:auto;"> Indicado para animais idosos</label></div>
       </div>
       <div id="pdMovBox" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);">
         <div class="section-label" style="border-top:none;padding-top:0;margin-bottom:10px;">Movimentar estoque</div>
@@ -12139,6 +12147,9 @@ function openProdutoNew(){
   document.getElementById('pd_pbPercent').value = '';
   document.getElementById('pd_caPercent').value = '';
   document.getElementById('pd_pPercent').value = '';
+  document.getElementById('pd_fibraBrutaPercent').value = '';
+  document.getElementById('pd_fonteEnergia').value = '';
+  document.getElementById('pd_indicadoIdosos').checked = false;
   openModal('overlayProduto');
 }
 function openProdutoEdit(id){
@@ -12167,6 +12178,9 @@ function openProdutoEdit(id){
   document.getElementById('pd_pbPercent').value = nut.pbPercent!=null ? nut.pbPercent : '';
   document.getElementById('pd_caPercent').value = nut.caPercent!=null ? nut.caPercent : '';
   document.getElementById('pd_pPercent').value = nut.pPercent!=null ? nut.pPercent : '';
+  document.getElementById('pd_fibraBrutaPercent').value = nut.fibraBrutaPercent!=null ? nut.fibraBrutaPercent : '';
+  document.getElementById('pd_fonteEnergia').value = nut.fonteEnergia||'';
+  document.getElementById('pd_indicadoIdosos').checked = !!nut.indicadoIdosos;
   atualizarModoAlertaUI();
   atualizarClasseMedicamentoVisibilidade();
   atualizarNutrientesVisibilidade();
@@ -12279,6 +12293,9 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
   if(f('pd_pbPercent')!=='') nutrientesForm.pbPercent = Number(f('pd_pbPercent'));
   if(f('pd_caPercent')!=='') nutrientesForm.caPercent = Number(f('pd_caPercent'));
   if(f('pd_pPercent')!=='') nutrientesForm.pPercent = Number(f('pd_pPercent'));
+  if(f('pd_fibraBrutaPercent')!=='') nutrientesForm.fibraBrutaPercent = Number(f('pd_fibraBrutaPercent'));
+  if(f('pd_fonteEnergia')!=='') nutrientesForm.fonteEnergia = f('pd_fonteEnergia');
+  if(document.getElementById('pd_indicadoIdosos').checked) nutrientesForm.indicadoIdosos = true;
   const data = {
     id: editingProdutoId || ('pd_'+Date.now()),
     tipo: f('pd_tipo_aux'), nome: f('pd_nome_sel'), classe: f('pd_tipo_aux')==='Medicamento' ? f('pd_classe') : '', unidade: f('pd_unidade'),
@@ -15105,7 +15122,25 @@ function atualizarCsrPesoIdadeView(){
 }
 document.getElementById('csr_animal').addEventListener('change', atualizarCsrPesoIdadeView);
 
-function gerarRecomendacaoRacao(){
+// Volumoso mínimo saudável por categoria de atividade — quanto mais intensa a atividade, menor a
+// fatia de volumoso aceitável (chega a 50/50 no super intenso); atividade leve pode ficar quase
+// só no volumoso (até 90%). Usado só pra decidir quando priorizar fibra bruta (risco de cólica).
+const VOLUMOSO_MIN_PCT = { manutencao:0.90, leve:0.80, moderado:0.65, intenso:0.50, superintenso:0.50 };
+const IDADE_SENIOR_ANOS = 15;
+// Muita ração já vem com "FB máx X%" e às vezes até "idosos" escrito na própria Observação do
+// cadastro (rótulo do fabricante copiado ali) — em vez de exigir que preencha os campos novos de
+// novo pra toda ração já cadastrada, tenta entender isso do texto primeiro. Só um complemento: se o
+// campo estruturado (Fibra Bruta / Indicado p/ idosos) já foi preenchido, ele sempre vence.
+function inferirDaObsRacao(obs){
+  const out = {};
+  if(!obs) return out;
+  const mFibra = obs.match(/FB\s*m[áa]x\.?\s*(\d+(?:[.,]\d+)?)\s*%/i);
+  if(mFibra) out.fibraBrutaPercent = Number(mFibra[1].replace(',','.'));
+  if(/idoso/i.test(obs)) out.indicadoIdosos = true;
+  return out;
+}
+function gerarRecomendacaoRacao(qtdMostrar){
+  qtdMostrar = qtdMostrar || 4;
   const host = document.getElementById('csrResultado');
   const animalId = f('csr_animal');
   const h = horses.find(x=>x.id===animalId);
@@ -15114,6 +15149,7 @@ function gerarRecomendacaoRacao(){
   if(pesoKg<=0){ host.innerHTML = '<div class="hint-text">Esse animal ainda não tem peso cadastrado (nem no cadastro, nem em avaliação técnica) — informe o peso antes de continuar.</div>'; return; }
   const idadeAnos = sugerirIdadeAnosConsultoria(animalId);
   const jovem = idadeAnos!=='' && Number(idadeAnos) < 3;
+  const senior = idadeAnos!=='' && Number(idadeAnos) >= IDADE_SENIOR_ANOS;
   const categoria = f('csr_categoria');
   const objetivo = f('csr_objetivo');
   const esforco = f('csr_esforco');
@@ -15147,17 +15183,33 @@ function gerarRecomendacaoRacao(){
   // Candidatos: todo Alimento do estoque, exceto o volumoso escolhido (esse já é a base fixa, não concorre).
   const candidatosBrutos = estoqueProdutos.filter(p=>p.tipo==='Alimento' && p.id!==f('csr_forragem'));
   const semDados = candidatosBrutos.filter(p=>!p.nutrientes || !p.nutrientes.edKcalPorKg);
-  const candidatos = candidatosBrutos.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg);
-  if(candidatos.length===0){
+  const candidatosComED = candidatosBrutos.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg);
+  if(candidatosComED.length===0){
     host.innerHTML = `<div class="hint-text">Nenhum Alimento do Estoque tem ED (Kcal/kg) cadastrado ainda — sem isso não dá pra calcular quantidade sugerida. Vá em Estoque → editar o produto → preencha "Valores nutricionais".</div>`;
     return;
   }
 
-  // Sem pontuação/ranking automático — só ordena pelo custo/dia (menor primeiro) pra facilitar a leitura;
-  // a decisão de qual é "melhor" pro perfil do animal é feita na conversa, lendo este relatório.
-  const linhas = candidatos.map(p=>{
+  const targetVolumosoMin = VOLUMOSO_MIN_PCT[categoria] ?? 0.7;
+  // Quantidade: fecha ED, PB, Ca E P — pega a MAIOR quantidade entre os 4 (o nutriente "mais fraco"
+  // da ração é quem manda no tamanho da porção), garantindo que NENHUM fique abaixo de 100%. Nutriente
+  // sem dado cadastrado no candidato não entra nessa conta (não trava o cálculo), mas vira aviso.
+  const NUTRIENTES_CHAVE = [
+    { key:'deKcal', campo:'edKcalPorKg', percentual:false, label:'Energia (ED)' },
+    { key:'pbG', campo:'pbPercent', percentual:true, label:'Proteína (PB)' },
+    { key:'caG', campo:'caPercent', percentual:true, label:'Cálcio (Ca)' },
+    { key:'pG', campo:'pPercent', percentual:true, label:'Fósforo (P)' },
+  ];
+  const candidatos = candidatosComED.map(p=>{
     const nut = p.nutrientes;
-    const qtdSugerida = restante.deKcal>0 ? restante.deKcal / nut.edKcalPorKg : 0;
+    let qtdSugerida = 0;
+    const faltamDados = [];
+    NUTRIENTES_CHAVE.forEach(n=>{
+      const teor = Number(nut[n.campo])||0;
+      if(teor<=0){ if(restante[n.key]>0) faltamDados.push(n.label); return; }
+      const conteudoPorKg = n.percentual ? (teor/100)*1000 : teor; // g ou Kcal por kg do produto
+      const qtdParaEsse = restante[n.key] / conteudoPorKg;
+      if(qtdParaEsse>qtdSugerida) qtdSugerida = qtdParaEsse;
+    });
     const fornecidoConcentrado = {
       deKcal: qtdSugerida * nut.edKcalPorKg,
       pbG: qtdSugerida * ((nut.pbPercent||0)/100) * 1000,
@@ -15172,13 +15224,60 @@ function gerarRecomendacaoRacao(){
     };
     const custoKg = custoUnitarioProduto(p);
     const custoDia = custoKg!=null ? custoKg*qtdSugerida : null;
-    return { produto:p, qtdSugerida, pctFinal, custoKg, custoDia };
-  }).sort((a,b)=>{
-    if(a.custoDia==null && b.custoDia==null) return 0;
-    if(a.custoDia==null) return 1;
-    if(b.custoDia==null) return -1;
-    return a.custoDia - b.custoDia;
+    const volumosoPct = (forragemQtd+qtdSugerida)>0 ? forragemQtd/(forragemQtd+qtdSugerida) : null;
+    const volumosoBaixo = volumosoPct!=null && volumosoPct < targetVolumosoMin;
+    // Volumoso baixo: sugere quanto de feno a mais chegaria na meta da categoria, mantendo o mesmo
+    // tanto de ração (é uma estimativa — na prática, mais feno também cobriria uma parte da exigência
+    // e a ração precisaria de um pouco menos; a conta aqui não reabre esse cálculo, fica do lado seguro).
+    const fenoSugerido = volumosoBaixo ? (targetVolumosoMin/(1-targetVolumosoMin))*qtdSugerida : null;
+    const fenoAumento = fenoSugerido!=null ? Math.max(0, fenoSugerido-forragemQtd) : null;
+    // Fibra Bruta/Idosos: campo estruturado vence; sem ele, tenta ler da Observação já cadastrada.
+    const inferido = inferirDaObsRacao(p.obs);
+    const nutScore = { ...nut,
+      fibraBrutaPercent: (nut.fibraBrutaPercent!=null && nut.fibraBrutaPercent!=='') ? nut.fibraBrutaPercent : inferido.fibraBrutaPercent,
+      indicadoIdosos: nut.indicadoIdosos || inferido.indicadoIdosos || false };
+    return { produto:p, nut, nutScore, qtdSugerida, pctFinal, custoKg, custoDia, volumosoPct, volumosoBaixo, fenoSugerido, fenoAumento, faltamDados };
   });
+
+  // Faixas (menor/maior) entre os candidatos — usadas pra normalizar cada critério de 0 a 1 na hora
+  // de pontuar (ex: "mais barato" só faz sentido comparado aos outros candidatos, não em valor bruto).
+  const faixa = arr => { const v=arr.filter(x=>x!=null); return v.length ? {min:Math.min(...v), max:Math.max(...v)} : {min:0,max:0}; };
+  const faixaCusto = faixa(candidatos.map(c=>c.custoKg));
+  const faixaEd = faixa(candidatos.map(c=>c.nut.edKcalPorKg));
+  const faixaFibra = faixa(candidatos.map(c=>c.nutScore.fibraBrutaPercent));
+  const norm = (v,fx) => (v==null || fx.max<=fx.min) ? null : (v-fx.min)/(fx.max-fx.min);
+
+  // Pontuação combinada — critérios e pesos descritos na tela (não é caixa-preta): custo conforme a
+  // prioridade escolhida, objetivo (mais/menos energética), esforço (fonte de energia), idade
+  // (indicada pra idosos) e fibra bruta (só pesa quando o volumoso ficou abaixo do saudável pra essa
+  // categoria — risco de cólica). "Categoria de atividade" já está expressa na própria exigência NRC
+  // que cada candidata precisa fechar, não entra de novo aqui.
+  candidatos.forEach(c=>{
+    let pontos = 0;
+    const motivos = [];
+    const custoNorm = norm(c.custoKg, faixaCusto); // 0=mais barato do grupo, 1=mais caro do grupo
+    if(custoNorm!=null){
+      if(custoPrioridade==='baixo_custo'){ pontos += (1-custoNorm)*3; if(custoNorm<=0.34) motivos.push('💰 Entre as mais em conta'); }
+      else if(custoPrioridade==='preco_nao_e_problema'){ pontos += custoNorm*3; if(custoNorm>=0.66) motivos.push('⭐ Linha mais sofisticada (preço mais alto)'); }
+      else { pontos += (1-custoNorm)*0.8; } // neutro: custo só como desempate leve — o resto pesa mais
+    }
+    const edNorm = norm(c.nut.edKcalPorKg, faixaEd);
+    if(edNorm!=null){
+      if(objetivo==='performance'){ pontos += edNorm*2; if(edNorm>=0.66) motivos.push('⚡ Mais energética (alta performance)'); }
+      else { pontos += (1-edNorm)*2; if(edNorm<=0.34) motivos.push('🍃 Mais leve (perfil lazer/hobby)'); }
+    }
+    if(esforco==='explosivo' && c.nut.fonteEnergia==='carboidratos'){ pontos += 2.2; motivos.push('🌽 Energia de carboidratos (força/explosão)'); }
+    if(esforco==='aerobico' && c.nut.fonteEnergia==='lipidios'){ pontos += 2.2; motivos.push('🫒 Energia lipídica, liberação mais lenta (aeróbico)'); }
+    if(senior && c.nutScore.indicadoIdosos){ pontos += 2.5; motivos.push('🐴 Indicada pra animais idosos'); }
+    if(c.volumosoBaixo){
+      const fibraNorm = norm(c.nutScore.fibraBrutaPercent, faixaFibra);
+      if(fibraNorm!=null){ pontos += fibraNorm*2.5; if(fibraNorm>=0.5) motivos.push('🌾 Mais fibra bruta (volumoso baixo, reduz risco de cólica)'); }
+    }
+    c.pontos = pontos; c.motivos = motivos;
+  });
+  candidatos.sort((a,b)=> b.pontos - a.pontos);
+  const mostrar = candidatos.slice(0, qtdMostrar);
+  const restantes = candidatos.length - mostrar.length;
 
   const esforcoLabel = {equilibrado:'Equilibrado', aerobico:'Mais aeróbico (resistência/fundo)', explosivo:'Mais explosivo (velocidade/força)'}[esforco];
   const custoLabel = {neutro:'Neutro', baixo_custo:'Priorizar menor custo', preco_nao_e_problema:'Preço não é problema'}[custoPrioridade];
@@ -15195,16 +15294,21 @@ function gerarRecomendacaoRacao(){
         <tr><td>Fósforo (P)</td><td>${fmtNumNutriente(exigencia.pG)} g</td><td>${fmtNumNutriente(fornecidoVolumoso.pG)} g</td><td>${fmtNumNutriente(restante.pG)} g</td></tr>
       </tbody>
     </table></div>
-    <div class="hint-text" style="margin:8px 0 16px;">Perfil considerado: ${h.nome} — ${pesoKg} kg, ${fmtIdadeAnos(idadeAnos)}${jovem?' (jovem)':''} · ${NRC_CATEGORIA_LABEL[categoria]} · ${objetivo==='performance'?'Alta performance':'Lazer/Hobby'} · ${esforcoLabel} · ${custoLabel}</div>
+    <div class="hint-text" style="margin:8px 0 16px;">Perfil considerado: ${h.nome} — ${pesoKg} kg, ${fmtIdadeAnos(idadeAnos)}${jovem?' (jovem)':''}${senior?' (sênior)':''} · ${NRC_CATEGORIA_LABEL[categoria]} · ${objetivo==='performance'?'Alta performance':'Lazer/Hobby'} · ${esforcoLabel} · ${custoLabel}</div>
 
-    <div class="section-label">Rações candidatas no Estoque (ordenadas por custo estimado)</div>
-    ${linhas.map(l=>`
+    <div class="section-label">As ${Math.min(qtdMostrar,candidatos.length)} rações mais recomendadas <span style="font-family:'Inter';font-size:11px;color:var(--muted);font-weight:400;">— fecham ED, PB, Ca e P (nenhum nutriente abaixo de 100%); ordenadas pela pontuação que combina custo, objetivo, esforço, idade e fibra</span></div>
+    ${mostrar.map((l,i)=>`
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
-        <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${l.produto.nome}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome}</div>
+          ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta${l.volumosoBaixo?' ⚠ abaixo do recomendado':''}</span>` : ''}
+        </div>
+        ${l.motivos.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${l.motivos.map(m=>`<span class="pill st-outro">${m}</span>`).join('')}</div>` : ''}
         <div style="font-size:12.5px;color:var(--ink);margin-bottom:6px;">
-          Quantidade sugerida pra fechar a energia: <strong>${l.qtdSugerida.toFixed(2)} kg/dia</strong>
+          Quantidade sugerida: <strong>${l.qtdSugerida.toFixed(2)} kg/dia</strong>
           ${l.custoDia!=null ? ` · Custo estimado: <strong>${fmtMoeda(l.custoDia,'BRL')}/dia</strong> (${fmtMoeda(l.custoDia*30,'BRL')}/mês)` : ' · Custo: — (sem valor cadastrado)'}
         </div>
+        ${l.volumosoBaixo && l.fenoAumento!=null ? `<div class="hint-text" style="margin:0 0 8px;color:var(--alert-ink,#8a3b2f);">⚠ Volumoso abaixo do recomendado pra ${NRC_CATEGORIA_LABEL[categoria]} (meta: ${(targetVolumosoMin*100).toFixed(0)}% do peso da dieta). Sugestão: aumentar o feno de ${forragemQtd.toFixed(2)} kg/dia para ~${l.fenoSugerido.toFixed(2)} kg/dia (+${l.fenoAumento.toFixed(2)} kg/dia) pra chegar na proporção recomendada.</div>` : ''}
         <div class="grid-wrap"><table class="grid" style="font-size:12.5px;">
           <thead><tr><th>ED</th><th>PB</th><th>Ca</th><th>P</th></tr></thead>
           <tbody><tr>
@@ -15214,13 +15318,17 @@ function gerarRecomendacaoRacao(){
             <td>${pillAtendimentoHtml(l.pctFinal.pG)}</td>
           </tr></tbody>
         </table></div>
+        ${l.faltamDados.length ? `<div class="hint-text" style="margin-top:8px;color:var(--alert-ink,#8a3b2f);">⚠ Sem dado cadastrado de ${l.faltamDados.join(', ')} — não dá pra garantir que essa(s) exigência(s) fecham em 100%.</div>` : ''}
         ${l.produto.obs ? `<div class="hint-text" style="margin-top:8px;"><strong>Observações do cadastro:</strong> ${l.produto.obs}</div>` : ''}
       </div>`).join('')}
+    ${restantes>0 ? `<button type="button" class="btn btn-sm btn-ghost" id="btnVerMaisRacoes">Ver mais ${restantes} opção(ões)</button>` : ''}
     ${semDados.length>0 ? `<div class="hint-text" style="margin-top:8px;">${semDados.length} alimento(s) do Estoque ficaram de fora por não ter ED (Kcal/kg) cadastrado: ${semDados.map(p=>p.nome).join(', ')}.</div>` : ''}
-    <div class="hint-text" style="margin-top:10px;">Isso é um relatório de dados, não um veredito automático — nenhuma ração foi classificada por qualidade aqui. Pra avaliar qual delas é a melhor pro perfil desse animal (fonte de energia, proteína, aeróbico × explosivo etc.), leve este relatório pra conversa e peça a análise.</div>
+    <div class="hint-text" style="margin-top:10px;">A pontuação é só um apoio à decisão — não substitui seu julgamento sobre o animal. Os critérios usados estão explicados acima de cada opção (as etiquetas coloridas).</div>
   `;
+  const btnVerMais = document.getElementById('btnVerMaisRacoes');
+  if(btnVerMais) btnVerMais.addEventListener('click', ()=> gerarRecomendacaoRacao(candidatos.length));
 }
-document.getElementById('btnSugerirRacaoConsultoria').addEventListener('click', gerarRecomendacaoRacao);
+document.getElementById('btnSugerirRacaoConsultoria').addEventListener('click', ()=> gerarRecomendacaoRacao(4));
 
 /* ================= TRATAMENTOS (aplicação de medicamentos) =================
    Segue o mesmo núcleo de baixa de estoque das Dietas (consumeEstoque), mas em vez de "todo dia",
