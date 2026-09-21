@@ -1604,6 +1604,7 @@
       <div id="finview_custoanimal" style="display:none;">
         <div class="filters">
           <div class="f"><label>Período</label><div id="custoAnimalPeriodo"></div></div>
+          <div class="f"><label>Proprietário</label><select id="custoAnimalFiltroProp"><option value="">Todos</option></select></div>
         </div>
         <div class="hint-text" style="margin:0 0 12px;">Três números por animal: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Alimentação, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono — luz, manutenção, o que sobrar sem animal marcado) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês.</div>
         <div class="perfil-card" style="margin-bottom:16px;">
@@ -18173,10 +18174,16 @@ function renderCustoAnimalConfigLista(){
 }
 let custoAnimalOrdenacao = { campo:'total', dir:'desc' };
 const custoAnimalPeriodo = createDateRangePicker(document.getElementById('custoAnimalPeriodo'), {onChange: renderCustoPorAnimalTab});
+const custoAnimalFiltroPropSel = document.getElementById('custoAnimalFiltroProp');
+custoAnimalFiltroPropSel.addEventListener('change', renderCustoPorAnimalTab);
 function renderCustoPorAnimalTab(){
+  const valorFiltroPropAtual = custoAnimalFiltroPropSel.value;
+  custoAnimalFiltroPropSel.innerHTML = '<option value="">Todos</option>' + (aux.proprietarios||[]).slice().sort((a,b)=>a.localeCompare(b,'pt')).map(p=>`<option value="${p}">${p}</option>`).join('');
+  custoAnimalFiltroPropSel.value = valorFiltroPropAtual;
+  const filtroProp = custoAnimalFiltroPropSel.value;
   const { de, ate } = custoAnimalPeriodo.getRange();
   const { porAnimal: geralPorAnimal, semAnimalAtivo } = simularRateioMensal(de, ate);
-  const linhas = horses.filter(h=>h.situacao!=='E').map(h=>{
+  const linhas = horses.filter(h=>h.situacao!=='E' && (!filtroProp || h.proprietario===filtroProp)).map(h=>{
     const direto = custoDiretoAnimal(h.id, de, ate).total;
     const geral = geralPorAnimal[h.id] || 0;
     return { id:h.id, nome:h.nome, direto, geral, total: direto+geral };
