@@ -1897,7 +1897,7 @@
       <div class="form-grid">
         <div class="field"><label>Código</label><input type="text" id="f_codigo" placeholder="Gerado automático se vazio"></div>
         <div class="field"><label>Nome</label><input type="text" id="f_nome" required></div>
-        <div class="field"><label>Apelido</label><input type="text" id="f_apelido"></div>
+        <div class="field"><label>Prefixo</label><input type="text" id="f_apelido"></div>
         <div class="field"><label>Sexo</label><select id="f_sexo"><option value="MASCULINO">Masculino</option><option value="FEMININO">Feminino</option></select></div>
         <div class="field"><label>Situação</label><select id="f_situacao"><option value="P">Interno</option><option value="E">Externo</option><option value="V">Vendido</option></select></div>
         <div class="field"><label>Status</label><div style="display:flex;gap:6px;"><select id="f_status" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="status">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="status" data-selid="f_status" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="status" data-selid="f_status" title="Excluir valor selecionado">🗑</button></div></div>
@@ -3598,7 +3598,7 @@ const AUDIT_CAMPOS_IGNORADOS = new Set(['id','criadoEm']);
 // Nome interno do campo → como ele aparece na tela, pra o log ser legível por quem não programou isso.
 // Campo fora dessa lista aparece com o nome interno mesmo (melhor isso do que esconder a alteração).
 const AUDIT_CAMPO_LABEL = {
-  nome:'Nome', apelido:'Apelido', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
+  nome:'Nome', apelido:'Prefixo', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
   nascimento:'Nascimento', falecimento:'Falecimento', peso:'Peso', scoreCorporal:'Score corporal', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
   avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
@@ -5370,7 +5370,7 @@ function renderHorses(){
     if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:4px;">Vendido</span>');
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
-      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${h.fotoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> <strong>${h.nome||''}</strong>${tags.join('')}</td>
+      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${h.fotoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${h.apelido}</span> `:''}<strong>${h.nome||''}</strong>${tags.join('')}</td>
       <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
       <td data-col="pai">${h.pai||''}</td><td data-col="mae">${h.mae||''}</td><td data-col="pelagem">${h.pelagem||''}</td><td data-col="raca">${h.raca||''}</td><td data-col="categoria">${h.categoria||''}</td>
@@ -18690,7 +18690,7 @@ wireBotaoVoz('btnVozProduto', 'produto_vozStatus', 'ex: "tipo alimento, nome ra�
 /* ---- Animais (Novo Animal) ---- */
 const CAMPOS_DITADO_ANIMAL = [
   {chaves:['nome'], campo:'nome'},
-  {chaves:['apelido'], campo:'apelido'},
+  {chaves:['prefixo','apelido'], campo:'apelido'},
   {chaves:['sexo'], campo:'sexo'},
   {chaves:['pelagem'], campo:'pelagem'},
   {chaves:['categoria'], campo:'categoria'},
@@ -18703,7 +18703,7 @@ wireBotaoVoz('btnVozHorse', 'horse_vozStatus', 'ex: "nome Estrela, sexo fêmea, 
   const r = interpretarDitado(texto, CAMPOS_DITADO_ANIMAL);
   const entendido = [];
   if(r.nome){ document.getElementById('f_nome').value = titleCase(r.nome); entendido.push('Nome: '+titleCase(r.nome)); }
-  if(r.apelido){ document.getElementById('f_apelido').value = titleCase(r.apelido); entendido.push('Apelido: '+titleCase(r.apelido)); }
+  if(r.apelido){ document.getElementById('f_apelido').value = titleCase(r.apelido); entendido.push('Prefixo: '+titleCase(r.apelido)); }
   if(r.sexo){
     const macho = /masc|macho|garanh|cavalo/.test(r.sexo);
     const femea = /fem|fêmea|égua|egua|potranca/.test(r.sexo);
@@ -19573,8 +19573,8 @@ function renderAnimalPerfil(id){
   if(h.falecimento) tags.push('<span class="pill st-descarte" style="margin-left:6px;">Falecido</span>');
   if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:6px;">Vendido</span>');
   if(h.doador) tags.push('<span class="pill st-ativo" style="margin-left:6px;">Doador</span>');
-  document.getElementById('perfilNome').innerHTML = (h.nome||'—') + tags.join('');
-  document.getElementById('perfilSubtitle').textContent = [h.codigo?('Código '+h.codigo):null, h.categoria, h.apelido?('"'+h.apelido+'"'):null].filter(Boolean).join(' · ');
+  document.getElementById('perfilNome').innerHTML = (h.apelido?(h.apelido+' '):'') + (h.nome||'—') + tags.join('');
+  document.getElementById('perfilSubtitle').textContent = [h.codigo?('Código '+h.codigo):null, h.categoria].filter(Boolean).join(' · ');
   document.getElementById('btnPerfilNovoExameRepro').style.display = (h.sexo==='FEMININO') ? 'inline-block' : 'none';
 
   const idade = calcAgeYears(h.nascimento);
@@ -19582,6 +19582,15 @@ function renderAnimalPerfil(id){
   // Reaproveita a mesma conta usada no Início/Programação — assim cada vacina específica (não só uma
   // "Vacina" genérica) aparece com sua própria data prevista, igual ao resto do sistema.
   const tarefas = computeProgramacao().filter(r=>r.animalId===h.id);
+  // Só Transporte por enquanto (Tratamento e Atividade/Treino foram tirados daqui) — Transporte não
+  // tem sempre um animalId único (pode envolver vários animais de uma vez), então além do match
+  // direto confere também se este animal está na lista de animais do transporte de origem.
+  const tarefasOutras = computeCalendarTasks().filter(t=>{
+    if(t.categoria!=='transporte') return false;
+    if(t.animalId===h.id) return true;
+    if(t.transporteId){ const tp=transportes.find(x=>x.id===t.transporteId); return tp && (tp.animais||[]).some(a=>a.id===h.id); }
+    return false;
+  }).sort((a,b)=>(a.data||'').localeCompare(b.data||''));
 
   // Irmãos/Descendência: puxados da genealogia já cadastrada (Pai/Mãe), sem precisar de nada novo.
   // Comparação por nome normalizado (normNomeParentesco) — assim a contagem não muda dependendo de
@@ -19777,11 +19786,16 @@ function renderAnimalPerfil(id){
     <div class="perfil-card">
       <div class="perfil-card-head">🔔 Próximas Tarefas</div>
       <div class="perfil-card-body">
-        ${tarefas.length===0 ? '<div class="hint-text">Nenhuma frequência de manejo cadastrada pra esse animal.</div>' :
-          tarefas.map(t=>`
+        ${(tarefas.length===0 && tarefasOutras.length===0) ? '<div class="hint-text">Nenhuma tarefa pendente pra esse animal.</div>' : ''}
+        ${tarefas.map(t=>`
             <div class="tarefa-row">
               <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
               <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(toISODate(t.proxima))):''}</div>
+            </div>`).join('')}
+        ${tarefasOutras.map(t=>`
+            <div class="tarefa-row">
+              <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
+              <div class="tarefa-dates">${t.data?('Data: '+fmtDate(t.data)):''}</div>
             </div>`).join('')}
       </div>
     </div>` });
@@ -20384,7 +20398,7 @@ function gerarRelatorioFicha1(){
     ${lista.map(h=>{
       return `<div class="report-animal-block" style="display:flex;gap:18px;align-items:flex-start;">
         <div style="flex:1;min-width:0;">
-          <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${h.nome}${h.apelido?` <span style="color:var(--muted);font-weight:400;font-size:13px;">(${h.apelido})</span>`:''}</div>
+          <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${h.apelido?`<span style="color:var(--muted);font-weight:400;font-size:13px;">${h.apelido}</span> `:''}${h.nome}</div>
           <div class="report-row"><span class="lbl">Idade</span>${calcAgeYears(h.nascimento)||'—'}</div>
           <div class="report-row"><span class="lbl">Nascimento</span>${fmtDate(h.nascimento)||'—'}</div>
           <div class="report-row"><span class="lbl">Sexo</span>${h.sexo==='MASCULINO'?'Macho':(h.sexo==='FEMININO'?'Fêmea':'—')}</div>
@@ -21270,7 +21284,7 @@ document.getElementById('btnVinculosQuebrados').addEventListener('click', ()=>{
 });
 
 const MERGE_FIELDS = [
-  ['codigo','Código'],['nome','Nome'],['apelido','Apelido'],['sexo','Sexo'],['situacao','Situação'],['status','Status'],
+  ['codigo','Código'],['nome','Nome'],['apelido','Prefixo'],['sexo','Sexo'],['situacao','Situação'],['status','Status'],
   ['nascimento','Data Nascimento'],['falecimento','Data Falecimento'],['pelagem','Pelagem'],['categoria','Categoria'],
   ['pai','Pai'],['mae','Mãe'],['avopat','Avô Paterno'],['avopatmat','Avó Paterna'],['avomatpat','Avô Materno'],['avomat','Avó Materna'],
   ['freqcasco','Freq. Casco'],['freqdente','Freq. Dente'],['freqvacina','Freq. Vacina'],['freqvermifugo','Freq. Vermífugo'],
