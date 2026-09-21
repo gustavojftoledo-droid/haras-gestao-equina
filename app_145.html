@@ -1128,6 +1128,7 @@
           <button class="btn btn-ghost btn-sm" id="btnMenuTreinosMais" title="Mais opções">⋯</button>
           <div class="menu-discreto-pop" id="menuTreinosMaisPop">
             <button type="button" class="btn btn-ghost btn-sm" id="btnImportTreino">📋 Importar PDF</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btnPdfListaChuckersSelecionados" data-relatorioselecao="treinos" title="Marque os treinos na tabela (ex: jogos de torneio) — sem marcar nenhum, pega todos os treinos com Lista de Chuckers salva">📋 Lista de Chuckers</button>
           </div>
         </div>
       </div>
@@ -1845,10 +1846,10 @@
            a exigência de energia que sobrou depois do volumoso já informado. Não grava nada — é só uma
            calculadora de apoio à decisão; formalizar a dieta escolhida continua sendo feito em Formulação. -->
       <div id="csview_recomendacao" style="display:none;">
-        <div class="hint-text" style="margin-bottom:10px;">Preencha o perfil do animal e do trabalho — peso e idade já vêm do cadastro. O sistema calcula quanto de cada ração do Estoque fecharia a exigência de energia que sobra depois do volumoso, e monta um relatório com os dados de cada uma (inclusive as Observações do cadastro) pra você levar pra análise.</div>
+        <div class="hint-text" style="margin-bottom:10px;">Preencha o perfil do animal e do trabalho — peso e idade já vêm do cadastro, mas o peso pode ser ajustado aqui pra esse cálculo. O sistema calcula quanto de cada ração do Estoque fecharia a exigência de energia que sobra depois do volumoso, e monta um relatório com os dados de cada uma (inclusive as Observações do cadastro) pra você levar pra análise.</div>
         <div class="form-grid">
           <div class="field"><label>Animal</label><select id="csr_animal"><option value="">Selecione...</option></select></div>
-          <div class="field"><label>Peso (kg)</label><input type="text" id="csr_pesoView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
+          <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" min="0" id="csr_pesoView"></div>
           <div class="field"><label>Idade</label><input type="text" id="csr_idadeView" disabled style="background:var(--chip-bg);color:var(--muted);"></div>
           <div class="field"><label>Categoria de atividade (NRC)</label><select id="csr_categoria"></select></div>
           <div class="field"><label>Objetivo</label><select id="csr_objetivo">
@@ -2576,8 +2577,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     </div>
     <div id="treinoSelectorHost"></div>
     <div class="modal-actions">
-      <div></div>
+      <div><button type="button" class="btn btn-ghost" id="btnListaChuckers">📋 Lista</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayTreino">Cancelar</button><button type="button" class="btn" id="btnSaveTreino">Salvar Treino <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- LISTA DE CHUCKERS (TREINO) MODAL -->
+<div class="overlay" id="overlayListaTreino">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title">Lista de Chuckers</div><button class="modal-close" data-close="overlayListaTreino">✕</button></div>
+    <div class="hint-text" style="margin-bottom:10px;">Só aparecem pra escolher os animais já selecionados pra esse treino, ali acima.</div>
+    <div id="listaChuckersHost" style="margin-bottom:10px;"></div>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddChucker">+ Adicionar chucker</button>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnLimparChuckers" style="margin-left:8px;">Limpar tudo</button>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayListaTreino">Cancelar</button><button type="button" class="btn" id="btnPdfListaChuckers">📄 Baixar PDF</button></div>
     </div>
   </div>
 </div>
@@ -9949,6 +9965,7 @@ function openTreinoNew(){
   treinoOutrosCustosState = [];
   renderTreinoOutrosCustos();
   resetSelectorComFront(treinoSelector);
+  listaChuckersState = [];
   openModal('overlayTreino');
 }
 function openTreinoEdit(id){
@@ -9974,6 +9991,7 @@ function openTreinoEdit(id){
   treinoOutrosCustosState = cobrado ? (t.cobranca.outrosCustos||[]).map(c=>({...c})) : [];
   renderTreinoOutrosCustos();
   treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||'', valorExtra2:a.valorExtra2||''})));
+  listaChuckersState = (t.chuckers||[]).map(c=>({...c}));
   openModal('overlayTreino');
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
@@ -9984,8 +10002,9 @@ document.getElementById('btnSaveTreino').addEventListener('click', ()=>{
   if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
   const treinadores = [f('t_treinador1_sel'), f('t_treinador2_sel'), f('t_treinador3_sel')].filter(Boolean).join(', ');
   const cobrado = document.getElementById('t_cobrado').checked;
+  const chuckers = listaChuckersState.filter(it=>it.animal1||it.animal2||it.espera);
   const registro = { id: editingTreinoId || ('tr_'+Date.now()), data, tipo:document.getElementById('t_tipo_sel').value, local:document.getElementById('t_local_sel').value,
-    treinadores, obs:document.getElementById('t_obs').value, animais:selected };
+    treinadores, obs:document.getElementById('t_obs').value, animais:selected, ...(chuckers.length>0 ? {chuckers} : {}) };
   if(cobrado){
     const outrosCustos = treinoOutrosCustosState.filter(c=>c.descricao && Number(c.valor)>0).map(c=>({descricao:c.descricao, valor:Number(c.valor)}));
     registro.cobranca = {
@@ -9999,6 +10018,108 @@ document.getElementById('btnSaveTreino').addEventListener('click', ()=>{
   closeModal('overlayTreino'); renderTreinos(); renderFinanceiro();
   salvarEmSegundoPlano('treinos_list', treinos, ()=>{ renderTreinos(); renderFinanceiro(); });
 });
+
+/* ---- Lista de Chuckers (Treino) ---- */
+let listaChuckersState = [];
+function renderListaChuckers(){
+  const host = document.getElementById('listaChuckersHost');
+  const ativos = treinoSelector.getSelected().slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  if(listaChuckersState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum chucker adicionado.</div>'; return; }
+  // Marca com ● por vez que o animal já JOGOU em outro chucker, e com 🔸 se ele já está de ESPERA em
+  // algum outro chucker — marcas diferentes pra não confundir "já jogou" com "está de reserva".
+  // Nunca conta a própria linha que está sendo montada.
+  const optsPara = idxAtual => {
+    const contagemJogo = {};
+    const emEspera = new Set();
+    listaChuckersState.forEach((it,i)=>{
+      if(i===idxAtual) return;
+      [it.animal1, it.animal2].forEach(id=>{ if(id) contagemJogo[id] = (contagemJogo[id]||0)+1; });
+      if(it.espera) emEspera.add(it.espera);
+    });
+    return '<option value="">Selecione...</option>' + ativos.map(h=>{
+      const marca = (contagemJogo[h.id] ? ' '+'●'.repeat(contagemJogo[h.id]) : '') + (emEspera.has(h.id) ? ' 🔸' : '');
+      return `<option value="${h.id}">${h.nome}${marca}</option>`;
+    }).join('');
+  };
+  host.innerHTML = `<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+      <div>#</div><div>Animal 1</div><div>Animal 2</div><div>Espera 🔸</div><div></div>
+    </div>` +
+    listaChuckersState.map((it,idx)=>`<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px;">
+        <div style="font-size:12px;color:var(--muted);text-align:center;">${idx+1}</div>
+        <select data-lcfield="animal1" data-idx="${idx}">${optsPara(idx)}</select>
+        <select data-lcfield="animal2" data-idx="${idx}">${optsPara(idx)}</select>
+        <select data-lcfield="espera" data-idx="${idx}">${optsPara(idx)}</select>
+        <button type="button" class="btn btn-sm btn-danger" data-lcremove="${idx}" title="Remover">🗑</button>
+      </div>`).join('');
+  listaChuckersState.forEach((it,idx)=>{
+    host.querySelector(`select[data-lcfield="animal1"][data-idx="${idx}"]`).value = it.animal1||'';
+    host.querySelector(`select[data-lcfield="animal2"][data-idx="${idx}"]`).value = it.animal2||'';
+    host.querySelector(`select[data-lcfield="espera"][data-idx="${idx}"]`).value = it.espera||'';
+  });
+  host.querySelectorAll('select[data-lcfield]').forEach(el=>{
+    // Reabre o mesmo select em foco depois de redesenhar a tabela — sem isso, cada escolha (mesmo só
+    // com a seta do teclado) perdia o foco no redesenho e travava a navegação por teclado no meio.
+    el.addEventListener('change', ()=>{
+      const { idx, lcfield } = el.dataset;
+      listaChuckersState[Number(idx)][lcfield] = el.value;
+      renderListaChuckers();
+      const de_novo = host.querySelector(`select[data-lcfield="${lcfield}"][data-idx="${idx}"]`);
+      if(de_novo) de_novo.focus();
+    });
+  });
+  host.querySelectorAll('[data-lcremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ listaChuckersState.splice(Number(btn.dataset.lcremove),1); renderListaChuckers(); });
+  });
+}
+function openListaChuckers(){
+  if(treinoSelector.getSelected().length===0){ showAlert('Selecione ao menos um animal pro treino antes de montar a Lista.'); return; }
+  if(listaChuckersState.length===0) listaChuckersState = Array.from({length:6}, ()=>({animal1:'', animal2:'', espera:''}));
+  renderListaChuckers();
+  openModal('overlayListaTreino');
+}
+document.getElementById('btnListaChuckers').addEventListener('click', openListaChuckers);
+document.getElementById('btnAddChucker').addEventListener('click', ()=>{
+  listaChuckersState.push({animal1:'', animal2:'', espera:''});
+  renderListaChuckers();
+});
+document.getElementById('btnLimparChuckers').addEventListener('click', async ()=>{
+  if(listaChuckersState.length>0 && !(await showConfirm('Limpar todos os chuckers da lista?'))) return;
+  listaChuckersState = [];
+  renderListaChuckers();
+});
+function tabelaChuckersHtml(chuckersArr){
+  const nomeAnimal = id => id ? ((horses.find(h=>h.id===id)||{}).nome||'') : '';
+  const linhas = (chuckersArr||[]).filter(it=>it.animal1||it.animal2||it.espera);
+  if(linhas.length===0) return '<div class="obs">Sem lista de chuckers.</div>';
+  return `<table><thead><tr><th style="width:56px;">Chucker</th><th>Animal 1</th><th>Animal 2</th><th>Espera</th></tr></thead>
+    <tbody>${linhas.map((it,idx)=>`<tr><td class="num">${idx+1}</td><td>${nomeAnimal(it.animal1)||'—'}</td><td>${nomeAnimal(it.animal2)||'—'}</td><td>${nomeAnimal(it.espera)||'—'}</td></tr>`).join('')}</tbody>
+    </table>`;
+}
+document.getElementById('btnPdfListaChuckers').addEventListener('click', async ()=>{
+  if(listaChuckersState.filter(it=>it.animal1||it.animal2||it.espera).length===0){ showAlert('Adicione ao menos um chucker antes de gerar o PDF.'); return; }
+  const dataTreino = document.getElementById('t_data').value;
+  const obs = document.getElementById('t_obs').value.trim();
+  const html = `<h1>Lista de Chuckers</h1>
+    <div class="sub">${dataTreino ? fmtDate(dataTreino) : ''}${obs ? ' — '+obs : ''}</div>
+    ${tabelaChuckersHtml(listaChuckersState)}`;
+  await baixarRelatorioManejoPDF(html, 'lista_chuckers'+(dataTreino?'_'+dataTreino:'')+'.pdf');
+});
+// Relatório combinado: pega os treinos marcados na tabela do Histórico (ex: jogos de torneio) — sem
+// marcar nenhum, usa todos os que têm Lista de Chuckers salva — e monta UM PDF só, um treino após o
+// outro, cada um com sua data/observação e sua própria tabela de chuckers.
+function gerarListaChuckersSelecionados(){
+  const sel = selLista('treinos');
+  const base = sel.size ? treinos.filter(t=>sel.has(String(t.id))) : treinos.filter(t=>t.chuckers && t.chuckers.length>0);
+  const comLista = base.filter(t=>t.chuckers && t.chuckers.length>0).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  if(comLista.length===0){ showAlert('Nenhum treino selecionado tem Lista de Chuckers salva.'); return; }
+  const html = comLista.map(t=>`<div class="report-animal-block">
+      <h2>${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}${t.local?' — '+t.local:''}</h2>
+      ${t.obs ? `<div class="sub">${t.obs}</div>` : ''}
+      ${tabelaChuckersHtml(t.chuckers)}
+    </div>`).join('');
+  baixarRelatorioManejoPDF(`<h1>Lista de Chuckers</h1><div class="sub">${comLista.length} treino(s)</div>${html}`, 'lista_chuckers_'+comLista.length+'_treinos.pdf');
+}
+document.getElementById('btnPdfListaChuckersSelecionados').addEventListener('click', gerarListaChuckersSelecionados);
 
 /* ---- Relatórios de Treino ---- */
 const treinoRelHost = document.getElementById('treinoRelSelectorHost');
@@ -15141,15 +15262,11 @@ function renderConsultoriaRecomendacaoForm(){
 function atualizarCsrPesoIdadeView(){
   const animalId = f('csr_animal');
   const h = horses.find(x=>x.id===animalId);
-  document.getElementById('csr_pesoView').value = h ? (sugerirPesoConsultoriaFormulacao(animalId) || '—') + (h.peso!=null&&h.peso!=='' ? ' kg' : '') : '—';
+  document.getElementById('csr_pesoView').value = h ? (sugerirPesoConsultoriaFormulacao(animalId) || '') : '';
   document.getElementById('csr_idadeView').value = h ? fmtIdadeAnos(sugerirIdadeAnosConsultoria(animalId)) : '—';
 }
 document.getElementById('csr_animal').addEventListener('change', atualizarCsrPesoIdadeView);
 
-// Volumoso mínimo saudável por categoria de atividade — quanto mais intensa a atividade, menor a
-// fatia de volumoso aceitável (chega a 50/50 no super intenso); atividade leve pode ficar quase
-// só no volumoso (até 90%). Usado só pra decidir quando priorizar fibra bruta (risco de cólica).
-const VOLUMOSO_MIN_PCT = { manutencao:0.90, leve:0.80, moderado:0.65, intenso:0.50, superintenso:0.50 };
 const IDADE_SENIOR_ANOS = 15;
 // Muita ração já vem com "FB máx X%" e às vezes até "idosos" escrito na própria Observação do
 // cadastro (rótulo do fabricante copiado ali) — em vez de exigir que preencha os campos novos de
@@ -15169,8 +15286,8 @@ function gerarRecomendacaoRacao(qtdMostrar){
   const animalId = f('csr_animal');
   const h = horses.find(x=>x.id===animalId);
   if(!h){ host.innerHTML = '<div class="hint-text">Selecione um animal.</div>'; return; }
-  const pesoKg = Number(sugerirPesoConsultoriaFormulacao(animalId)) || 0;
-  if(pesoKg<=0){ host.innerHTML = '<div class="hint-text">Esse animal ainda não tem peso cadastrado (nem no cadastro, nem em avaliação técnica) — informe o peso antes de continuar.</div>'; return; }
+  const pesoKg = Number(f('csr_pesoView')) || 0;
+  if(pesoKg<=0){ host.innerHTML = '<div class="hint-text">Informe o peso do animal (campo "Peso (kg)" acima) antes de continuar.</div>'; return; }
   const idadeAnos = sugerirIdadeAnosConsultoria(animalId);
   const jovem = idadeAnos!=='' && Number(idadeAnos) < 3;
   const senior = idadeAnos!=='' && Number(idadeAnos) >= IDADE_SENIOR_ANOS;
@@ -15203,6 +15320,22 @@ function gerarRecomendacaoRacao(qtdMostrar){
     caG: Math.max(0, exigencia.caG - fornecidoVolumoso.caG),
     pG: Math.max(0, exigencia.pG - fornecidoVolumoso.pG),
   };
+  // Toda recomendação deve ser feita em matéria seca (MS), não na matéria original (com água) — é
+  // assim que a nutrição de equinos compara/soma alimentos diferentes. Os "Níveis de Garantia" do
+  // rótulo (PB/FB/Ca/P/ED) são declarados na matéria como fornecida (com a umidade do produto); pra
+  // virar base MS, divide pelo tanto que é matéria seca (1-umidade). Assumindo 12% de umidade tanto
+  // pro feno quanto pra ração (informado pelo usuário) — mesmo valor pros dois, então não muda a
+  // proporção entre eles, só o percentual final quando comparado a uma meta em base seca (ex: fibra
+  // da dieta abaixo de 12% MS).
+  const UMIDADE_PADRAO = 0.12;
+  const paraMS = pctComoFornecido => pctComoFornecido!=null ? pctComoFornecido/(1-UMIDADE_PADRAO) : null;
+  // Fibra bruta do volumoso escolhido (campo estruturado vence; sem ele, tenta a Observação) — usada
+  // mais abaixo pra ver se a fibra bruta da dieta toda (volumoso+ração) fica baixa.
+  const fenoFibraPercent = forragemProduto ? (
+    (forragemProduto.nutrientes && forragemProduto.nutrientes.fibraBrutaPercent!=null && forragemProduto.nutrientes.fibraBrutaPercent!=='')
+      ? Number(forragemProduto.nutrientes.fibraBrutaPercent)
+      : (inferirDaObsRacao(forragemProduto.obs||'').fibraBrutaPercent ?? null)
+  ) : null;
 
   // Candidatos: todo Alimento do estoque, exceto o volumoso escolhido (esse já é a base fixa, não concorre).
   const candidatosBrutos = estoqueProdutos.filter(p=>p.tipo==='Alimento' && p.id!==f('csr_forragem'));
@@ -15213,7 +15346,6 @@ function gerarRecomendacaoRacao(qtdMostrar){
     return;
   }
 
-  const targetVolumosoMin = VOLUMOSO_MIN_PCT[categoria] ?? 0.7;
   // Quantidade: fecha ED, PB, Ca E P — pega a MAIOR quantidade entre os 4 (o nutriente "mais fraco"
   // da ração é quem manda no tamanho da porção), garantindo que NENHUM fique abaixo de 100%. Nutriente
   // sem dado cadastrado no candidato não entra nessa conta (não trava o cálculo), mas vira aviso.
@@ -15249,18 +15381,12 @@ function gerarRecomendacaoRacao(qtdMostrar){
     const custoKg = custoUnitarioProduto(p);
     const custoDia = custoKg!=null ? custoKg*qtdSugerida : null;
     const volumosoPct = (forragemQtd+qtdSugerida)>0 ? forragemQtd/(forragemQtd+qtdSugerida) : null;
-    const volumosoBaixo = volumosoPct!=null && volumosoPct < targetVolumosoMin;
-    // Volumoso baixo: sugere quanto de feno a mais chegaria na meta da categoria, mantendo o mesmo
-    // tanto de ração (é uma estimativa — na prática, mais feno também cobriria uma parte da exigência
-    // e a ração precisaria de um pouco menos; a conta aqui não reabre esse cálculo, fica do lado seguro).
-    const fenoSugerido = volumosoBaixo ? (targetVolumosoMin/(1-targetVolumosoMin))*qtdSugerida : null;
-    const fenoAumento = fenoSugerido!=null ? Math.max(0, fenoSugerido-forragemQtd) : null;
     // Fibra Bruta/Idosos: campo estruturado vence; sem ele, tenta ler da Observação já cadastrada.
     const inferido = inferirDaObsRacao(p.obs);
     const nutScore = { ...nut,
       fibraBrutaPercent: (nut.fibraBrutaPercent!=null && nut.fibraBrutaPercent!=='') ? nut.fibraBrutaPercent : inferido.fibraBrutaPercent,
       indicadoIdosos: nut.indicadoIdosos || inferido.indicadoIdosos || false };
-    return { produto:p, nut, nutScore, qtdSugerida, pctFinal, custoKg, custoDia, volumosoPct, volumosoBaixo, fenoSugerido, fenoAumento, faltamDados };
+    return { produto:p, nut, nutScore, qtdSugerida, pctFinal, custoKg, custoDia, volumosoPct, faltamDados };
   });
 
   // Faixas (menor/maior) entre os candidatos — usadas pra normalizar cada critério de 0 a 1 na hora
@@ -15268,14 +15394,12 @@ function gerarRecomendacaoRacao(qtdMostrar){
   const faixa = arr => { const v=arr.filter(x=>x!=null); return v.length ? {min:Math.min(...v), max:Math.max(...v)} : {min:0,max:0}; };
   const faixaCusto = faixa(candidatos.map(c=>c.custoKg));
   const faixaEd = faixa(candidatos.map(c=>c.nut.edKcalPorKg));
-  const faixaFibra = faixa(candidatos.map(c=>c.nutScore.fibraBrutaPercent));
   const norm = (v,fx) => (v==null || fx.max<=fx.min) ? null : (v-fx.min)/(fx.max-fx.min);
 
   // Pontuação combinada — critérios e pesos descritos na tela (não é caixa-preta): custo conforme a
-  // prioridade escolhida, objetivo (mais/menos energética), esforço (fonte de energia), idade
-  // (indicada pra idosos) e fibra bruta (só pesa quando o volumoso ficou abaixo do saudável pra essa
-  // categoria — risco de cólica). "Categoria de atividade" já está expressa na própria exigência NRC
-  // que cada candidata precisa fechar, não entra de novo aqui.
+  // prioridade escolhida, objetivo (mais/menos energética), esforço (fonte de energia) e idade
+  // (indicada pra idosos). "Categoria de atividade" já está expressa na própria exigência NRC que
+  // cada candidata precisa fechar, não entra de novo aqui.
   candidatos.forEach(c=>{
     let pontos = 0;
     const motivos = [];
@@ -15293,9 +15417,15 @@ function gerarRecomendacaoRacao(qtdMostrar){
     if(esforco==='explosivo' && c.nut.fonteEnergia==='carboidratos'){ pontos += 2.2; motivos.push('🌽 Energia de carboidratos (força/explosão)'); }
     if(esforco==='aerobico' && c.nut.fonteEnergia==='lipidios'){ pontos += 2.2; motivos.push('🫒 Energia lipídica, liberação mais lenta (aeróbico)'); }
     if(senior && c.nutScore.indicadoIdosos){ pontos += 2.5; motivos.push('🐴 Indicada pra animais idosos'); }
-    if(c.volumosoBaixo){
+    // Fibra bruta da dieta toda (volumoso+ração, pela quantidade de cada) abaixo de 12%: peso moderado
+    // a favor de mais fibra bruta na ração (ex: Equitage Fibra) — não é regra radical, é só um dos
+    // critérios da pontuação, junto com os outros.
+    const totalQtd = forragemQtd + c.qtdSugerida;
+    const dietaFibraPercentComoFornecida = totalQtd>0 ? (forragemQtd*(fenoFibraPercent||0) + c.qtdSugerida*(c.nutScore.fibraBrutaPercent||0)) / totalQtd : null;
+    const dietaFibraPercentMS = paraMS(dietaFibraPercentComoFornecida);
+    if(dietaFibraPercentMS!=null && dietaFibraPercentMS<12){
       const fibraNorm = norm(c.nutScore.fibraBrutaPercent, faixaFibra);
-      if(fibraNorm!=null){ pontos += fibraNorm*2.5; if(fibraNorm>=0.5) motivos.push('🌾 Mais fibra bruta (volumoso baixo, reduz risco de cólica)'); }
+      if(fibraNorm!=null){ pontos += fibraNorm*2; if(fibraNorm>=0.5) motivos.push('🌾 Mais fibra bruta (fibra da dieta toda abaixo de 12% em matéria seca)'); }
     }
     c.pontos = pontos; c.motivos = motivos;
   });
@@ -15325,14 +15455,13 @@ function gerarRecomendacaoRacao(qtdMostrar){
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
           <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome}</div>
-          ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta${l.volumosoBaixo?' ⚠ abaixo do recomendado':''}</span>` : ''}
+          ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta</span>` : ''}
         </div>
         ${l.motivos.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${l.motivos.map(m=>`<span class="pill st-outro">${m}</span>`).join('')}</div>` : ''}
         <div style="font-size:12.5px;color:var(--ink);margin-bottom:6px;">
           Quantidade sugerida: <strong>${l.qtdSugerida.toFixed(2)} kg/dia</strong>
           ${l.custoDia!=null ? ` · Custo estimado: <strong>${fmtMoeda(l.custoDia,'BRL')}/dia</strong> (${fmtMoeda(l.custoDia*30,'BRL')}/mês)` : ' · Custo: — (sem valor cadastrado)'}
         </div>
-        ${l.volumosoBaixo && l.fenoAumento!=null ? `<div class="hint-text" style="margin:0 0 8px;color:var(--alert-ink,#8a3b2f);">⚠ Volumoso abaixo do recomendado pra ${NRC_CATEGORIA_LABEL[categoria]} (meta: ${(targetVolumosoMin*100).toFixed(0)}% do peso da dieta). Sugestão: aumentar o feno de ${forragemQtd.toFixed(2)} kg/dia para ~${l.fenoSugerido.toFixed(2)} kg/dia (+${l.fenoAumento.toFixed(2)} kg/dia) pra chegar na proporção recomendada.</div>` : ''}
         <div class="grid-wrap"><table class="grid" style="font-size:12.5px;">
           <thead><tr><th>ED</th><th>PB</th><th>Ca</th><th>P</th></tr></thead>
           <tbody><tr>
@@ -15342,7 +15471,7 @@ function gerarRecomendacaoRacao(qtdMostrar){
             <td>${pillAtendimentoHtml(l.pctFinal.pG)}</td>
           </tr></tbody>
         </table></div>
-        ${l.faltamDados.length ? `<div class="hint-text" style="margin-top:8px;color:var(--alert-ink,#8a3b2f);">⚠ Sem dado cadastrado de ${l.faltamDados.join(', ')} — não dá pra garantir que essa(s) exigência(s) fecham em 100%.</div>` : ''}
+        ${l.faltamDados.length ? `<div class="hint-text" style="margin-top:8px;">⚠ Sem dado cadastrado de ${l.faltamDados.join(', ')} — não dá pra garantir que essa(s) exigência(s) fecham em 100%.</div>` : ''}
         ${l.produto.obs ? `<div class="hint-text" style="margin-top:8px;"><strong>Observações do cadastro:</strong> ${l.produto.obs}</div>` : ''}
       </div>`).join('')}
     ${restantes>0 ? `<button type="button" class="btn btn-sm btn-ghost" id="btnVerMaisRacoes">Ver mais ${restantes} opção(ões)</button>` : ''}
