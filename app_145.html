@@ -1605,7 +1605,7 @@
         <div class="filters">
           <div class="f"><label>Período</label><div id="custoAnimalPeriodo"></div></div>
         </div>
-        <div class="hint-text" style="margin:0 0 12px;">Três números por animal: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Ração, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono — luz, manutenção, o que sobrar sem animal marcado) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês.</div>
+        <div class="hint-text" style="margin:0 0 12px;">Três números por animal: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Alimentação, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono — luz, manutenção, o que sobrar sem animal marcado) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês.</div>
         <div class="perfil-card" style="margin-bottom:16px;">
           <div class="perfil-card-head" id="custoAnimalConfigHead" style="cursor:pointer;">⚙ Categorias fora do rateio geral <span style="font-weight:400;font-size:11.5px;">(investimento, não manutenção — clique pra configurar)</span></div>
           <div class="perfil-card-body" id="custoAnimalConfigBody" style="display:none;">
@@ -2729,7 +2729,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 </div>
 
 <!-- SAÍDA PRO PIQUETE — mesmo espírito do consumo de Dieta: a saída já sai marcada com quais animais
-     usaram (mv.animais), e o custo vira um lançamento de "Ração" no Financeiro, dividido em partes
+     usaram (mv.animais), e o custo vira um lançamento de "Alimentação" no Financeiro, dividido em partes
      iguais entre eles (ver lancamentosDerivadosPiquete). Os animais usuários vêm do cadastro de
      Piquetes (Operação > Piquetes) — editáveis ali a qualquer momento, com um atalho aqui também. -->
 <div class="overlay" id="overlaySaidaPiquete">
@@ -17750,7 +17750,7 @@ function lancamentosDerivadosDietas(){
     const valorPorAnimal = total/animaisMv.length;
     out.push({
       id: 'auto_dt_'+mv.id, origemId: mv.produtoId, origem: 'dietas',
-      data: mv.data, tipo: 'saida', categoria: 'Ração', natureza: 'alocacao',
+      data: mv.data, tipo: 'saida', categoria: 'Alimentação', natureza: 'alocacao',
       descricao: `${mv.motivo||('Dieta: '+(mv.produtoNome||''))} — ${animaisMv.length} ${pluralAnimal(animaisMv.length)}`,
       valor: total, moeda: 'BRL',
       rateio: animaisMv.map(a=>({animalId:a.id, valor:valorPorAnimal}))
@@ -17760,7 +17760,7 @@ function lancamentosDerivadosDietas(){
 }
 // Saída pro Piquete (ex: Feno jogado no cocho de um piquete) — mesma ideia de lancamentosDerivadosDietas:
 // o produto já saiu do caixa quando foi COMPRADO, então isso é alocação, não uma saída de dinheiro nova.
-// Entra como categoria "Ração" (mesmo grupo de custo da Dieta) pra não precisar de coluna nova no
+// Entra como categoria "Alimentação" (mesmo grupo de custo da Dieta) pra não precisar de coluna nova no
 // Relatório 3 / card de Custo do Animal — é literalmente o mesmo tipo de gasto (alimentação).
 function lancamentosDerivadosPiquete(){
   const out = [];
@@ -17776,7 +17776,7 @@ function lancamentosDerivadosPiquete(){
     const valorPorAnimal = total/animaisMv.length;
     out.push({
       id: 'auto_pq_'+mv.id, origemId: mv.produtoId, origem: 'piquete',
-      data: mv.data, tipo: 'saida', categoria: 'Ração', natureza: 'alocacao',
+      data: mv.data, tipo: 'saida', categoria: 'Alimentação', natureza: 'alocacao',
       descricao: `${mv.motivo||('Piquete: '+(mv.produtoNome||''))} — ${animaisMv.length} ${pluralAnimal(animaisMv.length)}`,
       valor: total, moeda: 'BRL',
       rateio: animaisMv.map(a=>({animalId:a.id, valor:valorPorAnimal}))
@@ -18123,6 +18123,29 @@ function simularRateioMensal(de, ate){
   });
   return { porAnimal, semAnimalAtivo, totalGeral: Object.values(porMes).reduce((s,v)=>s+v,0) };
 }
+// Drill-down do "Geral rateado" de UM animal: os mesmos lançamentos que formam o pote de cada mês
+// (ver poteRateioPorMes), mas mantendo cada um separado — com o valor JÁ dividido pela quantidade de
+// animais ativos naquele mês (a fatia que efetivamente coube a este animal).
+function custoRateioGeralItens(animalId, de, ate){
+  const porMesContagem = {};
+  const itens = [];
+  todosLancamentosFinanceiro().forEach(l=>{
+    if(l.tipo!=='saida' || l.natureza==='alocacao') return;
+    if(l.rateio && l.rateio.length>0) return;
+    if(l.origem==='estoque') return;
+    if(l.moeda==='USD') return;
+    if((config.categoriasForaRateio||[]).includes(l.categoria)) return;
+    if(de && l.data<de) return;
+    if(ate && l.data>ate) return;
+    const mes = l.data.slice(0,7);
+    if(!animalAtivoNoMes(horses.find(h=>h.id===animalId), mes)) return;
+    if(!(mes in porMesContagem)) porMesContagem[mes] = horses.filter(h=>animalAtivoNoMes(h, mes)).length;
+    const ativosNoMes = porMesContagem[mes];
+    if(ativosNoMes<=0) return;
+    itens.push({ data: l.data, categoria: l.categoria, descricao: l.descricao, valorPorAnimal: (Number(l.valor)||0)/ativosNoMes });
+  });
+  return itens.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+}
 document.getElementById('custoAnimalConfigHead').addEventListener('click', ()=>{
   const body = document.getElementById('custoAnimalConfigBody');
   body.style.display = body.style.display==='none' ? 'block' : 'none';
@@ -18169,10 +18192,11 @@ function renderCustoPorAnimalTab(){
     <tr>
       <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
       <td>${r.direto>0 ? `<button type="button" data-vercustodireto="${r.id}" title="Ver de onde veio esse custo" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.direto)}</button>` : fmtR(r.direto)}</td>
-      <td>${fmtR(r.geral)}</td>
+      <td>${r.geral>0 ? `<button type="button" data-vercustogeral="${r.id}" title="Ver quais lançamentos formam esse rateio" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.geral)}</button>` : fmtR(r.geral)}</td>
       <td style="font-weight:600;">${fmtR(r.total)}</td>
     </tr>`).join('');
   tbody.querySelectorAll('[data-vercustodireto]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoAnimal(b.dataset.vercustodireto)));
+  tbody.querySelectorAll('[data-vercustogeral]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoGeralAnimal(b.dataset.vercustogeral)));
   const avisos = document.getElementById('custoAnimalAvisos');
   avisos.innerHTML = semAnimalAtivo.length===0 ? '' : `<div class="hint-text" style="color:var(--warn-ink);margin-bottom:10px;">⚠ Sobrou custo geral sem nenhum animal ativo pra dividir em: ${semAnimalAtivo.map(s=>MESES_LABEL[Number(s.mes.slice(5,7))-1]+'/'+s.mes.slice(0,4)+' ('+fmtR(s.total)+')').join(', ')}.</div>`;
 }
@@ -18199,21 +18223,52 @@ function abrirDetalheCustoAnimal(animalId){
     openModal('overlayCustoAnimalDetalhe');
     return;
   }
-  const geralDesteAnimal = simularRateioMensal(de, ate).porAnimal[animalId] || 0;
-  body.innerHTML = `
-    <div class="hint-text" style="margin-bottom:12px;">Lançamentos ${periodoTxt} com ${h.nome} no rateio — clique em "Ver origem" (ou "Editar", pros manuais) pra abrir onde cada um nasceu.${geralDesteAnimal>0 ? (' Além disso, mais '+fmtR(geralDesteAnimal)+' entram como rateio dos custos gerais do haras — não tem uma origem única, é dividido mês a mês entre os animais ativos.') : ''}</div>
-    <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th><th></th></tr></thead>
-      <tbody>${linhas.map(({l,meuValor})=>`<tr>
-        <td>${fmtDate(l.data)}</td>
-        <td>${l.categoria||''}${l.natureza==='alocacao'?' <span class="pill st-outro" style="font-size:10px;">Alocação</span>':''}</td>
+  // Categoria repete muito (ex: feno/ração da Dieta lançando um item por dia) — junta tudo da mesma
+  // categoria numa única linha com o total, e só abre a lista de lançamentos individuais (com o
+  // "Ver origem"/"Editar" de cada um) se a pessoa clicar em "Ver lançamentos". Categoria com um único
+  // lançamento não precisa juntar — já aparece direto, igual antes.
+  const linhaDetalheHtml = ({l,meuValor}, indent) => `<tr${indent?' class="custo-subitem" data-grupopai="'+indent+'" style="display:none;background:var(--chip-bg);"':''}>
+        <td${indent?' style="padding-left:26px;"':''}>${fmtDate(l.data)}</td>
+        <td>${indent?'':(l.categoria||'')+(l.natureza==='alocacao'?' <span class="pill st-outro" style="font-size:10px;">Alocação</span>':'')}</td>
         <td>${l.descricao||''}</td>
         <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(meuValor)}</td>
         <td style="white-space:nowrap;">${l.origem==='manual'
           ? `<button type="button" class="btn btn-sm btn-ghost" data-editarcustomanual="${l.id}">Editar</button>`
           : `<button type="button" class="btn btn-sm btn-ghost" data-vercustoorigem="${l.origem}" data-idcustoorigem="${l.origemId}">Ver origem</button>`}</td>
-      </tr>`).join('')}</tbody>
+      </tr>`;
+  const gruposMap = {}; const ordemGrupos = [];
+  linhas.forEach(item => {
+    const key = item.l.categoria || '';
+    if(!gruposMap[key]){ gruposMap[key] = []; ordemGrupos.push(key); }
+    gruposMap[key].push(item);
+  });
+  const linhasHtml = ordemGrupos.map((cat, gi) => {
+    const itens = gruposMap[cat];
+    if(itens.length===1) return linhaDetalheHtml(itens[0], null);
+    const grupoId = 'custogrupo'+gi;
+    const total = itens.reduce((s,it)=>s+it.meuValor,0);
+    const linhaResumo = `<tr>
+        <td>—</td>
+        <td>${cat}${itens[0].l.natureza==='alocacao'?' <span class="pill st-outro" style="font-size:10px;">Alocação</span>':''}</td>
+        <td>${itens.length} lançamentos</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;">${fmtR(total)}</td>
+        <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-togglegrupo="${grupoId}">Ver lançamentos</button></td>
+      </tr>`;
+    return linhaResumo + itens.map(it=>linhaDetalheHtml(it, grupoId)).join('');
+  }).join('');
+  body.innerHTML = `
+    <div class="hint-text" style="margin-bottom:12px;">Lançamentos ${periodoTxt} com ${h.nome} no rateio — clique em "Ver origem" (ou "Editar", pros manuais) pra abrir onde cada um nasceu.</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th><th></th></tr></thead>
+      <tbody>${linhasHtml}</tbody>
     </table></div>`;
+  body.querySelectorAll('[data-togglegrupo]').forEach(btn=>btn.addEventListener('click', ()=>{
+    const id = btn.dataset.togglegrupo;
+    const subs = body.querySelectorAll(`.custo-subitem[data-grupopai="${id}"]`);
+    const abrir = subs[0] && subs[0].style.display === 'none';
+    subs.forEach(tr=> tr.style.display = abrir ? '' : 'none');
+    btn.textContent = abrir ? 'Ocultar lançamentos' : 'Ver lançamentos';
+  }));
   body.querySelectorAll('[data-vercustoorigem]').forEach(b=>b.addEventListener('click', ()=>{
     closeModal('overlayCustoAnimalDetalhe');
     navegarParaOrigemFinanceiro(b.dataset.vercustoorigem, b.dataset.idcustoorigem);
@@ -18223,6 +18278,35 @@ function abrirDetalheCustoAnimal(animalId){
     irParaView('financeiro'); showFinTab('lancamentos');
     setTimeout(()=>openLancamentoEdit(b.dataset.editarcustomanual), 30);
   }));
+  openModal('overlayCustoAnimalDetalhe');
+}
+// Drill-down do "Geral rateado": os lançamentos sem dono que formam o pote do mês (ver
+// poteRateioPorMes), já com a fatia que coube a este animal em cada um — reaproveita o mesmo modal
+// do Custo Direto, só que com outro título/conteúdo.
+function abrirDetalheCustoGeralAnimal(animalId){
+  const h = horses.find(x=>x.id===animalId); if(!h) return;
+  const { de, ate } = custoAnimalPeriodo.getRange();
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const itens = custoRateioGeralItens(animalId, de, ate);
+  document.getElementById('custoAnimalDetalheTitulo').textContent = 'Geral Rateado — '+(h.nome||'');
+  const body = document.getElementById('custoAnimalDetalheBody');
+  const periodoTxt = de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico';
+  if(itens.length===0){
+    body.innerHTML = `<div class="empty">Nenhum lançamento encontrado ${periodoTxt}.</div>`;
+    openModal('overlayCustoAnimalDetalhe');
+    return;
+  }
+  body.innerHTML = `
+    <div class="hint-text" style="margin-bottom:12px;">Custos gerais do haras ${periodoTxt} — sem dono, sem uma origem única, divididos mês a mês entre os animais que estavam ativos naquele mês. O valor já é a fatia que coube a ${h.nome}.</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th></tr></thead>
+      <tbody>${itens.map(it=>`<tr>
+        <td>${fmtDate(it.data)}</td>
+        <td>${it.categoria||''}</td>
+        <td>${it.descricao||''}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(it.valorPorAnimal)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
   openModal('overlayCustoAnimalDetalhe');
 }
 document.querySelectorAll('#custoAnimalTabela th[data-csort]').forEach(th=>{
@@ -20348,10 +20432,10 @@ document.querySelectorAll('[data-relordem]').forEach(chip=>{
 // Categorias na nomenclatura do Gustavo — Vacina/Vermífugo/Aplicação/Visita entram todas em "Saúde".
 const CATEGORIA_CUSTO_ANIMAL = {
   'Ferrageamento':'Casco', 'Odontologia':'Dente', 'Vacina':'Saúde', 'Vermífugo':'Saúde',
-  'Veterinário / Medicamento':'Saúde', 'Ração':'Ração', 'Transporte':'Transporte', 'Treino':'Atividades',
+  'Veterinário / Medicamento':'Saúde', 'Alimentação':'Alimentação', 'Transporte':'Transporte', 'Treino':'Atividades',
   'Receptora':'Receptora', 'Transferência':'Transferência',
 };
-const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Ração','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Outros'];
+const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Outros'];
 // Custo represado: uma linha do rateio pode ter `destino` (id de um registro de Nascimentos) em vez
 // de contar direto pro animal físico que passou pelo procedimento (a receptora) — enquanto o potro não
 // nasce, esse valor fica represado (não conta pra ninguém); depois que nasce e o registro de Nascimentos
@@ -20470,7 +20554,7 @@ function blocoCustoAnimalFicha(h){
       ${categoriasComValor.length===0 ? '<div class="hint-text">Nenhum custo atribuído diretamente a esse animal ainda.</div>' : categoriasComValor.map(c=>`
         <div class="perfil-field" style="margin-top:6px;"><label>${c}</label><div class="val">${fmtR(totalSempre.porCategoria[c])}</div></div>
       `).join('')}
-      <div class="hint-text" style="margin-top:10px;">Só o que já foi atribuído diretamente a esse animal (Ração, Saúde, Casco...). Não inclui a parte dele nos custos gerais do haras rateados entre todos os animais — isso está em Financeiro → Custo por Animal.</div>
+      <div class="hint-text" style="margin-top:10px;">Só o que já foi atribuído diretamente a esse animal (Alimentação, Saúde, Casco...). Não inclui a parte dele nos custos gerais do haras rateados entre todos os animais — isso está em Financeiro → Custo por Animal.</div>
     </div>
   </div>`;
 }
@@ -20547,7 +20631,7 @@ function gerarRelatorioFicha3(){
   });
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
-    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Ração, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais. Clique num valor pra ver de onde ele veio.</div>
+    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Alimentação, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais. Clique num valor pra ver de onde ele veio.</div>
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${linhas.map((r,i)=>`<tr>
