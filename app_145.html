@@ -1923,6 +1923,8 @@
         <div class="field"><label>Freq. Vermífugo (meses)</label><input type="number" id="f_freqvermifugo"></div>
         <div class="section-label">Outros</div>
         <div class="field"><label>Proprietário</label><div style="display:flex;gap:6px;"><select id="f_proprietario" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="proprietarios">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="proprietarios" data-selid="f_proprietario" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="proprietarios" data-selid="f_proprietario" title="Excluir valor selecionado">🗑</button></div></div>
+        <div class="field"><label>Associação</label><div style="display:flex;gap:6px;"><select id="f_associacao" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="associacao">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="associacao" data-selid="f_associacao" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="associacao" data-selid="f_associacao" title="Excluir valor selecionado">🗑</button></div></div>
+        <div class="field"><label>Nº de Registro</label><div style="display:flex;gap:6px;"><input type="text" id="f_numeroRegistro" placeholder="Registro na associação" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnAbrirAssociacao" title="Abrir site da associação pra consultar este registro">🔗 Abrir na associação</button></div></div>
         <div class="field" id="f_valorField"><label>Valor</label><div style="display:flex;gap:6px;"><select id="f_valorMoeda" style="flex:0 0 78px;"><option value="R$">R$</option><option value="US$">US$</option></select><input type="text" id="f_valorNumero" placeholder="0,00" style="flex:1;"></div></div>
         <div class="field"><label>Nome do Comprador</label><input type="text" id="f_comprador" placeholder="Se vendido"></div>
         <div class="field" id="f_dataVendaWrap"><label>Data da Venda</label><input type="date" id="f_dataVenda" title="Usada pelo rateio de custos gerais (Financeiro → Custo por Animal) pra parar de contar este animal a partir do mês seguinte."></div>
@@ -3601,7 +3603,7 @@ const AUDIT_CAMPO_LABEL = {
   nome:'Nome', apelido:'Prefixo', codigo:'Código', sexo:'Sexo', situacao:'Situação', status:'Status',
   nascimento:'Nascimento', falecimento:'Falecimento', peso:'Peso', scoreCorporal:'Score corporal', pelagem:'Pelagem', raca:'Raça', categoria:'Categoria',
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
-  avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', valor:'Valor',
+  avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', associacao:'Associação', numeroRegistro:'Nº de Registro', valor:'Valor',
   comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', compradoDe:'Comprado de', obs:'Observações',
   fotoUrl:'Foto', freqcasco:'Freq. casco', freqdente:'Freq. dente', freqvacina:'Freq. vacina',
   freqvermifugo:'Freq. vermífugo', data:'Data', tipo:'Tipo', subtipo:'Procedimento', descricao:'Descrição',
@@ -3963,6 +3965,10 @@ async function loadAll(){
   // "Gerenciar serviços"), valor de referência de cada um em config.valoresServico (mesmo esquema de
   // aux.subtipoFerrageamento + config.valoresCasco, já usado em Manejos).
   if(!aux.servicoVeterinario || aux.servicoVeterinario.length===0){ aux.servicoVeterinario=['Consulta','Raio-X','Ultrassom','Acupuntura','Fisioterapia','Outro procedimento']; auxChanged=true; }
+  // Associações de registro genealógico (ABCPCC, ABCCMM etc.) — lista livre, só sugere as mais comuns
+  // pra já vir com o link certo no botão "Abrir na associação" (ver ASSOCIACAO_LINKS).
+  if(!aux.associacao) { aux.associacao=[]; auxChanged=true; }
+  ['ABCPCC','ABCCMM','Sociedade Rural Argentina','ABCCRM (Mangalarga Paulista)'].forEach(v=>{ if(!aux.associacao.includes(v)){ aux.associacao.push(v); auxChanged=true; } });
   if(!config.valoresServico) config.valoresServico = {};
   treinos.forEach(t=>{
     if(t.tipo && !aux.tipotreino.includes(t.tipo)){ aux.tipotreino.push(t.tipo); auxChanged=true; }
@@ -4048,6 +4054,7 @@ function populateAuxSelects(){
   fill('f_categoria', ordenarComPreferencia('categoria', aux.categoria||[])); fill('f_proprietario', aux.proprietarios||[]);
   fill('f_localizacao', ordenarComPreferencia('localizacao', aux.localizacao||[]));
   fill('f_raca', ordenarComPreferencia('raca', aux.raca||[]));
+  fill('f_associacao', aux.associacao||[]);
   fill('pd_unidade', aux.unidade||[]); fill('pd_tipo_aux', aux.tipoProduto||[]);
   fill('tr_meio_sel', aux.meioAplicacao||[]);
   fill('pd_nome_sel', [...(aux.nomeProduto||[])].sort((a,b)=>a.localeCompare(b,'pt')));
@@ -4070,6 +4077,7 @@ const AUX_META = {
   localizacao:{label:'Localização', selId:'f_localizacao'},
   raca:{label:'Raça', selId:'f_raca'},
   proprietarios:{label:'Proprietário', selId:'f_proprietario'},
+  associacao:{label:'Associação', selId:'f_associacao'},
   unidade:{label:'Unidade de medida', selId:'pd_unidade'},
   tipotreino:{label:'Tipo de treino', selId:'t_tipo_sel'},
   localtreino:{label:'Local de treino', selId:'t_local_sel'},
@@ -5627,6 +5635,28 @@ function atualizarCompradoDeWrap(){
   if(!comprado) document.getElementById('f_compradoDe').value = '';
 }
 document.getElementById('f_compra').addEventListener('change', atualizarCompradoDeWrap);
+// Link de consulta pública de cada associação de registro genealógico. Nenhuma delas tem um endereço
+// que já abra direto no animal (é tudo busca por formulário no site deles) — então o botão copia o
+// número de registro pra área de transferência e abre a busca da associação, pra só colar lá.
+const ASSOCIACAO_LINKS = {
+  'abcpcc': 'https://studbook.com.br/simular-pedigree',
+  'abccmm': 'https://abccmm.org.br/certificados.aspx',
+  'sociedade rural argentina': 'https://servicios.sra.org.ar/Webcriadores/',
+  'abccrm (mangalarga paulista)': 'https://cavalomangalarga.com.br/',
+  'mangalarga paulista': 'https://cavalomangalarga.com.br/',
+};
+document.getElementById('btnAbrirAssociacao').addEventListener('click', async ()=>{
+  const associacao = f('f_associacao').trim();
+  const registro = f('f_numeroRegistro').trim();
+  if(!associacao){ showAlert('Selecione a Associação antes de abrir o link.'); return; }
+  const url = ASSOCIACAO_LINKS[associacao.toLowerCase()];
+  if(!url){ showAlert('Ainda não tenho o site de consulta de "'+associacao+'" cadastrado. Me manda o link que eu adiciono.'); return; }
+  if(registro){
+    try{ await navigator.clipboard.writeText(registro); showAlert('Nº de registro "'+registro+'" copiado — cole no formulário de busca da '+associacao+'.'); }
+    catch(e){ /* sem permissão de clipboard — só abre o site mesmo, sem copiar */ }
+  }
+  window.open(url, '_blank');
+});
 function openHorseNew(){
   editingHorseId=null;
   document.getElementById('hModalTitle').textContent='Novo Animal';
@@ -5646,7 +5676,7 @@ function openHorseEdit(id){
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
-  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',scoreCorporal:'f_scoreCorporal',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
+  const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',scoreCorporal:'f_scoreCorporal',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',associacao:'f_associacao',numeroRegistro:'f_numeroRegistro',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
   populateAuxSelects();
   Object.entries(map).forEach(([k,id2])=>{ document.getElementById(id2).value=h[k]||''; });
   atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
@@ -5807,7 +5837,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     freqcasco:f('f_freqcasco'),freqdente:f('f_freqdente'),freqvacina:f('f_freqvacina'),freqvermifugo:f('f_freqvermifugo'),
     // Quem não pode ver valores também não pode apagá-los sem querer: pra essas pessoas o campo nem
     // existe na tela, e o valor que já estava gravado é mantido exatamente como estava.
-    proprietario:titleCase(f('f_proprietario')),valor: podeVerValoresAnimais() ? (f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '') : ((existenteAnimal&&existenteAnimal.valor)||''),comprador:titleCase(f('f_comprador')),
+    proprietario:titleCase(f('f_proprietario')),associacao:titleCase(f('f_associacao')),numeroRegistro:f('f_numeroRegistro').trim(),valor: podeVerValoresAnimais() ? (f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '') : ((existenteAnimal&&existenteAnimal.valor)||''),comprador:titleCase(f('f_comprador')),
     dataVenda: f('f_situacao')==='V' ? f('f_dataVenda') : '',
     doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,compradoDe: document.getElementById('f_compra').checked ? titleCase(f('f_compradoDe')) : '',fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
   // Data em que o registro passou a existir aqui — usada só pelo rateio de custos gerais (Financeiro
@@ -15395,6 +15425,7 @@ function gerarRecomendacaoRacao(qtdMostrar){
   const faixa = arr => { const v=arr.filter(x=>x!=null); return v.length ? {min:Math.min(...v), max:Math.max(...v)} : {min:0,max:0}; };
   const faixaCusto = faixa(candidatos.map(c=>c.custoKg));
   const faixaEd = faixa(candidatos.map(c=>c.nut.edKcalPorKg));
+  const faixaFibra = faixa(candidatos.map(c=>c.nutScore.fibraBrutaPercent));
   const norm = (v,fx) => (v==null || fx.max<=fx.min) ? null : (v-fx.min)/(fx.max-fx.min);
 
   // Pontuação combinada — critérios e pesos descritos na tela (não é caixa-preta): custo conforme a
@@ -21288,7 +21319,7 @@ const MERGE_FIELDS = [
   ['nascimento','Data Nascimento'],['falecimento','Data Falecimento'],['pelagem','Pelagem'],['categoria','Categoria'],
   ['pai','Pai'],['mae','Mãe'],['avopat','Avô Paterno'],['avopatmat','Avó Paterna'],['avomatpat','Avô Materno'],['avomat','Avó Materna'],
   ['freqcasco','Freq. Casco'],['freqdente','Freq. Dente'],['freqvacina','Freq. Vacina'],['freqvermifugo','Freq. Vermífugo'],
-  ['proprietario','Proprietário'],['valor','Valor'],['obs','Observações']
+  ['proprietario','Proprietário'],['associacao','Associação'],['numeroRegistro','Nº de Registro'],['valor','Valor'],['obs','Observações']
 ];
 let mergeA=null, mergeB=null;
 let _mergePendingIds=null; // [idA,idB] quando vem do "Comparar e decidir" da lista de duplicados
