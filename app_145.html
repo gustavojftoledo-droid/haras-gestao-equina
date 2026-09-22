@@ -15351,25 +15351,11 @@ function gerarRecomendacaoRacao(qtdMostrar){
     caG: Math.max(0, exigencia.caG - fornecidoVolumoso.caG),
     pG: Math.max(0, exigencia.pG - fornecidoVolumoso.pG),
   };
-  // Toda recomendação deve ser feita em matéria seca (MS), não na matéria original (com água) — é
-  // assim que a nutrição de equinos compara/soma alimentos diferentes. Os "Níveis de Garantia" do
-  // rótulo (PB/FB/Ca/P/ED) são declarados na matéria como fornecida (com a umidade do produto); pra
-  // virar base MS, divide pelo tanto que é matéria seca (1-umidade). Assumindo 12% de umidade tanto
-  // pro feno quanto pra ração (informado pelo usuário) — mesmo valor pros dois, então não muda a
-  // proporção entre eles, só o percentual final quando comparado a uma meta em base seca (ex: fibra
-  // da dieta abaixo de 12% MS).
-  const UMIDADE_PADRAO = 0.12;
-  const paraMS = pctComoFornecido => pctComoFornecido!=null ? pctComoFornecido/(1-UMIDADE_PADRAO) : null;
-  // Fibra bruta do volumoso escolhido (campo estruturado vence; sem ele, tenta a Observação) — usada
-  // mais abaixo pra ver se a fibra bruta da dieta toda (volumoso+ração) fica baixa.
-  const fenoFibraPercent = forragemProduto ? (
-    (forragemProduto.nutrientes && forragemProduto.nutrientes.fibraBrutaPercent!=null && forragemProduto.nutrientes.fibraBrutaPercent!=='')
-      ? Number(forragemProduto.nutrientes.fibraBrutaPercent)
-      : (inferirDaObsRacao(forragemProduto.obs||'').fibraBrutaPercent ?? null)
-  ) : null;
-
   // Candidatos: todo Alimento do estoque, exceto o volumoso escolhido (esse já é a base fixa, não concorre).
-  const candidatosBrutos = estoqueProdutos.filter(p=>p.tipo==='Alimento' && p.id!==f('csr_forragem'));
+  // Suplementos (ex: Equiturbo) não são ração/concentrado — não entram como candidato na recomendação,
+  // mesmo cadastrados como tipo "Alimento" no Estoque.
+  const SUPLEMENTOS_EXCLUIDOS = ['equiturbo'];
+  const candidatosBrutos = estoqueProdutos.filter(p=>p.tipo==='Alimento' && p.id!==f('csr_forragem') && !SUPLEMENTOS_EXCLUIDOS.includes((p.nome||'').trim().toLowerCase()));
   const semDados = candidatosBrutos.filter(p=>!p.nutrientes || !p.nutrientes.edKcalPorKg);
   const candidatosComED = candidatosBrutos.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg);
   if(candidatosComED.length===0){
@@ -15449,15 +15435,12 @@ function gerarRecomendacaoRacao(qtdMostrar){
     if(esforco==='explosivo' && c.nut.fonteEnergia==='carboidratos'){ pontos += 2.2; motivos.push('🌽 Energia de carboidratos (força/explosão)'); }
     if(esforco==='aerobico' && c.nut.fonteEnergia==='lipidios'){ pontos += 2.2; motivos.push('🫒 Energia lipídica, liberação mais lenta (aeróbico)'); }
     if(senior && c.nutScore.indicadoIdosos){ pontos += 2.5; motivos.push('🐴 Indicada pra animais idosos'); }
-    // Fibra bruta da dieta toda (volumoso+ração, pela quantidade de cada) abaixo de 12%: peso moderado
-    // a favor de mais fibra bruta na ração (ex: Equitage Fibra) — não é regra radical, é só um dos
-    // critérios da pontuação, junto com os outros.
-    const totalQtd = forragemQtd + c.qtdSugerida;
-    const dietaFibraPercentComoFornecida = totalQtd>0 ? (forragemQtd*(fenoFibraPercent||0) + c.qtdSugerida*(c.nutScore.fibraBrutaPercent||0)) / totalQtd : null;
-    const dietaFibraPercentMS = paraMS(dietaFibraPercentComoFornecida);
-    if(dietaFibraPercentMS!=null && dietaFibraPercentMS<12){
+    // Fibra bruta da ração só pesa na pontuação quando o volumoso (feno) fica com MENOS de 50% do peso
+    // da dieta total (feno+ração) — com essa ração, nessa quantidade sugerida. Volumoso majoritário já
+    // garante fibra suficiente por conta própria, então o critério não se aplica.
+    if(c.volumosoPct!=null && c.volumosoPct<0.5){
       const fibraNorm = norm(c.nutScore.fibraBrutaPercent, faixaFibra);
-      if(fibraNorm!=null){ pontos += fibraNorm*2; if(fibraNorm>=0.5) motivos.push('🌾 Mais fibra bruta (fibra da dieta toda abaixo de 12% em matéria seca)'); }
+      if(fibraNorm!=null){ pontos += fibraNorm*2; if(fibraNorm>=0.5) motivos.push('🌾 Mais fibra bruta (volumoso é menos de 50% do peso da dieta com esta ração)'); }
     }
     c.pontos = pontos; c.motivos = motivos;
   });
