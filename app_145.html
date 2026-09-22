@@ -1606,7 +1606,7 @@
           <div class="f"><label>Período</label><div id="custoAnimalPeriodo"></div></div>
           <div class="f"><label>Proprietário</label><select id="custoAnimalFiltroProp"><option value="">Todos</option></select></div>
         </div>
-        <div class="hint-text" style="margin:0 0 12px;">Três números por animal: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Alimentação, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono — luz, manutenção, o que sobrar sem animal marcado) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês.</div>
+        <div class="hint-text" style="margin:0 0 12px;">Custo <strong>direto</strong> de cada animal, por categoria (Alimentação, Saúde, Casco, Dente, Transporte, Atividades...) — tudo que já foi atribuído certinho a ele. Não inclui a fatia dele nos custos gerais do haras sem dono (isso está no Relatório 3, em Animais → Relatórios → Fichas). Clique num valor pra ver de onde ele veio.</div>
         <div class="perfil-card" style="margin-bottom:16px;">
           <div class="perfil-card-head" id="custoAnimalConfigHead" style="cursor:pointer;">⚙ Categorias fora do rateio geral <span style="font-weight:400;font-size:11.5px;">(investimento, não manutenção — clique pra configurar)</span></div>
           <div class="perfil-card-body" id="custoAnimalConfigBody" style="display:none;">
@@ -1615,15 +1615,7 @@
           </div>
         </div>
         <div id="custoAnimalAvisos"></div>
-        <div class="grid-wrap"><table class="grid" id="custoAnimalTabela">
-          <thead><tr>
-            <th class="sortable" data-csort="nome">Animal</th>
-            <th class="sortable" data-csort="direto" title="Clique no valor de um animal pra ver de onde veio">Direto 🔍</th>
-            <th class="sortable" data-csort="geral">Geral rateado</th>
-            <th class="sortable" data-csort="total">Total</th>
-          </tr></thead>
-          <tbody id="custoAnimalTbody"></tbody>
-        </table></div>
+        <div class="grid-wrap" id="custoAnimalTabelaHost"></div>
         <div class="modal-actions" style="padding:14px 0 0;">
           <div></div>
           <div class="modal-actions-right"><button type="button" class="btn btn-ghost" id="btnPdfCustoAnimal">⬇ Baixar PDF</button></div>
@@ -18186,47 +18178,64 @@ function renderCustoAnimalConfigLista(){
     });
   });
 }
-let custoAnimalOrdenacao = { campo:'total', dir:'desc' };
 const custoAnimalPeriodo = createDateRangePicker(document.getElementById('custoAnimalPeriodo'), {onChange: renderCustoPorAnimalTab});
 const custoAnimalFiltroPropSel = document.getElementById('custoAnimalFiltroProp');
 custoAnimalFiltroPropSel.addEventListener('change', renderCustoPorAnimalTab);
+// Monta a tabela de custo Direto por categoria (Alimentação, Saúde, Casco...) pra uma lista de
+// animais — motor compartilhado entre a aba Financeiro → Custo por Animal (tela) e o botão "Baixar
+// PDF" dela, e populado com o mesmo popover clicável (relCustoBreakdownMap) do Relatório 3.
+function montarTabelaCustoCategoria(lista, de, ate, {clicavel}){
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  let totalGeral = 0;
+  const totalPorCategoria = {};
+  if(clicavel) relCustoBreakdownMap = {};
+  const linhas = lista.map(h=>{
+    const { total, porCategoria, itensPorCategoria } = custoDiretoAnimalDetalhado(h.id, de, ate);
+    return { h, total, porCategoria, itensPorCategoria };
+  }).filter(r=>r.total>0);
+  linhas.forEach(r=>{
+    totalGeral += r.total;
+    CATEGORIAS_CUSTO_ANIMAL_ORDEM.forEach(c=>{ totalPorCategoria[c] = (totalPorCategoria[c]||0) + (r.porCategoria[c]||0); });
+  });
+  const html = `<table class="grid">
+      <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
+      <tbody>${linhas.length===0 ? `<tr><td colspan="${CATEGORIAS_CUSTO_ANIMAL_ORDEM.length+2}" class="empty">Nenhum custo atribuído no período.</td></tr>` : linhas.map((r,i)=>`<tr>
+        <td>${clicavel?`<button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> `:''}<strong>${r.h.nome||''}</strong></td>
+        ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>{
+          if(!(r.porCategoria[c]>0)) return `<td><span style="color:var(--muted);">—</span></td>`;
+          if(!clicavel) return `<td>${fmtR(r.porCategoria[c])}</td>`;
+          const k = `l${i}_${c}`;
+          relCustoBreakdownMap[k] = { animalNome:r.h.nome, categoria:c, total:r.porCategoria[c], itens:r.itensPorCategoria[c]||[] };
+          return `<td class="custo-clicavel" data-relcustobreak="${k}">${fmtR(r.porCategoria[c])}</td>`;
+        }).join('')}
+        <td style="font-weight:600;" ${clicavel&&r.total>0?`class="custo-clicavel" data-relcustobreak="l${i}_total"`:''}>${fmtR(r.total)}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr style="font-weight:600;border-top:2px solid #333;"><td>Total</td>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${fmtR(totalPorCategoria[c]||0)}</td>`).join('')}<td>${fmtR(totalGeral)}</td></tr></tfoot>
+    </table>`;
+  if(clicavel){
+    linhas.forEach((r,i)=>{
+      if(r.total>0) relCustoBreakdownMap[`l${i}_total`] = { animalNome:r.h.nome, categoria:'Total', total:r.total,
+        itens: CATEGORIAS_CUSTO_ANIMAL_ORDEM.flatMap(c=>(r.itensPorCategoria[c]||[]).map(it=>({...it, descricao:`${c} — ${it.descricao||''}`}))) };
+    });
+  }
+  return html;
+}
 function renderCustoPorAnimalTab(){
   const valorFiltroPropAtual = custoAnimalFiltroPropSel.value;
   custoAnimalFiltroPropSel.innerHTML = '<option value="">Todos</option>' + (aux.proprietarios||[]).slice().sort((a,b)=>a.localeCompare(b,'pt')).map(p=>`<option value="${p}">${p}</option>`).join('');
   custoAnimalFiltroPropSel.value = valorFiltroPropAtual;
   const filtroProp = custoAnimalFiltroPropSel.value;
   const { de, ate } = custoAnimalPeriodo.getRange();
-  const { porAnimal: geralPorAnimal, semAnimalAtivo } = simularRateioMensal(de, ate);
-  const linhas = horses.filter(h=>h.situacao!=='E' && (!filtroProp || h.proprietario===filtroProp)).map(h=>{
-    const direto = custoDiretoAnimal(h.id, de, ate).total;
-    const geral = geralPorAnimal[h.id] || 0;
-    return { id:h.id, nome:h.nome, direto, geral, total: direto+geral };
-  }).filter(r=>r.direto>0 || r.geral>0);
-  const { campo, dir } = custoAnimalOrdenacao;
-  linhas.sort((a,b)=>{
-    const v = campo==='nome' ? a.nome.localeCompare(b.nome,'pt') : (a[campo]-b[campo]);
-    return dir==='asc' ? v : -v;
-  });
-  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-  const tbody = document.getElementById('custoAnimalTbody');
-  tbody.innerHTML = linhas.length===0 ? '<tr><td colspan="4" class="empty">Nenhum custo atribuído no período.</td></tr>' : linhas.map(r=>`
-    <tr>
-      <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
-      <td>${r.direto>0 ? `<button type="button" data-vercustodireto="${r.id}" title="Ver de onde veio esse custo" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.direto)}</button>` : fmtR(r.direto)}</td>
-      <td>${r.geral>0 ? `<button type="button" data-vercustogeral="${r.id}" title="Ver quais lançamentos formam esse rateio" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.geral)}</button>` : fmtR(r.geral)}</td>
-      <td style="font-weight:600;">${fmtR(r.total)}</td>
-    </tr>`).join('');
-  tbody.querySelectorAll('[data-vercustodireto]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoAnimal(b.dataset.vercustodireto)));
-  tbody.querySelectorAll('[data-vercustogeral]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoGeralAnimal(b.dataset.vercustogeral)));
-  const avisos = document.getElementById('custoAnimalAvisos');
-  avisos.innerHTML = semAnimalAtivo.length===0 ? '' : `<div class="hint-text" style="color:var(--warn-ink);margin-bottom:10px;">⚠ Sobrou custo geral sem nenhum animal ativo pra dividir em: ${semAnimalAtivo.map(s=>MESES_LABEL[Number(s.mes.slice(5,7))-1]+'/'+s.mes.slice(0,4)+' ('+fmtR(s.total)+')').join(', ')}.</div>`;
+  const lista = horses.filter(h=>h.situacao!=='E' && h.situacao!=='V' && !h.falecimento && (!filtroProp || h.proprietario===filtroProp))
+    .slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  document.getElementById('custoAnimalTabelaHost').innerHTML = montarTabelaCustoCategoria(lista, de, ate, {clicavel:true});
+  document.getElementById('custoAnimalAvisos').innerHTML = '';
 }
 // Drill-down do custo Direto: clicou no valor, mostra cada lançamento que entrou nessa soma (com o
 // que coube a ESTE animal quando o lançamento é dividido com outros) e um botão pra ir direto na
 // tela/registro de origem — mesma navegação já usada em Financeiro → Lançamentos → "Ver em X".
-function abrirDetalheCustoAnimal(animalId){
+function abrirDetalheCustoAnimal(animalId, de, ate){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
-  const { de, ate } = custoAnimalPeriodo.getRange();
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const linhas = todosLancamentosFinanceiro().filter(l=>{
     if(l.moeda==='USD') return false;
@@ -18304,9 +18313,8 @@ function abrirDetalheCustoAnimal(animalId){
 // Drill-down do "Geral rateado": os lançamentos sem dono que formam o pote do mês (ver
 // poteRateioPorMes), já com a fatia que coube a este animal em cada um — reaproveita o mesmo modal
 // do Custo Direto, só que com outro título/conteúdo.
-function abrirDetalheCustoGeralAnimal(animalId){
+function abrirDetalheCustoGeralAnimal(animalId, de, ate){
   const h = horses.find(x=>x.id===animalId); if(!h) return;
-  const { de, ate } = custoAnimalPeriodo.getRange();
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const itens = custoRateioGeralItens(animalId, de, ate);
   document.getElementById('custoAnimalDetalheTitulo').textContent = 'Geral Rateado — '+(h.nome||'');
@@ -18330,30 +18338,14 @@ function abrirDetalheCustoGeralAnimal(animalId){
     </table></div>`;
   openModal('overlayCustoAnimalDetalhe');
 }
-document.querySelectorAll('#custoAnimalTabela th[data-csort]').forEach(th=>{
-  th.addEventListener('click', ()=>{
-    const campo = th.dataset.csort;
-    if(custoAnimalOrdenacao.campo===campo) custoAnimalOrdenacao.dir = custoAnimalOrdenacao.dir==='asc'?'desc':'asc';
-    else custoAnimalOrdenacao = { campo, dir: campo==='nome'?'asc':'desc' };
-    renderCustoPorAnimalTab();
-  });
-});
 document.getElementById('btnPdfCustoAnimal').addEventListener('click', ()=>{
   const { de, ate } = custoAnimalPeriodo.getRange();
-  const { porAnimal: geralPorAnimal } = simularRateioMensal(de, ate);
-  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-  const linhas = horses.filter(h=>h.situacao!=='E').map(h=>{
-    const direto = custoDiretoAnimal(h.id, de, ate).total;
-    const geral = geralPorAnimal[h.id] || 0;
-    return { nome:h.nome, direto, geral, total: direto+geral };
-  }).filter(r=>r.direto>0 || r.geral>0).sort((a,b)=>b.total-a.total);
-  const totalDireto = linhas.reduce((s,r)=>s+r.direto,0), totalGeralR = linhas.reduce((s,r)=>s+r.geral,0), totalTudo = linhas.reduce((s,r)=>s+r.total,0);
+  const filtroProp = custoAnimalFiltroPropSel.value;
+  const lista = horses.filter(h=>h.situacao!=='E' && h.situacao!=='V' && !h.falecimento && (!filtroProp || h.proprietario===filtroProp))
+    .slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
   const html = `<h1>Custo por Animal</h1>
     <div class="sub">${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'}</div>
-    <table><thead><tr><th>Animal</th><th class="num">Direto</th><th class="num">Geral rateado</th><th class="num">Total</th></tr></thead>
-    <tbody>${linhas.map(r=>`<tr><td>${r.nome}</td><td class="num">${fmtR(r.direto)}</td><td class="num">${fmtR(r.geral)}</td><td class="num">${fmtR(r.total)}</td></tr>`).join('')}</tbody>
-    <tfoot><tr><td>Total</td><td class="num">${fmtR(totalDireto)}</td><td class="num">${fmtR(totalGeralR)}</td><td class="num">${fmtR(totalTudo)}</td></tr></tfoot>
-    </table>`;
+    ${montarTabelaCustoCategoria(lista, de, ate, {clicavel:false})}`;
   abrirPreviaRelatorio(html, 'Custo_por_Animal.pdf', 'Custo por Animal');
 });
 ['finFiltroTipo','finFiltroCategoria'].forEach(id=>{
@@ -20655,38 +20647,31 @@ function gerarRelatorioFicha3(){
   const { de, ate } = relCustoPeriodo.getRange();
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const host = document.getElementById('relFichaResult');
-  let totalGeral = 0;
-  const totalPorCategoria = {};
-  relCustoBreakdownMap = {};
+  const { porAnimal: geralPorAnimal, semAnimalAtivo } = simularRateioMensal(de, ate);
   const linhas = lista.map(h=>{
-    const { total, porCategoria, itensPorCategoria } = custoDiretoAnimalDetalhado(h.id, de, ate);
-    totalGeral += total;
-    CATEGORIAS_CUSTO_ANIMAL_ORDEM.forEach(c=>{ totalPorCategoria[c] = (totalPorCategoria[c]||0) + (porCategoria[c]||0); });
-    return { h, total, porCategoria, itensPorCategoria };
+    const direto = custoDiretoAnimal(h.id, de, ate).total;
+    const geral = geralPorAnimal[h.id] || 0;
+    return { id:h.id, nome:h.nome, direto, geral, total: direto+geral };
   });
+  const totalDireto = linhas.reduce((s,r)=>s+r.direto,0), totalGeralR = linhas.reduce((s,r)=>s+r.geral,0), totalTudo = linhas.reduce((s,r)=>s+r.total,0);
+  const avisoSemAtivo = semAnimalAtivo.length===0 ? '' : `<div class="hint-text" style="color:var(--warn-ink);margin-bottom:10px;">⚠ Sobrou custo geral sem nenhum animal ativo pra dividir em: ${semAnimalAtivo.map(s=>MESES_LABEL[Number(s.mes.slice(5,7))-1]+'/'+s.mes.slice(0,4)+' ('+fmtR(s.total)+')').join(', ')}.</div>`;
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:6px;">Relatório 3 — Custo por Animal</div>
-    <div class="subtitle" style="margin-bottom:14px;">Custo direto de cada animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'} — tudo que já foi atribuído diretamente a ele (Alimentação, Saúde, Casco, Dente, Transporte, Atividades). Não entram valores em US$ nem os custos gerais do haras ainda não divididos entre os animais. Clique num valor pra ver de onde ele veio.</div>
+    <div class="subtitle" style="margin-bottom:14px;">Três números por animal ${de||ate ? ('de '+(de?fmtDate(de):'sempre')+' até '+(ate?fmtDate(ate):'hoje')) : 'de todo o histórico'}: <strong>Direto</strong> (o que já foi atribuído certinho a ele — Alimentação, Saúde, Casco...), <strong>Geral rateado</strong> (a fatia dele nos custos gerais do haras, que não têm dono) e o <strong>Total</strong> dos dois. O rateio geral é sempre mês a mês, dividido só entre quem estava ativo naquele mês. Clique num valor pra ver de onde ele veio.</div>
+    ${avisoSemAtivo}
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
-      <tbody>${linhas.map((r,i)=>`<tr>
-        <td><button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.h.nome||''}</strong></td>
-        ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>{
-          if(!(r.porCategoria[c]>0)) return `<td><span style="color:var(--muted);">—</span></td>`;
-          const k = `l${i}_${c}`;
-          relCustoBreakdownMap[k] = { animalNome:r.h.nome, categoria:c, total:r.porCategoria[c], itens:r.itensPorCategoria[c]||[] };
-          return `<td class="custo-clicavel" data-relcustobreak="${k}">${fmtR(r.porCategoria[c])}</td>`;
-        }).join('')}
-        <td style="font-weight:600;" class="${r.total>0?'custo-clicavel':''}" ${r.total>0?`data-relcustobreak="l${i}_total"`:''}>${fmtR(r.total)}</td>
+      <thead><tr><th>Animal</th><th title="Clique no valor de um animal pra ver de onde veio">Direto 🔍</th><th>Geral rateado</th><th>Total</th></tr></thead>
+      <tbody>${linhas.map(r=>`<tr>
+        <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
+        <td>${r.direto>0 ? `<button type="button" data-vercustodireto="${r.id}" title="Ver de onde veio esse custo" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.direto)}</button>` : fmtR(r.direto)}</td>
+        <td>${r.geral>0 ? `<button type="button" data-vercustogeral="${r.id}" title="Ver quais lançamentos formam esse rateio" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.geral)}</button>` : fmtR(r.geral)}</td>
+        <td style="font-weight:600;">${fmtR(r.total)}</td>
       </tr>`).join('')}</tbody>
-      <tfoot><tr style="font-weight:600;border-top:2px solid #333;"><td>Total</td>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<td>${fmtR(totalPorCategoria[c]||0)}</td>`).join('')}<td>${fmtR(totalGeral)}</td></tr></tfoot>
+      <tfoot><tr style="font-weight:600;border-top:2px solid #333;"><td>Total</td><td>${fmtR(totalDireto)}</td><td>${fmtR(totalGeralR)}</td><td>${fmtR(totalTudo)}</td></tr></tfoot>
     </table></div>
   </div>`;
-  // Linha "Total" de cada animal: junta os itens de todas as categorias daquele animal num popover só.
-  linhas.forEach((r,i)=>{
-    if(r.total>0) relCustoBreakdownMap[`l${i}_total`] = { animalNome:r.h.nome, categoria:'Total', total:r.total,
-      itens: CATEGORIAS_CUSTO_ANIMAL_ORDEM.flatMap(c=>(r.itensPorCategoria[c]||[]).map(it=>({...it, descricao:`${c} — ${it.descricao||''}`}))) };
-  });
+  host.querySelectorAll('[data-vercustodireto]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoAnimal(b.dataset.vercustodireto, de, ate)));
+  host.querySelectorAll('[data-vercustogeral]').forEach(b=>b.addEventListener('click', ()=>abrirDetalheCustoGeralAnimal(b.dataset.vercustogeral, de, ate)));
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
 document.getElementById('btnGerarRel1Ficha').addEventListener('click', gerarRelatorioFicha1);
