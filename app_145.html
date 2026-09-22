@@ -1200,6 +1200,7 @@
         <span class="chip" data-nvtab="visitas" id="nvtab_visitas">🩺 Visitas / Exames</span>
         <span class="chip" data-nvtab="protocolo" id="nvtab_protocolo">💉 Protocolo de Vacinas</span>
         <span class="chip" data-nvtab="semen" id="nvtab_semen">🧊 Sêmen</span>
+        <span class="chip" data-nvtab="vendacob" id="nvtab_vendacob">💰 Venda de Cobertura</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
       </div>
 
@@ -1312,9 +1313,40 @@
             <th class="sortable" data-ordlista="semen" data-ordcol="qtd">Doses em estoque</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="minimo">Mínimo</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="validade">Validade</th>
+            <th title="Última saída registrada: quantas doses e para onde foram">Último uso 🔍</th>
             <th>Observações</th><th></th>
           </tr></thead>
           <tbody id="semenTbody"></tbody>
+        </table></div>
+      </div>
+
+      <div id="nview_vendacob" style="display:none;">
+        <div class="stats" id="vendaCobStats"></div>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="vendaCobSearch" placeholder="Comprador, garanhão, observações..."></div>
+          <div class="f"><label>Situação</label><select id="vendaCobFiltroPago"><option value="">Todas</option><option value="pago">Pagas</option><option value="pendente">A receber</option></select></div>
+        </div>
+        <div class="hint-text" style="margin:0 0 12px;">Venda de doses/coberturas do seu garanhão. Ao salvar, as doses saem do <strong>Estoque de Sêmen</strong> automaticamente (com o comprador como destino) e a venda entra no <strong>Financeiro</strong> como receita na categoria "Venda de Cobertura".</div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn" id="btnNewVendaCob" style="margin-right:auto;">+ Nova venda</button>
+          <div class="menu-discreto-wrap">
+            <button type="button" class="btn btn-ghost btn-sm" title="Mais opções">⋯</button>
+            <div class="menu-discreto-pop">
+              <button type="button" class="btn btn-ghost btn-sm" data-pdftabela='#nview_vendacob [data-lista="vendacob"]' data-pdftitulo="Vendas de Cobertura" data-pdfarquivo="Vendas_Cobertura">📄 Baixar PDF</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid-wrap"><table class="grid" data-lista="vendacob">
+          <thead><tr>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="data">Data</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="comprador">Comprador</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="garanhao">Garanhão</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="doses">Doses</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="valor">Valor</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="pago">Situação</th>
+            <th>Observações</th><th></th>
+          </tr></thead>
+          <tbody id="vendaCobTbody"></tbody>
         </table></div>
       </div>
 
@@ -2660,6 +2692,43 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
+<!-- VENDA DE COBERTURA -->
+<div class="overlay" id="overlayVendaCob">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="vendaCobModalTitle">Nova venda de cobertura</div><button class="modal-close" data-close="overlayVendaCob">✕</button></div>
+    <div class="form-grid">
+      <div class="field"><label>Data da venda</label><input type="date" id="vc_data"></div>
+      <div class="field"><label>Comprador</label><input type="text" id="vc_comprador" list="dl_compradores_cobertura" placeholder="Nome do cliente / haras"></div>
+      <div class="field full"><label>Lote de sêmen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(de onde saem as doses)</span></label>
+        <select id="vc_lote"></select>
+      </div>
+      <div class="field"><label>Doses vendidas</label><input type="number" step="1" min="1" id="vc_doses" placeholder="Ex: 3"></div>
+      <div class="field"><label>Valor total (R$)</label><input type="text" id="vc_valor" placeholder="0,00"></div>
+      <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="vc_pago" style="width:15px;height:15px;margin:0;"> Já recebido</label></div>
+      <div class="field"><label>Forma de pagamento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="vc_forma" placeholder="Pix, boleto, à vista..."></div>
+      <div class="field full"><label>Observações</label><input type="text" id="vc_obs" placeholder="Égua de destino, contrato, condições..."></div>
+      <div class="field full"><div class="hint-text" id="vc_avisoEstoque" style="margin:0;"></div></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteVendaCob" style="display:none;">Excluir</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVendaCob">Cancelar</button><button type="button" class="btn" id="btnSaveVendaCob">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+    </div>
+  </div>
+</div>
+<datalist id="dl_compradores_cobertura"></datalist>
+
+<!-- MOVIMENTAÇÕES DO LOTE DE SÊMEN (extrato: pra onde foram as doses) -->
+<div class="overlay" id="overlaySemenMovs">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="semenMovsTitulo">Movimentações</div><button class="modal-close" data-close="overlaySemenMovs">✕</button></div>
+    <div id="semenMovsBody"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlaySemenMovs">Fechar</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- PRODUTO MODAL -->
 <div class="overlay" id="overlayProduto">
   <div class="modal">
@@ -3302,6 +3371,7 @@ document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key
 let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[], visitasRepro=[];
 let semenLotes=[]; // estoque de sêmen por garanhão/lote — cada um com .movimentos embutidos
+let vendasCobertura=[]; // venda de doses/coberturas pra terceiros — dá baixa no sêmen e vira receita no Financeiro
 let auditoria=[];
 let auditoriaCarregada=false; // o log só é lido do banco quando a aba Auditoria (ou um backup) precisa
 async function garantirAuditoriaCarregada(){
@@ -3463,6 +3533,7 @@ const AUDIT_KEYS = {
   transportes_list:   { modulo:'Transporte',  nome: r=>[r.origem, r.destino].filter(Boolean).join(' → ') },
   usuarios_list:      { modulo:'Usuários',    nome: r=>r.nome },
   semen_lotes:        { modulo:'Reprodução', nome: r=>['Sêmen', r.garanhao, r.lote].filter(Boolean).join(' · ') },
+  vendas_cobertura:   { modulo:'Reprodução', nome: r=>['Venda de cobertura', r.comprador, r.garanhao].filter(Boolean).join(' · ') },
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
@@ -3559,6 +3630,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'funcionarios_list': funcionarios = val; break;
     case 'transportes_list': transportes = val; break;
     case 'semen_lotes': semenLotes = val; break;
+    case 'vendas_cobertura': vendasCobertura = val; break;
     case 'usuarios_list': usuarios = val; break;
     case 'config': config = val; break;
     case 'aux_lists': aux = val; break;
@@ -3787,7 +3859,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3798,7 +3870,7 @@ async function loadAll(){
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
     storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
-    storeGet('piquetes_list')
+    storeGet('piquetes_list'), storeGet('vendas_cobertura')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   animalRegistros = rARz.value||[];
@@ -3808,6 +3880,7 @@ async function loadAll(){
   consultoriaPropriedades = rCPr.value||[];
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
+  vendasCobertura = Array.isArray(rVCob.value) ? rVCob.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
   // Começa vazio; o storeSet('auditoria_log') funde com o disco (união), então nada se perde. É
   // carregado de verdade quando a aba Auditoria abre (ver garantirAuditoriaCarregada).
@@ -3826,7 +3899,7 @@ async function loadAll(){
     horses_list:horses, manejos_list:manejos, treinos_list:treinos, nascimentos_list:nascimentos,
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
-    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes,
+    visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes, vendas_cobertura:vendasCobertura,
     consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades,
     animal_registros_list:animalRegistros, piquetes_list:piquetes
   })[k]));
@@ -11122,7 +11195,7 @@ ORD_RENDERERS.coberturas = renderNascimentos;
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
 function showNascTab(tab){
-  ['lista','visitas','protocolo','semen','relatorio'].forEach(t=>{
+  ['lista','visitas','protocolo','semen','vendacob','relatorio'].forEach(t=>{
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
@@ -11130,6 +11203,7 @@ function showNascTab(tab){
   if(tab==='protocolo') renderProtocoloVacinas();
   if(tab==='visitas') renderVisitasRepro();
   if(tab==='semen') renderSemen();
+  if(tab==='vendacob') renderVendasCobertura();
   if(tab==='relatorio'){
     const estSel = document.getElementById('nrFiltroEstacao');
     const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
@@ -11142,6 +11216,7 @@ document.getElementById('nvtab_lista').addEventListener('click', ()=>showNascTab
 document.getElementById('nvtab_visitas').addEventListener('click', ()=>showNascTab('visitas'));
 document.getElementById('nvtab_protocolo').addEventListener('click', ()=>showNascTab('protocolo'));
 document.getElementById('nvtab_semen').addEventListener('click', ()=>showNascTab('semen'));
+document.getElementById('nvtab_vendacob').addEventListener('click', ()=>showNascTab('vendacob'));
 document.getElementById('nvtab_relatorio').addEventListener('click', ()=>showNascTab('relatorio'));
 
 /* ===== ESTOQUE DE SÊMEN ===== */
@@ -11178,13 +11253,23 @@ function renderSemen(){
     return '';
   });
   marcarSetasOrdenacao('semen', '#nview_semen [data-lista="semen"]');
-  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="8" class="empty">${semenLotes.length===0?'Nenhum lote de sêmen cadastrado. Clique em "+ Novo lote".':'Nenhum lote encontrado.'}</td></tr>`; return; }
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="9" class="empty">${semenLotes.length===0?'Nenhum lote de sêmen cadastrado. Clique em "+ Novo lote".':'Nenhum lote encontrado.'}</td></tr>`; return; }
   tbody.innerHTML = lista.map(l=>{
     const s = semenSituacao(l);
     const q = Number(l.quantidade)||0;
     const validadeCel = l.validade
       ? `${fmtDate(l.validade)}${l.validade < hoje ? ' <span class="pill st-descarte">vencido</span>' : ''}`
       : '—';
+    const ult = ultimaSaidaSemen(l);
+    const temMovs = (l.movimentos||[]).length > 0;
+    const ultimoUsoCel = ult
+      ? `<button type="button" data-semenmovs="${l.id}" title="${escHtml(ult.motivo||'destino não informado')} — clique pra ver todas as movimentações" style="background:none;border:none;padding:0;font:inherit;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;text-align:left;max-width:200px;">
+           <span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">−${ult.qtd} · ${escHtml(ult.motivo||'destino não informado')}</span>
+           <span style="color:var(--muted);font-size:11px;">${fmtDate(ult.data)}</span>
+         </button>`
+      : (temMovs
+          ? `<button type="button" data-semenmovs="${l.id}" title="Ver movimentações" style="background:none;border:none;padding:0;font:inherit;color:var(--green);text-decoration:underline dotted;cursor:pointer;">só entradas</button>`
+          : '<span style="color:var(--muted);">—</span>');
     return `<tr data-id="${l.id}" style="cursor:pointer;" title="Clique pra editar">
       <td><strong>${l.garanhao||'—'}</strong></td>
       <td>${l.lote||'—'}</td>
@@ -11192,6 +11277,7 @@ function renderSemen(){
       <td>${q} <span class="pill ${s.cls}">${s.txt}</span></td>
       <td>${l.minimo!=null&&l.minimo!==''?l.minimo:'—'}</td>
       <td style="white-space:nowrap;">${validadeCel}</td>
+      <td>${ultimoUsoCel}</td>
       <td>${l.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-semenusar="${l.id}" title="Registrar uso numa inseminação (dá baixa)">− Usar</button>
@@ -11205,6 +11291,39 @@ function renderSemen(){
   }));
   tbody.querySelectorAll('[data-semenusar]').forEach(b=>b.addEventListener('click', ()=>movimentarSemen(b.dataset.semenusar, 'saida')));
   tbody.querySelectorAll('[data-semenentrada]').forEach(b=>b.addEventListener('click', ()=>movimentarSemen(b.dataset.semenentrada, 'entrada')));
+  tbody.querySelectorAll('[data-semenmovs]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); abrirMovimentosSemen(b.dataset.semenmovs); }));
+}
+// Última SAÍDA de um lote — é ela que responde "pra onde foram as palhetas".
+function ultimaSaidaSemen(l){
+  const saidas = (l.movimentos||[]).filter(m=>m.tipo==='saida');
+  return saidas.length ? saidas[saidas.length-1] : null;
+}
+// Extrato completo de um lote (entradas e saídas, com destino e quem registrou).
+function abrirMovimentosSemen(id){
+  const l = semenLotes.find(x=>x.id===id); if(!l) return;
+  const movs = (l.movimentos||[]).slice().reverse();
+  const titulo = ['Movimentações', l.garanhao, l.lote].filter(Boolean).join(' — ');
+  document.getElementById('semenMovsTitulo').textContent = titulo;
+  const body = document.getElementById('semenMovsBody');
+  if(movs.length===0){
+    body.innerHTML = '<div class="empty">Nenhuma movimentação registrada neste lote ainda.</div>';
+  } else {
+    const totalSaida = movs.filter(m=>m.tipo==='saida').reduce((s,m)=>s+(Number(m.qtd)||0),0);
+    const totalEntrada = movs.filter(m=>m.tipo!=='saida').reduce((s,m)=>s+(Number(m.qtd)||0),0);
+    body.innerHTML = `
+      <div class="hint-text" style="margin-bottom:12px;">Movimentações registradas: <strong>+${totalEntrada}</strong> de entrada e <strong>−${totalSaida}</strong> de saída. Em estoque agora: <strong>${Number(l.quantidade)||0}</strong> dose(s) — a quantidade digitada no cadastro do lote não conta como movimentação.</div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Data</th><th>Movimento</th><th>Doses</th><th>Destino / observação</th><th>Registrado por</th></tr></thead>
+        <tbody>${movs.map(m=>`<tr>
+          <td style="white-space:nowrap;">${fmtDate(m.data)}</td>
+          <td>${m.tipo==='saida'?'<span class="pill st-descarte">Saída</span>':'<span class="pill st-ativo">Entrada</span>'}</td>
+          <td style="font-family:'IBM Plex Mono',monospace;">${m.tipo==='saida'?'−':'+'}${m.qtd}</td>
+          <td>${escHtml(m.motivo||'')||'<span style="color:var(--muted);">não informado</span>'}</td>
+          <td>${escHtml(m.por||'')||'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+  openModal('overlaySemenMovs');
 }
 ORD_RENDERERS.semen = renderSemen;
 document.getElementById('semenSearch').addEventListener('input', debounce(renderSemen));
@@ -11220,7 +11339,11 @@ async function movimentarSemen(id, tipoMov){
     if(!(await showConfirm('Só tem '+atual+' dose(s) em estoque. Registrar a baixa mesmo assim (fica negativo/zerado)?'))) return;
   }
   let motivo = '';
-  if(tipoMov==='saida'){ motivo = (await showPrompt('Égua / observação (opcional):', 'Ex: Estrela') || '').trim(); }
+  if(tipoMov==='saida'){
+    // Destino é o que responde "pra onde foram essas doses" — aparece na coluna "Último uso" da lista
+    // e no extrato completo do lote (botão nessa coluna).
+    motivo = (await showPrompt('Para onde foram essas doses? (égua, cliente, descarte...)', 'Ex: Estrela') || '').trim();
+  }
   l.quantidade = tipoMov==='saida' ? Math.max(0, atual - q) : atual + q;
   if(!l.movimentos) l.movimentos = [];
   l.movimentos.push({ data: toISODate(new Date()), tipo: tipoMov, qtd: q, motivo, por: currentUser?currentUser.nome:'' });
@@ -11279,6 +11402,195 @@ document.getElementById('btnDeleteSemen').addEventListener('click', async ()=>{
   closeModal('overlaySemen'); renderSemen();
 });
 bindSaveShortcut('overlaySemen','btnSaveSemen');
+
+/* ===== VENDA DE COBERTURA =====
+   Venda de doses do garanhão pra terceiros. Ela é a DONA de duas consequências automáticas:
+   1) baixa no Estoque de Sêmen (o comprador vira o destino das palhetas — ver movimentos do lote);
+   2) receita no Financeiro (categoria "Venda de Cobertura"), derivada daqui, nunca digitada duas vezes.
+   Por isso a venda guarda `dosesBaixadas` e `loteIdBaixado`: editar ou excluir precisa DESFAZER
+   exatamente o que foi tirado antes, senão o estoque fica torto. */
+let editingVendaCobId = null;
+function vendaCobDescricao(v){
+  return `Venda de cobertura${v.garanhao?(' — '+v.garanhao):''}${v.doses?(' · '+v.doses+' dose(s)'):''}${v.comprador?(' · '+v.comprador):''}`;
+}
+// Aplica no estoque a diferença entre o que a venda já tinha tirado e o que ela passa a tirar agora.
+// `novo` = null significa que a venda foi excluída (devolve tudo pro lote).
+function ajustarEstoqueVendaCob(anterior, novo){
+  const porQuem = currentUser ? currentUser.nome : '';
+  const hojeISO = toISODate(new Date());
+  // Devolve o que a venda anterior tinha tirado (se tirou de um lote que ainda existe).
+  if(anterior && anterior.loteIdBaixado && (Number(anterior.dosesBaixadas)||0) > 0){
+    const loteAnt = semenLotes.find(l=>l.id===anterior.loteIdBaixado);
+    if(loteAnt){
+      const mesmoLote = novo && novo.loteId===anterior.loteIdBaixado;
+      const qtdNova = novo ? (Number(novo.doses)||0) : 0;
+      const delta = mesmoLote ? (qtdNova - (Number(anterior.dosesBaixadas)||0)) : -(Number(anterior.dosesBaixadas)||0);
+      if(delta !== 0){
+        loteAnt.quantidade = Math.max(0, (Number(loteAnt.quantidade)||0) - delta);
+        if(!loteAnt.movimentos) loteAnt.movimentos = [];
+        loteAnt.movimentos.push({ data: hojeISO, tipo: delta>0?'saida':'entrada', qtd: Math.abs(delta),
+          motivo: (delta>0?'Venda — ':'Estorno de venda — ') + ((novo||anterior).comprador||'sem comprador'), por: porQuem, vendaId: (novo||anterior).id });
+      }
+      if(mesmoLote) return; // já acertado acima; não precisa tirar de novo
+    }
+  }
+  // Tira do lote novo (venda nova, ou venda que trocou de lote).
+  if(novo && novo.loteId && (Number(novo.doses)||0) > 0){
+    const lote = semenLotes.find(l=>l.id===novo.loteId);
+    if(lote){
+      const q = Number(novo.doses)||0;
+      lote.quantidade = Math.max(0, (Number(lote.quantidade)||0) - q);
+      if(!lote.movimentos) lote.movimentos = [];
+      lote.movimentos.push({ data: novo.data || hojeISO, tipo:'saida', qtd:q,
+        motivo: 'Venda — ' + (novo.comprador||'sem comprador'), por: porQuem, vendaId: novo.id });
+    }
+  }
+}
+function renderVendasCobertura(){
+  const tbody = document.getElementById('vendaCobTbody'); if(!tbody) return;
+  const termo = (document.getElementById('vendaCobSearch').value||'').toLowerCase();
+  const filtroPago = document.getElementById('vendaCobFiltroPago').value;
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const totalVendido = vendasCobertura.reduce((s,v)=>s+(Number(v.valor)||0),0);
+  const totalReceber = vendasCobertura.filter(v=>!v.pago).reduce((s,v)=>s+(Number(v.valor)||0),0);
+  const totalDoses = vendasCobertura.reduce((s,v)=>s+(Number(v.doses)||0),0);
+  document.getElementById('vendaCobStats').innerHTML =
+    `<div class="stat"><div class="stat-num">${vendasCobertura.length}</div><div class="stat-label">Vendas</div></div>
+     <div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Doses vendidas</div></div>
+     <div class="stat"><div class="stat-num" style="color:var(--ok);">${fmtR(totalVendido)}</div><div class="stat-label">Total vendido</div></div>
+     <div class="stat"><div class="stat-num" style="color:${totalReceber>0?'var(--warn-ink)':'inherit'};">${fmtR(totalReceber)}</div><div class="stat-label">A receber</div></div>`;
+  const filtrada = vendasCobertura.filter(v=>{
+    if(filtroPago==='pago' && !v.pago) return false;
+    if(filtroPago==='pendente' && v.pago) return false;
+    return !termo || [v.comprador,v.garanhao,v.obs,v.forma].some(x=>(x||'').toLowerCase().includes(termo));
+  });
+  const lista = ordenarListaGenerica('vendacob', filtrada, (v,col)=>{
+    if(col==='data') return v.data||'';
+    if(col==='comprador') return (v.comprador||'').toLowerCase();
+    if(col==='garanhao') return (v.garanhao||'').toLowerCase();
+    if(col==='doses') return Number(v.doses)||0;
+    if(col==='valor') return Number(v.valor)||0;
+    if(col==='pago') return v.pago?1:0;
+    return '';
+  });
+  marcarSetasOrdenacao('vendacob', '#nview_vendacob [data-lista="vendacob"]');
+  if(lista.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">${vendasCobertura.length===0?'Nenhuma venda de cobertura registrada. Clique em "+ Nova venda".':'Nenhuma venda encontrada.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(v=>`<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
+      <td style="white-space:nowrap;">${v.data?fmtDate(v.data):'—'}</td>
+      <td><strong>${escHtml(v.comprador||'—')}</strong></td>
+      <td>${escHtml(v.garanhao||'—')}</td>
+      <td>${Number(v.doses)||0}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(v.valor)}</td>
+      <td>${v.pago?'<span class="pill st-ativo">Recebido</span>':'<span class="pill st-warn">A receber</span>'}</td>
+      <td>${escHtml(v.obs||'')}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-vcedit="${v.id}">Editar</button></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    openVendaCobEdit(tr.dataset.id);
+  }));
+  tbody.querySelectorAll('[data-vcedit]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); openVendaCobEdit(b.dataset.vcedit); }));
+}
+ORD_RENDERERS.vendacob = renderVendasCobertura;
+// Preenche o select de lotes mostrando o saldo de cada um (o lote da venda em edição entra mesmo se
+// estiver zerado, senão sumiria da tela na hora de editar a própria venda que zerou o lote).
+function preencherLotesVendaCob(selecionado){
+  const sel = document.getElementById('vc_lote');
+  const opcoes = semenLotes.map(l=>{
+    const rotulo = [l.garanhao, l.lote].filter(Boolean).join(' · ') + ` — ${Number(l.quantidade)||0} dose(s)`;
+    return `<option value="${l.id}">${escHtml(rotulo)}</option>`;
+  }).join('');
+  sel.innerHTML = '<option value="">Não dar baixa em nenhum lote</option>' + opcoes;
+  sel.value = selecionado || '';
+}
+function atualizarAvisoEstoqueVendaCob(){
+  const aviso = document.getElementById('vc_avisoEstoque');
+  const lote = semenLotes.find(l=>l.id===document.getElementById('vc_lote').value);
+  const doses = Math.round(Number(f('vc_doses'))||0);
+  if(!lote){ aviso.textContent = 'Sem lote escolhido, nada é tirado do Estoque de Sêmen — a venda entra só como receita.'; return; }
+  const existente = editingVendaCobId ? vendasCobertura.find(v=>v.id===editingVendaCobId) : null;
+  const jaBaixado = (existente && existente.loteIdBaixado===lote.id) ? (Number(existente.dosesBaixadas)||0) : 0;
+  const disponivel = (Number(lote.quantidade)||0) + jaBaixado;
+  aviso.innerHTML = doses>disponivel
+    ? `⚠ O lote tem ${disponivel} dose(s) disponível(is) e você está vendendo ${doses}. Dá pra salvar mesmo assim (o estoque fica zerado).`
+    : `Ao salvar, saem ${doses||0} dose(s) desse lote (restam ${Math.max(0, disponivel-(doses||0))}).`;
+}
+['vc_lote','vc_doses'].forEach(id=>document.getElementById(id).addEventListener('input', atualizarAvisoEstoqueVendaCob));
+function openVendaCobNew(){
+  editingVendaCobId = null;
+  document.getElementById('vendaCobModalTitle').textContent = 'Nova venda de cobertura';
+  document.getElementById('btnDeleteVendaCob').style.display = 'none';
+  ['vc_comprador','vc_doses','vc_valor','vc_forma','vc_obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('vc_data').value = toISODate(new Date());
+  document.getElementById('vc_pago').checked = false;
+  preencherLotesVendaCob('');
+  atualizarAvisoEstoqueVendaCob();
+  atualizarDatalistCompradoresCobertura();
+  openModal('overlayVendaCob');
+}
+function openVendaCobEdit(id){
+  const v = vendasCobertura.find(x=>x.id===id); if(!v) return;
+  editingVendaCobId = id;
+  document.getElementById('vendaCobModalTitle').textContent = 'Editar venda — '+(v.comprador||'');
+  document.getElementById('btnDeleteVendaCob').style.display = 'inline-block';
+  document.getElementById('vc_data').value = v.data||'';
+  document.getElementById('vc_comprador').value = v.comprador||'';
+  document.getElementById('vc_doses').value = v.doses!=null ? v.doses : '';
+  document.getElementById('vc_valor').value = v.valor!=null ? Number(v.valor).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+  document.getElementById('vc_pago').checked = !!v.pago;
+  document.getElementById('vc_forma').value = v.forma||'';
+  document.getElementById('vc_obs').value = v.obs||'';
+  preencherLotesVendaCob(v.loteId||'');
+  atualizarAvisoEstoqueVendaCob();
+  atualizarDatalistCompradoresCobertura();
+  openModal('overlayVendaCob');
+}
+function atualizarDatalistCompradoresCobertura(){
+  const nomes = [...new Set(vendasCobertura.map(v=>v.comprador).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+  document.getElementById('dl_compradores_cobertura').innerHTML = nomes.map(n=>`<option value="${escHtml(n)}"></option>`).join('');
+}
+document.getElementById('btnNewVendaCob').addEventListener('click', openVendaCobNew);
+document.getElementById('vendaCobSearch').addEventListener('input', debounce(renderVendasCobertura));
+document.getElementById('vendaCobFiltroPago').addEventListener('change', renderVendasCobertura);
+document.getElementById('btnSaveVendaCob').addEventListener('click', ()=>{
+  const comprador = titleCase(f('vc_comprador'));
+  if(!comprador){ showAlert('Informe o comprador.'); document.getElementById('vc_comprador').focus(); return; }
+  const doses = Math.max(0, Math.round(Number(f('vc_doses'))||0));
+  const valor = parseValorLivre(f('vc_valor')) || 0;
+  const loteId = document.getElementById('vc_lote').value;
+  const lote = semenLotes.find(l=>l.id===loteId);
+  const anterior = editingVendaCobId ? vendasCobertura.find(v=>v.id===editingVendaCobId) : null;
+  const registro = { ...(anterior||{}), id: editingVendaCobId || ('vc_'+Date.now()),
+    data: f('vc_data'), comprador, loteId,
+    // Nome do garanhão fica gravado na venda: se o lote for excluído depois, a venda continua legível.
+    garanhao: lote ? lote.garanhao : (anterior ? anterior.garanhao : ''),
+    doses, valor, pago: document.getElementById('vc_pago').checked,
+    forma: f('vc_forma').trim(), obs: f('vc_obs').trim() };
+  ajustarEstoqueVendaCob(anterior, registro);
+  registro.loteIdBaixado = loteId || '';
+  registro.dosesBaixadas = loteId ? doses : 0;
+  vendasCobertura = editingVendaCobId ? vendasCobertura.map(v=>v.id===editingVendaCobId?registro:v) : [...vendasCobertura, registro];
+  closeModal('overlayVendaCob');
+  renderVendasCobertura(); renderSemen(); renderFinanceiro();
+  salvarEmSegundoPlano('vendas_cobertura', vendasCobertura, renderVendasCobertura);
+  salvarEmSegundoPlano('semen_lotes', semenLotes, renderSemen);
+});
+document.getElementById('btnDeleteVendaCob').addEventListener('click', async ()=>{
+  if(!editingVendaCobId) return;
+  const v = vendasCobertura.find(x=>x.id===editingVendaCobId); if(!v) return;
+  const temBaixa = v.loteIdBaixado && (Number(v.dosesBaixadas)||0) > 0;
+  if(!(await showConfirm('Excluir esta venda de cobertura?'+(temBaixa?` As ${v.dosesBaixadas} dose(s) voltam pro estoque do lote.`:'')))) return;
+  ajustarEstoqueVendaCob(v, null);
+  vendasCobertura = vendasCobertura.filter(x=>x.id!==editingVendaCobId);
+  await storeSet('vendas_cobertura', vendasCobertura, true);
+  await storeSet('semen_lotes', semenLotes, true);
+  closeModal('overlayVendaCob');
+  renderVendasCobertura(); renderSemen(); renderFinanceiro();
+});
+bindSaveShortcut('overlayVendaCob','btnSaveVendaCob');
 
 /* ---- Tela "Protocolo de Vacinas" — lista as regras (editáveis) e a agenda calculada ---- */
 function renderRegrasProtocolo(){
@@ -17828,6 +18140,19 @@ function vendaLancamentoDoAnimal(h){
     valor: valorVenda, moeda, origemAnimalId: h.id
   };
 }
+// Venda de cobertura (Reprodução → 💰 Venda de Cobertura): cada venda vira uma RECEITA aqui, derivada
+// do cadastro dela — mudou lá, muda aqui na hora, e não existe o risco de lançar o mesmo dinheiro duas
+// vezes. Venda ainda não recebida entra como "alocacao" (aparece no custo/receita por origem, mas não
+// mexe no caixa) e vira caixa de verdade quando for marcada como recebida.
+function lancamentosDerivadosVendaCobertura(){
+  return vendasCobertura.filter(v=>(Number(v.valor)||0) > 0).map(v=>({
+    id: 'auto_vc_'+v.id, origemId: v.id, origem: 'vendacobertura',
+    data: v.data || '', tipo: 'entrada', categoria: 'Venda de Cobertura',
+    natureza: v.pago ? 'caixa' : 'previsto',
+    descricao: vendaCobDescricao(v) + (v.pago ? '' : ' · a receber'),
+    valor: Number(v.valor)||0, moeda: 'BRL'
+  }));
+}
 // Nome usado só pra RECONHECER se uma venda já foi lançada (não é exibido) — minúsculo e sem espaço
 // duplicado, pra "Estrela" e " estrela " contarem como o mesmo animal.
 function normNomeVenda(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
@@ -17869,7 +18194,9 @@ function fmtMoeda(valor, moeda){
 function renderFinanceiroStats(listaCompleta){
   // Alocação nunca entra em Entradas/Saídas/Saldo — é dinheiro que já saiu do caixa antes (na
   // compra), só mostrando agora pra quem foi usado. Continua na tabela de baixo, só não soma aqui.
-  const lista = listaCompleta.filter(l=>l.natureza!=='alocacao');
+  // "Previsto" é o mesmo raciocínio do outro lado: venda de cobertura ainda NÃO recebida aparece na
+  // lista (pra não ficar invisível), mas não pode inflar o caixa como se o dinheiro já tivesse entrado.
+  const lista = listaCompleta.filter(l=>l.natureza!=='alocacao' && l.natureza!=='previsto');
   const emBRL = lista.filter(l=>l.moeda!=='USD'), emUSD = lista.filter(l=>l.moeda==='USD');
   const entradaR = emBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saidaR = emBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
@@ -17882,7 +18209,7 @@ function renderFinanceiroStats(listaCompleta){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte', animais:'Animais' };
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte', animais:'Animais', vendacobertura:'Reprodução' };
 // Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados, Visitas
 // Veterinárias e Aplicações/Tratamentos) — usado tanto na lista filtrável quanto no painel fixo do
 // mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
@@ -17906,7 +18233,8 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosDietas(),
     ...lancamentosDerivadosPiquete(),
     ...lancamentosDerivadosTransporte(),
-    ...lancamentosDerivadosVendas()
+    ...lancamentosDerivadosVendas(),
+    ...lancamentosDerivadosVendaCobertura()
   ];
 }
 // Custa caro (junta lançamentos + derivados de manejos/estoque/treinos/visitas/tratamentos/dietas/
@@ -17925,7 +18253,7 @@ function renderPainelMesFinanceiro(){
   const fimMes = toISODate(new Date(ano, mes+1, 0));
   // Alocação (produto já pago antes, só mostrando em quem foi usado) não entra no resumo do mês —
   // senão o mesmo real pago na compra apareceria de novo aqui como se fosse gasto novo.
-  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.natureza!=='alocacao');
+  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.natureza!=='alocacao' && l.natureza!=='previsto');
   const doMesBRL = doMes.filter(l=>l.moeda!=='USD'), doMesUSD = doMes.filter(l=>l.moeda==='USD');
   const totalEntrada = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const totalSaida = doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
@@ -18012,7 +18340,7 @@ function renderFinanceiro(){
     ${tdCheck('financeiro', l.id)}
     <td>${fmtDate(l.data)}</td>
     <td data-col="origem"><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
-    <td data-col="tipo"><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}</td>
+    <td data-col="tipo"><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}${l.natureza==='previsto'?' <span class="pill st-warn" title="Venda registrada mas ainda não recebida — só entra no caixa quando for marcada como recebida na aba Venda de Cobertura.">A receber — ainda não entrou no caixa</span>':''}</td>
     <td data-col="categoria">${l.categoria||''}</td>
     <td data-col="descricao">${l.descricao||''}</td>
     <td style="font-family:'IBM Plex Mono',monospace;">${fmtMoedaFin(l)}</td>
@@ -18063,6 +18391,9 @@ function navegarParaOrigemFinanceiro(tipoOrigem, id){
     // tela onde ele é editável (mudar ali muda o lançamento aqui na mesma hora).
     irParaView('animais');
     setTimeout(()=>openHorseEdit(id), 30);
+  } else if(tipoOrigem==='vendacobertura'){
+    irParaView('nascimentos');
+    setTimeout(()=>{ showNascTab('vendacob'); openVendaCobEdit(id); }, 30);
   }
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
@@ -21008,7 +21339,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   await garantirAuditoriaCarregada(); // o log não é carregado na abertura; o backup precisa dele inteiro
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, auditoria, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, vendasCobertura, auditoria, aux, config };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -21086,6 +21417,8 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     transportes = [...transportes, ...((backup.transportes||[]).filter(t=>!existingTranspIds.has(t.id)))];
     const existingSemenIds = new Set(semenLotes.map(l=>l.id));
     semenLotes = [...semenLotes, ...((backup.semenLotes||[]).filter(l=>!existingSemenIds.has(l.id)))];
+    const existingVendaCobIds = new Set(vendasCobertura.map(v=>v.id));
+    vendasCobertura = [...vendasCobertura, ...((backup.vendasCobertura||[]).filter(v=>!existingVendaCobIds.has(v.id)))];
     if(backup.aux){
       Object.keys(backup.aux).forEach(k=>{
         if(!aux[k]) aux[k]=[];
@@ -21100,7 +21433,7 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       await storeSet('grupos_list', grupos); await storeSet('financeiro_lancamentos', lancamentos); await storeSet('config', config);
       await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
       await storeSet('transportes_list', transportes); await storeSet('visitas_repro_list', visitasRepro);
-      await storeSet('semen_lotes', semenLotes);
+      await storeSet('semen_lotes', semenLotes); await storeSet('vendas_cobertura', vendasCobertura);
     });
     refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
