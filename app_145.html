@@ -1892,7 +1892,7 @@
             <option value="preco_nao_e_problema">Preço não é problema</option>
           </select></div>
           <div class="field"><label>Volumoso atual</label><select id="csr_forragem"><option value="">Selecione...</option></select></div>
-          <div class="field"><label>Quantidade do volumoso (kg/dia)</label><input type="number" step="0.1" min="0" id="csr_forragemQtd" placeholder="Ex: 6"></div>
+          <div class="field"><label>Quantidade do volumoso (kg/dia)</label><input type="text" inputmode="decimal" id="csr_forragemQtd" placeholder="Ex: 6 ou 6,5"></div>
         </div>
         <div class="lista-toolbar">
           <button class="btn" id="btnSugerirRacaoConsultoria" style="margin-right:auto;">Sugerir ração</button>
@@ -2702,8 +2702,9 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field full"><label>Lote de sêmen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(de onde saem as doses)</span></label>
         <select id="vc_lote"></select>
       </div>
-      <div class="field"><label>Doses vendidas</label><input type="number" step="1" min="1" id="vc_doses" placeholder="Ex: 3"></div>
-      <div class="field"><label>Valor total (R$)</label><input type="text" id="vc_valor" placeholder="0,00"></div>
+      <div class="field"><label>Doses vendidas</label><input type="number" step="1" min="1" id="vc_doses" placeholder="Ex: 2"></div>
+      <div class="field"><label>Valor por dose (R$)</label><input type="text" id="vc_valorUnit" placeholder="Ex: 400,00"></div>
+      <div class="field"><label>Valor total (R$) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">— calculado, mas dá pra ajustar</span></label><input type="text" id="vc_valor" placeholder="0,00"></div>
       <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="vc_pago" style="width:15px;height:15px;margin:0;"> Já recebido</label></div>
       <div class="field"><label>Forma de pagamento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="vc_forma" placeholder="Pix, boleto, à vista..."></div>
       <div class="field full"><label>Observações</label><input type="text" id="vc_obs" placeholder="Égua de destino, contrato, condições..."></div>
@@ -11483,7 +11484,7 @@ function renderVendasCobertura(){
       <td><strong>${escHtml(v.comprador||'—')}</strong></td>
       <td>${escHtml(v.garanhao||'—')}</td>
       <td>${Number(v.doses)||0}</td>
-      <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(v.valor)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(v.valor)}${(Number(v.doses)||0)>1 ? `<br><span style="color:var(--muted);font-size:11px;">${fmtR(v.valorUnitario || (Number(v.valor)||0)/Number(v.doses))} × ${v.doses}</span>` : ''}</td>
       <td>${v.pago?'<span class="pill st-ativo">Recebido</span>':'<span class="pill st-warn">A receber</span>'}</td>
       <td>${escHtml(v.obs||'')}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-vcedit="${v.id}">Editar</button></td>
@@ -11519,11 +11520,21 @@ function atualizarAvisoEstoqueVendaCob(){
     : `Ao salvar, saem ${doses||0} dose(s) desse lote (restam ${Math.max(0, disponivel-(doses||0))}).`;
 }
 ['vc_lote','vc_doses'].forEach(id=>document.getElementById(id).addEventListener('input', atualizarAvisoEstoqueVendaCob));
+// Valor por dose × doses = valor total. O total continua editável (venda fechada com desconto, frete
+// embutido etc.) — só é recalculado quando a pessoa mexe nas doses ou no valor da dose.
+function recalcularTotalVendaCob(){
+  const doses = Math.max(0, Math.round(Number(f('vc_doses'))||0));
+  const unit = parseValorLivre(f('vc_valorUnit'));
+  if(!unit || !doses) return;
+  const total = unit * doses;
+  document.getElementById('vc_valor').value = total.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+['vc_doses','vc_valorUnit'].forEach(id=>document.getElementById(id).addEventListener('input', recalcularTotalVendaCob));
 function openVendaCobNew(){
   editingVendaCobId = null;
   document.getElementById('vendaCobModalTitle').textContent = 'Nova venda de cobertura';
   document.getElementById('btnDeleteVendaCob').style.display = 'none';
-  ['vc_comprador','vc_doses','vc_valor','vc_forma','vc_obs'].forEach(id=>document.getElementById(id).value='');
+  ['vc_comprador','vc_doses','vc_valorUnit','vc_valor','vc_forma','vc_obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('vc_data').value = toISODate(new Date());
   document.getElementById('vc_pago').checked = false;
   preencherLotesVendaCob('');
@@ -11539,6 +11550,10 @@ function openVendaCobEdit(id){
   document.getElementById('vc_data').value = v.data||'';
   document.getElementById('vc_comprador').value = v.comprador||'';
   document.getElementById('vc_doses').value = v.doses!=null ? v.doses : '';
+  // Venda antiga (gravada antes do campo "valor por dose") não tem unitário: deduz dividindo o total.
+  const unit = v.valorUnitario!=null && v.valorUnitario!=='' ? Number(v.valorUnitario)
+             : ((Number(v.doses)||0) > 0 ? (Number(v.valor)||0) / Number(v.doses) : '');
+  document.getElementById('vc_valorUnit').value = unit ? Number(unit).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '';
   document.getElementById('vc_valor').value = v.valor!=null ? Number(v.valor).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) : '';
   document.getElementById('vc_pago').checked = !!v.pago;
   document.getElementById('vc_forma').value = v.forma||'';
@@ -11559,7 +11574,9 @@ document.getElementById('btnSaveVendaCob').addEventListener('click', ()=>{
   const comprador = titleCase(f('vc_comprador'));
   if(!comprador){ showAlert('Informe o comprador.'); document.getElementById('vc_comprador').focus(); return; }
   const doses = Math.max(0, Math.round(Number(f('vc_doses'))||0));
-  const valor = parseValorLivre(f('vc_valor')) || 0;
+  const valorUnitario = parseValorLivre(f('vc_valorUnit')) || 0;
+  // Se o total não foi preenchido (ou zerado), usa o cálculo doses × valor da dose.
+  const valor = parseValorLivre(f('vc_valor')) || (valorUnitario * doses) || 0;
   const loteId = document.getElementById('vc_lote').value;
   const lote = semenLotes.find(l=>l.id===loteId);
   const anterior = editingVendaCobId ? vendasCobertura.find(v=>v.id===editingVendaCobId) : null;
@@ -11567,7 +11584,7 @@ document.getElementById('btnSaveVendaCob').addEventListener('click', ()=>{
     data: f('vc_data'), comprador, loteId,
     // Nome do garanhão fica gravado na venda: se o lote for excluído depois, a venda continua legível.
     garanhao: lote ? lote.garanhao : (anterior ? anterior.garanhao : ''),
-    doses, valor, pago: document.getElementById('vc_pago').checked,
+    doses, valorUnitario, valor, pago: document.getElementById('vc_pago').checked,
     forma: f('vc_forma').trim(), obs: f('vc_obs').trim() };
   ajustarEstoqueVendaCob(anterior, registro);
   registro.loteIdBaixado = loteId || '';
@@ -14912,7 +14929,7 @@ function renderConsultoriaFormulacaoItens(){
         <select data-cffield="horario" data-idx="${idx}">
           ${['Manhã','Tarde','Noite'].map(h=>`<option value="${h}" ${it.horario===h?'selected':''}>${h}</option>`).join('')}
         </select>
-        <input type="number" step="0.01" min="0" data-cffield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="kg">
+        <input type="text" inputmode="decimal" data-cffield="quantidade" data-idx="${idx}" value="${decimalParaCampoBR(it.quantidade)}" placeholder="kg">
         <button type="button" class="btn btn-sm btn-danger" data-cfiremove="${idx}" title="Remover item">✕</button>
       </div>`).join('');
   host.querySelectorAll('[data-cffield]').forEach(el=>{
@@ -14926,7 +14943,11 @@ function renderConsultoriaFormulacaoItens(){
 }
 function atualizarItemFormulacaoConsultoria(e){
   const idx = Number(e.target.dataset.idx), field = e.target.dataset.cffield;
-  consultoriaFormulacaoItensState[idx][field] = e.target.value;
+  // Quantidade é digitada com vírgula (6,5) mas guardada com ponto (6.5) — tudo que lê daqui pra
+  // frente (exigência, custo, relatórios, comparação) usa Number() direto e quebraria com vírgula.
+  consultoriaFormulacaoItensState[idx][field] = field==='quantidade'
+    ? String(e.target.value).replace(',', '.')
+    : e.target.value;
   if(field==='produtoId') renderConsultoriaFormulacaoItens(); else renderConsultoriaFormulacaoResultado();
 }
 document.getElementById('btnAddItemFormulacaoConsultoria').addEventListener('click', ()=>{
@@ -15635,7 +15656,7 @@ function gerarRecomendacaoRacao(qtdMostrar){
 
   // Volumoso: mesmo produto/quantidade vale pra todos os candidatos — só reduz a exigência que sobra.
   const forragemProduto = estoqueProdutos.find(p=>p.id===f('csr_forragem'));
-  const forragemQtd = Number(f('csr_forragemQtd'))||0;
+  const forragemQtd = numDecimalBR(f('csr_forragemQtd'));
   const fornecidoVolumoso = { deKcal:0, pbG:0, caG:0, pG:0 };
   let avisoVolumoso = '';
   if(forragemProduto && forragemQtd>0){
@@ -17922,6 +17943,19 @@ function custoUnitarioProduto(produto){
   if(produto.valorPorPacote && peso>0) return valorNum/peso;
   return valorNum;
 }
+// Teclado/costume brasileiro usa VÍRGULA no decimal, mas <input type="number"> recusa a vírgula em
+// silêncio (o caractere nem entra e o campo fica vazio) — por isso os campos de quantidade da
+// Consultoria são type="text" inputmode="decimal" e passam por aqui. Aceita "6,5" e "6.5".
+function numDecimalBR(valor){
+  if(valor===undefined || valor===null || valor==='') return 0;
+  const t = String(valor).trim().replace(/\s/g,'').replace(',', '.');
+  const n = Number(t);
+  return isFinite(n) ? n : 0;
+}
+// Mostra no campo do jeito que o usuário escreve (vírgula), a partir do valor guardado (ponto).
+function decimalParaCampoBR(valor){
+  return (valor===undefined || valor===null || valor==='') ? '' : String(valor).replace('.', ',');
+}
 function parseValorLivre(str){
   if(str===undefined || str===null || str==='') return null;
   const limpo = String(str).replace(/[^\d,.-]/g,'').trim();
@@ -18203,9 +18237,15 @@ function renderFinanceiroStats(listaCompleta){
   const entradaU = emUSD.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saidaU = emUSD.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saldoR = entradaR-saidaR, saldoU = entradaU-saidaU;
+  // Faturamento = tudo que foi VENDIDO no período listado, recebido ou não (inclui as vendas marcadas
+  // como "a receber", que de propósito ficam fora de Entradas/Saldo — esses dois são só caixa).
+  const aReceberR = listaCompleta.filter(l=>l.natureza==='previsto' && l.tipo==='entrada' && l.moeda!=='USD')
+    .reduce((s,l)=>s+(Number(l.valor)||0),0);
+  const faturamentoR = entradaR + aReceberR;
   const linhaUsd = v => emUSD.length ? `<div style="font-size:13px;color:var(--muted);margin-top:2px;">${fmtMoeda(v,'USD')}</div>` : '';
   document.getElementById('finStats').innerHTML = `
-    <div class="stat"><div class="stat-num" style="color:var(--ok);">${fmtMoeda(entradaR,'BRL')}</div>${linhaUsd(entradaU)}<div class="stat-label">Entradas</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--ok);">${fmtMoeda(faturamentoR,'BRL')}</div>${aReceberR>0?`<div style="font-size:12px;color:var(--warn-ink);margin-top:2px;">${fmtMoeda(aReceberR,'BRL')} a receber</div>`:''}<div class="stat-label">Faturamento</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--ok);">${fmtMoeda(entradaR,'BRL')}</div>${linhaUsd(entradaU)}<div class="stat-label">Entradas (recebido)</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
