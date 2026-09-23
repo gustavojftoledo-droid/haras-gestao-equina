@@ -1760,6 +1760,7 @@
         <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
         <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
         <span class="chip" data-cstab="recomendacao" id="cstab_recomendacao">Recomendação</span>
+        <span class="chip" data-cstab="relatoriocompleto" id="cstab_relatoriocompleto">📋 Relatório Completo</span>
       </div>
 
       <div id="csview_visitas">
@@ -1898,6 +1899,21 @@
           <button class="btn" id="btnSugerirRacaoConsultoria" style="margin-right:auto;">Sugerir ração</button>
         </div>
         <div id="csrResultado" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="csview_relatoriocompleto" style="display:none;">
+        <div class="hint-text" style="margin-bottom:12px;">Relatório para entregar ao haras e ao supervisor técnico. Por animal avaliado na visita: ficha com pedigree (pai e mãe), idade, localização, peso e score; a foto tirada na visita (se houver); a dieta planejada com custo; e o quanto ela fecha da exigência nutricional (NRC). No fim, o pedido de 30 dias somando o consumo de todos.</div>
+        <div class="form-grid">
+          <div class="field full"><label>Visita técnica</label><select id="crc_visita"></select></div>
+          <div class="field full"><label>Formato</label><select id="crc_formato">
+            <option value="agrupado">Agrupado — todos os animais seguidos, enchendo a folha</option>
+            <option value="individual">Ficha individual — uma folha por animal</option>
+          </select></div>
+        </div>
+        <div id="crc_resumo" class="hint-text" style="margin:0 0 12px;"></div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnGerarRelatorioCompletoConsultoria" style="margin-right:auto;">📋 Gerar Relatório Completo</button>
+        </div>
       </div>
     </div>
 
@@ -3003,7 +3019,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     </table></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-ghost" id="btnEditarVisitaConsultoria">✎ Editar dados da visita</button></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn btn-ghost" id="btnRelatorioCompletoConsultoria" title="Ficha do animal com pedigree, foto da visita, dieta planejada com custo e atendimento nutricional, e o pedido de 30 dias">📋 Relatório Completo</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
     </div>
   </div>
 </div>
@@ -14014,10 +14030,12 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
     document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
     document.getElementById('csview_recomendacao').style.display = sub==='recomendacao' ? 'block' : 'none';
+    document.getElementById('csview_relatoriocompleto').style.display = sub==='relatoriocompleto' ? 'block' : 'none';
     if(sub==='historico') mostrarNivelPropriedadesHistorico();
     if(sub==='formulacao') renderConsultoriaFormulacoes();
     if(sub==='comparacao') renderConsultoriaComparacaoLista();
     if(sub==='recomendacao') renderConsultoriaRecomendacaoForm();
+    if(sub==='relatoriocompleto') renderRelatorioCompletoForm();
   });
 });
 
@@ -14805,18 +14823,45 @@ function pedido30DiasRelatorioHtml(linhasAnimais){
     </table></div>
   </div>`;
 }
+// Aba própria (ao lado de Recomendação): escolhe a visita e mostra o que vai entrar no relatório.
+function renderRelatorioCompletoForm(){
+  const sel = document.getElementById('crc_visita');
+  const anterior = sel.value;
+  const visitas = consultoriaVisitas.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  sel.innerHTML = visitas.length===0
+    ? '<option value="">Nenhuma visita técnica cadastrada</option>'
+    : visitas.map(v=>`<option value="${v.id}">${escHtml([v.propriedade||'(sem propriedade)', fmtDate(v.data)].filter(Boolean).join(' — '))}</option>`).join('');
+  if(anterior && visitas.some(v=>v.id===anterior)) sel.value = anterior;
+  atualizarResumoRelatorioCompleto();
+}
+function atualizarResumoRelatorioCompleto(){
+  const host = document.getElementById('crc_resumo');
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ host.textContent = 'Cadastre uma visita técnica (aba Visitas Técnicas) pra gerar o relatório.'; return; }
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
+  if(avaliacoes.length===0){ host.innerHTML = '⚠ Essa visita ainda não tem animal avaliado — adicione ao menos um na aba Visitas Técnicas.'; return; }
+  const comFoto = avaliacoes.filter(a=>(consultoriaFotos[a.id]||[]).length>0).length;
+  const comDieta = avaliacoes.filter(a=>formulacaoDoAnimalConsultoria(a)).length;
+  host.innerHTML = `Vai entrar no relatório: <strong>${avaliacoes.length}</strong> animal(is) — ${comFoto} com foto da visita, ${comDieta} com dieta planejada.`
+    + (comDieta<avaliacoes.length ? ' Quem não tem formulação aparece só com a ficha (sem dieta nem custo).' : '');
+}
+document.getElementById('crc_visita').addEventListener('change', atualizarResumoRelatorioCompleto);
 function gerarRelatorioCompletoConsultoria(){
-  const visita = consultoriaVisitas.find(v=>v.id===visitaConsultoriaDetalheId);
-  if(!visita) return;
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ showAlert('Escolha a visita técnica do relatório.'); return; }
   const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
   if(avaliacoes.length===0){ showAlert('Essa visita ainda não tem animal avaliado — adicione ao menos um pra gerar o relatório completo.'); return; }
+  // Ficha individual = 1 animal por folha (classe report-animal-block + umPorPagina:true, o mesmo motor
+  // do relatório de visita). Agrupado = blocos pequenos que enchem a folha em sequência.
+  const individual = document.getElementById('crc_formato').value === 'individual';
   const linhasAnimais = avaliacoes.map(a=>{
     const formulacao = formulacaoDoAnimalConsultoria(a);
     return { avaliacao:a, formulacao, pesoKg: pesoParaCalculoConsultoria(a, formulacao) };
   });
   const blocos = linhasAnimais.map(({avaliacao, formulacao, pesoKg})=>`
-    <div class="pdf-item-block" style="padding:6px 2px 14px;border-bottom:1px solid #ddd;margin-bottom:12px;">
+    <div class="${individual?'report-animal-block':'pdf-item-block'}" style="padding:6px 2px 14px;${individual?'':'border-bottom:1px solid #ddd;margin-bottom:12px;'}">
       <div class="report-animal-name">${escHtml(avaliacao.animalNome||'')}</div>
+      ${individual?`<div class="sub" style="margin-top:-4px;">${escHtml([visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — '))}</div>`:''}
       ${fichaAnimalRelatorioHtml(avaliacao)}
       ${fotosDaVisitaHtml(avaliacao.id)}
       ${dietaPlanejadaRelatorioHtml(formulacao, pesoKg)}
@@ -14837,11 +14882,11 @@ function gerarRelatorioCompletoConsultoria(){
     ${blocos}
     ${pedido30DiasRelatorioHtml(linhasAnimais)}
   </div>`;
-  const nomeArquivo = 'Relatorio_Completo_'+(visita.propriedade||'Consultoria').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+'.pdf';
-  closeModal('overlayConsultoriaVisitaDetalhe');
-  abrirPreviaRelatorio(html, nomeArquivo, 'Relatório Completo de Consultoria', { umPorPagina:false, margin:[14,10] });
+  const nomeArquivo = 'Relatorio_Completo_'+(visita.propriedade||'Consultoria').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+(individual?'_fichas':'')+'.pdf';
+  abrirPreviaRelatorio(html, nomeArquivo, 'Relatório Completo de Consultoria',
+    individual ? { umPorPagina:true, margin:10 } : { umPorPagina:false, margin:[14,10] });
 }
-document.getElementById('btnRelatorioCompletoConsultoria').addEventListener('click', gerarRelatorioCompletoConsultoria);
+document.getElementById('btnGerarRelatorioCompletoConsultoria').addEventListener('click', gerarRelatorioCompletoConsultoria);
 // Bloco de UMA avaliação (dados + fotos) — reaproveitado no relatório completo da visita (um bloco por
 // animal, cada um vira 1 folha via gerarPdfUmBlocoPorPagina), no relatório individual da Ficha do Animal
 // (gerarRelatorioIndividualAvaliacao) e no PDF em lote de visitas selecionadas (gerarRelatoriosVisitasSelecionadas).
@@ -15528,20 +15573,25 @@ function gerarRelatorioFinanceiroFormulacoes(){
   if(selecionadas.length===0){ showAlert('Nenhuma formulação pra gerar relatório.'); return; }
   const blocos = selecionadas.map(fo=>{
     const det = calcDetalheCustoFormulacao(fo);
-    const linhas = det.itens.length===0 ? '<tr><td colspan="6" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
+    // Custo por animal x quantidade de animais que comem essa dieta = custo do lote. O número de
+    // animais vem da própria formulação (lista de animais ou, no modo grupo, a quantidade informada).
+    const nAnimais = formulacaoNumAnimais(fo);
+    const linhas = det.itens.length===0 ? '<tr><td colspan="7" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
       <td>${it.produtoNome}</td><td>${it.horario||'—'}</td><td>${it.quantidade} ${it.unidade||'kg'}</td>
       <td>${it.custoUnit!=null?fmtMoeda(it.custoUnit,'BRL'):'—'}</td>
       <td>${fmtMoeda(it.subtotalDia,'BRL')}</td>
+      <td>${fmtMoeda(it.subtotalDia*nAnimais,'BRL')}</td>
       <td>${it.participacaoPct!=null?it.participacaoPct.toFixed(0)+'%':'—'}</td>
     </tr>`).join('');
     return `<div class="report-animal-block">
       <div class="report-animal-name">${fo.nome||''}</div>
       ${cabecalhoFormulacaoRelatorioHtml(fo)}
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia</th><th>% do custo</th></tr></thead>
+        <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia<br>(1 animal)</th><th>Custo/dia<br>(lote: ${nAnimais})</th><th>% do custo</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table></div>
-      <div style="margin-top:8px;"><strong>Custo/dia:</strong> ${fmtMoeda(det.custoDiaTotal,'BRL')} · <strong>Custo/mês:</strong> ${fmtMoeda(det.custoMesTotal,'BRL')}${det.custoPorKg!=null?(' · <strong>Custo/kg da dieta:</strong> '+fmtMoeda(det.custoPorKg,'BRL')):''}</div>
+      <div style="margin-top:8px;"><strong>Por animal</strong> — dia: ${fmtMoeda(det.custoDiaTotal,'BRL')} · mês: ${fmtMoeda(det.custoMesTotal,'BRL')}${det.custoPorKg!=null?(' · custo/kg da dieta: '+fmtMoeda(det.custoPorKg,'BRL')):''}</div>
+      <div style="margin-top:4px;"><strong>Lote inteiro (${nAnimais} animal(is))</strong> — dia: ${fmtMoeda(det.custoDiaTotal*nAnimais,'BRL')} · mês: ${fmtMoeda(det.custoMesTotal*nAnimais,'BRL')}</div>
     </div>`;
   });
   const cabecalho = `<h1 style="border:none;">Relatório Financeiro — Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${selecionadas.length} formulação(ões)</div>`;
