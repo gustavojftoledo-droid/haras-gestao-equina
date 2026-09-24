@@ -1760,6 +1760,7 @@
         <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
         <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
         <span class="chip" data-cstab="recomendacao" id="cstab_recomendacao">Recomendação</span>
+        <span class="chip" data-cstab="catalogoracoes" id="cstab_catalogoracoes">🌾 Catálogo de Rações</span>
         <span class="chip" data-cstab="relatoriocompleto" id="cstab_relatoriocompleto">📋 Relatório Completo</span>
       </div>
 
@@ -1899,6 +1900,21 @@
           <button class="btn" id="btnSugerirRacaoConsultoria" style="margin-right:auto;">Sugerir ração</button>
         </div>
         <div id="csrResultado" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="csview_catalogoracoes" style="display:none;">
+        <div class="stats" id="catalogoStats"></div>
+        <div class="hint-text" style="margin:0 0 12px;">Rações de referência para recomendar ao cliente — não são compradas pelo haras, então não aparecem no Estoque nem geram alerta de reposição. Elas continuam entrando na <strong>Recomendação de Ração</strong>, marcadas como catálogo. No Estoque ficam só o que o haras usa de fato: feno, Hectare 15 Laminados, Hectare Laminados e sal mineral.</div>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="catalogoSearch" placeholder="Nome da ração..."></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn" id="btnNovaRacaoCatalogo" style="margin-right:auto;">+ Nova ração no catálogo</button>
+        </div>
+        <div class="grid-wrap"><table class="grid">
+          <thead><tr><th>Ração</th><th class="num">ED (Kcal/kg)</th><th class="num">PB</th><th class="num">Ca</th><th class="num">P</th><th class="num">Fibra</th><th class="num">R$/kg</th><th></th></tr></thead>
+          <tbody id="catalogoTbody"></tbody>
+        </table></div>
       </div>
 
       <div id="csview_relatoriocompleto" style="display:none;">
@@ -2802,7 +2818,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </div>
       </div>
       <div class="modal-actions">
-        <div><button type="button" class="btn btn-danger" id="btnDeleteProduto" style="display:none;">Excluir</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-danger" id="btnDeleteProduto" style="display:none;">Excluir</button><button type="button" class="btn btn-ghost" id="btnProdutoParaCatalogo" style="display:none;" title="Sai da tela de Estoque e passa a ser referência na Consultoria. Nada é apagado.">🌾 Mandar pro catálogo da Consultoria</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayProduto">Cancelar</button><button type="submit" class="btn">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
       </div>
     </form>
@@ -4112,6 +4128,25 @@ async function loadAll(){
     if(!d.diasSemana){ d.diasSemana=[true,true,true,true,true,true,true]; dietasChanged=true; }
   });
   if(dietasChanged) await storeSet('dietas_list', dietas);
+  // Migração única: separa o que o haras realmente compra (feno, Hectare 15 Laminados, Hectare
+  // Laminados, sal mineral) do resto das rações, que passa a viver no catálogo da Consultoria. Roda
+  // UMA vez (config.migracaoCatalogoRacoes) pra não voltar a marcar um produto que o usuário trouxe
+  // de volta pro Estoque depois. Nada é apagado — só a marca catalogoConsultoria muda.
+  if(!config.migracaoCatalogoRacoes){
+    let marcados = 0;
+    estoqueProdutos.forEach(p=>{
+      if(p.tipo!=='Alimento' || ehCatalogoConsultoria(p)) return;
+      if(ehAlimentoDoHaras(p.nome)) return;
+      p.catalogoConsultoria = true;
+      marcados++;
+    });
+    config.migracaoCatalogoRacoes = true;
+    await storeSet('config', config);
+    if(marcados>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      showAlert(marcados+' ração(ões) saíram do Estoque e foram pro catálogo da Consultoria (aba "🌾 Catálogo de Rações"). Ficaram no Estoque: feno, Hectare 15 Laminados, Hectare Laminados e sal mineral. Nada foi apagado — dá pra trazer qualquer uma de volta com um clique.');
+    }
+  }
   refreshDatalists();
   populateAuxSelects();
   renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
@@ -7070,8 +7105,8 @@ function renderInicioHero(){
   const chips = [];
   chips.push({texto:`${atrasadas} tarefa(s) atrasada(s)`, bg:'var(--alert-bg)', cor:'var(--alert-ink)', icone:'calendario', onClick:()=>abrirListaInicio('atrasadas')});
   if(acessos.includes('estoque')){
-    const zerados = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
-    const pertoMin = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
+    const zerados = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='zerado').length;
+    const pertoMin = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='perto').length;
     chips.push({texto:`${zerados+pertoMin} alerta(s) de estoque`, bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'caixa', onClick:()=>abrirListaInicio('estoque')});
   }
   // O chip de folha de pagamento (confirmada/pendente) saiu daqui a pedido do Gustavo — nada
@@ -12169,6 +12204,26 @@ function calcProjecaoConsumo(p){
   const diasRestantes = consumoSemanal>0 ? Math.floor(qtdAtual/(consumoSemanal/7)) : Infinity;
   return {suficiente:true, consumoSemanal, diasRestantes};
 }
+/* ===== CATÁLOGO DE RAÇÕES (Consultoria) =====
+   Ração que o haras NÃO compra, mas que serve de referência pra recomendar ao cliente. Ela continua
+   sendo um produto normal (mesmo array estoqueProdutos, mesmo id) — só ganha a marca
+   catalogoConsultoria, que a esconde das telas de Estoque e a mostra no catálogo da Consultoria.
+   Por que não apagar de vez: o produto é referenciado por id em Dietas, movimentações de estoque e
+   lançamentos financeiros. Excluir quebraria Dietas (que não pode ser alterada) e o histórico de custo.
+   Marcar é reversível: um clique traz de volta pro Estoque, sem perder nada. */
+function ehCatalogoConsultoria(p){ return !!(p && p.catalogoConsultoria); }
+function produtosDoEstoque(){ return estoqueProdutos.filter(p=>!ehCatalogoConsultoria(p)); }
+function produtosDoCatalogo(){ return estoqueProdutos.filter(ehCatalogoConsultoria); }
+// Fica no Estoque quem casar com um destes nomes; todo o resto que for Alimento vai pro catálogo.
+// Comparação sem acento e sem caixa, por "contém" — nome cadastrado com variação ainda casa.
+const ALIMENTOS_DO_HARAS = ['feno', 'hectare 15 laminados', 'hectare laminados', 'sal mineral'];
+function normNomeProduto(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
+function ehAlimentoDoHaras(nome){
+  const n = normNomeProduto(nome);
+  return ALIMENTOS_DO_HARAS.some(alvo=>n.includes(alvo));
+}
 function situacaoEstoque(p){
   const qtd = Number(p.quantidade)||0;
   if(qtd<=0) return 'zerado';
@@ -12408,7 +12463,7 @@ function renderEstoque(){
   atualizarBadgeVinculosQuebrados();
   const term=(document.getElementById('eSearch').value||'').toLowerCase();
   const soMinimo = document.getElementById('eSoMinimo').value;
-  let list = estoqueProdutos.filter(p=>{
+  let list = produtosDoEstoque().filter(p=>{
     const matchTipo = !estoqueTipoFiltro || p.tipo===estoqueTipoFiltro;
     const matchTerm = !term || (p.nome||'').toLowerCase().includes(term);
     const sit = situacaoEstoque(p);
@@ -12427,15 +12482,15 @@ function renderEstoque(){
     });
   }
 
-  const zeradoCount = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
-  const pertoCount = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
+  const zeradoCount = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='zerado').length;
+  const pertoCount = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='perto').length;
   // Os 4 primeiros cartões (Produtos cadastrados/Medicamentos/Alimentos/Ferramentas) são clicáveis e
   // funcionam como o filtro por tipo — substituem a antiga fileira de botões separada (menos poluído).
   document.getElementById('estoqueStats').innerHTML = `
-    <div class="stat clickable ${!estoqueTipoFiltro?'active':''}" data-estattipo=""><div class="stat-num">${estoqueProdutos.length}</div><div class="stat-label">Produtos cadastrados</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Medicamento'?'active':''}" data-estattipo="Medicamento"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Medicamento').length}</div><div class="stat-label">Medicamentos</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Alimento'?'active':''}" data-estattipo="Alimento"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Ferramenta'?'active':''}" data-estattipo="Ferramenta"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Ferramenta').length}</div><div class="stat-label">Ferramentas / Arreios</div></div>
+    <div class="stat clickable ${!estoqueTipoFiltro?'active':''}" data-estattipo=""><div class="stat-num">${produtosDoEstoque().length}</div><div class="stat-label">Produtos cadastrados</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Medicamento'?'active':''}" data-estattipo="Medicamento"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Medicamento').length}</div><div class="stat-label">Medicamentos</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Alimento'?'active':''}" data-estattipo="Alimento"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Ferramenta'?'active':''}" data-estattipo="Ferramenta"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Ferramenta').length}</div><div class="stat-label">Ferramentas / Arreios</div></div>
     <div class="stat clickable ${estoqueSituacaoFiltro==='perto'?'active':''}" data-estatsituacao="perto"><div class="stat-num" style="color:${pertoCount>0?'var(--warn-ink)':'inherit'};">${pertoCount}</div><div class="stat-label">Perto do mínimo</div></div>
     <div class="stat clickable ${estoqueSituacaoFiltro==='zerado'?'active':''}" data-estatsituacao="zerado"><div class="stat-num" style="color:${zeradoCount>0?'var(--burgundy)':'inherit'};">${zeradoCount}</div><div class="stat-label">Zerados</div></div>`;
   document.getElementById('estoqueStats').querySelectorAll('[data-estattipo]').forEach(card=>{
@@ -12683,8 +12738,9 @@ function atualizarValorTipoUI(){
 document.getElementById('pd_unidade').addEventListener('change', atualizarValorTipoUI);
 function openProdutoNew(){
   editingProdutoId=null;
-  document.getElementById('pdModalTitle').textContent = 'Novo Produto';
+  document.getElementById('pdModalTitle').textContent = novaRacaoVaiProCatalogo ? 'Nova ração no catálogo' : 'Novo Produto';
   document.getElementById('btnDeleteProduto').style.display='none';
+  document.getElementById('btnProdutoParaCatalogo').style.display='none';
   document.getElementById('pdMovBox').style.display='none';
   document.getElementById('produtoForm').reset();
   populateAuxSelects();
@@ -12712,6 +12768,10 @@ function openProdutoEdit(id){
   editingProdutoId=id;
   document.getElementById('pdModalTitle').textContent = p.nome||'Editar Produto';
   document.getElementById('btnDeleteProduto').style.display='inline-block';
+  // "Mandar pro catálogo" só faz sentido pra Alimento que ainda está no Estoque (a volta é pelo
+  // próprio catálogo, na Consultoria).
+  document.getElementById('btnProdutoParaCatalogo').style.display =
+    (p.tipo==='Alimento' && !ehCatalogoConsultoria(p)) ? 'inline-block' : 'none';
   document.getElementById('pdMovBox').style.display='block';
   populateAuxSelects();
   document.getElementById('pd_tipo_aux').value=p.tipo||'';
@@ -12862,12 +12922,18 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     valor: f('pd_valor'), valorPorPacote: f('pd_valorPorPacote')==='sim',
     validade: f('pd_validade'), obs: f('pd_obs'),
     dataCadastro: jaExistia ? jaExistia.dataCadastro : toISODate(new Date()),
-    ...(Object.keys(nutrientesForm).length>0 ? { nutrientes: nutrientesForm } : {})
+    ...(Object.keys(nutrientesForm).length>0 ? { nutrientes: nutrientesForm } : {}),
+    // Marca de catálogo da Consultoria: preservada ao editar (o objeto acima é remontado do zero, então
+    // sem isso a ração voltaria sozinha pro Estoque) e ligada quando o cadastro veio do "+ Nova ração
+    // no catálogo".
+    ...((jaExistia && jaExistia.catalogoConsultoria) || (!editingProdutoId && novaRacaoVaiProCatalogo) ? { catalogoConsultoria:true } : {})
   };
+  novaRacaoVaiProCatalogo = false;
   estoqueProdutos = editingProdutoId ? estoqueProdutos.map(p=>p.id===editingProdutoId?data:p) : [...estoqueProdutos, data];
   await storeSet('estoque_produtos', estoqueProdutos);
   refreshDatalists();
   closeModal('overlayProduto'); renderEstoque();
+  if(document.getElementById('csview_catalogoracoes').style.display==='block') renderCatalogoRacoes();
 });
 document.getElementById('btnDeleteProduto').addEventListener('click', async ()=>{
   if(!editingProdutoId) return;
@@ -14030,11 +14096,13 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
     document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
     document.getElementById('csview_recomendacao').style.display = sub==='recomendacao' ? 'block' : 'none';
+    document.getElementById('csview_catalogoracoes').style.display = sub==='catalogoracoes' ? 'block' : 'none';
     document.getElementById('csview_relatoriocompleto').style.display = sub==='relatoriocompleto' ? 'block' : 'none';
     if(sub==='historico') mostrarNivelPropriedadesHistorico();
     if(sub==='formulacao') renderConsultoriaFormulacoes();
     if(sub==='comparacao') renderConsultoriaComparacaoLista();
     if(sub==='recomendacao') renderConsultoriaRecomendacaoForm();
+    if(sub==='catalogoracoes') renderCatalogoRacoes();
     if(sub==='relatoriocompleto') renderRelatorioCompletoForm();
   });
 });
@@ -14794,13 +14862,23 @@ function dietaPlanejadaRelatorioHtml(formulacao, pesoKg){
 // ingrediente, e projeta 30 dias. É a lista de compra que o haras leva pro fornecedor.
 function pedido30DiasRelatorioHtml(linhasAnimais){
   const porProduto = {};
+  // O pedido é do LOTE: cada formulação entra uma única vez, multiplicada pelo número de animais que
+  // comem dela. Contar por animal avaliado daria o consumo de quem foi visto na visita (que pode ser
+  // 1 só) e ainda duplicaria a receita quando dois avaliados usam a mesma formulação.
+  const formulacoesUsadas = [];
   linhasAnimais.forEach(({formulacao})=>{
     if(!formulacao) return;
-    (formulacao.itens||[]).forEach(it=>{
+    if(!formulacoesUsadas.some(f=>f.id===formulacao.id)) formulacoesUsadas.push(formulacao);
+  });
+  let totalAnimaisLote = 0;
+  formulacoesUsadas.forEach(fo=>{
+    const nAnimais = formulacaoNumAnimais(fo);
+    totalAnimaisLote += nAnimais;
+    (fo.itens||[]).forEach(it=>{
       const qtd = numDecimalBR(it.quantidade);
       if(qtd<=0) return;
       if(!porProduto[it.produtoId]) porProduto[it.produtoId] = { qtdDia:0 };
-      porProduto[it.produtoId].qtdDia += qtd;
+      porProduto[it.produtoId].qtdDia += qtd * nAnimais;
     });
   });
   const ids = Object.keys(porProduto);
@@ -14821,15 +14899,86 @@ function pedido30DiasRelatorioHtml(linhasAnimais){
       <td class="num">${custo30!=null?fmtR(custo30):'—'}</td></tr>`;
   }).join('');
   return `<div class="pdf-item-block" style="padding-top:10px;">
-    <div class="report-animal-name">Pedido de 30 dias</div>
-    <div class="hint-text" style="margin:0 0 6px;">Soma do consumo diário de todos os animais deste relatório, projetado para 30 dias.</div>
+    <div class="report-animal-name">Pedido de 30 dias — lote</div>
+    <div class="hint-text" style="margin:0 0 6px;">Consumo diário do lote inteiro (${totalAnimaisLote} animal(is) nas dietas deste relatório), projetado para 30 dias.</div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Alimento</th><th class="num">Consumo/dia (total)</th><th class="num">Necessário p/ 30 dias</th><th class="num">R$/kg</th><th class="num">Custo 30 dias</th></tr></thead>
+      <thead><tr><th>Alimento</th><th class="num">Consumo/dia (lote)</th><th class="num">Necessário p/ 30 dias</th><th class="num">R$/kg</th><th class="num">Custo 30 dias</th></tr></thead>
       <tbody>${linhas}</tbody>
       <tfoot><tr><td colspan="4"><strong>Custo total estimado (30 dias)</strong></td><td class="num"><strong>${fmtR(totalMes)}</strong></td></tr></tfoot>
     </table></div>
   </div>`;
 }
+/* ---- Catálogo de Rações: lista as rações de referência (marcadas com catalogoConsultoria) ---- */
+function renderCatalogoRacoes(){
+  const tbody = document.getElementById('catalogoTbody'); if(!tbody) return;
+  const termo = normNomeProduto(document.getElementById('catalogoSearch').value||'');
+  const todas = produtosDoCatalogo().slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const lista = todas.filter(p=>!termo || normNomeProduto(p.nome).includes(termo));
+  const comNutrientes = todas.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg).length;
+  document.getElementById('catalogoStats').innerHTML =
+    `<div class="stat"><div class="stat-num">${todas.length}</div><div class="stat-label">Rações no catálogo</div></div>
+     <div class="stat"><div class="stat-num" style="color:${comNutrientes<todas.length?'var(--warn-ink)':'inherit'};">${comNutrientes}</div><div class="stat-label">Com dados nutricionais</div></div>
+     <div class="stat"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos no Estoque</div></div>`;
+  if(lista.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">${todas.length===0?'Nenhuma ração no catálogo. Use "+ Nova ração no catálogo" ou mande uma do Estoque pra cá.':'Nenhuma ração encontrada.'}</td></tr>`;
+    return;
+  }
+  const num = (v, suf) => (v!=null && v!=='') ? (Number(v).toLocaleString('pt-BR')+(suf||'')) : '—';
+  tbody.innerHTML = lista.map(p=>{
+    const n = p.nutrientes || {};
+    const custo = custoUnitarioProduto(p);
+    const semDados = !n.edKcalPorKg;
+    return `<tr data-id="${p.id}" style="cursor:pointer;" title="Clique pra editar os dados da ração">
+      <td><strong>${escHtml(p.nome||'')}</strong>${semDados?' <span class="pill st-warn">sem dados nutricionais</span>':''}</td>
+      <td class="num">${num(n.edKcalPorKg)}</td>
+      <td class="num">${num(n.pbPercent,'%')}</td>
+      <td class="num">${num(n.caPercent,'%')}</td>
+      <td class="num">${num(n.pPercent,'%')}</td>
+      <td class="num">${num(n.fibraBrutaPercent,'%')}</td>
+      <td class="num">${custo!=null?fmtMoeda(custo,'BRL'):'—'}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-paraestoque="${p.id}" title="Passa a contar como produto do haras, com estoque e alerta de reposição">↩ Trazer pro Estoque</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    openProdutoEdit(tr.dataset.id);
+  }));
+  tbody.querySelectorAll('[data-paraestoque]').forEach(b=>b.addEventListener('click', e=>{
+    e.stopPropagation(); moverProdutoCatalogo(b.dataset.paraestoque, false);
+  }));
+}
+// Move um produto entre Estoque e catálogo. Só muda a marca — quantidade, movimentações, vínculos
+// com Dietas e histórico financeiro ficam exatamente como estavam.
+async function moverProdutoCatalogo(produtoId, paraCatalogo){
+  const p = estoqueProdutos.find(x=>x.id===produtoId); if(!p) return;
+  if(paraCatalogo){
+    const emUso = quemDependeDoProduto(produtoId);
+    const aviso = emUso.length ? `\n\nAtenção: este produto é usado em ${emUso.slice(0,3).join(', ')}${emUso.length>3?' e mais':''} — esses registros continuam funcionando, mas o produto some da tela de Estoque.` : '';
+    if(!(await showConfirm(`Mandar "${p.nome}" para o catálogo da Consultoria? Ele sai da tela de Estoque (nada é apagado) e deixa de gerar alerta de reposição.`+aviso))) return;
+    p.catalogoConsultoria = true;
+  } else {
+    if(!(await showConfirm(`Trazer "${p.nome}" de volta pro Estoque? Ele volta a aparecer na lista e a gerar alerta de reposição.`))) return;
+    delete p.catalogoConsultoria;
+  }
+  estoqueProdutos = estoqueProdutos.map(x=>x.id===p.id?p:x);
+  await storeSet('estoque_produtos', estoqueProdutos, true);
+  renderCatalogoRacoes(); renderEstoque();
+}
+document.getElementById('catalogoSearch').addEventListener('input', debounce(renderCatalogoRacoes));
+document.getElementById('btnProdutoParaCatalogo').addEventListener('click', async ()=>{
+  if(!editingProdutoId) return;
+  const id = editingProdutoId;
+  closeModal('overlayProduto');
+  await moverProdutoCatalogo(id, true);
+});
+document.getElementById('btnNovaRacaoCatalogo').addEventListener('click', ()=>{
+  // Abre o cadastro normal de produto já como Alimento; ao salvar, entra no catálogo (ver btnSaveProduto).
+  novaRacaoVaiProCatalogo = true;
+  openProdutoNew();
+  const tipo = document.getElementById('pd_tipo'); if(tipo){ tipo.value = 'Alimento'; tipo.dispatchEvent(new Event('change')); }
+});
+let novaRacaoVaiProCatalogo = false;
+
 // Aba própria (ao lado de Recomendação): escolhe a visita e mostra o que vai entrar no relatório.
 function renderRelatorioCompletoForm(){
   const sel = document.getElementById('crc_visita');
@@ -16067,7 +16216,9 @@ function gerarRecomendacaoRacao(qtdMostrar){
     ${mostrar.map((l,i)=>`
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome}</div>
+          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome} ${ehCatalogoConsultoria(l.produto)
+            ? '<span class="pill st-outro" title="Ração de referência do catálogo da Consultoria — não é comprada pelo haras hoje">catálogo</span>'
+            : '<span class="pill st-ativo" title="Já é comprada pelo haras (está no Estoque)">em estoque</span>'}</div>
           ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta</span>` : ''}
         </div>
         ${l.motivos.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${l.motivos.map(m=>`<span class="pill st-outro">${m}</span>`).join('')}</div>` : ''}
