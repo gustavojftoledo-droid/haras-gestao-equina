@@ -1310,10 +1310,10 @@
             <th class="sortable" data-ordlista="semen" data-ordcol="garanhao">Garanhão</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="lote">Lote / partida</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="tipo">Tipo</th>
-            <th class="sortable" data-ordlista="semen" data-ordcol="qtd">Doses em estoque</th>
+            <th class="sortable" data-ordlista="semen" data-ordcol="qtd">Palhetas em estoque</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="minimo">Mínimo</th>
             <th class="sortable" data-ordlista="semen" data-ordcol="validade">Validade</th>
-            <th title="Última saída registrada: quantas doses e para onde foram">Último uso 🔍</th>
+            <th title="Última saída registrada: quantas palhetas e para onde foram">Último uso 🔍</th>
             <th>Observações</th><th></th>
           </tr></thead>
           <tbody id="semenTbody"></tbody>
@@ -1326,7 +1326,7 @@
           <div class="f grow"><label>Buscar</label><input type="text" id="vendaCobSearch" placeholder="Comprador, garanhão, observações..."></div>
           <div class="f"><label>Situação</label><select id="vendaCobFiltroPago"><option value="">Todas</option><option value="pago">Pagas</option><option value="pendente">A receber</option></select></div>
         </div>
-        <div class="hint-text" style="margin:0 0 12px;">Venda de doses/coberturas do seu garanhão. Ao salvar, as doses saem do <strong>Estoque de Sêmen</strong> automaticamente (com o comprador como destino) e a venda entra no <strong>Financeiro</strong> como receita na categoria "Venda de Cobertura".</div>
+        <div class="hint-text" style="margin:0 0 12px;">Venda de palhetas/coberturas do seu garanhão. Ao salvar, as palhetas saem do <strong>Estoque de Sêmen</strong> automaticamente (com o comprador como destino) e a venda entra no <strong>Financeiro</strong> como receita na categoria "Venda de Cobertura".</div>
         <div class="lista-toolbar">
           <button type="button" class="btn" id="btnNewVendaCob" style="margin-right:auto;">+ Nova venda</button>
           <div class="menu-discreto-wrap">
@@ -1341,7 +1341,7 @@
             <th class="sortable" data-ordlista="vendacob" data-ordcol="data">Data</th>
             <th class="sortable" data-ordlista="vendacob" data-ordcol="comprador">Comprador</th>
             <th class="sortable" data-ordlista="vendacob" data-ordcol="garanhao">Garanhão</th>
-            <th class="sortable" data-ordlista="vendacob" data-ordcol="doses">Doses</th>
+            <th class="sortable" data-ordlista="vendacob" data-ordcol="doses">Palhetas</th>
             <th class="sortable" data-ordlista="vendacob" data-ordcol="valor">Valor</th>
             <th class="sortable" data-ordlista="vendacob" data-ordcol="pago">Situação</th>
             <th>Observações</th><th></th>
@@ -1760,6 +1760,8 @@
         <span class="chip" data-cstab="formulacao" id="cstab_formulacao">Formulação</span>
         <span class="chip" data-cstab="comparacao" id="cstab_comparacao">Comparação</span>
         <span class="chip" data-cstab="recomendacao" id="cstab_recomendacao">Recomendação</span>
+        <span class="chip" data-cstab="catalogoracoes" id="cstab_catalogoracoes">🌾 Catálogo de Rações</span>
+        <span class="chip" data-cstab="relatoriocompleto" id="cstab_relatoriocompleto">📋 Relatório Completo</span>
       </div>
 
       <div id="csview_visitas">
@@ -1779,7 +1781,7 @@
         </div>
         <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaVisitas">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaVisitas" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="objetivo">Objetivo</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaVisitas" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="objetivo">Objetivo</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th data-col="avalprop">Aval. propriedade</th><th></th></tr></thead>
           <tbody id="cvTbody"></tbody>
         </table></div>
       </div>
@@ -1825,7 +1827,7 @@
           </div>
           <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
           <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
-            <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
+            <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th data-col="avalprop">Aval. propriedade</th><th></th></tr></thead>
             <tbody id="chTbody"></tbody>
           </table></div>
         </div>
@@ -1898,6 +1900,38 @@
           <button class="btn" id="btnSugerirRacaoConsultoria" style="margin-right:auto;">Sugerir ração</button>
         </div>
         <div id="csrResultado" style="margin-top:10px;"></div>
+      </div>
+
+      <div id="csview_catalogoracoes" style="display:none;">
+        <div class="stats" id="catalogoStats"></div>
+        <div class="hint-text" style="margin:0 0 12px;">Rações de referência para recomendar ao cliente — não são compradas pelo haras, então não aparecem no Estoque nem geram alerta de reposição. Elas continuam entrando na <strong>Recomendação de Ração</strong>, marcadas como catálogo. No Estoque ficam só o que o haras usa de fato: feno, Equitage 15 Laminados, Equitage Laminados e sal mineral.</div>
+        <div class="filters">
+          <div class="f grow"><label>Buscar</label><input type="text" id="catalogoSearch" placeholder="Nome da ração..."></div>
+        </div>
+        <div class="lista-toolbar">
+          <button type="button" class="btn" id="btnNovaRacaoCatalogo">+ Nova ração no catálogo</button>
+          <button type="button" class="btn btn-ghost" id="btnOrganizarCatalogo" style="margin-right:auto;" title="Manda pro catálogo toda ração do Estoque que não é do haras">🧹 Organizar Estoque</button>
+        </div>
+        <div class="grid-wrap"><table class="grid">
+          <thead><tr><th>Ração</th><th class="num">ED (Kcal/kg)</th><th class="num">PB</th><th class="num">Ca</th><th class="num">P</th><th class="num">Fibra</th><th class="num">R$/kg</th><th></th></tr></thead>
+          <tbody id="catalogoTbody"></tbody>
+        </table></div>
+      </div>
+
+      <div id="csview_relatoriocompleto" style="display:none;">
+        <div class="hint-text" style="margin-bottom:12px;">Relatório para entregar ao haras e ao supervisor técnico. Por animal avaliado na visita: ficha com pedigree (pai e mãe), idade, localização, peso e score; a foto tirada na visita (se houver); a dieta planejada com custo; e o quanto ela fecha da exigência nutricional (NRC). No fim, o pedido de 30 dias somando o consumo de todos.</div>
+        <div class="form-grid">
+          <div class="field full"><label>Visita técnica</label><select id="crc_visita"></select></div>
+          <div class="field full"><label>Formato</label><select id="crc_formato">
+            <option value="agrupado">Agrupado — todos os animais seguidos, enchendo a folha</option>
+            <option value="individual">Ficha individual — uma folha por animal</option>
+          </select></div>
+        </div>
+        <div id="crc_resumo" class="hint-text" style="margin:0 0 12px;"></div>
+        <div class="lista-toolbar">
+          <button class="btn" id="btnGerarRelatorioCompletoConsultoria">📋 Gerar Relatório Completo</button>
+          <button class="btn" id="btnPlacaBaiaConsultoria" style="margin-right:auto;" title="Uma folha por dieta, pra pregar na porta da baia">🖨 Placa de Baia</button>
+        </div>
       </div>
     </div>
 
@@ -2676,7 +2710,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field"><label>Garanhão</label><input type="text" id="sm_garanhao" list="dl_machos" required placeholder="Nome do garanhão"></div>
       <div class="field"><label>Lote / partida <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="sm_lote" placeholder="Ex: 03/2026"></div>
       <div class="field"><label>Tipo</label><select id="sm_tipo"><option value="Congelado">Congelado</option><option value="Resfriado">Resfriado</option><option value="Fresco">Fresco</option></select></div>
-      <div class="field"><label>Doses / palhetas em estoque</label><input type="number" step="1" min="0" id="sm_quantidade" placeholder="0"></div>
+      <div class="field"><label>Palhetas em estoque</label><input type="number" step="1" min="0" id="sm_quantidade" placeholder="0"></div>
       <div class="field"><label>Estoque mínimo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(dispara alerta)</span></label><input type="number" step="1" min="0" id="sm_minimo" placeholder="Opcional"></div>
       <div class="field"><label>Validade <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="date" id="sm_validade"></div>
       <div class="field full"><label>Observações</label><input type="text" id="sm_obs" placeholder="Central, botijão, nº do canister..."></div>
@@ -2699,11 +2733,11 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="form-grid">
       <div class="field"><label>Data da venda</label><input type="date" id="vc_data"></div>
       <div class="field"><label>Comprador</label><input type="text" id="vc_comprador" list="dl_compradores_cobertura" placeholder="Nome do cliente / haras"></div>
-      <div class="field full"><label>Lote de sêmen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(de onde saem as doses)</span></label>
+      <div class="field full"><label>Lote de sêmen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(de onde saem as palhetas)</span></label>
         <select id="vc_lote"></select>
       </div>
-      <div class="field"><label>Doses vendidas</label><input type="number" step="1" min="1" id="vc_doses" placeholder="Ex: 2"></div>
-      <div class="field"><label>Valor por dose (R$)</label><input type="text" id="vc_valorUnit" placeholder="Ex: 400,00"></div>
+      <div class="field"><label>Palhetas vendidas</label><input type="number" step="1" min="1" id="vc_doses" placeholder="Ex: 2"></div>
+      <div class="field"><label>Valor por palheta (R$)</label><input type="text" id="vc_valorUnit" placeholder="Ex: 400,00"></div>
       <div class="field"><label>Valor total (R$) <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">— calculado, mas dá pra ajustar</span></label><input type="text" id="vc_valor" placeholder="0,00"></div>
       <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="vc_pago" style="width:15px;height:15px;margin:0;"> Já recebido</label></div>
       <div class="field"><label>Forma de pagamento <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><input type="text" id="vc_forma" placeholder="Pix, boleto, à vista..."></div>
@@ -2718,7 +2752,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 </div>
 <datalist id="dl_compradores_cobertura"></datalist>
 
-<!-- MOVIMENTAÇÕES DO LOTE DE SÊMEN (extrato: pra onde foram as doses) -->
+<!-- MOVIMENTAÇÕES DO LOTE DE SÊMEN (extrato: pra onde foram as palhetas) -->
 <div class="overlay" id="overlaySemenMovs">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="semenMovsTitulo">Movimentações</div><button class="modal-close" data-close="overlaySemenMovs">✕</button></div>
@@ -2786,7 +2820,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </div>
       </div>
       <div class="modal-actions">
-        <div><button type="button" class="btn btn-danger" id="btnDeleteProduto" style="display:none;">Excluir</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-danger" id="btnDeleteProduto" style="display:none;">Excluir</button><button type="button" class="btn btn-ghost" id="btnProdutoParaCatalogo" style="display:none;" title="Sai da tela de Estoque e passa a ser referência na Consultoria. Nada é apagado.">🌾 Mandar pro catálogo da Consultoria</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayProduto">Cancelar</button><button type="submit" class="btn">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
       </div>
     </form>
@@ -2966,7 +3000,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     </div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaConsultoria" style="display:none;">Excluir</button></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn btn-ghost" id="btnSalvarEAvaliarProp" title="Salva a visita e já abre o questionário da propriedade">📋 Salvar e avaliar a propriedade</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -2993,6 +3027,12 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="csvdModalTitle">Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisitaDetalhe">✕</button></div>
     <div class="hint-text" id="csvdResumo" style="margin-bottom:14px;"></div>
+    <!-- Primeira opção ao abrir a visita, por pedido do usuário: avaliar a propriedade é o que ele faz
+         assim que chega, antes de cadastrar os animais avaliados. -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--chip-bg);">
+      <button type="button" class="btn" id="btnAvalPropVisita">📋 Avaliar a propriedade</button>
+      <div class="hint-text" id="csvdAvalPropResumo" style="margin:0;flex:1;min-width:220px;"></div>
+    </div>
     <div class="section-label" style="border-top:none;padding-top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <span>Animais avaliados</span>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAddAvaliacaoConsultoria">+ Adicionar Animal</button>
@@ -3004,6 +3044,69 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-ghost" id="btnEditarVisitaConsultoria">✎ Editar dados da visita</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: AVALIAÇÃO DA PROPRIEDADE — questionário que o consultor preenche na visita.
+     As 19 perguntas vieram do formulário que o cliente usava fora do sistema. Avaliador, local/cidade,
+     propriedade e responsável já estão no cadastro da visita, então entram preenchidos (editáveis). -->
+<div class="overlay" id="overlayConsultoriaAvalProp">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="cavpModalTitle">Avaliação da Propriedade</div><button class="modal-close" data-close="overlayConsultoriaAvalProp">✕</button></div>
+    <div class="hint-text" id="cavpResumoVisita" style="margin-bottom:12px;"></div>
+    <div class="form-grid">
+      <div class="field"><label>Data da avaliação</label><input type="date" id="cavp_dataAval"></div>
+      <div class="field"><label>1. Nome do avaliador</label><input type="text" id="cavp_avaliador" placeholder="Quem fez a avaliação"></div>
+      <div class="field"><label>2. Local e cidade da avaliação</label><input type="text" id="cavp_local" placeholder="Ex: Itu — SP"></div>
+      <div class="field"><label>3. Nome do animal</label><input type="text" id="cavp_animal" placeholder="Animal observado na avaliação"></div>
+      <div class="field"><label>4. Nome do Haras / Rancho / CT</label><input type="text" id="cavp_haras"></div>
+      <div class="field"><label>5. Responsável pelo cavalo durante a avaliação</label><input type="text" id="cavp_responsavel"></div>
+    </div>
+    <div class="section-label">Volumoso</div>
+    <div class="form-grid">
+      <div class="field"><label>6. Tipo de volumoso utilizado</label><input type="text" id="cavp_volTipo" placeholder="Ex: Feno de Tifton"></div>
+      <div class="field"><label>7. Classificação do volumoso (na sua visão)</label><select id="cavp_volClasse">
+        <option value="">Selecione...</option>
+        <option value="VIP">VIP (Excelente Qualidade)</option>
+        <option value="A">A (Bom)</option>
+        <option value="B">B (Regular)</option>
+        <option value="C">C (Ruim)</option>
+        <option value="Outra">Outra</option>
+      </select></div>
+      <div class="field" id="cavp_volClasseOutraWrap" style="display:none;"><label>Qual?</label><input type="text" id="cavp_volClasseOutra"></div>
+      <div class="field"><label>9. Quantidade de volumoso fornecida</label><input type="text" inputmode="decimal" id="cavp_volQtd" placeholder="Ex: 6 ou 6,5 kg/dia"></div>
+      <div class="field full"><label>8. Forma de fornecimento do volumoso <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(pode marcar mais de uma)</span></label>
+        <div id="cavp_volFormaHost" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+      </div>
+    </div>
+    <div class="section-label">Concentrado e condição</div>
+    <div class="form-grid">
+      <div class="field"><label>10. Usava aveia pura?</label><select id="cavp_aveia"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+      <div class="field"><label>14. Usava sal mineral?</label><select id="cavp_salMineral"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+      <div class="field full"><label>11. Qual(is) ração(ões) utilizada(s)?</label><input type="text" id="cavp_racoes"></div>
+      <div class="field full"><label>12. Quantidade informada de cada ração utilizada</label><input type="text" id="cavp_racoesQtd"></div>
+      <div class="field"><label>13. Escore de Condição Corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="cavp_escore" placeholder="Opcional"></div>
+    </div>
+    <div class="section-label">Peneiramento da ração</div>
+    <div class="form-grid">
+      <div class="field"><label>15. % da peneira 1</label><input type="text" inputmode="decimal" id="cavp_peneira1" placeholder="Ex: 35 ou 35,5"></div>
+      <div class="field"><label>16. % da peneira 2</label><input type="text" inputmode="decimal" id="cavp_peneira2"></div>
+      <div class="field"><label>17. % da peneira 3</label><input type="text" inputmode="decimal" id="cavp_peneira3"></div>
+      <div class="field" style="align-self:end;"><div class="hint-text" id="cavp_peneiraSoma"></div></div>
+    </div>
+    <div class="section-label">Conclusão</div>
+    <div class="form-grid">
+      <div class="field full"><label>18. Alguma observação sobre o animal? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(detalhe que possa influenciar o resultado: odontologia, manejo etc.)</span></label><textarea id="cavp_obsAnimal" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+      <div class="field full"><label>19. Ações e dieta sugerida pós avaliação <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><textarea id="cavp_acoes" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteAvalProp" style="display:none;">Excluir avaliação</button></div>
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-ghost" data-close="overlayConsultoriaAvalProp">Cancelar</button>
+        <button type="button" class="btn btn-ghost" id="btnPdfAvalProp">📄 Relatório da avaliação</button>
+        <button type="button" class="btn" id="btnSaveAvalProp">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button>
+      </div>
     </div>
   </div>
 </div>
@@ -3111,7 +3214,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </div>
       </div>
       <div id="u_permBlock" style="margin-top:16px;">
-        <div class="hint-text" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
+        <div class="hint-text" id="u_permAjuda" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
+        <div class="hint-text" id="u_permAvisoAdmin" style="margin-bottom:8px;display:none;"><strong>Administrador vê e faz tudo</strong> — o quadro abaixo mostra esse acesso completo e fica travado. Pra escolher módulo por módulo, desmarque "Administrador" acima.</div>
         <div class="perm-table-wrap"><div class="perm-table" id="u_permTable"></div></div>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:14px;">
           <input type="checkbox" id="u_permSeguranca" style="width:15px;height:15px;">
@@ -3154,6 +3258,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 </div>
 
 <!-- CUSTOM DIALOG (replaces prompt/alert/confirm which can be blocked) -->
+<!-- Escolha do formato da Placa de Baia. Modal próprio (e não o overlayDialog genérico) porque aqui
+     são DUAS opções de verdade, e não um "OK / Cancelar": um diálogo com dois caminhos válidos não
+     pode chamar um deles de "Cancelar". -->
+<div class="overlay" id="overlayPlacaFormato">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">Placa de Baia</div>
+    <div style="margin:14px 0 4px;font-size:13.5px;line-height:1.5;">Como você quer imprimir?</div>
+    <div id="placaFormatoResumo" class="hint-text" style="margin:8px 0 0;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+      <button class="btn" type="button" data-placafmt="grupo">Uma placa para o grupo<span style="display:block;font-weight:400;font-size:11.5px;opacity:.75;">Animais que comem a mesma dieta dividem a folha</span></button>
+      <button class="btn" type="button" data-placafmt="individual">Uma placa por animal<span style="display:block;font-weight:400;font-size:11.5px;opacity:.75;">Uma folha para cada animal, mesmo repetindo a dieta</span></button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-ghost" type="button" data-close="overlayPlacaFormato">Cancelar</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="overlayDialog">
   <div class="modal" style="max-width:420px;">
     <div class="modal-title" id="dialogTitle">Título</div>
@@ -3402,6 +3523,10 @@ let consultoriaAvaliacoes = []; // Firestore key: 'consultoria_avaliacoes_list'
 let consultoriaFotos = {};      // Firestore key: 'consultoria_fotos' — objeto { [avaliacaoId]: [{id,dataUrl,legenda,ordem}] }
 let consultoriaFormulacoes = []; // Firestore key: 'consultoria_formulacoes_list' — Fase 2 (Formulação/NRC)
 let consultoriaPropriedades = []; // Firestore key: 'consultoria_propriedades_list' — cadastro leve de haras/propriedade (nome, proprietário, cidade, obs)
+// Avaliação da Propriedade: questionário que o consultor preenche NA visita (o cliente fazia isso num
+// formulário fora do sistema). Vive dentro da visita — uma por visita, sempre opcional — e é por isso
+// que guarda visitaId em vez de animalId. Ver overlayConsultoriaAvalProp.
+let consultoriaAvalPropriedade = []; // Firestore key: 'consultoria_aval_propriedade'
 let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, editingFormulacaoConsultoriaId = null;
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Registro avulso de Peso/Score corporal/Foto por animal, com data — pra alimentar a Linha do Tempo
@@ -3537,6 +3662,7 @@ const AUDIT_KEYS = {
   vendas_cobertura:   { modulo:'Reprodução', nome: r=>['Venda de cobertura', r.comprador, r.garanhao].filter(Boolean).join(' · ') },
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  consultoria_aval_propriedade: { modulo:'Consultoria', nome: r=>['Avaliação da propriedade', r.haras, r.dataAval&&fmtDate(r.dataAval)].filter(Boolean).join(' · ') },
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
   consultoria_propriedades_list:{ modulo:'Consultoria', nome: r=>r.nome },
   animal_registros_list: { modulo:'Animais', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
@@ -3609,6 +3735,17 @@ function fundirObjetoPorChave(minhaBaseAnteriorObj, val, doBanco){
   Object.keys(val||{}).forEach(k=>{
     if(JSON.stringify(base[k]) !== JSON.stringify(val[k])) atual[k] = val[k]; // só as chaves que esta aba mudou agora
   });
+  // Chave APAGADA por esta aba (estava na base dela e não está mais no que ela manda gravar) precisa
+  // sair de verdade. O laço acima só passa pelas chaves que sobraram em `val`, então uma chave
+  // deletada nunca era visitada e voltava inteira junto com `doBanco` — a exclusão era desfeita na
+  // gravação seguinte. Era isso que deixava as fotos de avaliações/visitas já excluídas ocupando
+  // espaço pra sempre em consultoria_fotos, sem aparecer em lugar nenhum. Chave que não está nem na
+  // base nem em `val` veio de OUTRA sessão e continua preservada, que é o objetivo da fusão.
+  if(val && typeof val==='object'){
+    Object.keys(base).forEach(k=>{
+      if(!Object.prototype.hasOwnProperty.call(val, k)) delete atual[k];
+    });
+  }
   return atual;
 }
 // Depois de fundir, a variável global correspondente (horses, manejos, config...) precisa refletir o
@@ -3638,6 +3775,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'exames_animais': examesPorAnimal = val; break;
     case 'consultoria_visitas_list': consultoriaVisitas = val; break;
     case 'consultoria_avaliacoes_list': consultoriaAvaliacoes = val; break;
+    case 'consultoria_aval_propriedade': consultoriaAvalPropriedade = val; break;
     case 'consultoria_fotos': consultoriaFotos = val; break;
     case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
     case 'consultoria_propriedades_list': consultoriaPropriedades = val; break;
@@ -3860,7 +3998,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob, rCAvP] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3871,7 +4009,7 @@ async function loadAll(){
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
     storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
-    storeGet('piquetes_list'), storeGet('vendas_cobertura')
+    storeGet('piquetes_list'), storeGet('vendas_cobertura'), storeGet('consultoria_aval_propriedade')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   animalRegistros = rARz.value||[];
@@ -3879,6 +4017,7 @@ async function loadAll(){
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
   consultoriaPropriedades = rCPr.value||[];
+  consultoriaAvalPropriedade = Array.isArray(rCAvP.value) ? rCAvP.value : [];
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   vendasCobertura = Array.isArray(rVCob.value) ? rVCob.value : [];
@@ -3901,7 +4040,7 @@ async function loadAll(){
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes, vendas_cobertura:vendasCobertura,
-    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades,
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades, consultoria_aval_propriedade:consultoriaAvalPropriedade,
     animal_registros_list:animalRegistros, piquetes_list:piquetes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
@@ -4096,6 +4235,80 @@ async function loadAll(){
     if(!d.diasSemana){ d.diasSemana=[true,true,true,true,true,true,true]; dietasChanged=true; }
   });
   if(dietasChanged) await storeSet('dietas_list', dietas);
+  // Faxina das fotos órfãs da Consultoria. As fotos são gravadas DENTRO do documento
+  // consultoria_fotos, e o documento tem teto de tamanho — quando ele enche, o app passa a recusar
+  // foto nova. Até a correção em fundirObjetoPorChave, excluir uma avaliação (ou uma visita inteira)
+  // tirava as fotos só da memória: na gravação seguinte a fusão devolvia a chave, então elas ficavam
+  // ocupando o espaço para sempre, invisíveis em qualquer tela. Aqui some o que não tem mais dono.
+  // Só roda quando as DUAS leituras deram certo: com uma leitura falha, avaliações viriam vazias e
+  // toda foto pareceria órfã.
+  if(rCF.ok && rCA.ok && Object.keys(consultoriaFotos).length>0){
+    const idsVivos = new Set(consultoriaAvaliacoes.map(a=>a.id));
+    const orfas = Object.keys(consultoriaFotos).filter(id=>!idsVivos.has(id));
+    if(orfas.length>0){
+      let nFotos = 0, caracteres = 0;
+      orfas.forEach(id=>{
+        const lista = Array.isArray(consultoriaFotos[id]) ? consultoriaFotos[id] : [];
+        nFotos += lista.length;
+        caracteres += JSON.stringify(lista).length;
+        delete consultoriaFotos[id];
+      });
+      // consultoriaFotosSnapshot NÃO é atualizado aqui de propósito: ele ainda guarda o estado lido do
+      // banco (com as órfãs), e é justamente essa diferença que faz a fusão entender que as chaves
+      // foram apagadas. O próprio storeSet atualiza o snapshot no final.
+      const ok = await storeSet('consultoria_fotos', consultoriaFotos);
+      if(ok && nFotos>0){
+        showAlert(nFotos+' foto(s) de avaliações já excluídas estavam presas no banco e foram removidas, liberando cerca de '+Math.round(caracteres/1024)+' KB para fotos novas na Consultoria.');
+      }
+    }
+  }
+  // Migração única: as duas rações laminadas trocaram de nome — "Hectare" virou "Equitage". Troca só
+  // essa palavra, preservando o resto do nome (ex: "Guabi Hectare 15 Laminados" -> "Guabi Equitage 15
+  // Laminados"). Mexe apenas no campo nome do produto: o id continua o mesmo, então Dietas,
+  // movimentações de estoque e lançamentos financeiros seguem apontando pro mesmo registro.
+  if(!config.migracaoNomeEquitage){
+    let renomeados = [];
+    estoqueProdutos.forEach(p=>{
+      if(p.nome && /hectare/i.test(p.nome)){
+        const antes = p.nome;
+        p.nome = p.nome.replace(/hectare/gi, 'Equitage');
+        renomeados.push(antes+' → '+p.nome);
+      }
+    });
+    config.migracaoNomeEquitage = true;
+    await storeSet('config', config);
+    if(renomeados.length>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      showAlert('Nome atualizado em '+renomeados.length+' ração(ões):\n\n'+renomeados.join('\n')+'\n\nO cadastro é o mesmo (nada foi recriado) — Dietas, estoque e financeiro continuam ligados normalmente.');
+    }
+  }
+  // Migração única: separa o que o haras realmente compra (feno, Equitage 15 Laminados, Equitage
+  // Laminados, sal mineral) do resto das rações, que passa a viver no catálogo da Consultoria. Roda
+  // UMA vez (config.migracaoCatalogoRacoes) pra não voltar a marcar um produto que o usuário trouxe
+  // de volta pro Estoque depois. Nada é apagado — só a marca catalogoConsultoria muda.
+  if(!config.migracaoCatalogoRacoes){
+    const marcados = moverNaoDoHarasParaCatalogo();
+    config.migracaoCatalogoRacoes = true;
+    await storeSet('config', config);
+    if(marcados>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      showAlert(marcados+' ração(ões) saíram do Estoque e foram pro catálogo da Consultoria (aba "🌾 Catálogo de Rações"). Ficaram no Estoque: feno, Equitage 15 Laminados, Equitage Laminados e sal mineral. Nada foi apagado — dá pra trazer qualquer uma de volta com um clique.');
+    }
+  }
+  // Segunda passada, também única: a migração acima roda UMA vez, então as rações cadastradas depois
+  // dela continuaram aparecendo no Estoque (foi o que aconteceu — várias Proequi e Equitage de
+  // catálogo, todas com 1 Kg simbólico, ficaram na lista). Repete a separação uma vez para limpar
+  // esse acúmulo. Daqui pra frente, quem mantém a casa em ordem é o botão "Organizar" do catálogo,
+  // manual — assim não é preciso uma migração nova a cada vez.
+  if(config.migracaoCatalogoRacoes && !config.migracaoCatalogoRacoes2){
+    const marcados = moverNaoDoHarasParaCatalogo();
+    config.migracaoCatalogoRacoes2 = true;
+    await storeSet('config', config);
+    if(marcados>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      showAlert('Mais '+marcados+' ração(ões) cadastradas depois da primeira separação foram pro catálogo da Consultoria. No Estoque ficam feno, Equitage 15 Laminados, Equitage Laminados e sal mineral. Nada foi apagado.');
+    }
+  }
   refreshDatalists();
   populateAuxSelects();
   renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
@@ -7054,8 +7267,8 @@ function renderInicioHero(){
   const chips = [];
   chips.push({texto:`${atrasadas} tarefa(s) atrasada(s)`, bg:'var(--alert-bg)', cor:'var(--alert-ink)', icone:'calendario', onClick:()=>abrirListaInicio('atrasadas')});
   if(acessos.includes('estoque')){
-    const zerados = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
-    const pertoMin = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
+    const zerados = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='zerado').length;
+    const pertoMin = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='perto').length;
     chips.push({texto:`${zerados+pertoMin} alerta(s) de estoque`, bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'caixa', onClick:()=>abrirListaInicio('estoque')});
   }
   // O chip de folha de pagamento (confirmada/pendente) saiu daqui a pedido do Gustavo — nada
@@ -11239,7 +11452,7 @@ function renderSemen(){
   const abaixoMin = semenLotes.filter(l=> l.minimo!=null&&l.minimo!=='' && (Number(l.quantidade)||0) <= Number(l.minimo)).length;
   const vencidos = semenLotes.filter(l=> l.validade && l.validade < hoje).length;
   document.getElementById('semenStats').innerHTML =
-    `<div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Doses em estoque</div></div>`
+    `<div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Palhetas em estoque</div></div>`
     + `<div class="stat"><div class="stat-num">${garanhoes}</div><div class="stat-label">Garanhões</div></div>`
     + `<div class="stat"><div class="stat-num" style="color:${abaixoMin>0?'var(--warn-ink)':'inherit'};">${abaixoMin}</div><div class="stat-label">Abaixo do mínimo</div></div>`
     + `<div class="stat"><div class="stat-num" style="color:${vencidos>0?'var(--burgundy)':'inherit'};">${vencidos}</div><div class="stat-label">Vencidos</div></div>`;
@@ -11282,7 +11495,7 @@ function renderSemen(){
       <td>${l.obs||''}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-semenusar="${l.id}" title="Registrar uso numa inseminação (dá baixa)">− Usar</button>
-        <button type="button" class="btn btn-sm btn-ghost" data-semenentrada="${l.id}" title="Entrada de doses">+ Entrada</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-semenentrada="${l.id}" title="Entrada de palhetas">+ Entrada</button>
       </td>
     </tr>`;
   }).join('');
@@ -11300,50 +11513,92 @@ function ultimaSaidaSemen(l){
   return saidas.length ? saidas[saidas.length-1] : null;
 }
 // Extrato completo de um lote (entradas e saídas, com destino e quem registrou).
+let semenMovsLoteAberto = null;
 function abrirMovimentosSemen(id){
   const l = semenLotes.find(x=>x.id===id); if(!l) return;
-  const movs = (l.movimentos||[]).slice().reverse();
+  semenMovsLoteAberto = id;
+  // Guarda o índice REAL de cada movimento antes de inverter a ordem (a tela mostra do mais novo pro
+  // mais antigo, mas editar/excluir precisa mexer na posição certa do array).
+  const movs = (l.movimentos||[]).map((m,i)=>({ m, i })).reverse();
   const titulo = ['Movimentações', l.garanhao, l.lote].filter(Boolean).join(' — ');
   document.getElementById('semenMovsTitulo').textContent = titulo;
   const body = document.getElementById('semenMovsBody');
   if(movs.length===0){
     body.innerHTML = '<div class="empty">Nenhuma movimentação registrada neste lote ainda.</div>';
   } else {
-    const totalSaida = movs.filter(m=>m.tipo==='saida').reduce((s,m)=>s+(Number(m.qtd)||0),0);
-    const totalEntrada = movs.filter(m=>m.tipo!=='saida').reduce((s,m)=>s+(Number(m.qtd)||0),0);
+    const totalSaida = movs.filter(({m})=>m.tipo==='saida').reduce((s,{m})=>s+(Number(m.qtd)||0),0);
+    const totalEntrada = movs.filter(({m})=>m.tipo!=='saida').reduce((s,{m})=>s+(Number(m.qtd)||0),0);
     body.innerHTML = `
-      <div class="hint-text" style="margin-bottom:12px;">Movimentações registradas: <strong>+${totalEntrada}</strong> de entrada e <strong>−${totalSaida}</strong> de saída. Em estoque agora: <strong>${Number(l.quantidade)||0}</strong> dose(s) — a quantidade digitada no cadastro do lote não conta como movimentação.</div>
+      <div class="hint-text" style="margin-bottom:12px;">Movimentações registradas: <strong>+${totalEntrada}</strong> de entrada e <strong>−${totalSaida}</strong> de saída. Em estoque agora: <strong>${Number(l.quantidade)||0}</strong> palheta(s) — a quantidade digitada no cadastro do lote não conta como movimentação. Corrigir ou apagar uma linha aqui acerta o estoque junto.</div>
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Data</th><th>Movimento</th><th>Doses</th><th>Destino / observação</th><th>Registrado por</th></tr></thead>
-        <tbody>${movs.map(m=>`<tr>
+        <thead><tr><th>Data</th><th>Movimento</th><th>Palhetas</th><th>Destino / observação</th><th>Registrado por</th><th></th></tr></thead>
+        <tbody>${movs.map(({m,i})=>`<tr>
           <td style="white-space:nowrap;">${fmtDate(m.data)}</td>
           <td>${m.tipo==='saida'?'<span class="pill st-descarte">Saída</span>':'<span class="pill st-ativo">Entrada</span>'}</td>
           <td style="font-family:'IBM Plex Mono',monospace;">${m.tipo==='saida'?'−':'+'}${m.qtd}</td>
           <td>${escHtml(m.motivo||'')||'<span style="color:var(--muted);">não informado</span>'}</td>
           <td>${escHtml(m.por||'')||'—'}</td>
+          <td style="white-space:nowrap;">${m.vendaId
+            ? '<span class="hint-text" style="margin:0;" title="Essa baixa pertence a uma venda de cobertura — corrija pela aba Venda de Cobertura, pra venda e estoque não ficarem diferentes.">via Venda de Cobertura</span>'
+            : `<button type="button" class="btn btn-sm btn-ghost" data-movedit="${i}" title="Corrigir quantidade ou destino">✎</button>
+               <button type="button" class="btn btn-sm btn-danger" data-movdel="${i}" title="Apagar esta movimentação (devolve/retira do estoque)">🗑</button>`}</td>
         </tr>`).join('')}</tbody>
       </table></div>`;
+    body.querySelectorAll('[data-movedit]').forEach(b=>b.addEventListener('click', ()=>editarMovimentoSemen(id, Number(b.dataset.movedit))));
+    body.querySelectorAll('[data-movdel]').forEach(b=>b.addEventListener('click', ()=>excluirMovimentoSemen(id, Number(b.dataset.movdel))));
   }
   openModal('overlaySemenMovs');
+}
+// Efeito de um movimento no saldo do lote: saída tira, entrada põe.
+function efeitoMovSemen(m){ return (m.tipo==='saida' ? -1 : 1) * (Number(m.qtd)||0); }
+async function editarMovimentoSemen(loteId, idx){
+  const l = semenLotes.find(x=>x.id===loteId); if(!l) return;
+  const m = (l.movimentos||[])[idx]; if(!m) return;
+  const qtxt = await showPrompt(`Quantas palhetas nessa ${m.tipo==='saida'?'saída':'entrada'}?`, String(m.qtd||''));
+  if(qtxt===null) return;
+  const novaQtd = Math.round(Number(String(qtxt).replace(',','.'))||0);
+  if(novaQtd<=0){ showAlert('Informe uma quantidade válida (maior que zero).'); return; }
+  const novoMotivo = await showPrompt('Para onde foram / observação:', m.motivo||'');
+  if(novoMotivo===null) return;
+  // Desfaz o efeito antigo e aplica o novo, pra o saldo do lote acompanhar a correção.
+  const antes = efeitoMovSemen(m);
+  m.qtd = novaQtd;
+  m.motivo = String(novoMotivo).trim();
+  const depois = efeitoMovSemen(m);
+  l.quantidade = Math.max(0, (Number(l.quantidade)||0) - antes + depois);
+  semenLotes = semenLotes.map(x=>x.id===l.id?l:x);
+  await storeSet('semen_lotes', semenLotes, true);
+  renderSemen(); abrirMovimentosSemen(loteId);
+}
+async function excluirMovimentoSemen(loteId, idx){
+  const l = semenLotes.find(x=>x.id===loteId); if(!l) return;
+  const m = (l.movimentos||[])[idx]; if(!m) return;
+  const volta = m.tipo==='saida' ? `As ${m.qtd} palheta(s) voltam pro estoque.` : `As ${m.qtd} palheta(s) saem do estoque.`;
+  if(!(await showConfirm('Apagar esta movimentação? '+volta))) return;
+  l.quantidade = Math.max(0, (Number(l.quantidade)||0) - efeitoMovSemen(m));
+  l.movimentos = (l.movimentos||[]).filter((_,i)=>i!==idx);
+  semenLotes = semenLotes.map(x=>x.id===l.id?l:x);
+  await storeSet('semen_lotes', semenLotes, true);
+  renderSemen(); abrirMovimentosSemen(loteId);
 }
 ORD_RENDERERS.semen = renderSemen;
 document.getElementById('semenSearch').addEventListener('input', debounce(renderSemen));
 async function movimentarSemen(id, tipoMov){
   const l = semenLotes.find(x=>x.id===id); if(!l) return;
   const acao = tipoMov==='saida' ? 'usar (baixa)' : 'dar entrada de';
-  const qtxt = await showPrompt('Quantas doses/palhetas ' + acao + ' — '+l.garanhao+(l.lote?(' · '+l.lote):'')+'?', 'Ex: 1');
+  const qtxt = await showPrompt('Quantas palhetas ' + acao + ' — '+l.garanhao+(l.lote?(' · '+l.lote):'')+'?', 'Ex: 1');
   if(qtxt===null) return;
   const q = Math.round(Number(String(qtxt).replace(',','.'))||0);
   if(q<=0){ showAlert('Informe uma quantidade válida.'); return; }
   const atual = Number(l.quantidade)||0;
   if(tipoMov==='saida' && q>atual){
-    if(!(await showConfirm('Só tem '+atual+' dose(s) em estoque. Registrar a baixa mesmo assim (fica negativo/zerado)?'))) return;
+    if(!(await showConfirm('Só tem '+atual+' palheta(s) em estoque. Registrar a baixa mesmo assim (fica negativo/zerado)?'))) return;
   }
   let motivo = '';
   if(tipoMov==='saida'){
-    // Destino é o que responde "pra onde foram essas doses" — aparece na coluna "Último uso" da lista
+    // Destino é o que responde "pra onde foram essas palhetas" — aparece na coluna "Último uso" da lista
     // e no extrato completo do lote (botão nessa coluna).
-    motivo = (await showPrompt('Para onde foram essas doses? (égua, cliente, descarte...)', 'Ex: Estrela') || '').trim();
+    motivo = (await showPrompt('Para onde foram essas palhetas? (égua, cliente, descarte...)', 'Ex: Estrela') || '').trim();
   }
   l.quantidade = tipoMov==='saida' ? Math.max(0, atual - q) : atual + q;
   if(!l.movimentos) l.movimentos = [];
@@ -11405,14 +11660,14 @@ document.getElementById('btnDeleteSemen').addEventListener('click', async ()=>{
 bindSaveShortcut('overlaySemen','btnSaveSemen');
 
 /* ===== VENDA DE COBERTURA =====
-   Venda de doses do garanhão pra terceiros. Ela é a DONA de duas consequências automáticas:
+   Venda de palhetas do garanhão pra terceiros. Ela é a DONA de duas consequências automáticas:
    1) baixa no Estoque de Sêmen (o comprador vira o destino das palhetas — ver movimentos do lote);
    2) receita no Financeiro (categoria "Venda de Cobertura"), derivada daqui, nunca digitada duas vezes.
    Por isso a venda guarda `dosesBaixadas` e `loteIdBaixado`: editar ou excluir precisa DESFAZER
    exatamente o que foi tirado antes, senão o estoque fica torto. */
 let editingVendaCobId = null;
 function vendaCobDescricao(v){
-  return `Venda de cobertura${v.garanhao?(' — '+v.garanhao):''}${v.doses?(' · '+v.doses+' dose(s)'):''}${v.comprador?(' · '+v.comprador):''}`;
+  return `Venda de cobertura${v.garanhao?(' — '+v.garanhao):''}${v.doses?(' · '+v.doses+' palheta(s)'):''}${v.comprador?(' · '+v.comprador):''}`;
 }
 // Aplica no estoque a diferença entre o que a venda já tinha tirado e o que ela passa a tirar agora.
 // `novo` = null significa que a venda foi excluída (devolve tudo pro lote).
@@ -11457,7 +11712,7 @@ function renderVendasCobertura(){
   const totalDoses = vendasCobertura.reduce((s,v)=>s+(Number(v.doses)||0),0);
   document.getElementById('vendaCobStats').innerHTML =
     `<div class="stat"><div class="stat-num">${vendasCobertura.length}</div><div class="stat-label">Vendas</div></div>
-     <div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Doses vendidas</div></div>
+     <div class="stat"><div class="stat-num">${totalDoses}</div><div class="stat-label">Palhetas vendidas</div></div>
      <div class="stat"><div class="stat-num" style="color:var(--ok);">${fmtR(totalVendido)}</div><div class="stat-label">Total vendido</div></div>
      <div class="stat"><div class="stat-num" style="color:${totalReceber>0?'var(--warn-ink)':'inherit'};">${fmtR(totalReceber)}</div><div class="stat-label">A receber</div></div>`;
   const filtrada = vendasCobertura.filter(v=>{
@@ -11501,7 +11756,7 @@ ORD_RENDERERS.vendacob = renderVendasCobertura;
 function preencherLotesVendaCob(selecionado){
   const sel = document.getElementById('vc_lote');
   const opcoes = semenLotes.map(l=>{
-    const rotulo = [l.garanhao, l.lote].filter(Boolean).join(' · ') + ` — ${Number(l.quantidade)||0} dose(s)`;
+    const rotulo = [l.garanhao, l.lote].filter(Boolean).join(' · ') + ` — ${Number(l.quantidade)||0} palheta(s)`;
     return `<option value="${l.id}">${escHtml(rotulo)}</option>`;
   }).join('');
   sel.innerHTML = '<option value="">Não dar baixa em nenhum lote</option>' + opcoes;
@@ -11516,11 +11771,11 @@ function atualizarAvisoEstoqueVendaCob(){
   const jaBaixado = (existente && existente.loteIdBaixado===lote.id) ? (Number(existente.dosesBaixadas)||0) : 0;
   const disponivel = (Number(lote.quantidade)||0) + jaBaixado;
   aviso.innerHTML = doses>disponivel
-    ? `⚠ O lote tem ${disponivel} dose(s) disponível(is) e você está vendendo ${doses}. Dá pra salvar mesmo assim (o estoque fica zerado).`
-    : `Ao salvar, saem ${doses||0} dose(s) desse lote (restam ${Math.max(0, disponivel-(doses||0))}).`;
+    ? `⚠ O lote tem ${disponivel} palheta(s) disponível(is) e você está vendendo ${doses}. Dá pra salvar mesmo assim (o estoque fica zerado).`
+    : `Ao salvar, saem ${doses||0} palheta(s) desse lote (restam ${Math.max(0, disponivel-(doses||0))}).`;
 }
 ['vc_lote','vc_doses'].forEach(id=>document.getElementById(id).addEventListener('input', atualizarAvisoEstoqueVendaCob));
-// Valor por dose × doses = valor total. O total continua editável (venda fechada com desconto, frete
+// Valor por palheta × palhetas = valor total. O total continua editável (venda fechada com desconto, frete
 // embutido etc.) — só é recalculado quando a pessoa mexe nas doses ou no valor da dose.
 function recalcularTotalVendaCob(){
   const doses = Math.max(0, Math.round(Number(f('vc_doses'))||0));
@@ -11599,7 +11854,7 @@ document.getElementById('btnDeleteVendaCob').addEventListener('click', async ()=
   if(!editingVendaCobId) return;
   const v = vendasCobertura.find(x=>x.id===editingVendaCobId); if(!v) return;
   const temBaixa = v.loteIdBaixado && (Number(v.dosesBaixadas)||0) > 0;
-  if(!(await showConfirm('Excluir esta venda de cobertura?'+(temBaixa?` As ${v.dosesBaixadas} dose(s) voltam pro estoque do lote.`:'')))) return;
+  if(!(await showConfirm('Excluir esta venda de cobertura?'+(temBaixa?` As ${v.dosesBaixadas} palheta(s) voltam pro estoque do lote.`:'')))) return;
   ajustarEstoqueVendaCob(v, null);
   vendasCobertura = vendasCobertura.filter(x=>x.id!==editingVendaCobId);
   await storeSet('vendas_cobertura', vendasCobertura, true);
@@ -12111,6 +12366,45 @@ function calcProjecaoConsumo(p){
   const diasRestantes = consumoSemanal>0 ? Math.floor(qtdAtual/(consumoSemanal/7)) : Infinity;
   return {suficiente:true, consumoSemanal, diasRestantes};
 }
+/* ===== CATÁLOGO DE RAÇÕES (Consultoria) =====
+   Ração que o haras NÃO compra, mas que serve de referência pra recomendar ao cliente. Ela continua
+   sendo um produto normal (mesmo array estoqueProdutos, mesmo id) — só ganha a marca
+   catalogoConsultoria, que a esconde das telas de Estoque e a mostra no catálogo da Consultoria.
+   Por que não apagar de vez: o produto é referenciado por id em Dietas, movimentações de estoque e
+   lançamentos financeiros. Excluir quebraria Dietas (que não pode ser alterada) e o histórico de custo.
+   Marcar é reversível: um clique traz de volta pro Estoque, sem perder nada. */
+function ehCatalogoConsultoria(p){ return !!(p && p.catalogoConsultoria); }
+function produtosDoEstoque(){ return estoqueProdutos.filter(p=>!ehCatalogoConsultoria(p)); }
+function produtosDoCatalogo(){ return estoqueProdutos.filter(ehCatalogoConsultoria); }
+// Fica no Estoque quem casar com um destes nomes; todo o resto que for Alimento vai pro catálogo.
+// Comparação sem acento e sem caixa, por "contém" — nome cadastrado com variação ainda casa.
+// "Hectare" era o nome antigo das duas rações laminadas, hoje Equitage. Os dois ficam na lista pra
+// a classificação funcionar igual antes e depois da troca de nome (migração migracaoNomeEquitage),
+// e pra não quebrar se algum cadastro antigo ainda estiver com o nome velho. Atenção: os nomes aqui
+// são os COMPLETOS de propósito — "equitage" sozinho arrastaria Equitage Fibra e Equitage Kiblets,
+// que são rações de catálogo, pra dentro do Estoque.
+const ALIMENTOS_DO_HARAS = ['feno', 'equitage 15 laminados', 'equitage laminados',
+  'hectare 15 laminados', 'hectare laminados', 'sal mineral'];
+function normNomeProduto(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
+function ehAlimentoDoHaras(nome){
+  const n = normNomeProduto(nome);
+  return ALIMENTOS_DO_HARAS.some(alvo=>n.includes(alvo));
+}
+// Marca como catálogo todo Alimento que não está na lista do haras. Devolve quantos moveu. Só mexe na
+// marca — o produto continua existindo, com o mesmo id, e volta pro Estoque com um clique. Usada pela
+// migração automática e pelo botão "Organizar" do catálogo.
+function moverNaoDoHarasParaCatalogo(){
+  let marcados = 0;
+  estoqueProdutos.forEach(p=>{
+    if(p.tipo!=='Alimento' || ehCatalogoConsultoria(p)) return;
+    if(ehAlimentoDoHaras(p.nome)) return;
+    p.catalogoConsultoria = true;
+    marcados++;
+  });
+  return marcados;
+}
 function situacaoEstoque(p){
   const qtd = Number(p.quantidade)||0;
   if(qtd<=0) return 'zerado';
@@ -12350,7 +12644,7 @@ function renderEstoque(){
   atualizarBadgeVinculosQuebrados();
   const term=(document.getElementById('eSearch').value||'').toLowerCase();
   const soMinimo = document.getElementById('eSoMinimo').value;
-  let list = estoqueProdutos.filter(p=>{
+  let list = produtosDoEstoque().filter(p=>{
     const matchTipo = !estoqueTipoFiltro || p.tipo===estoqueTipoFiltro;
     const matchTerm = !term || (p.nome||'').toLowerCase().includes(term);
     const sit = situacaoEstoque(p);
@@ -12369,15 +12663,15 @@ function renderEstoque(){
     });
   }
 
-  const zeradoCount = estoqueProdutos.filter(p=>situacaoEstoque(p)==='zerado').length;
-  const pertoCount = estoqueProdutos.filter(p=>situacaoEstoque(p)==='perto').length;
+  const zeradoCount = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='zerado').length;
+  const pertoCount = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='perto').length;
   // Os 4 primeiros cartões (Produtos cadastrados/Medicamentos/Alimentos/Ferramentas) são clicáveis e
   // funcionam como o filtro por tipo — substituem a antiga fileira de botões separada (menos poluído).
   document.getElementById('estoqueStats').innerHTML = `
-    <div class="stat clickable ${!estoqueTipoFiltro?'active':''}" data-estattipo=""><div class="stat-num">${estoqueProdutos.length}</div><div class="stat-label">Produtos cadastrados</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Medicamento'?'active':''}" data-estattipo="Medicamento"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Medicamento').length}</div><div class="stat-label">Medicamentos</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Alimento'?'active':''}" data-estattipo="Alimento"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos</div></div>
-    <div class="stat clickable ${estoqueTipoFiltro==='Ferramenta'?'active':''}" data-estattipo="Ferramenta"><div class="stat-num">${estoqueProdutos.filter(p=>p.tipo==='Ferramenta').length}</div><div class="stat-label">Ferramentas / Arreios</div></div>
+    <div class="stat clickable ${!estoqueTipoFiltro?'active':''}" data-estattipo=""><div class="stat-num">${produtosDoEstoque().length}</div><div class="stat-label">Produtos cadastrados</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Medicamento'?'active':''}" data-estattipo="Medicamento"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Medicamento').length}</div><div class="stat-label">Medicamentos</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Alimento'?'active':''}" data-estattipo="Alimento"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos</div></div>
+    <div class="stat clickable ${estoqueTipoFiltro==='Ferramenta'?'active':''}" data-estattipo="Ferramenta"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Ferramenta').length}</div><div class="stat-label">Ferramentas / Arreios</div></div>
     <div class="stat clickable ${estoqueSituacaoFiltro==='perto'?'active':''}" data-estatsituacao="perto"><div class="stat-num" style="color:${pertoCount>0?'var(--warn-ink)':'inherit'};">${pertoCount}</div><div class="stat-label">Perto do mínimo</div></div>
     <div class="stat clickable ${estoqueSituacaoFiltro==='zerado'?'active':''}" data-estatsituacao="zerado"><div class="stat-num" style="color:${zeradoCount>0?'var(--burgundy)':'inherit'};">${zeradoCount}</div><div class="stat-label">Zerados</div></div>`;
   document.getElementById('estoqueStats').querySelectorAll('[data-estattipo]').forEach(card=>{
@@ -12625,8 +12919,9 @@ function atualizarValorTipoUI(){
 document.getElementById('pd_unidade').addEventListener('change', atualizarValorTipoUI);
 function openProdutoNew(){
   editingProdutoId=null;
-  document.getElementById('pdModalTitle').textContent = 'Novo Produto';
+  document.getElementById('pdModalTitle').textContent = novaRacaoVaiProCatalogo ? 'Nova ração no catálogo' : 'Novo Produto';
   document.getElementById('btnDeleteProduto').style.display='none';
+  document.getElementById('btnProdutoParaCatalogo').style.display='none';
   document.getElementById('pdMovBox').style.display='none';
   document.getElementById('produtoForm').reset();
   populateAuxSelects();
@@ -12654,6 +12949,10 @@ function openProdutoEdit(id){
   editingProdutoId=id;
   document.getElementById('pdModalTitle').textContent = p.nome||'Editar Produto';
   document.getElementById('btnDeleteProduto').style.display='inline-block';
+  // "Mandar pro catálogo" só faz sentido pra Alimento que ainda está no Estoque (a volta é pelo
+  // próprio catálogo, na Consultoria).
+  document.getElementById('btnProdutoParaCatalogo').style.display =
+    (p.tipo==='Alimento' && !ehCatalogoConsultoria(p)) ? 'inline-block' : 'none';
   document.getElementById('pdMovBox').style.display='block';
   populateAuxSelects();
   document.getElementById('pd_tipo_aux').value=p.tipo||'';
@@ -12804,12 +13103,18 @@ document.getElementById('produtoForm').addEventListener('submit', async e=>{
     valor: f('pd_valor'), valorPorPacote: f('pd_valorPorPacote')==='sim',
     validade: f('pd_validade'), obs: f('pd_obs'),
     dataCadastro: jaExistia ? jaExistia.dataCadastro : toISODate(new Date()),
-    ...(Object.keys(nutrientesForm).length>0 ? { nutrientes: nutrientesForm } : {})
+    ...(Object.keys(nutrientesForm).length>0 ? { nutrientes: nutrientesForm } : {}),
+    // Marca de catálogo da Consultoria: preservada ao editar (o objeto acima é remontado do zero, então
+    // sem isso a ração voltaria sozinha pro Estoque) e ligada quando o cadastro veio do "+ Nova ração
+    // no catálogo".
+    ...((jaExistia && jaExistia.catalogoConsultoria) || (!editingProdutoId && novaRacaoVaiProCatalogo) ? { catalogoConsultoria:true } : {})
   };
+  novaRacaoVaiProCatalogo = false;
   estoqueProdutos = editingProdutoId ? estoqueProdutos.map(p=>p.id===editingProdutoId?data:p) : [...estoqueProdutos, data];
   await storeSet('estoque_produtos', estoqueProdutos);
   refreshDatalists();
   closeModal('overlayProduto'); renderEstoque();
+  if(document.getElementById('csview_catalogoracoes').style.display==='block') renderCatalogoRacoes();
 });
 document.getElementById('btnDeleteProduto').addEventListener('click', async ()=>{
   if(!editingProdutoId) return;
@@ -13972,10 +14277,14 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
     document.getElementById('csview_formulacao').style.display = sub==='formulacao' ? 'block' : 'none';
     document.getElementById('csview_comparacao').style.display = sub==='comparacao' ? 'block' : 'none';
     document.getElementById('csview_recomendacao').style.display = sub==='recomendacao' ? 'block' : 'none';
+    document.getElementById('csview_catalogoracoes').style.display = sub==='catalogoracoes' ? 'block' : 'none';
+    document.getElementById('csview_relatoriocompleto').style.display = sub==='relatoriocompleto' ? 'block' : 'none';
     if(sub==='historico') mostrarNivelPropriedadesHistorico();
     if(sub==='formulacao') renderConsultoriaFormulacoes();
     if(sub==='comparacao') renderConsultoriaComparacaoLista();
     if(sub==='recomendacao') renderConsultoriaRecomendacaoForm();
+    if(sub==='catalogoracoes') renderCatalogoRacoes();
+    if(sub==='relatoriocompleto') renderRelatorioCompletoForm();
   });
 });
 
@@ -14192,7 +14501,10 @@ function openVisitaConsultoriaEdit(id){
   openModal('overlayConsultoriaVisita');
 }
 document.getElementById('btnNewVisitaConsultoria').addEventListener('click', openVisitaConsultoriaNew);
-document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', async ()=>{
+// `irParaAvaliacao`: pedido do usuário pra ter a avaliação da propriedade já na tela de cadastro da
+// visita. A avaliação precisa de uma visita existente pra se amarrar (guarda visitaId), então o botão
+// grava a visita primeiro e emenda no questionário — sem obrigar a salvar, fechar e reabrir.
+async function salvarVisitaConsultoria(irParaAvaliacao){
   const propriedade = f('csv_propriedade').trim();
   if(!propriedade){ showAlert('Selecione a propriedade (ou cadastre uma nova pelo "+").'); return; }
   const existente = consultoriaVisitas.find(v=>v.id===editingVisitaConsultoriaId);
@@ -14205,8 +14517,13 @@ document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', as
   closeModal('overlayConsultoriaVisita');
   renderConsultoriaVisitas();
   salvarEmSegundoPlano('consultoria_visitas_list', consultoriaVisitas, ()=>renderConsultoriaVisitas());
-  if(eraNova) abrirVisitaConsultoriaDetalhe(data.id); // logo depois de criar, já facilita adicionar os animais avaliados
-});
+  // Abre o detalhe em dois casos: visita recém-criada (facilita já adicionar os animais) ou quando o
+  // botão pedido foi o de avaliar — nos dois o detalhe é o próximo passo natural.
+  if(eraNova || irParaAvaliacao) abrirVisitaConsultoriaDetalhe(data.id);
+  if(irParaAvaliacao) abrirAvalPropDaVisita();
+}
+document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', ()=>salvarVisitaConsultoria(false));
+document.getElementById('btnSalvarEAvaliarProp').addEventListener('click', ()=>salvarVisitaConsultoria(true));
 // Exclusão de visita — compartilhada entre o botão dentro do modal (edição) e o botão "🗑" direto na
 // linha da tabela (pedido pra ficar igual aos outros módulos: excluir sem precisar abrir o cadastro).
 // Sempre em cascata: apaga também as avaliações de animal daquela visita e as fotos delas.
@@ -14221,6 +14538,12 @@ async function excluirVisitaConsultoria(id){
   if(idsAvaliacoes.length>0){
     idsAvaliacoes.forEach(aid=>{ delete consultoriaFotos[aid]; });
     await storeSet('consultoria_fotos', consultoriaFotos);
+  }
+  // A avaliação da propriedade vive dentro da visita: sem a visita, ela não tem dono. Some junto —
+  // se ficasse para trás, viraria registro órfão invisível, como aconteceu com as fotos.
+  if(consultoriaAvalPropriedade.some(a=>a.visitaId===id)){
+    consultoriaAvalPropriedade = consultoriaAvalPropriedade.filter(a=>a.visitaId!==id);
+    await storeSet('consultoria_aval_propriedade', consultoriaAvalPropriedade, true);
   }
   closeModal('overlayConsultoriaVisita');
   closeModal('overlayConsultoriaVisitaDetalhe');
@@ -14238,8 +14561,182 @@ function abrirVisitaConsultoriaDetalhe(id){
   document.getElementById('csvdModalTitle').textContent = v.propriedade || 'Visita Técnica';
   document.getElementById('csvdResumo').textContent = [fmtDate(v.data), v.consultorNome&&('Consultor: '+v.consultorNome), v.responsavelNome&&('Responsável: '+v.responsavelNome), v.objetivo].filter(Boolean).join(' · ');
   renderConsultoriaAvaliacoesVisita();
+  atualizarResumoAvalPropVisita();
   openModal('overlayConsultoriaVisitaDetalhe');
 }
+
+/* ================= CONSULTORIA — Avaliação da Propriedade =================
+   Questionário que o consultor preenche na visita, com as 19 perguntas do formulário que o cliente
+   usava por fora. Regras combinadas com ele: UMA por visita, sempre OPCIONAL (a visita funciona
+   igual sem ela) e sempre DENTRO da visita — não existe aba solta, o acesso é pelo detalhe da visita
+   e, por tabela, pelo Histórico de Propriedade, que lista as visitas daquela propriedade.
+   O relatório é da PROPRIEDADE, não dos animais: um documento por avaliação. */
+const AVALPROP_FORMAS = ['No chão','Na rede convencional','Bolsa de feno com malha larga','Alimentador lento','No cocho','Pastejo'];
+function avalPropDaVisita(visitaId){ return consultoriaAvalPropriedade.find(a=>a.visitaId===visitaId) || null; }
+function atualizarResumoAvalPropVisita(){
+  const host = document.getElementById('csvdAvalPropResumo');
+  const btn = document.getElementById('btnAvalPropVisita');
+  if(!host || !btn) return;
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId);
+  if(!a){
+    host.textContent = 'Ainda não avaliada. É opcional — a visita funciona normalmente sem isso.';
+    btn.textContent = '📋 Avaliar a propriedade';
+  } else {
+    host.textContent = ['Avaliada em '+(fmtDate(a.dataAval)||'—'), a.avaliador&&('por '+a.avaliador),
+      a.volTipo&&('volumoso: '+a.volTipo), a.volClasse&&('classificação '+(a.volClasse==='Outra'?(a.volClasseOutra||'outra'):a.volClasse))]
+      .filter(Boolean).join(' · ');
+    btn.textContent = '📋 Ver / editar a avaliação';
+  }
+}
+function atualizarSomaPeneiras(){
+  const v = id=>numDecimalBR(document.getElementById(id).value);
+  const p1=v('cavp_peneira1'), p2=v('cavp_peneira2'), p3=v('cavp_peneira3');
+  const preenchido = ['cavp_peneira1','cavp_peneira2','cavp_peneira3'].some(id=>document.getElementById(id).value.trim()!=='');
+  const el = document.getElementById('cavp_peneiraSoma');
+  if(!preenchido){ el.textContent=''; el.style.color=''; return; }
+  const soma = p1+p2+p3;
+  // Só INFORMA a soma — não bloqueia nem corrige. O cliente ainda não confirmou se as três precisam
+  // fechar 100%, então travar aqui poderia impedir um registro legítimo.
+  el.textContent = 'Soma: ' + soma.toLocaleString('pt-BR',{maximumFractionDigits:2}) + '%' + (Math.abs(soma-100)<0.01 ? ' ✓' : ' (não fecha 100%)');
+  el.style.color = Math.abs(soma-100)<0.01 ? 'var(--ok)' : 'var(--muted)';
+}
+function abrirAvalPropDaVisita(){
+  const v = consultoriaVisitas.find(x=>x.id===visitaConsultoriaDetalheId); if(!v) return;
+  const a = avalPropDaVisita(v.id);
+  document.getElementById('cavpModalTitle').textContent = a ? 'Avaliação da Propriedade' : 'Nova Avaliação da Propriedade';
+  document.getElementById('cavpResumoVisita').textContent = [v.propriedade, fmtDate(v.data)].filter(Boolean).join(' — ');
+  document.getElementById('btnDeleteAvalProp').style.display = a ? 'inline-block' : 'none';
+  document.getElementById('btnPdfAvalProp').style.display = a ? 'inline-block' : 'none';
+  // Formas de fornecimento: múltipla escolha, montada na hora.
+  document.getElementById('cavp_volFormaHost').innerHTML = AVALPROP_FORMAS.map(f=>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" data-avpforma="${escHtml(f)}" style="width:auto;">${escHtml(f)}</label>`).join('');
+  // Campos que a visita já conhece entram preenchidos (editáveis) quando a avaliação é nova.
+  const g = (id,val)=>{ document.getElementById(id).value = val==null?'':val; };
+  g('cavp_dataAval', a ? a.dataAval : (v.data||toISODate(new Date())));
+  g('cavp_avaliador', a ? a.avaliador : (v.consultorNome||''));
+  g('cavp_local', a ? a.local : (v.propriedade||''));
+  g('cavp_animal', a && a.animal);
+  g('cavp_haras', a ? a.haras : (v.propriedade||''));
+  g('cavp_responsavel', a ? a.responsavel : (v.responsavelNome||''));
+  g('cavp_volTipo', a && a.volTipo); g('cavp_volClasse', a && a.volClasse); g('cavp_volClasseOutra', a && a.volClasseOutra);
+  g('cavp_volQtd', a && a.volQtd);
+  g('cavp_aveia', a && a.aveia); g('cavp_salMineral', a && a.salMineral);
+  g('cavp_racoes', a && a.racoes); g('cavp_racoesQtd', a && a.racoesQtd); g('cavp_escore', a && a.escore);
+  g('cavp_peneira1', a && a.peneira1); g('cavp_peneira2', a && a.peneira2); g('cavp_peneira3', a && a.peneira3);
+  g('cavp_obsAnimal', a && a.obsAnimal); g('cavp_acoes', a && a.acoes);
+  const formas = (a && a.volFormas) || [];
+  document.querySelectorAll('[data-avpforma]').forEach(cb=>{ cb.checked = formas.includes(cb.dataset.avpforma); });
+  document.getElementById('cavp_volClasseOutraWrap').style.display = (a && a.volClasse==='Outra') ? '' : 'none';
+  atualizarSomaPeneiras();
+  openModal('overlayConsultoriaAvalProp');
+}
+function lerAvalPropDoForm(){
+  const f = id=>document.getElementById(id).value.trim();
+  return {
+    visitaId: visitaConsultoriaDetalheId,
+    dataAval: f('cavp_dataAval'), avaliador: f('cavp_avaliador'), local: f('cavp_local'),
+    animal: f('cavp_animal'), haras: f('cavp_haras'), responsavel: f('cavp_responsavel'),
+    volTipo: f('cavp_volTipo'), volClasse: f('cavp_volClasse'),
+    volClasseOutra: f('cavp_volClasse')==='Outra' ? f('cavp_volClasseOutra') : '',
+    volFormas: Array.from(document.querySelectorAll('[data-avpforma]:checked')).map(cb=>cb.dataset.avpforma),
+    volQtd: f('cavp_volQtd'), aveia: f('cavp_aveia'), salMineral: f('cavp_salMineral'),
+    racoes: f('cavp_racoes'), racoesQtd: f('cavp_racoesQtd'), escore: f('cavp_escore'),
+    peneira1: f('cavp_peneira1'), peneira2: f('cavp_peneira2'), peneira3: f('cavp_peneira3'),
+    obsAnimal: f('cavp_obsAnimal'), acoes: f('cavp_acoes')
+  };
+}
+// Relatório DA PROPRIEDADE (não dos animais): um documento por avaliação, como o cliente pediu.
+function avalPropRelatorioHtml(a, visita){
+  const sim = v => v || '—';
+  const classe = a.volClasse==='Outra' ? (a.volClasseOutra||'Outra') : (a.volClasse||'');
+  const CLASSE_LABEL = { VIP:'VIP (Excelente Qualidade)', A:'A (Bom)', B:'B (Regular)', C:'C (Ruim)' };
+  const soma = numDecimalBR(a.peneira1)+numDecimalBR(a.peneira2)+numDecimalBR(a.peneira3);
+  const temPeneira = [a.peneira1,a.peneira2,a.peneira3].some(v=>String(v||'').trim()!=='');
+  const linha = (rot, val) => `<tr><td style="width:38%;"><strong>${rot}</strong></td><td>${escHtml(sim(val))}</td></tr>`;
+  return `<div class="report-card print-block">
+    <h1 style="border:none;">Avaliação da Propriedade</h1>
+    <div class="sub">${escHtml([visita?visita.propriedade:a.haras, fmtDate(a.dataAval)].filter(Boolean).join(' — '))}</div>
+    <h2>Identificação</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Avaliador', a.avaliador)}
+      ${linha('Local e cidade', a.local)}
+      ${linha('Haras / Rancho / CT', a.haras)}
+      ${linha('Responsável pelo cavalo', a.responsavel)}
+      ${linha('Animal observado', a.animal)}
+      ${linha('Data da avaliação', fmtDate(a.dataAval))}
+    </tbody></table></div>
+    <h2>Volumoso</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Tipo utilizado', a.volTipo)}
+      ${linha('Classificação', CLASSE_LABEL[a.volClasse] || classe)}
+      ${linha('Forma de fornecimento', (a.volFormas||[]).join(', '))}
+      ${linha('Quantidade fornecida', a.volQtd)}
+    </tbody></table></div>
+    <h2>Concentrado e condição corporal</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Usava aveia pura?', a.aveia)}
+      ${linha('Usava sal mineral?', a.salMineral)}
+      ${linha('Ração(ões) utilizada(s)', a.racoes)}
+      ${linha('Quantidade de cada ração', a.racoesQtd)}
+      ${linha('Escore de condição corporal (1 a 9)', a.escore)}
+    </tbody></table></div>
+    ${temPeneira ? `<h2>Peneiramento da ração</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('% peneira 1', a.peneira1)}
+      ${linha('% peneira 2', a.peneira2)}
+      ${linha('% peneira 3', a.peneira3)}
+      ${linha('Soma', soma.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')}
+    </tbody></table></div>` : ''}
+    <h2>Observações e encaminhamentos</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Observação sobre o animal', a.obsAnimal)}
+      ${linha('Ações e dieta sugerida pós avaliação', a.acoes)}
+    </tbody></table></div>
+  </div>`;
+}
+function gerarPdfAvalProp(){
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId);
+  if(!a){ showAlert('Salve a avaliação antes de gerar o relatório.'); return; }
+  const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+  const nome = 'Avaliacao_Propriedade_'+((visita&&visita.propriedade)||a.haras||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
+  baixarRelatorioManejoPDF(avalPropRelatorioHtml(a, visita), nome);
+}
+document.getElementById('btnAvalPropVisita').addEventListener('click', abrirAvalPropDaVisita);
+document.getElementById('cavp_volClasse').addEventListener('change', e=>{
+  document.getElementById('cavp_volClasseOutraWrap').style.display = e.target.value==='Outra' ? '' : 'none';
+});
+['cavp_peneira1','cavp_peneira2','cavp_peneira3'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', atualizarSomaPeneiras);
+});
+document.getElementById('btnPdfAvalProp').addEventListener('click', gerarPdfAvalProp);
+document.getElementById('btnSaveAvalProp').addEventListener('click', ()=>{
+  if(!visitaConsultoriaDetalheId){ showAlert('Abra a visita antes de avaliar a propriedade.'); return; }
+  const dados = lerAvalPropDoForm();
+  const existente = avalPropDaVisita(visitaConsultoriaDetalheId);
+  const registro = { ...existente, ...dados,
+    id: existente ? existente.id : ('cavp_'+Date.now()),
+    criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  consultoriaAvalPropriedade = existente
+    ? consultoriaAvalPropriedade.map(x=>x.id===existente.id?registro:x)
+    : [...consultoriaAvalPropriedade, registro];
+  closeModal('overlayConsultoriaAvalProp');
+  atualizarResumoAvalPropVisita();
+  renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
+  salvarEmSegundoPlano('consultoria_aval_propriedade', consultoriaAvalPropriedade, atualizarResumoAvalPropVisita);
+});
+document.getElementById('btnDeleteAvalProp').addEventListener('click', async ()=>{
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId); if(!a) return;
+  if(!(await showConfirm('Excluir a avaliação da propriedade desta visita?', {danger:true, okLabel:'Excluir'}))) return;
+  consultoriaAvalPropriedade = consultoriaAvalPropriedade.filter(x=>x.id!==a.id);
+  await storeSet('consultoria_aval_propriedade', consultoriaAvalPropriedade, true);
+  closeModal('overlayConsultoriaAvalProp');
+  atualizarResumoAvalPropVisita();
+  renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
+});
+bindSaveShortcut('overlayConsultoriaAvalProp','btnSaveAvalProp');
+
 function renderConsultoriaAvaliacoesVisita(){
   const tbody = document.getElementById('csvdTbody');
   const lista = consultoriaAvaliacoesDaVisita(visitaConsultoriaDetalheId).slice().sort((a,b)=>(a.animalNome||'').localeCompare(b.animalNome||'','pt'));
@@ -14602,7 +15099,7 @@ function renderConsultoriaHistorico(){
     return matchPropriedade && matchTerm && matchDe && matchAte;
   }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   consultoriaHistoricoListaAtual = lista;
-  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="10" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
   tbody.innerHTML = lista.map(v=>{
     return `<tr>
       ${tdCheck('consultoriaHistorico', v.id)}
@@ -14613,6 +15110,7 @@ function renderConsultoriaHistorico(){
       <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
       <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
       <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
+      <td data-col="avalprop">${avalPropDaVisita(v.id) ? '<span class="st st-ativo">Avaliada</span>' : '<span class="hint-text">—</span>'}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirhistvisita="${v.id}">Abrir</button> <button type="button" class="btn btn-sm btn-danger" data-delvisitacons="${v.id}">🗑</button></td>
     </tr>`;
   }).join('');
@@ -14633,6 +15131,438 @@ document.getElementById('btnGerarRelatorioConsultoria').addEventListener('click'
   document.getElementById('csr_sugestoes').value = '';
   document.getElementById('csr_conclusao').value = '';
   openModal('overlayConsultoriaRelatorio');
+});
+
+/* ================= RELATÓRIO COMPLETO DA VISITA (haras + supervisor técnico) =================
+   Junta, por animal avaliado na visita: a ficha do cadastro (pedigree simples, idade, localização,
+   peso, score), a foto tirada NA VISITA (só essa — foto do cadastro do animal não entra), a dieta
+   planejada com custo e o quanto ela fecha da exigência (NRC), e no fim o pedido de 30 dias somando
+   o consumo de todos. Só lê dados — não grava nem altera formulação, dieta ou cadastro. */
+// A dieta de um animal vem da Formulação em que ele aparece. Se estiver em mais de uma, usa a mais
+// recente cadastrada (a última da lista) — o relatório mostra qual foi usada, pra não haver dúvida.
+function formulacaoDoAnimalConsultoria(avaliacao){
+  const candidatas = consultoriaFormulacoes.filter(fo=>
+    formulacaoAnimais(fo).some(a=>
+      (avaliacao.animalId && a.animalId===avaliacao.animalId) ||
+      (a.animalNome||'').trim().toLowerCase() === (avaliacao.animalNome||'').trim().toLowerCase()
+    ));
+  return candidatas.length ? candidatas[candidatas.length-1] : null;
+}
+// Peso que manda no cálculo: o pesado NA VISITA vem primeiro (é o dado mais novo e foi medido ali);
+// sem ele, cai pro peso que a formulação registrou pra esse animal.
+function pesoParaCalculoConsultoria(avaliacao, formulacao){
+  const pesoVisita = numDecimalBR(avaliacao.peso);
+  if(pesoVisita>0) return pesoVisita;
+  if(!formulacao) return 0;
+  const naFormulacao = formulacaoAnimais(formulacao).find(a=>
+    (avaliacao.animalId && a.animalId===avaliacao.animalId) ||
+    (a.animalNome||'').trim().toLowerCase() === (avaliacao.animalNome||'').trim().toLowerCase());
+  return naFormulacao ? (Number(naFormulacao.pesoKg)||0) : 0;
+}
+function fichaAnimalRelatorioHtml(avaliacao){
+  const h = horses.find(x=>x.id===avaliacao.animalId) ||
+            horses.find(x=>(x.nome||'').trim().toLowerCase()===(avaliacao.animalNome||'').trim().toLowerCase());
+  const idade = avaliacao.idadeAnos!=null && avaliacao.idadeAnos!=='' ? fmtIdadeAnos(avaliacao.idadeAnos)
+              : (h ? fmtIdadeAnos(calcAgeYears(h.nascimento)) : '—');
+  const linha = (rot, val) => `<tr><td style="width:22%;"><strong>${rot}</strong></td><td>${val||'—'}</td></tr>`;
+  return `<div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Idade', idade)}
+      ${linha('Peso', avaliacao.peso ? avaliacao.peso+' kg' : (h&&h.peso ? h.peso+' kg' : ''))}
+      ${linha('Score corporal', avaliacao.scoreCorporal || (h?h.scoreCorporal:''))}
+      ${linha('Localização', h?h.localizacao:'')}
+      ${linha('Sexo / Pelagem / Raça', h ? [h.sexo==='MASCULINO'?'Macho':(h.sexo==='FEMININO'?'Fêmea':''), h.pelagem, h.raca].filter(Boolean).join(' · ') : '')}
+      ${linha('Pai', h?h.pai:'')}
+      ${linha('Mãe', h?h.mae:'')}
+      ${linha('Situação geral na visita', avaliacao.situacaoGeral)}
+    </tbody></table></div>
+    ${avaliacao.observacoes?`<div style="margin-top:8px;"><strong>Observações da visita:</strong><br>${escHtml(avaliacao.observacoes).replace(/\n/g,'<br>')}</div>`:''}`;
+}
+function fotosDaVisitaHtml(avaliacaoId){
+  const fotos = (consultoriaFotos[avaliacaoId]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
+  if(fotos.length===0) return ''; // sem foto na visita, a seção simplesmente não aparece
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${fotos.map(f=>`
+    <div style="width:170px;"><img src="${f.dataUrl}" style="width:100%;border-radius:4px;">
+    ${f.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${escHtml(f.legenda)}</div>`:''}</div>`).join('')}</div>`;
+}
+function dietaPlanejadaRelatorioHtml(formulacao, pesoKg){
+  if(!formulacao) return '<div class="hint-text" style="margin-top:10px;">Nenhuma formulação cadastrada para este animal — sem dieta planejada para mostrar.</div>';
+  const resumo = calcResumoFormulacao({ pesoKg, categoriaAtividade: formulacao.categoriaAtividade, itens: formulacao.itens });
+  const nAnimaisLote = formulacaoNumAnimais(formulacao);
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  const itens = (formulacao.itens||[]).filter(it=>numDecimalBR(it.quantidade)>0).map(it=>{
+    const p = estoqueProdutos.find(x=>x.id===it.produtoId);
+    const qtd = numDecimalBR(it.quantidade);
+    const custoKg = p ? custoUnitarioProduto(p) : null;
+    return `<tr><td>${escHtml(p?p.nome:(it.produtoNome||'—'))}</td><td>${it.horario||'—'}</td>
+      <td class="num">${qtd.toLocaleString('pt-BR')} kg</td>
+      <td class="num">${custoKg!=null?fmtR(custoKg):'—'}</td>
+      <td class="num">${custoKg!=null?fmtR(custoKg*qtd):'—'}</td></tr>`;
+  }).join('');
+  const atende = resumo.pct.deKcal!=null && resumo.pct.deKcal>=100 && resumo.pct.pbG>=100;
+  return `<div style="margin-top:12px;">
+    <div style="font-weight:600;margin-bottom:2px;">Dieta planejada — ${escHtml(formulacao.nome||'')}</div>
+    <div class="hint-text" style="margin:0 0 6px;">Categoria de atividade: ${NRC_CATEGORIA_LABEL[formulacao.categoriaAtividade]||'—'} · peso usado no cálculo: ${pesoKg||'—'} kg</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Alimento</th><th>Horário</th><th class="num">Qtd/dia</th><th class="num">R$/kg</th><th class="num">Custo/dia</th></tr></thead>
+      <tbody>${itens||'<tr><td colspan="5" class="empty">Sem itens na formulação.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="2"><strong>Total</strong></td>
+        <td class="num"><strong>${resumo.totalKgDia.toLocaleString('pt-BR',{maximumFractionDigits:2})} kg</strong></td>
+        <td class="num">${resumo.custoPorKg!=null?fmtR(resumo.custoPorKg):'—'}</td>
+        <td class="num"><strong>${fmtR(resumo.custoDia)}</strong></td></tr></tfoot>
+    </table></div>
+    <div class="grid-wrap" style="margin-top:8px;"><table class="grid"><tbody>
+      <tr><td style="width:46%;"><strong>Custo/kg da dieta</strong></td><td>${resumo.custoPorKg!=null?fmtR(resumo.custoPorKg):'—'}</td></tr>
+      <tr><td><strong>Custo/dia — por animal</strong></td><td>${fmtR(resumo.custoDia)}</td></tr>
+      <tr><td><strong>Custo/dia — lote inteiro</strong> (${nAnimaisLote} animal(is))</td><td>${fmtR(resumo.custoDia*nAnimaisLote)}</td></tr>
+      <tr><td><strong>Custo/mês — por animal</strong></td><td>${fmtR(resumo.custoMes)}</td></tr>
+      <tr><td><strong>Custo/mês — lote inteiro</strong> (${nAnimaisLote} animal(is))</td><td>${fmtR(resumo.custoMes*nAnimaisLote)}</td></tr>
+    </tbody></table></div>
+    <div style="font-weight:600;margin:12px 0 2px;">Atendimento da exigência (NRC)</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
+      <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
+    </table></div>
+    <div class="hint-text" style="margin-top:6px;">${atende
+      ? '✔ A dieta planejada fecha a exigência de energia e proteína deste animal.'
+      : '⚠ A dieta planejada NÃO fecha toda a exigência deste animal — ver as linhas marcadas como "Abaixo" na tabela acima.'}</div>
+    ${avisosNutrientesHtml(resumo)}
+  </div>`;
+}
+// Pedido de 30 dias: soma o consumo diário de TODOS os animais do relatório, ingrediente por
+// ingrediente, e projeta 30 dias. É a lista de compra que o haras leva pro fornecedor.
+function pedido30DiasRelatorioHtml(linhasAnimais){
+  const porProduto = {};
+  // O pedido é do LOTE: cada formulação entra uma única vez, multiplicada pelo número de animais que
+  // comem dela. Contar por animal avaliado daria o consumo de quem foi visto na visita (que pode ser
+  // 1 só) e ainda duplicaria a receita quando dois avaliados usam a mesma formulação.
+  const formulacoesUsadas = [];
+  linhasAnimais.forEach(({formulacao})=>{
+    if(!formulacao) return;
+    if(!formulacoesUsadas.some(f=>f.id===formulacao.id)) formulacoesUsadas.push(formulacao);
+  });
+  let totalAnimaisLote = 0;
+  formulacoesUsadas.forEach(fo=>{
+    const nAnimais = formulacaoNumAnimais(fo);
+    totalAnimaisLote += nAnimais;
+    (fo.itens||[]).forEach(it=>{
+      const qtd = numDecimalBR(it.quantidade);
+      if(qtd<=0) return;
+      if(!porProduto[it.produtoId]) porProduto[it.produtoId] = { qtdDia:0 };
+      porProduto[it.produtoId].qtdDia += qtd * nAnimais;
+    });
+  });
+  const ids = Object.keys(porProduto);
+  if(ids.length===0) return '';
+  const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  let totalMes = 0;
+  const linhas = ids.map(pid=>{
+    const p = estoqueProdutos.find(x=>x.id===pid);
+    const qtdDia = porProduto[pid].qtdDia;
+    const qtd30 = qtdDia*30;
+    const custoKg = p ? custoUnitarioProduto(p) : null;
+    const custo30 = custoKg!=null ? custoKg*qtd30 : null;
+    if(custo30!=null) totalMes += custo30;
+    return `<tr><td>${escHtml(p?p.nome:'(produto não encontrado)')}</td>
+      <td class="num">${qtdDia.toLocaleString('pt-BR',{maximumFractionDigits:2})} kg</td>
+      <td class="num"><strong>${qtd30.toLocaleString('pt-BR',{maximumFractionDigits:1})} kg</strong></td>
+      <td class="num">${custoKg!=null?fmtR(custoKg):'—'}</td>
+      <td class="num">${custo30!=null?fmtR(custo30):'—'}</td></tr>`;
+  }).join('');
+  return `<div class="pdf-item-block" style="padding-top:10px;">
+    <div class="report-animal-name">Pedido de 30 dias — lote</div>
+    <div class="hint-text" style="margin:0 0 6px;">Consumo diário do lote inteiro (${totalAnimaisLote} animal(is) nas dietas deste relatório), projetado para 30 dias.</div>
+    <div class="grid-wrap"><table class="grid">
+      <thead><tr><th>Alimento</th><th class="num">Consumo/dia (lote)</th><th class="num">Necessário p/ 30 dias</th><th class="num">R$/kg</th><th class="num">Custo 30 dias</th></tr></thead>
+      <tbody>${linhas}</tbody>
+      <tfoot><tr><td colspan="4"><strong>Custo total estimado (30 dias)</strong></td><td class="num"><strong>${fmtR(totalMes)}</strong></td></tr></tfoot>
+    </table></div>
+  </div>`;
+}
+/* ---- Catálogo de Rações: lista as rações de referência (marcadas com catalogoConsultoria) ---- */
+function renderCatalogoRacoes(){
+  const tbody = document.getElementById('catalogoTbody'); if(!tbody) return;
+  const termo = normNomeProduto(document.getElementById('catalogoSearch').value||'');
+  const todas = produtosDoCatalogo().slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const lista = todas.filter(p=>!termo || normNomeProduto(p.nome).includes(termo));
+  const comNutrientes = todas.filter(p=>p.nutrientes && p.nutrientes.edKcalPorKg).length;
+  document.getElementById('catalogoStats').innerHTML =
+    `<div class="stat"><div class="stat-num">${todas.length}</div><div class="stat-label">Rações no catálogo</div></div>
+     <div class="stat"><div class="stat-num" style="color:${comNutrientes<todas.length?'var(--warn-ink)':'inherit'};">${comNutrientes}</div><div class="stat-label">Com dados nutricionais</div></div>
+     <div class="stat"><div class="stat-num">${produtosDoEstoque().filter(p=>p.tipo==='Alimento').length}</div><div class="stat-label">Alimentos no Estoque</div></div>`;
+  if(lista.length===0){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">${todas.length===0?'Nenhuma ração no catálogo. Use "+ Nova ração no catálogo" ou mande uma do Estoque pra cá.':'Nenhuma ração encontrada.'}</td></tr>`;
+    return;
+  }
+  const num = (v, suf) => (v!=null && v!=='') ? (Number(v).toLocaleString('pt-BR')+(suf||'')) : '—';
+  tbody.innerHTML = lista.map(p=>{
+    const n = p.nutrientes || {};
+    const custo = custoUnitarioProduto(p);
+    const semDados = !n.edKcalPorKg;
+    return `<tr data-id="${p.id}" style="cursor:pointer;" title="Clique pra editar os dados da ração">
+      <td><strong>${escHtml(p.nome||'')}</strong>${semDados?' <span class="pill st-warn">sem dados nutricionais</span>':''}</td>
+      <td class="num">${num(n.edKcalPorKg)}</td>
+      <td class="num">${num(n.pbPercent,'%')}</td>
+      <td class="num">${num(n.caPercent,'%')}</td>
+      <td class="num">${num(n.pPercent,'%')}</td>
+      <td class="num">${num(n.fibraBrutaPercent,'%')}</td>
+      <td class="num">${custo!=null?fmtMoeda(custo,'BRL'):'—'}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-paraestoque="${p.id}" title="Passa a contar como produto do haras, com estoque e alerta de reposição">↩ Trazer pro Estoque</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('tr[data-id]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    openProdutoEdit(tr.dataset.id);
+  }));
+  tbody.querySelectorAll('[data-paraestoque]').forEach(b=>b.addEventListener('click', e=>{
+    e.stopPropagation(); moverProdutoCatalogo(b.dataset.paraestoque, false);
+  }));
+}
+// Move um produto entre Estoque e catálogo. Só muda a marca — quantidade, movimentações, vínculos
+// com Dietas e histórico financeiro ficam exatamente como estavam.
+async function moverProdutoCatalogo(produtoId, paraCatalogo){
+  const p = estoqueProdutos.find(x=>x.id===produtoId); if(!p) return;
+  if(paraCatalogo){
+    const emUso = quemDependeDoProduto(produtoId);
+    const aviso = emUso.length ? `\n\nAtenção: este produto é usado em ${emUso.slice(0,3).join(', ')}${emUso.length>3?' e mais':''} — esses registros continuam funcionando, mas o produto some da tela de Estoque.` : '';
+    if(!(await showConfirm(`Mandar "${p.nome}" para o catálogo da Consultoria? Ele sai da tela de Estoque (nada é apagado) e deixa de gerar alerta de reposição.`+aviso))) return;
+    p.catalogoConsultoria = true;
+  } else {
+    if(!(await showConfirm(`Trazer "${p.nome}" de volta pro Estoque? Ele volta a aparecer na lista e a gerar alerta de reposição.`))) return;
+    delete p.catalogoConsultoria;
+  }
+  estoqueProdutos = estoqueProdutos.map(x=>x.id===p.id?p:x);
+  await storeSet('estoque_produtos', estoqueProdutos, true);
+  renderCatalogoRacoes(); renderEstoque();
+}
+document.getElementById('catalogoSearch').addEventListener('input', debounce(renderCatalogoRacoes));
+document.getElementById('btnProdutoParaCatalogo').addEventListener('click', async ()=>{
+  if(!editingProdutoId) return;
+  const id = editingProdutoId;
+  closeModal('overlayProduto');
+  await moverProdutoCatalogo(id, true);
+});
+// Botão manual: reorganiza a qualquer momento, sem depender de uma migração nova. Mostra antes o que
+// vai sair e pede confirmação — é ele quem decide, não uma regra rodando escondida no carregamento.
+document.getElementById('btnOrganizarCatalogo').addEventListener('click', async ()=>{
+  const candidatos = produtosDoEstoque().filter(p=>p.tipo==='Alimento' && !ehAlimentoDoHaras(p.nome));
+  if(candidatos.length===0){ showAlert('O Estoque já está organizado: só tem os alimentos do haras (feno, Equitage 15 Laminados, Equitage Laminados e sal mineral).'); return; }
+  const lista = candidatos.map(p=>'• '+p.nome).join('\n');
+  if(!(await showConfirm(`Mandar ${candidatos.length} ração(ões) do Estoque pro catálogo da Consultoria?\n\n${lista}\n\nNada é apagado — elas continuam no sistema, só saem das telas de Estoque, e voltam com um clique.`, {okLabel:'Mandar pro catálogo'}))) return;
+  const marcados = moverNaoDoHarasParaCatalogo();
+  await storeSet('estoque_produtos', estoqueProdutos);
+  renderCatalogoRacoes(); renderEstoque();
+  showAlert(marcados+' ração(ões) movidas pro catálogo.');
+});
+document.getElementById('btnNovaRacaoCatalogo').addEventListener('click', ()=>{
+  // Abre o cadastro normal de produto já como Alimento; ao salvar, entra no catálogo (ver btnSaveProduto).
+  // Marcar o Tipo aqui não é cosmético: os campos bromatológicos (ED, PB, Ca, P, Fibra Bruta) só
+  // aparecem quando o Tipo é "Alimento" (atualizarNutrientesVisibilidade) — e é justamente pra isso
+  // que serve uma ração de catálogo, que existe só pra ser comparada na Consultoria.
+  novaRacaoVaiProCatalogo = true;
+  openProdutoNew();
+  const tipo = document.getElementById('pd_tipo_aux');
+  if(tipo){
+    if(![...tipo.options].some(o=>o.value==='Alimento')) tipo.add(new Option('Alimento','Alimento'));
+    tipo.value = 'Alimento';
+    atualizarClasseMedicamentoVisibilidade();
+    atualizarNutrientesVisibilidade();
+  }
+});
+let novaRacaoVaiProCatalogo = false;
+
+// Aba própria (ao lado de Recomendação): escolhe a visita e mostra o que vai entrar no relatório.
+function renderRelatorioCompletoForm(){
+  const sel = document.getElementById('crc_visita');
+  const anterior = sel.value;
+  const visitas = consultoriaVisitas.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  sel.innerHTML = visitas.length===0
+    ? '<option value="">Nenhuma visita técnica cadastrada</option>'
+    : visitas.map(v=>`<option value="${v.id}">${escHtml([v.propriedade||'(sem propriedade)', fmtDate(v.data)].filter(Boolean).join(' — '))}</option>`).join('');
+  if(anterior && visitas.some(v=>v.id===anterior)) sel.value = anterior;
+  atualizarResumoRelatorioCompleto();
+}
+function atualizarResumoRelatorioCompleto(){
+  const host = document.getElementById('crc_resumo');
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ host.textContent = 'Cadastre uma visita técnica (aba Visitas Técnicas) pra gerar o relatório.'; return; }
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
+  if(avaliacoes.length===0){ host.innerHTML = '⚠ Essa visita ainda não tem animal avaliado — adicione ao menos um na aba Visitas Técnicas.'; return; }
+  const comFoto = avaliacoes.filter(a=>(consultoriaFotos[a.id]||[]).length>0).length;
+  const comDieta = avaliacoes.filter(a=>formulacaoDoAnimalConsultoria(a)).length;
+  host.innerHTML = `Vai entrar no relatório: <strong>${avaliacoes.length}</strong> animal(is) — ${comFoto} com foto da visita, ${comDieta} com dieta planejada.`
+    + (comDieta<avaliacoes.length ? ' Quem não tem formulação aparece só com a ficha (sem dieta nem custo).' : '');
+}
+document.getElementById('crc_visita').addEventListener('change', atualizarResumoRelatorioCompleto);
+/* ---- Placa de Baia: folha pra pregar na porta da baia, com a dieta do animal ----
+   Pedido do usuário, a partir de um esboço dele. Só LÊ o que já está cadastrado (formulação da
+   Consultoria) — nenhum campo novo, nenhum dado alterado. Uma folha por FORMULAÇÃO, não por animal:
+   quem divide a mesma dieta divide a placa (foi assim no esboço, "NOBRE / REALEZA" na linha
+   ANIMAIS), e assim não sai folha repetida pro lote inteiro.
+   O esboço separava "RAÇÃO" e "VOLUMOSO" em duas linhas. Isso não dá pra montar sozinho: o cadastro
+   do produto não distingue concentrado de volumoso (é tudo "Alimento"), e adivinhar pelo nome erra.
+   Como o usuário pediu pra não alterar nada e só buscar dado, cada ALIMENTO vira uma linha — o nome
+   dele na primeira coluna já diz o que é, e nenhuma informação da dieta fica de fora. */
+const PLACA_ESTILO = `.placa-baia{font-family:Arial,Helvetica,sans-serif;color:#111;page-break-after:always;padding:6px 0 18px;}
+.placa-baia:last-child{page-break-after:auto;}
+.placa-baia table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.placa-baia td,.placa-baia th{border:2px solid #16304d;padding:10px 8px;text-align:center;vertical-align:middle;font-size:19px;line-height:1.25;word-wrap:break-word;}
+.placa-baia .rot{background:#fff;font-weight:700;text-align:left;width:22%;font-size:17px;letter-spacing:.02em;}
+.placa-baia .cab{background:#16304d;color:#fff;font-weight:700;letter-spacing:.06em;font-size:17px;}
+.placa-baia .topo{text-align:center;font-size:24px;font-weight:700;letter-spacing:.02em;}
+.placa-baia .vazio{background:#fff;}
+.placa-baia .obs{text-align:left;font-size:17px;}`;
+// `animaisDaPlaca` limita quem aparece na linha ANIMAIS — usado no formato "uma placa por animal".
+// Sem ele, a placa mostra todo mundo que come essa dieta (formato "grupo").
+function placaBaiaHtml(formulacao, animaisDaPlaca){
+  const animais = animaisDaPlaca && animaisDaPlaca.length ? animaisDaPlaca : formulacaoAnimais(formulacao);
+  const nomes = animais.map(a=>a.animalNome).filter(Boolean).join(' / ');
+  // Categoria: a do CADASTRO do animal (é o que "Categoria" significa no resto do app). Com vários
+  // animais, mostra as distintas. Sem nenhuma cadastrada, cai pra categoria de atividade da dieta.
+  const cats = [...new Set(animais.map(a=>{ const h = horses.find(x=>x.id===a.animalId); return h && h.categoria ? h.categoria : ''; }).filter(Boolean))];
+  const categoria = cats.length ? cats.join(' / ') : (NRC_CATEGORIA_LABEL[formulacao.categoriaAtividade] || '');
+  // Matriz alimento x horário, na ordem em que os itens foram cadastrados.
+  // O horário é comparado NORMALIZADO (sem acento, sem caixa, sem espaço sobrando): gravações antigas
+  // trazem "manha", "Manha", "tarde"... e a comparação exata contra 'Manhã' fazia o item sumir da
+  // placa sem aviso nenhum. Item sem horário reconhecível NÃO é jogado na manhã — isso somava duas
+  // refeições numa só coluna (era o caso de "5Kg só de manhã" num animal que come em dois períodos).
+  // Ele vai para uma coluna "Sem horário", que só aparece quando existe esse caso.
+  const normHorario = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const MAPA_HORARIO = {}; HORARIOS_DIETA.forEach(h=>{ MAPA_HORARIO[normHorario(h)] = h; });
+  const SEM_HORARIO = 'Sem horário';
+  let temSemHorario = false;
+  const porProduto = [];
+  (formulacao.itens||[]).forEach(it=>{
+    const qtd = numDecimalBR(it.quantidade);
+    if(qtd<=0) return;
+    const prod = estoqueProdutos.find(p=>p.id===it.produtoId);
+    const nome = prod ? prod.nome : (it.produtoNome || '—');
+    let linha = porProduto.find(l=>l.produtoId===it.produtoId);
+    if(!linha){ linha = { produtoId:it.produtoId, nome, unidade: (prod&&prod.unidade)||it.unidade||'kg', turnos:{} }; porProduto.push(linha); }
+    const turno = MAPA_HORARIO[normHorario(it.horario)] || SEM_HORARIO;
+    if(turno===SEM_HORARIO) temSemHorario = true;
+    // Mesmo alimento repetido no mesmo turno soma, em vez de uma sobrescrever a outra.
+    linha.turnos[turno] = (linha.turnos[turno]||0) + qtd;
+  });
+  const colunas = temSemHorario ? [...HORARIOS_DIETA, SEM_HORARIO] : HORARIOS_DIETA;
+  // Sempre na MESMA unidade, sem converter pra grama: 1,5Kg, 0,7Kg, 6Kg. Pedido do usuário — quem
+  // está tratando compara as quantidades de bate-pronto, e misturar Kg com g na mesma folha
+  // atrapalha justamente essa leitura rápida.
+  const fmtQtd = (v, unidade)=>{
+    if(v==null) return '';
+    const u = (unidade||'kg').toLowerCase();
+    return v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + (u==='kg'?'Kg':(' '+(unidade||'')));
+  };
+  const nCols = colunas.length;
+  const linhasAlimentos = porProduto.length===0
+    ? `<tr><td class="rot">—</td><td colspan="${nCols}" class="vazio">Nenhum alimento cadastrado nesta dieta.</td></tr>`
+    : porProduto.map(l=>`<tr>
+        <td class="rot">${escHtml((l.nome||'').toUpperCase())}</td>
+        ${colunas.map(h=>{
+          const v = l.turnos[h];
+          return `<td class="${v?'':'vazio'}">${v?escHtml(fmtQtd(v, l.unidade)):''}</td>`;
+        }).join('')}
+      </tr>`).join('');
+  const obs = (formulacao.obs||'').trim();
+  // Rodapé discreto com o nome da dieta: quando a placa sai "estranha", é por aqui que se descobre
+  // qual formulação a gerou, sem precisar caçar na lista.
+  const rodape = [formulacao.nome && ('Dieta: '+formulacao.nome),
+    temSemHorario && 'Há item sem horário definido na formulação — confira a coluna "Sem horário".']
+    .filter(Boolean).join(' · ');
+  return `<div class="placa-baia">
+    <table>
+      <tr><td class="rot">ANIMAIS:</td><td colspan="${nCols}" class="topo">${escHtml((nomes||'—').toUpperCase())}</td></tr>
+      <tr><td class="rot">CATEGORIA:</td><td colspan="${nCols}">${escHtml((categoria||'').toUpperCase())}</td></tr>
+      <tr><td class="cab" style="background:#fff;border-color:#16304d;"></td>${colunas.map(h=>`<th class="cab">${h.toUpperCase()}</th>`).join('')}</tr>
+      ${linhasAlimentos}
+      <tr><td class="rot">Observações:</td><td colspan="${nCols}" class="obs">${escHtml(obs)}</td></tr>
+    </table>
+    ${rodape ? `<div style="margin-top:6px;font-size:11px;color:#666;">${escHtml(rodape)}</div>` : ''}
+  </div>`;
+}
+// Levanta quem tem dieta nesta visita, uma vez só — os dois formatos partem da mesma lista.
+function comDietaNaVisita(visitaId){
+  return consultoriaAvaliacoesDaVisita(visitaId)
+    .map(a=>({ avaliacao:a, formulacao: formulacaoDoAnimalConsultoria(a) }))
+    .filter(x=>x.formulacao);
+}
+function gerarPlacaBaiaConsultoria(){
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ showAlert('Escolha a visita técnica primeiro.'); return; }
+  if(consultoriaAvaliacoesDaVisita(visita.id).length===0){ showAlert('Essa visita ainda não tem animal avaliado.'); return; }
+  const comDieta = comDietaNaVisita(visita.id);
+  if(comDieta.length===0){ showAlert('Nenhum animal desta visita tem dieta (formulação) cadastrada — a placa sai da dieta do animal.'); return; }
+  const nDietas = new Set(comDieta.map(x=>x.formulacao.id)).size;
+  document.getElementById('placaFormatoResumo').textContent =
+    `${comDieta.length} animal(is) com dieta nesta visita, em ${nDietas} dieta(s) diferente(s).`;
+  openModal('overlayPlacaFormato');
+}
+function emitirPlacaBaia(formato){
+  closeModal('overlayPlacaFormato');
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita) return;
+  const comDieta = comDietaNaVisita(visita.id);
+  let placas;
+  if(formato === 'individual'){
+    // Uma folha por animal avaliado, mesmo que dois comam a mesma dieta — a folha vai na porta de
+    // cada baia, então repetir a dieta é o certo aqui.
+    placas = comDieta.map(({avaliacao, formulacao})=>{
+      const daFormulacao = formulacaoAnimais(formulacao).find(a=>a.animalId===avaliacao.animalId);
+      return placaBaiaHtml(formulacao, [{ animalId: avaliacao.animalId, animalNome: (daFormulacao&&daFormulacao.animalNome) || avaliacao.animalNome }]);
+    });
+  } else {
+    // Uma folha por dieta, com todos os animais dela juntos na linha ANIMAIS.
+    const vistas = [];
+    comDieta.forEach(({formulacao})=>{ if(!vistas.some(f=>f.id===formulacao.id)) vistas.push(formulacao); });
+    placas = vistas.map(fo=>placaBaiaHtml(fo));
+  }
+  const sufixo = formato==='individual' ? '_por_animal' : '';
+  const html = `<style>${PLACA_ESTILO}</style><div class="print-block">${placas.join('')}</div>`;
+  baixarRelatorioManejoPDF(html, 'Placa_de_Baia_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+sufixo+'.pdf', { umPorPagina:true, margin:[12,10] });
+}
+function gerarRelatorioCompletoConsultoria(){
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ showAlert('Escolha a visita técnica do relatório.'); return; }
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
+  if(avaliacoes.length===0){ showAlert('Essa visita ainda não tem animal avaliado — adicione ao menos um pra gerar o relatório completo.'); return; }
+  // Ficha individual = 1 animal por folha (classe report-animal-block + umPorPagina:true, o mesmo motor
+  // do relatório de visita). Agrupado = blocos pequenos que enchem a folha em sequência.
+  const individual = document.getElementById('crc_formato').value === 'individual';
+  const linhasAnimais = avaliacoes.map(a=>{
+    const formulacao = formulacaoDoAnimalConsultoria(a);
+    return { avaliacao:a, formulacao, pesoKg: pesoParaCalculoConsultoria(a, formulacao) };
+  });
+  const blocos = linhasAnimais.map(({avaliacao, formulacao, pesoKg})=>`
+    <div class="${individual?'report-animal-block':'pdf-item-block'}" style="padding:6px 2px 14px;${individual?'':'border-bottom:1px solid #ddd;margin-bottom:12px;'}">
+      <div class="report-animal-name">${escHtml(avaliacao.animalNome||'')}</div>
+      ${individual?`<div class="sub" style="margin-top:-4px;">${escHtml([visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — '))}</div>`:''}
+      ${fichaAnimalRelatorioHtml(avaliacao)}
+      ${fotosDaVisitaHtml(avaliacao.id)}
+      ${dietaPlanejadaRelatorioHtml(formulacao, pesoKg)}
+    </div>`).join('');
+  const html = `<div class="report-card print-block">
+    <h1 style="border:none;">Relatório Completo de Consultoria</h1>
+    <div class="sub">${[visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — ')}</div>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      <tr><td style="width:22%;"><strong>Propriedade</strong></td><td>${escHtml(visita.propriedade||'—')}</td></tr>
+      <tr><td><strong>Data da visita</strong></td><td>${fmtDate(visita.data)||'—'}</td></tr>
+      <tr><td><strong>Consultor técnico</strong></td><td>${escHtml(visita.consultorNome||'—')}</td></tr>
+      <tr><td><strong>Responsável / Proprietário</strong></td><td>${escHtml(visita.responsavelNome||'—')}</td></tr>
+      <tr><td><strong>Objetivo</strong></td><td>${escHtml(visita.objetivo||'—')}</td></tr>
+      <tr><td><strong>Animais no relatório</strong></td><td>${avaliacoes.length}</td></tr>
+    </tbody></table></div>
+    ${visita.obsGerais?`<div style="margin-top:10px;"><strong>Observações gerais:</strong><br>${escHtml(visita.obsGerais).replace(/\n/g,'<br>')}</div>`:''}
+    <div style="margin-top:16px;"></div>
+    ${blocos}
+    ${pedido30DiasRelatorioHtml(linhasAnimais)}
+  </div>`;
+  const nomeArquivo = 'Relatorio_Completo_'+(visita.propriedade||'Consultoria').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(visita.data||'').replace(/-/g,'')+(individual?'_fichas':'')+'.pdf';
+  abrirPreviaRelatorio(html, nomeArquivo, 'Relatório Completo de Consultoria',
+    individual ? { umPorPagina:true, margin:10 } : { umPorPagina:false, margin:[14,10] });
+}
+document.getElementById('btnGerarRelatorioCompletoConsultoria').addEventListener('click', gerarRelatorioCompletoConsultoria);
+document.getElementById('btnPlacaBaiaConsultoria').addEventListener('click', gerarPlacaBaiaConsultoria);
+document.querySelectorAll('#overlayPlacaFormato [data-placafmt]').forEach(btn=>{
+  btn.addEventListener('click', ()=> emitirPlacaBaia(btn.dataset.placafmt));
 });
 // Bloco de UMA avaliação (dados + fotos) — reaproveitado no relatório completo da visita (um bloco por
 // animal, cada um vira 1 folha via gerarPdfUmBlocoPorPagina), no relatório individual da Ficha do Animal
@@ -15320,24 +16250,34 @@ function gerarRelatorioFinanceiroFormulacoes(){
   if(selecionadas.length===0){ showAlert('Nenhuma formulação pra gerar relatório.'); return; }
   const blocos = selecionadas.map(fo=>{
     const det = calcDetalheCustoFormulacao(fo);
-    const linhas = det.itens.length===0 ? '<tr><td colspan="6" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
+    // Custo por animal x quantidade de animais que comem essa dieta = custo do lote. O número de
+    // animais vem da própria formulação (lista de animais ou, no modo grupo, a quantidade informada).
+    const nAnimais = formulacaoNumAnimais(fo);
+    const linhas = det.itens.length===0 ? '<tr><td colspan="7" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
       <td>${it.produtoNome}</td><td>${it.horario||'—'}</td><td>${it.quantidade} ${it.unidade||'kg'}</td>
       <td>${it.custoUnit!=null?fmtMoeda(it.custoUnit,'BRL'):'—'}</td>
       <td>${fmtMoeda(it.subtotalDia,'BRL')}</td>
+      <td>${fmtMoeda(it.subtotalDia*nAnimais,'BRL')}</td>
       <td>${it.participacaoPct!=null?it.participacaoPct.toFixed(0)+'%':'—'}</td>
     </tr>`).join('');
     return `<div class="report-animal-block">
       <div class="report-animal-name">${fo.nome||''}</div>
       ${cabecalhoFormulacaoRelatorioHtml(fo)}
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia</th><th>% do custo</th></tr></thead>
+        <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia<br>(1 animal)</th><th>Custo/dia<br>(lote: ${nAnimais})</th><th>% do custo</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table></div>
-      <div style="margin-top:8px;"><strong>Custo/dia:</strong> ${fmtMoeda(det.custoDiaTotal,'BRL')} · <strong>Custo/mês:</strong> ${fmtMoeda(det.custoMesTotal,'BRL')}${det.custoPorKg!=null?(' · <strong>Custo/kg da dieta:</strong> '+fmtMoeda(det.custoPorKg,'BRL')):''}</div>
+      <div style="margin-top:8px;"><strong>Por animal</strong> — dia: ${fmtMoeda(det.custoDiaTotal,'BRL')} · mês: ${fmtMoeda(det.custoMesTotal,'BRL')}${det.custoPorKg!=null?(' · custo/kg da dieta: '+fmtMoeda(det.custoPorKg,'BRL')):''}</div>
+      <div style="margin-top:4px;"><strong>Lote inteiro (${nAnimais} animal(is))</strong> — dia: ${fmtMoeda(det.custoDiaTotal*nAnimais,'BRL')} · mês: ${fmtMoeda(det.custoMesTotal*nAnimais,'BRL')}</div>
     </div>`;
   });
   const cabecalho = `<h1 style="border:none;">Relatório Financeiro — Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${selecionadas.length} formulação(ões)</div>`;
-  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}</div>`;
+  // Pedido de compra no fim do relatório: quanto de cada alimento precisa entrar pra 30 dias. É a
+  // MESMA função usada no Relatório Completo (pedido30DiasRelatorioHtml) — mesma regra de lote, mesmo
+  // formato, uma lógica só. Com várias formulações no relatório, sai um pedido consolidado: o que
+  // interessa na hora de comprar é o total por alimento, não uma listinha por formulação.
+  const pedido = pedido30DiasRelatorioHtml(selecionadas.map(fo=>({ formulacao: fo })));
+  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}${pedido}</div>`;
   const nomeArquivo = selecionadas.length===1
     ? 'Relatorio_Financeiro_'+(selecionadas[0].nome||'Formulacao').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf'
     : 'Relatorio_Financeiro_'+selecionadas.length+'_Formulacoes.pdf';
@@ -15346,26 +16286,32 @@ function gerarRelatorioFinanceiroFormulacoes(){
 function gerarRelatorioNutricionalFormulacoes(){
   const selecionadas = selecaoFormulacoesConsultoria();
   if(selecionadas.length===0){ showAlert('Nenhuma formulação pra gerar relatório.'); return; }
+  // Paginação: cada ANIMAL é um bloco pequeno e independente (page-break-inside:avoid vale só pra ele),
+  // então as folhas enchem de cima a baixo. Antes a formulação inteira era um bloco só — com vários
+  // animais ela não cabia no que restava da página, era empurrada inteira pra folha seguinte e sobrava
+  // uma página quase em branco. O título/ingredientes da formulação vai junto do 1º animal pra nunca
+  // ficar órfão no pé da página.
   const blocos = selecionadas.map(fo=>{
     // Fornecido/avisos são os mesmos pra qualquer animal (1 receita só); Exigência muda com o peso de
-    // cada um — por isso 1 tabela por animal aqui dentro, igual ao painel ao vivo da Formulação.
+    // cada um — por isso 1 tabela por animal, igual ao painel ao vivo da Formulação.
     const animais = formulacaoAnimais(fo);
     let avisosHtml = '';
-    const tabelasPorAnimal = (animais.length?animais:[{animalNome:'',pesoKg:null}]).map(a=>{
+    const tabelasPorAnimal = (animais.length?animais:[{animalNome:'',pesoKg:null}]).map((a,idx)=>{
       const resumo = calcResumoFormulacao({ pesoKg:Number(a.pesoKg)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
       if(!avisosHtml) avisosHtml = avisosNutrientesHtml(resumo);
-      return `<div style="margin-top:8px;">
-        ${a.animalNome?`<div style="font-weight:600;">${a.animalNome}${a.pesoKg?(' — '+a.pesoKg+' kg'):''}</div>`:''}
+      const abreFormulacao = idx===0
+        ? `<div class="report-animal-name">${fo.nome||''}</div>${cabecalhoFormulacaoRelatorioHtml(fo)}`
+        : '';
+      return `<div class="pdf-item-block" style="padding:6px 2px 10px;">
+        ${abreFormulacao}
+        ${a.animalNome?`<div style="font-weight:600;margin-top:8px;">${a.animalNome}${a.pesoKg?(' — '+a.pesoKg+' kg'):''}</div>`:''}
         <div class="grid-wrap"><table class="grid">
           <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
           <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
         </table></div>
       </div>`;
     }).join('');
-    return `<div class="report-animal-block">
-      <div class="report-animal-name">${fo.nome||''}</div>
-      ${cabecalhoFormulacaoRelatorioHtml(fo)}
-      ${tabelasPorAnimal}
+    return tabelasPorAnimal + `<div class="pdf-item-block" style="padding:0 2px 14px;border-bottom:1px solid #ddd;margin-bottom:10px;">
       ${avisosHtml}
       <div class="hint-text" style="margin-top:8px;">Energia: 33,3 kcal/kg × fator de atividade (planilha do usuário / NRC 2007). Proteína: 4% da Energia (planilha do usuário). Cálcio e Fósforo: NRC 2007, extrapolado entre os pontos de manutenção e trabalho intenso confirmados na tabela.</div>
     </div>`;
@@ -15375,7 +16321,9 @@ function gerarRelatorioNutricionalFormulacoes(){
   const nomeArquivo = selecionadas.length===1
     ? 'Relatorio_Nutricional_'+(selecionadas[0].nome||'Formulacao').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf'
     : 'Relatorio_Nutricional_'+selecionadas.length+'_Formulacoes.pdf';
-  baixarRelatorioManejoPDF(html, nomeArquivo);
+  // umPorPagina:false — os blocos agora são pequenos (1 por animal); sem isso cada animal viraria uma
+  // página só pra ele. Aqui eles fluem e enchem a folha.
+  baixarRelatorioManejoPDF(html, nomeArquivo, { umPorPagina:false, margin:[14,10] });
 }
 document.getElementById('btnRelFinanceiroFormulacaoConsultoria').addEventListener('click', gerarRelatorioFinanceiroFormulacoes);
 document.getElementById('btnRelNutricionalFormulacaoConsultoria').addEventListener('click', gerarRelatorioNutricionalFormulacoes);
@@ -15794,7 +16742,9 @@ function gerarRecomendacaoRacao(qtdMostrar){
     ${mostrar.map((l,i)=>`
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome}</div>
+          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome} ${ehCatalogoConsultoria(l.produto)
+            ? '<span class="pill st-outro" title="Ração de referência do catálogo da Consultoria — não é comprada pelo haras hoje">catálogo</span>'
+            : '<span class="pill st-ativo" title="Já é comprada pelo haras (está no Estoque)">em estoque</span>'}</div>
           ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta</span>` : ''}
         </div>
         ${l.motivos.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${l.motivos.map(m=>`<span class="pill st-outro">${m}</span>`).join('')}</div>` : ''}
@@ -18293,11 +19243,17 @@ function renderPainelMesFinanceiro(){
   const fimMes = toISODate(new Date(ano, mes+1, 0));
   // Alocação (produto já pago antes, só mostrando em quem foi usado) não entra no resumo do mês —
   // senão o mesmo real pago na compra apareceria de novo aqui como se fosse gasto novo.
-  const doMes = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.natureza!=='alocacao' && l.natureza!=='previsto');
+  const doMesTudo = todosLancamentosFinanceiro().filter(l=> l.data>=inicioMes && l.data<=fimMes && l.natureza!=='alocacao');
+  const doMes = doMesTudo.filter(l=> l.natureza!=='previsto');
+  // Faturamento do mês = tudo que foi vendido no mês (venda de animal, venda de cobertura, qualquer
+  // entrada), recebido ou não. "Entradas do mês" continua sendo só o que entrou no caixa.
+  const aReceberMes = doMesTudo.filter(l=>l.natureza==='previsto' && l.tipo==='entrada' && l.moeda!=='USD')
+    .reduce((s,l)=>s+(Number(l.valor)||0),0);
   const doMesBRL = doMes.filter(l=>l.moeda!=='USD'), doMesUSD = doMes.filter(l=>l.moeda==='USD');
   const totalEntrada = doMesBRL.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const totalSaida = doMesBRL.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saldo = totalEntrada - totalSaida;
+  const faturamentoMes = totalEntrada + aReceberMes;
   const totalEntradaU = doMesUSD.filter(l=>l.tipo==='entrada').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const totalSaidaU = doMesUSD.filter(l=>l.tipo==='saida').reduce((s,l)=>s+(Number(l.valor)||0),0);
   const saldoU = totalEntradaU - totalSaidaU;
@@ -18323,7 +19279,8 @@ function renderPainelMesFinanceiro(){
       </div>
     </div>
     <div style="display:flex;gap:12px;margin-bottom:${categorias.length?'16px':'0'};flex-wrap:wrap;">
-      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--ok);">${fmtMoeda(totalEntrada,'BRL')}</div>${linhaUsdPainel(totalEntradaU)}<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Entradas do mês</div></div>
+      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--ok);">${fmtMoeda(faturamentoMes,'BRL')}</div>${aReceberMes>0?`<div style="font-size:11.5px;color:var(--warn-ink);margin-top:2px;">${fmtMoeda(aReceberMes,'BRL')} a receber</div>`:''}<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Faturamento do mês</div></div>
+      <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--ok);">${fmtMoeda(totalEntrada,'BRL')}</div>${linhaUsdPainel(totalEntradaU)}<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Entradas do mês (recebido)</div></div>
       <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:var(--burgundy);">${fmtMoeda(totalSaida,'BRL')}</div>${linhaUsdPainel(totalSaidaU)}<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Saídas do mês</div></div>
       <div style="flex:1;min-width:140px;"><div style="font-family:'Fraunces',serif;font-size:21px;font-weight:600;color:${saldo>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldo,'BRL')}</div>${linhaUsdPainel(saldoU)}<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;">Saldo do mês</div></div>
     </div>
@@ -19677,8 +20634,42 @@ document.getElementById('u_permTable').addEventListener('change', e=>{
   }
   atualizarAcessoPreview();
 });
+// Administrador: o quadro CONTINUA VISÍVEL, com tudo marcado e travado (pedido do usuário — antes ele
+// sumia inteiro, e dava a impressão de que faltava permissão, especialmente a de Consultoria). Travado
+// porque marcar/desmarcar ali não teria efeito nenhum: quem é admin passa por cima da grade em
+// permissaoDe() e em lerPermissoesDoForm(), que grava permissoes:{} pra ele.
+// Guarda a grade de antes de ligar o modo admin, pra devolver igualzinha se ele desmarcar. Sem isso,
+// marcar "Administrador" por engano e desmarcar deixaria TODOS os checkboxes ligados, e um clique em
+// Salvar daria acesso total a quem não deveria ter.
+let permGradeAntesDoAdmin = null;
+function aplicarModoAdminNaGrade(){
+  const admin = document.getElementById('u_admin').checked;
+  const caixas = [...document.querySelectorAll('#u_permTable [data-perm-modulo], #u_permTable [data-perm-manejotipo]')];
+  const seg = document.getElementById('u_permSeguranca');
+  document.getElementById('u_permBlock').style.display = '';
+  if(admin){
+    if(!permGradeAntesDoAdmin) permGradeAntesDoAdmin = { caixas: caixas.map(cb=>cb.checked), seguranca: seg.checked };
+    caixas.forEach(cb=>{ cb.checked = true; cb.disabled = true; });
+    seg.checked = true; seg.disabled = true;
+  } else {
+    if(permGradeAntesDoAdmin){
+      caixas.forEach((cb,i)=>{ cb.checked = !!permGradeAntesDoAdmin.caixas[i]; });
+      seg.checked = permGradeAntesDoAdmin.seguranca;
+      permGradeAntesDoAdmin = null;
+    }
+    caixas.forEach(cb=>{ cb.disabled = false; });
+    seg.disabled = false;
+  }
+  const linha = document.getElementById('u_manejoTiposRow');
+  if(admin && linha) linha.style.display = '';
+  const aviso = document.getElementById('u_permAvisoAdmin');
+  if(aviso) aviso.style.display = admin ? '' : 'none';
+  const ajuda = document.getElementById('u_permAjuda');
+  if(ajuda) ajuda.style.display = admin ? 'none' : '';
+  document.getElementById('u_permTable').style.opacity = admin ? '.72' : '';
+}
 document.getElementById('u_admin').addEventListener('change', ()=>{
-  document.getElementById('u_permBlock').style.display = document.getElementById('u_admin').checked ? 'none' : '';
+  aplicarModoAdminNaGrade();
   atualizarAcessoPreview();
 });
 // Lê o estado atual dos checkboxes do formulário e devolve no mesmo formato salvo em usuarios[].
@@ -19706,7 +20697,6 @@ function lerPermissoesDoForm(){
 function aplicarEstadoPermNoForm(u){
   const admin = !!u.admin;
   document.getElementById('u_admin').checked = admin;
-  document.getElementById('u_permBlock').style.display = admin ? 'none' : '';
   document.querySelectorAll('#u_permTable [data-perm-modulo]').forEach(cb=>{
     const m = cb.dataset.permModulo, a = cb.dataset.permAcao;
     cb.checked = !!(u.permissoes && u.permissoes[m] && u.permissoes[m][a]);
@@ -19719,6 +20709,10 @@ function aplicarEstadoPermNoForm(u){
   const manejosVer = admin || !!(u.permissoes && u.permissoes.manejos && u.permissoes.manejos.ver);
   if(linha) linha.style.display = manejosVer ? '' : 'none';
   document.getElementById('u_permSeguranca').checked = !!(u.permissoes && u.permissoes.seguranca && u.permissoes.seguranca.ver);
+  // Abriu outro usuário: o que estava guardado da tela anterior não vale mais.
+  permGradeAntesDoAdmin = null;
+  // Por último: sendo admin, marca e trava a grade inteira (deixa visível, não escondida).
+  aplicarModoAdminNaGrade();
 }
 function atualizarAcessoPreview(){
   const { admin, permissoes } = lerPermissoesDoForm();
