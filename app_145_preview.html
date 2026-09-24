@@ -14749,6 +14749,7 @@ function fotosDaVisitaHtml(avaliacaoId){
 function dietaPlanejadaRelatorioHtml(formulacao, pesoKg){
   if(!formulacao) return '<div class="hint-text" style="margin-top:10px;">Nenhuma formulação cadastrada para este animal — sem dieta planejada para mostrar.</div>';
   const resumo = calcResumoFormulacao({ pesoKg, categoriaAtividade: formulacao.categoriaAtividade, itens: formulacao.itens });
+  const nAnimaisLote = formulacaoNumAnimais(formulacao);
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
   const itens = (formulacao.itens||[]).filter(it=>numDecimalBR(it.quantidade)>0).map(it=>{
     const p = estoqueProdutos.find(x=>x.id===it.produtoId);
@@ -14771,7 +14772,13 @@ function dietaPlanejadaRelatorioHtml(formulacao, pesoKg){
         <td class="num">${resumo.custoPorKg!=null?fmtR(resumo.custoPorKg):'—'}</td>
         <td class="num"><strong>${fmtR(resumo.custoDia)}</strong></td></tr></tfoot>
     </table></div>
-    <div class="hint-text" style="margin:6px 0 0;">Custo por dia: <strong>${fmtR(resumo.custoDia)}</strong> · por mês (30 dias): <strong>${fmtR(resumo.custoMes)}</strong></div>
+    <div class="grid-wrap" style="margin-top:8px;"><table class="grid"><tbody>
+      <tr><td style="width:46%;"><strong>Custo/kg da dieta</strong></td><td>${resumo.custoPorKg!=null?fmtR(resumo.custoPorKg):'—'}</td></tr>
+      <tr><td><strong>Custo/dia — por animal</strong></td><td>${fmtR(resumo.custoDia)}</td></tr>
+      <tr><td><strong>Custo/dia — lote inteiro</strong> (${nAnimaisLote} animal(is))</td><td>${fmtR(resumo.custoDia*nAnimaisLote)}</td></tr>
+      <tr><td><strong>Custo/mês — por animal</strong></td><td>${fmtR(resumo.custoMes)}</td></tr>
+      <tr><td><strong>Custo/mês — lote inteiro</strong> (${nAnimaisLote} animal(is))</td><td>${fmtR(resumo.custoMes*nAnimaisLote)}</td></tr>
+    </tbody></table></div>
     <div style="font-weight:600;margin:12px 0 2px;">Atendimento da exigência (NRC)</div>
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
