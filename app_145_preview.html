@@ -3027,6 +3027,12 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="csvdModalTitle">Visita Técnica</div><button class="modal-close" data-close="overlayConsultoriaVisitaDetalhe">✕</button></div>
     <div class="hint-text" id="csvdResumo" style="margin-bottom:14px;"></div>
+    <!-- Primeira opção ao abrir a visita, por pedido do usuário: avaliar a propriedade é o que ele faz
+         assim que chega, antes de cadastrar os animais avaliados. -->
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--chip-bg);">
+      <button type="button" class="btn" id="btnAvalPropVisita">📋 Avaliar a propriedade</button>
+      <div class="hint-text" id="csvdAvalPropResumo" style="margin:0;flex:1;min-width:220px;"></div>
+    </div>
     <div class="section-label" style="border-top:none;padding-top:0;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <span>Animais avaliados</span>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAddAvaliacaoConsultoria">+ Adicionar Animal</button>
@@ -3035,11 +3041,6 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <thead><tr><th>Animal</th><th>Peso</th><th>Tamanho</th><th>Idade</th><th>Score corporal</th><th>Situação geral</th><th>Fotos</th><th></th></tr></thead>
       <tbody id="csvdTbody"></tbody>
     </table></div>
-    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-      <span>Avaliação da propriedade</span>
-      <button type="button" class="btn btn-sm btn-ghost" id="btnAvalPropVisita">📋 Avaliar a propriedade</button>
-    </div>
-    <div class="hint-text" id="csvdAvalPropResumo" style="margin-bottom:4px;"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-ghost" id="btnEditarVisitaConsultoria">✎ Editar dados da visita</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
@@ -15412,6 +15413,15 @@ function placaBaiaHtml(formulacao, animaisDaPlaca){
   const cats = [...new Set(animais.map(a=>{ const h = horses.find(x=>x.id===a.animalId); return h && h.categoria ? h.categoria : ''; }).filter(Boolean))];
   const categoria = cats.length ? cats.join(' / ') : (NRC_CATEGORIA_LABEL[formulacao.categoriaAtividade] || '');
   // Matriz alimento x horário, na ordem em que os itens foram cadastrados.
+  // O horário é comparado NORMALIZADO (sem acento, sem caixa, sem espaço sobrando): gravações antigas
+  // trazem "manha", "Manha", "tarde"... e a comparação exata contra 'Manhã' fazia o item sumir da
+  // placa sem aviso nenhum. Item sem horário reconhecível NÃO é jogado na manhã — isso somava duas
+  // refeições numa só coluna (era o caso de "5Kg só de manhã" num animal que come em dois períodos).
+  // Ele vai para uma coluna "Sem horário", que só aparece quando existe esse caso.
+  const normHorario = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  const MAPA_HORARIO = {}; HORARIOS_DIETA.forEach(h=>{ MAPA_HORARIO[normHorario(h)] = h; });
+  const SEM_HORARIO = 'Sem horário';
+  let temSemHorario = false;
   const porProduto = [];
   (formulacao.itens||[]).forEach(it=>{
     const qtd = numDecimalBR(it.quantidade);
@@ -15420,9 +15430,12 @@ function placaBaiaHtml(formulacao, animaisDaPlaca){
     const nome = prod ? prod.nome : (it.produtoNome || '—');
     let linha = porProduto.find(l=>l.produtoId===it.produtoId);
     if(!linha){ linha = { produtoId:it.produtoId, nome, unidade: (prod&&prod.unidade)||it.unidade||'kg', turnos:{} }; porProduto.push(linha); }
+    const turno = MAPA_HORARIO[normHorario(it.horario)] || SEM_HORARIO;
+    if(turno===SEM_HORARIO) temSemHorario = true;
     // Mesmo alimento repetido no mesmo turno soma, em vez de uma sobrescrever a outra.
-    linha.turnos[it.horario||'Manhã'] = (linha.turnos[it.horario||'Manhã']||0) + qtd;
+    linha.turnos[turno] = (linha.turnos[turno]||0) + qtd;
   });
+  const colunas = temSemHorario ? [...HORARIOS_DIETA, SEM_HORARIO] : HORARIOS_DIETA;
   // Sempre na MESMA unidade, sem converter pra grama: 1,5Kg, 0,7Kg, 6Kg. Pedido do usuário — quem
   // está tratando compara as quantidades de bate-pronto, e misturar Kg com g na mesma folha
   // atrapalha justamente essa leitura rápida.
@@ -15431,24 +15444,31 @@ function placaBaiaHtml(formulacao, animaisDaPlaca){
     const u = (unidade||'kg').toLowerCase();
     return v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + (u==='kg'?'Kg':(' '+(unidade||'')));
   };
+  const nCols = colunas.length;
   const linhasAlimentos = porProduto.length===0
-    ? `<tr><td class="rot">—</td><td colspan="3" class="vazio">Nenhum alimento cadastrado nesta dieta.</td></tr>`
+    ? `<tr><td class="rot">—</td><td colspan="${nCols}" class="vazio">Nenhum alimento cadastrado nesta dieta.</td></tr>`
     : porProduto.map(l=>`<tr>
         <td class="rot">${escHtml((l.nome||'').toUpperCase())}</td>
-        ${HORARIOS_DIETA.map(h=>{
+        ${colunas.map(h=>{
           const v = l.turnos[h];
           return `<td class="${v?'':'vazio'}">${v?escHtml(fmtQtd(v, l.unidade)):''}</td>`;
         }).join('')}
       </tr>`).join('');
   const obs = (formulacao.obs||'').trim();
+  // Rodapé discreto com o nome da dieta: quando a placa sai "estranha", é por aqui que se descobre
+  // qual formulação a gerou, sem precisar caçar na lista.
+  const rodape = [formulacao.nome && ('Dieta: '+formulacao.nome),
+    temSemHorario && 'Há item sem horário definido na formulação — confira a coluna "Sem horário".']
+    .filter(Boolean).join(' · ');
   return `<div class="placa-baia">
     <table>
-      <tr><td class="rot">ANIMAIS:</td><td colspan="3" class="topo">${escHtml((nomes||'—').toUpperCase())}</td></tr>
-      <tr><td class="rot">CATEGORIA:</td><td colspan="3">${escHtml((categoria||'').toUpperCase())}</td></tr>
-      <tr><td class="cab" style="background:#fff;border-color:#16304d;"></td>${HORARIOS_DIETA.map(h=>`<th class="cab">${h.toUpperCase()}</th>`).join('')}</tr>
+      <tr><td class="rot">ANIMAIS:</td><td colspan="${nCols}" class="topo">${escHtml((nomes||'—').toUpperCase())}</td></tr>
+      <tr><td class="rot">CATEGORIA:</td><td colspan="${nCols}">${escHtml((categoria||'').toUpperCase())}</td></tr>
+      <tr><td class="cab" style="background:#fff;border-color:#16304d;"></td>${colunas.map(h=>`<th class="cab">${h.toUpperCase()}</th>`).join('')}</tr>
       ${linhasAlimentos}
-      <tr><td class="rot">Observações:</td><td colspan="3" class="obs">${escHtml(obs)}</td></tr>
+      <tr><td class="rot">Observações:</td><td colspan="${nCols}" class="obs">${escHtml(obs)}</td></tr>
     </table>
+    ${rodape ? `<div style="margin-top:6px;font-size:11px;color:#666;">${escHtml(rodape)}</div>` : ''}
   </div>`;
 }
 // Levanta quem tem dieta nesta visita, uma vez só — os dois formatos partem da mesma lista.
