@@ -3144,7 +3144,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </div>
       </div>
       <div id="u_permBlock" style="margin-top:16px;">
-        <div class="hint-text" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
+        <div class="hint-text" id="u_permAjuda" style="margin-bottom:8px;">Marque o que essa pessoa pode <strong>ver</strong>, <strong>inserir</strong>, <strong>editar</strong> e <strong>excluir</strong>, módulo por módulo. Ex: um ferrador pode ter só Manejos → Ver/Inserir/Editar marcados, e dentro dele restringir pra só o tipo "Casco".</div>
+        <div class="hint-text" id="u_permAvisoAdmin" style="margin-bottom:8px;display:none;"><strong>Administrador vê e faz tudo</strong> — o quadro abaixo mostra esse acesso completo e fica travado. Pra escolher módulo por módulo, desmarque "Administrador" acima.</div>
         <div class="perm-table-wrap"><div class="perm-table" id="u_permTable"></div></div>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:14px;">
           <input type="checkbox" id="u_permSeguranca" style="width:15px;height:15px;">
@@ -20315,8 +20316,42 @@ document.getElementById('u_permTable').addEventListener('change', e=>{
   }
   atualizarAcessoPreview();
 });
+// Administrador: o quadro CONTINUA VISÍVEL, com tudo marcado e travado (pedido do usuário — antes ele
+// sumia inteiro, e dava a impressão de que faltava permissão, especialmente a de Consultoria). Travado
+// porque marcar/desmarcar ali não teria efeito nenhum: quem é admin passa por cima da grade em
+// permissaoDe() e em lerPermissoesDoForm(), que grava permissoes:{} pra ele.
+// Guarda a grade de antes de ligar o modo admin, pra devolver igualzinha se ele desmarcar. Sem isso,
+// marcar "Administrador" por engano e desmarcar deixaria TODOS os checkboxes ligados, e um clique em
+// Salvar daria acesso total a quem não deveria ter.
+let permGradeAntesDoAdmin = null;
+function aplicarModoAdminNaGrade(){
+  const admin = document.getElementById('u_admin').checked;
+  const caixas = [...document.querySelectorAll('#u_permTable [data-perm-modulo], #u_permTable [data-perm-manejotipo]')];
+  const seg = document.getElementById('u_permSeguranca');
+  document.getElementById('u_permBlock').style.display = '';
+  if(admin){
+    if(!permGradeAntesDoAdmin) permGradeAntesDoAdmin = { caixas: caixas.map(cb=>cb.checked), seguranca: seg.checked };
+    caixas.forEach(cb=>{ cb.checked = true; cb.disabled = true; });
+    seg.checked = true; seg.disabled = true;
+  } else {
+    if(permGradeAntesDoAdmin){
+      caixas.forEach((cb,i)=>{ cb.checked = !!permGradeAntesDoAdmin.caixas[i]; });
+      seg.checked = permGradeAntesDoAdmin.seguranca;
+      permGradeAntesDoAdmin = null;
+    }
+    caixas.forEach(cb=>{ cb.disabled = false; });
+    seg.disabled = false;
+  }
+  const linha = document.getElementById('u_manejoTiposRow');
+  if(admin && linha) linha.style.display = '';
+  const aviso = document.getElementById('u_permAvisoAdmin');
+  if(aviso) aviso.style.display = admin ? '' : 'none';
+  const ajuda = document.getElementById('u_permAjuda');
+  if(ajuda) ajuda.style.display = admin ? 'none' : '';
+  document.getElementById('u_permTable').style.opacity = admin ? '.72' : '';
+}
 document.getElementById('u_admin').addEventListener('change', ()=>{
-  document.getElementById('u_permBlock').style.display = document.getElementById('u_admin').checked ? 'none' : '';
+  aplicarModoAdminNaGrade();
   atualizarAcessoPreview();
 });
 // Lê o estado atual dos checkboxes do formulário e devolve no mesmo formato salvo em usuarios[].
@@ -20344,7 +20379,6 @@ function lerPermissoesDoForm(){
 function aplicarEstadoPermNoForm(u){
   const admin = !!u.admin;
   document.getElementById('u_admin').checked = admin;
-  document.getElementById('u_permBlock').style.display = admin ? 'none' : '';
   document.querySelectorAll('#u_permTable [data-perm-modulo]').forEach(cb=>{
     const m = cb.dataset.permModulo, a = cb.dataset.permAcao;
     cb.checked = !!(u.permissoes && u.permissoes[m] && u.permissoes[m][a]);
@@ -20357,6 +20391,10 @@ function aplicarEstadoPermNoForm(u){
   const manejosVer = admin || !!(u.permissoes && u.permissoes.manejos && u.permissoes.manejos.ver);
   if(linha) linha.style.display = manejosVer ? '' : 'none';
   document.getElementById('u_permSeguranca').checked = !!(u.permissoes && u.permissoes.seguranca && u.permissoes.seguranca.ver);
+  // Abriu outro usuário: o que estava guardado da tela anterior não vale mais.
+  permGradeAntesDoAdmin = null;
+  // Por último: sendo admin, marca e trava a grade inteira (deixa visível, não escondida).
+  aplicarModoAdminNaGrade();
 }
 function atualizarAcessoPreview(){
   const { admin, permissoes } = lerPermissoesDoForm();
