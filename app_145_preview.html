@@ -1928,7 +1928,8 @@
         </div>
         <div id="crc_resumo" class="hint-text" style="margin:0 0 12px;"></div>
         <div class="lista-toolbar">
-          <button class="btn" id="btnGerarRelatorioCompletoConsultoria" style="margin-right:auto;">📋 Gerar Relatório Completo</button>
+          <button class="btn" id="btnGerarRelatorioCompletoConsultoria">📋 Gerar Relatório Completo</button>
+          <button class="btn" id="btnPlacaBaiaConsultoria" style="margin-right:auto;" title="Uma folha por dieta, pra pregar na porta da baia">🖨 Placa de Baia</button>
         </div>
       </div>
     </div>
@@ -15075,6 +15076,85 @@ function atualizarResumoRelatorioCompleto(){
     + (comDieta<avaliacoes.length ? ' Quem não tem formulação aparece só com a ficha (sem dieta nem custo).' : '');
 }
 document.getElementById('crc_visita').addEventListener('change', atualizarResumoRelatorioCompleto);
+/* ---- Placa de Baia: folha pra pregar na porta da baia, com a dieta do animal ----
+   Pedido do usuário, a partir de um esboço dele. Só LÊ o que já está cadastrado (formulação da
+   Consultoria) — nenhum campo novo, nenhum dado alterado. Uma folha por FORMULAÇÃO, não por animal:
+   quem divide a mesma dieta divide a placa (foi assim no esboço, "NOBRE / REALEZA" na linha
+   ANIMAIS), e assim não sai folha repetida pro lote inteiro.
+   O esboço separava "RAÇÃO" e "VOLUMOSO" em duas linhas. Isso não dá pra montar sozinho: o cadastro
+   do produto não distingue concentrado de volumoso (é tudo "Alimento"), e adivinhar pelo nome erra.
+   Como o usuário pediu pra não alterar nada e só buscar dado, cada ALIMENTO vira uma linha — o nome
+   dele na primeira coluna já diz o que é, e nenhuma informação da dieta fica de fora. */
+const PLACA_ESTILO = `.placa-baia{font-family:Arial,Helvetica,sans-serif;color:#111;page-break-after:always;padding:6px 0 18px;}
+.placa-baia:last-child{page-break-after:auto;}
+.placa-baia table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.placa-baia td,.placa-baia th{border:2px solid #16304d;padding:10px 8px;text-align:center;vertical-align:middle;font-size:19px;line-height:1.25;word-wrap:break-word;}
+.placa-baia .rot{background:#fff;font-weight:700;text-align:left;width:22%;font-size:17px;letter-spacing:.02em;}
+.placa-baia .cab{background:#16304d;color:#fff;font-weight:700;letter-spacing:.06em;font-size:17px;}
+.placa-baia .topo{text-align:center;font-size:24px;font-weight:700;letter-spacing:.02em;}
+.placa-baia .vazio{background:#fff;}
+.placa-baia .obs{text-align:left;font-size:17px;}`;
+function placaBaiaHtml(formulacao){
+  const animais = formulacaoAnimais(formulacao);
+  const nomes = animais.map(a=>a.animalNome).filter(Boolean).join(' / ');
+  // Categoria: a do CADASTRO do animal (é o que "Categoria" significa no resto do app). Com vários
+  // animais, mostra as distintas. Sem nenhuma cadastrada, cai pra categoria de atividade da dieta.
+  const cats = [...new Set(animais.map(a=>{ const h = horses.find(x=>x.id===a.animalId); return h && h.categoria ? h.categoria : ''; }).filter(Boolean))];
+  const categoria = cats.length ? cats.join(' / ') : (NRC_CATEGORIA_LABEL[formulacao.categoriaAtividade] || '');
+  // Matriz alimento x horário, na ordem em que os itens foram cadastrados.
+  const porProduto = [];
+  (formulacao.itens||[]).forEach(it=>{
+    const qtd = numDecimalBR(it.quantidade);
+    if(qtd<=0) return;
+    const prod = estoqueProdutos.find(p=>p.id===it.produtoId);
+    const nome = prod ? prod.nome : (it.produtoNome || '—');
+    let linha = porProduto.find(l=>l.produtoId===it.produtoId);
+    if(!linha){ linha = { produtoId:it.produtoId, nome, unidade: (prod&&prod.unidade)||it.unidade||'kg', turnos:{} }; porProduto.push(linha); }
+    // Mesmo alimento repetido no mesmo turno soma, em vez de uma sobrescrever a outra.
+    linha.turnos[it.horario||'Manhã'] = (linha.turnos[it.horario||'Manhã']||0) + qtd;
+  });
+  // Quantidade legível de longe: 1,5Kg / 700g — abaixo de 1 kg vira grama, como no esboço.
+  const fmtQtd = (v, unidade)=>{
+    if(v==null) return '';
+    const u = (unidade||'kg').toLowerCase();
+    if(u==='kg' && v>0 && v<1) return Math.round(v*1000)+'g';
+    return v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + (u==='kg'?'Kg':(' '+(unidade||'')));
+  };
+  const linhasAlimentos = porProduto.length===0
+    ? `<tr><td class="rot">—</td><td colspan="3" class="vazio">Nenhum alimento cadastrado nesta dieta.</td></tr>`
+    : porProduto.map(l=>`<tr>
+        <td class="rot">${escHtml((l.nome||'').toUpperCase())}</td>
+        ${HORARIOS_DIETA.map(h=>{
+          const v = l.turnos[h];
+          return `<td class="${v?'':'vazio'}">${v?escHtml(fmtQtd(v, l.unidade)):''}</td>`;
+        }).join('')}
+      </tr>`).join('');
+  const obs = (formulacao.obs||'').trim();
+  return `<div class="placa-baia">
+    <table>
+      <tr><td class="rot">ANIMAIS:</td><td colspan="3" class="topo">${escHtml((nomes||'—').toUpperCase())}</td></tr>
+      <tr><td class="rot">CATEGORIA:</td><td colspan="3">${escHtml((categoria||'').toUpperCase())}</td></tr>
+      <tr><td class="cab" style="background:#fff;border-color:#16304d;"></td>${HORARIOS_DIETA.map(h=>`<th class="cab">${h.toUpperCase()}</th>`).join('')}</tr>
+      ${linhasAlimentos}
+      <tr><td class="rot">Observações:</td><td colspan="3" class="obs">${escHtml(obs)}</td></tr>
+    </table>
+  </div>`;
+}
+function gerarPlacaBaiaConsultoria(){
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita){ showAlert('Escolha a visita técnica primeiro.'); return; }
+  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
+  if(avaliacoes.length===0){ showAlert('Essa visita ainda não tem animal avaliado.'); return; }
+  // Uma placa por formulação (sem repetir quando dois avaliados comem a mesma dieta).
+  const formulacoes = [];
+  avaliacoes.forEach(a=>{
+    const fo = formulacaoDoAnimalConsultoria(a);
+    if(fo && !formulacoes.some(f=>f.id===fo.id)) formulacoes.push(fo);
+  });
+  if(formulacoes.length===0){ showAlert('Nenhum animal desta visita tem dieta (formulação) cadastrada — a placa sai da dieta do animal.'); return; }
+  const html = `<style>${PLACA_ESTILO}</style><div class="print-block">${formulacoes.map(placaBaiaHtml).join('')}</div>`;
+  baixarRelatorioManejoPDF(html, 'Placa_de_Baia_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf', { umPorPagina:true, margin:[12,10] });
+}
 function gerarRelatorioCompletoConsultoria(){
   const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
   if(!visita){ showAlert('Escolha a visita técnica do relatório.'); return; }
@@ -15116,6 +15196,7 @@ function gerarRelatorioCompletoConsultoria(){
     individual ? { umPorPagina:true, margin:10 } : { umPorPagina:false, margin:[14,10] });
 }
 document.getElementById('btnGerarRelatorioCompletoConsultoria').addEventListener('click', gerarRelatorioCompletoConsultoria);
+document.getElementById('btnPlacaBaiaConsultoria').addEventListener('click', gerarPlacaBaiaConsultoria);
 // Bloco de UMA avaliação (dados + fotos) — reaproveitado no relatório completo da visita (um bloco por
 // animal, cada um vira 1 folha via gerarPdfUmBlocoPorPagina), no relatório individual da Ficha do Animal
 // (gerarRelatorioIndividualAvaliacao) e no PDF em lote de visitas selecionadas (gerarRelatoriosVisitasSelecionadas).
