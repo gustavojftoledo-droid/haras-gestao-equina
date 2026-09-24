@@ -3000,7 +3000,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     </div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaConsultoria" style="display:none;">Excluir</button></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisita">Cancelar</button><button type="button" class="btn btn-ghost" id="btnSalvarEAvaliarProp" title="Salva a visita e já abre o questionário da propriedade">📋 Salvar e avaliar a propriedade</button><button type="button" class="btn" id="btnSaveVisitaConsultoria">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
     </div>
   </div>
 </div>
@@ -14501,7 +14501,10 @@ function openVisitaConsultoriaEdit(id){
   openModal('overlayConsultoriaVisita');
 }
 document.getElementById('btnNewVisitaConsultoria').addEventListener('click', openVisitaConsultoriaNew);
-document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', async ()=>{
+// `irParaAvaliacao`: pedido do usuário pra ter a avaliação da propriedade já na tela de cadastro da
+// visita. A avaliação precisa de uma visita existente pra se amarrar (guarda visitaId), então o botão
+// grava a visita primeiro e emenda no questionário — sem obrigar a salvar, fechar e reabrir.
+async function salvarVisitaConsultoria(irParaAvaliacao){
   const propriedade = f('csv_propriedade').trim();
   if(!propriedade){ showAlert('Selecione a propriedade (ou cadastre uma nova pelo "+").'); return; }
   const existente = consultoriaVisitas.find(v=>v.id===editingVisitaConsultoriaId);
@@ -14514,8 +14517,13 @@ document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', as
   closeModal('overlayConsultoriaVisita');
   renderConsultoriaVisitas();
   salvarEmSegundoPlano('consultoria_visitas_list', consultoriaVisitas, ()=>renderConsultoriaVisitas());
-  if(eraNova) abrirVisitaConsultoriaDetalhe(data.id); // logo depois de criar, já facilita adicionar os animais avaliados
-});
+  // Abre o detalhe em dois casos: visita recém-criada (facilita já adicionar os animais) ou quando o
+  // botão pedido foi o de avaliar — nos dois o detalhe é o próximo passo natural.
+  if(eraNova || irParaAvaliacao) abrirVisitaConsultoriaDetalhe(data.id);
+  if(irParaAvaliacao) abrirAvalPropDaVisita();
+}
+document.getElementById('btnSaveVisitaConsultoria').addEventListener('click', ()=>salvarVisitaConsultoria(false));
+document.getElementById('btnSalvarEAvaliarProp').addEventListener('click', ()=>salvarVisitaConsultoria(true));
 // Exclusão de visita — compartilhada entre o botão dentro do modal (edição) e o botão "🗑" direto na
 // linha da tabela (pedido pra ficar igual aos outros módulos: excluir sem precisar abrir o cadastro).
 // Sempre em cascata: apaga também as avaliações de animal daquela visita e as fotos delas.
