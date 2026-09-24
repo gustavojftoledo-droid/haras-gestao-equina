@@ -3187,6 +3187,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 </div>
 
 <!-- CUSTOM DIALOG (replaces prompt/alert/confirm which can be blocked) -->
+<!-- Escolha do formato da Placa de Baia. Modal próprio (e não o overlayDialog genérico) porque aqui
+     são DUAS opções de verdade, e não um "OK / Cancelar": um diálogo com dois caminhos válidos não
+     pode chamar um deles de "Cancelar". -->
+<div class="overlay" id="overlayPlacaFormato">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">Placa de Baia</div>
+    <div style="margin:14px 0 4px;font-size:13.5px;line-height:1.5;">Como você quer imprimir?</div>
+    <div id="placaFormatoResumo" class="hint-text" style="margin:8px 0 0;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
+      <button class="btn" type="button" data-placafmt="grupo">Uma placa para o grupo<span style="display:block;font-weight:400;font-size:11.5px;opacity:.75;">Animais que comem a mesma dieta dividem a folha</span></button>
+      <button class="btn" type="button" data-placafmt="individual">Uma placa por animal<span style="display:block;font-weight:400;font-size:11.5px;opacity:.75;">Uma folha para cada animal, mesmo repetindo a dieta</span></button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+      <button class="btn btn-ghost" type="button" data-close="overlayPlacaFormato">Cancelar</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="overlayDialog">
   <div class="modal" style="max-width:420px;">
     <div class="modal-title" id="dialogTitle">Título</div>
@@ -15094,8 +15111,10 @@ const PLACA_ESTILO = `.placa-baia{font-family:Arial,Helvetica,sans-serif;color:#
 .placa-baia .topo{text-align:center;font-size:24px;font-weight:700;letter-spacing:.02em;}
 .placa-baia .vazio{background:#fff;}
 .placa-baia .obs{text-align:left;font-size:17px;}`;
-function placaBaiaHtml(formulacao){
-  const animais = formulacaoAnimais(formulacao);
+// `animaisDaPlaca` limita quem aparece na linha ANIMAIS — usado no formato "uma placa por animal".
+// Sem ele, a placa mostra todo mundo que come essa dieta (formato "grupo").
+function placaBaiaHtml(formulacao, animaisDaPlaca){
+  const animais = animaisDaPlaca && animaisDaPlaca.length ? animaisDaPlaca : formulacaoAnimais(formulacao);
   const nomes = animais.map(a=>a.animalNome).filter(Boolean).join(' / ');
   // Categoria: a do CADASTRO do animal (é o que "Categoria" significa no resto do app). Com vários
   // animais, mostra as distintas. Sem nenhuma cadastrada, cai pra categoria de atividade da dieta.
@@ -15113,11 +15132,12 @@ function placaBaiaHtml(formulacao){
     // Mesmo alimento repetido no mesmo turno soma, em vez de uma sobrescrever a outra.
     linha.turnos[it.horario||'Manhã'] = (linha.turnos[it.horario||'Manhã']||0) + qtd;
   });
-  // Quantidade legível de longe: 1,5Kg / 700g — abaixo de 1 kg vira grama, como no esboço.
+  // Sempre na MESMA unidade, sem converter pra grama: 1,5Kg, 0,7Kg, 6Kg. Pedido do usuário — quem
+  // está tratando compara as quantidades de bate-pronto, e misturar Kg com g na mesma folha
+  // atrapalha justamente essa leitura rápida.
   const fmtQtd = (v, unidade)=>{
     if(v==null) return '';
     const u = (unidade||'kg').toLowerCase();
-    if(u==='kg' && v>0 && v<1) return Math.round(v*1000)+'g';
     return v.toLocaleString('pt-BR',{maximumFractionDigits:2}) + (u==='kg'?'Kg':(' '+(unidade||'')));
   };
   const linhasAlimentos = porProduto.length===0
@@ -15140,20 +15160,45 @@ function placaBaiaHtml(formulacao){
     </table>
   </div>`;
 }
+// Levanta quem tem dieta nesta visita, uma vez só — os dois formatos partem da mesma lista.
+function comDietaNaVisita(visitaId){
+  return consultoriaAvaliacoesDaVisita(visitaId)
+    .map(a=>({ avaliacao:a, formulacao: formulacaoDoAnimalConsultoria(a) }))
+    .filter(x=>x.formulacao);
+}
 function gerarPlacaBaiaConsultoria(){
   const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
   if(!visita){ showAlert('Escolha a visita técnica primeiro.'); return; }
-  const avaliacoes = consultoriaAvaliacoesDaVisita(visita.id);
-  if(avaliacoes.length===0){ showAlert('Essa visita ainda não tem animal avaliado.'); return; }
-  // Uma placa por formulação (sem repetir quando dois avaliados comem a mesma dieta).
-  const formulacoes = [];
-  avaliacoes.forEach(a=>{
-    const fo = formulacaoDoAnimalConsultoria(a);
-    if(fo && !formulacoes.some(f=>f.id===fo.id)) formulacoes.push(fo);
-  });
-  if(formulacoes.length===0){ showAlert('Nenhum animal desta visita tem dieta (formulação) cadastrada — a placa sai da dieta do animal.'); return; }
-  const html = `<style>${PLACA_ESTILO}</style><div class="print-block">${formulacoes.map(placaBaiaHtml).join('')}</div>`;
-  baixarRelatorioManejoPDF(html, 'Placa_de_Baia_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf', { umPorPagina:true, margin:[12,10] });
+  if(consultoriaAvaliacoesDaVisita(visita.id).length===0){ showAlert('Essa visita ainda não tem animal avaliado.'); return; }
+  const comDieta = comDietaNaVisita(visita.id);
+  if(comDieta.length===0){ showAlert('Nenhum animal desta visita tem dieta (formulação) cadastrada — a placa sai da dieta do animal.'); return; }
+  const nDietas = new Set(comDieta.map(x=>x.formulacao.id)).size;
+  document.getElementById('placaFormatoResumo').textContent =
+    `${comDieta.length} animal(is) com dieta nesta visita, em ${nDietas} dieta(s) diferente(s).`;
+  openModal('overlayPlacaFormato');
+}
+function emitirPlacaBaia(formato){
+  closeModal('overlayPlacaFormato');
+  const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
+  if(!visita) return;
+  const comDieta = comDietaNaVisita(visita.id);
+  let placas;
+  if(formato === 'individual'){
+    // Uma folha por animal avaliado, mesmo que dois comam a mesma dieta — a folha vai na porta de
+    // cada baia, então repetir a dieta é o certo aqui.
+    placas = comDieta.map(({avaliacao, formulacao})=>{
+      const daFormulacao = formulacaoAnimais(formulacao).find(a=>a.animalId===avaliacao.animalId);
+      return placaBaiaHtml(formulacao, [{ animalId: avaliacao.animalId, animalNome: (daFormulacao&&daFormulacao.animalNome) || avaliacao.animalNome }]);
+    });
+  } else {
+    // Uma folha por dieta, com todos os animais dela juntos na linha ANIMAIS.
+    const vistas = [];
+    comDieta.forEach(({formulacao})=>{ if(!vistas.some(f=>f.id===formulacao.id)) vistas.push(formulacao); });
+    placas = vistas.map(fo=>placaBaiaHtml(fo));
+  }
+  const sufixo = formato==='individual' ? '_por_animal' : '';
+  const html = `<style>${PLACA_ESTILO}</style><div class="print-block">${placas.join('')}</div>`;
+  baixarRelatorioManejoPDF(html, 'Placa_de_Baia_'+(visita.propriedade||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+sufixo+'.pdf', { umPorPagina:true, margin:[12,10] });
 }
 function gerarRelatorioCompletoConsultoria(){
   const visita = consultoriaVisitas.find(v=>v.id===document.getElementById('crc_visita').value);
@@ -15197,6 +15242,9 @@ function gerarRelatorioCompletoConsultoria(){
 }
 document.getElementById('btnGerarRelatorioCompletoConsultoria').addEventListener('click', gerarRelatorioCompletoConsultoria);
 document.getElementById('btnPlacaBaiaConsultoria').addEventListener('click', gerarPlacaBaiaConsultoria);
+document.querySelectorAll('#overlayPlacaFormato [data-placafmt]').forEach(btn=>{
+  btn.addEventListener('click', ()=> emitirPlacaBaia(btn.dataset.placafmt));
+});
 // Bloco de UMA avaliação (dados + fotos) — reaproveitado no relatório completo da visita (um bloco por
 // animal, cada um vira 1 folha via gerarPdfUmBlocoPorPagina), no relatório individual da Ficha do Animal
 // (gerarRelatorioIndividualAvaliacao) e no PDF em lote de visitas selecionadas (gerarRelatoriosVisitasSelecionadas).
