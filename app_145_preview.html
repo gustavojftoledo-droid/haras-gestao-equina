@@ -1904,7 +1904,7 @@
 
       <div id="csview_catalogoracoes" style="display:none;">
         <div class="stats" id="catalogoStats"></div>
-        <div class="hint-text" style="margin:0 0 12px;">Rações de referência para recomendar ao cliente — não são compradas pelo haras, então não aparecem no Estoque nem geram alerta de reposição. Elas continuam entrando na <strong>Recomendação de Ração</strong>, marcadas como catálogo. No Estoque ficam só o que o haras usa de fato: feno, Hectare 15 Laminados, Hectare Laminados e sal mineral.</div>
+        <div class="hint-text" style="margin:0 0 12px;">Rações de referência para recomendar ao cliente — não são compradas pelo haras, então não aparecem no Estoque nem geram alerta de reposição. Elas continuam entrando na <strong>Recomendação de Ração</strong>, marcadas como catálogo. No Estoque ficam só o que o haras usa de fato: feno, Equitage 15 Laminados, Equitage Laminados e sal mineral.</div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="catalogoSearch" placeholder="Nome da ração..."></div>
         </div>
@@ -4128,7 +4128,27 @@ async function loadAll(){
     if(!d.diasSemana){ d.diasSemana=[true,true,true,true,true,true,true]; dietasChanged=true; }
   });
   if(dietasChanged) await storeSet('dietas_list', dietas);
-  // Migração única: separa o que o haras realmente compra (feno, Hectare 15 Laminados, Hectare
+  // Migração única: as duas rações laminadas trocaram de nome — "Hectare" virou "Equitage". Troca só
+  // essa palavra, preservando o resto do nome (ex: "Guabi Hectare 15 Laminados" -> "Guabi Equitage 15
+  // Laminados"). Mexe apenas no campo nome do produto: o id continua o mesmo, então Dietas,
+  // movimentações de estoque e lançamentos financeiros seguem apontando pro mesmo registro.
+  if(!config.migracaoNomeEquitage){
+    let renomeados = [];
+    estoqueProdutos.forEach(p=>{
+      if(p.nome && /hectare/i.test(p.nome)){
+        const antes = p.nome;
+        p.nome = p.nome.replace(/hectare/gi, 'Equitage');
+        renomeados.push(antes+' → '+p.nome);
+      }
+    });
+    config.migracaoNomeEquitage = true;
+    await storeSet('config', config);
+    if(renomeados.length>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      showAlert('Nome atualizado em '+renomeados.length+' ração(ões):\n\n'+renomeados.join('\n')+'\n\nO cadastro é o mesmo (nada foi recriado) — Dietas, estoque e financeiro continuam ligados normalmente.');
+    }
+  }
+  // Migração única: separa o que o haras realmente compra (feno, Equitage 15 Laminados, Equitage
   // Laminados, sal mineral) do resto das rações, que passa a viver no catálogo da Consultoria. Roda
   // UMA vez (config.migracaoCatalogoRacoes) pra não voltar a marcar um produto que o usuário trouxe
   // de volta pro Estoque depois. Nada é apagado — só a marca catalogoConsultoria muda.
@@ -4144,7 +4164,7 @@ async function loadAll(){
     await storeSet('config', config);
     if(marcados>0){
       await storeSet('estoque_produtos', estoqueProdutos);
-      showAlert(marcados+' ração(ões) saíram do Estoque e foram pro catálogo da Consultoria (aba "🌾 Catálogo de Rações"). Ficaram no Estoque: feno, Hectare 15 Laminados, Hectare Laminados e sal mineral. Nada foi apagado — dá pra trazer qualquer uma de volta com um clique.');
+      showAlert(marcados+' ração(ões) saíram do Estoque e foram pro catálogo da Consultoria (aba "🌾 Catálogo de Rações"). Ficaram no Estoque: feno, Equitage 15 Laminados, Equitage Laminados e sal mineral. Nada foi apagado — dá pra trazer qualquer uma de volta com um clique.');
     }
   }
   refreshDatalists();
@@ -12216,7 +12236,13 @@ function produtosDoEstoque(){ return estoqueProdutos.filter(p=>!ehCatalogoConsul
 function produtosDoCatalogo(){ return estoqueProdutos.filter(ehCatalogoConsultoria); }
 // Fica no Estoque quem casar com um destes nomes; todo o resto que for Alimento vai pro catálogo.
 // Comparação sem acento e sem caixa, por "contém" — nome cadastrado com variação ainda casa.
-const ALIMENTOS_DO_HARAS = ['feno', 'hectare 15 laminados', 'hectare laminados', 'sal mineral'];
+// "Hectare" era o nome antigo das duas rações laminadas, hoje Equitage. Os dois ficam na lista pra
+// a classificação funcionar igual antes e depois da troca de nome (migração migracaoNomeEquitage),
+// e pra não quebrar se algum cadastro antigo ainda estiver com o nome velho. Atenção: os nomes aqui
+// são os COMPLETOS de propósito — "equitage" sozinho arrastaria Equitage Fibra e Equitage Kiblets,
+// que são rações de catálogo, pra dentro do Estoque.
+const ALIMENTOS_DO_HARAS = ['feno', 'equitage 15 laminados', 'equitage laminados',
+  'hectare 15 laminados', 'hectare laminados', 'sal mineral'];
 function normNomeProduto(s){
   return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
 }
@@ -14973,9 +14999,18 @@ document.getElementById('btnProdutoParaCatalogo').addEventListener('click', asyn
 });
 document.getElementById('btnNovaRacaoCatalogo').addEventListener('click', ()=>{
   // Abre o cadastro normal de produto já como Alimento; ao salvar, entra no catálogo (ver btnSaveProduto).
+  // Marcar o Tipo aqui não é cosmético: os campos bromatológicos (ED, PB, Ca, P, Fibra Bruta) só
+  // aparecem quando o Tipo é "Alimento" (atualizarNutrientesVisibilidade) — e é justamente pra isso
+  // que serve uma ração de catálogo, que existe só pra ser comparada na Consultoria.
   novaRacaoVaiProCatalogo = true;
   openProdutoNew();
-  const tipo = document.getElementById('pd_tipo'); if(tipo){ tipo.value = 'Alimento'; tipo.dispatchEvent(new Event('change')); }
+  const tipo = document.getElementById('pd_tipo_aux');
+  if(tipo){
+    if(![...tipo.options].some(o=>o.value==='Alimento')) tipo.add(new Option('Alimento','Alimento'));
+    tipo.value = 'Alimento';
+    atualizarClasseMedicamentoVisibilidade();
+    atualizarNutrientesVisibilidade();
+  }
 });
 let novaRacaoVaiProCatalogo = false;
 
