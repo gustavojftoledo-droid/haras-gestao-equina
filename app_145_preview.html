@@ -3641,6 +3641,17 @@ function fundirObjetoPorChave(minhaBaseAnteriorObj, val, doBanco){
   Object.keys(val||{}).forEach(k=>{
     if(JSON.stringify(base[k]) !== JSON.stringify(val[k])) atual[k] = val[k]; // só as chaves que esta aba mudou agora
   });
+  // Chave APAGADA por esta aba (estava na base dela e não está mais no que ela manda gravar) precisa
+  // sair de verdade. O laço acima só passa pelas chaves que sobraram em `val`, então uma chave
+  // deletada nunca era visitada e voltava inteira junto com `doBanco` — a exclusão era desfeita na
+  // gravação seguinte. Era isso que deixava as fotos de avaliações/visitas já excluídas ocupando
+  // espaço pra sempre em consultoria_fotos, sem aparecer em lugar nenhum. Chave que não está nem na
+  // base nem em `val` veio de OUTRA sessão e continua preservada, que é o objetivo da fusão.
+  if(val && typeof val==='object'){
+    Object.keys(base).forEach(k=>{
+      if(!Object.prototype.hasOwnProperty.call(val, k)) delete atual[k];
+    });
+  }
   return atual;
 }
 // Depois de fundir, a variável global correspondente (horses, manejos, config...) precisa refletir o
@@ -4128,6 +4139,33 @@ async function loadAll(){
     if(!d.diasSemana){ d.diasSemana=[true,true,true,true,true,true,true]; dietasChanged=true; }
   });
   if(dietasChanged) await storeSet('dietas_list', dietas);
+  // Faxina das fotos órfãs da Consultoria. As fotos são gravadas DENTRO do documento
+  // consultoria_fotos, e o documento tem teto de tamanho — quando ele enche, o app passa a recusar
+  // foto nova. Até a correção em fundirObjetoPorChave, excluir uma avaliação (ou uma visita inteira)
+  // tirava as fotos só da memória: na gravação seguinte a fusão devolvia a chave, então elas ficavam
+  // ocupando o espaço para sempre, invisíveis em qualquer tela. Aqui some o que não tem mais dono.
+  // Só roda quando as DUAS leituras deram certo: com uma leitura falha, avaliações viriam vazias e
+  // toda foto pareceria órfã.
+  if(rCF.ok && rCA.ok && Object.keys(consultoriaFotos).length>0){
+    const idsVivos = new Set(consultoriaAvaliacoes.map(a=>a.id));
+    const orfas = Object.keys(consultoriaFotos).filter(id=>!idsVivos.has(id));
+    if(orfas.length>0){
+      let nFotos = 0, caracteres = 0;
+      orfas.forEach(id=>{
+        const lista = Array.isArray(consultoriaFotos[id]) ? consultoriaFotos[id] : [];
+        nFotos += lista.length;
+        caracteres += JSON.stringify(lista).length;
+        delete consultoriaFotos[id];
+      });
+      // consultoriaFotosSnapshot NÃO é atualizado aqui de propósito: ele ainda guarda o estado lido do
+      // banco (com as órfãs), e é justamente essa diferença que faz a fusão entender que as chaves
+      // foram apagadas. O próprio storeSet atualiza o snapshot no final.
+      const ok = await storeSet('consultoria_fotos', consultoriaFotos);
+      if(ok && nFotos>0){
+        showAlert(nFotos+' foto(s) de avaliações já excluídas estavam presas no banco e foram removidas, liberando cerca de '+Math.round(caracteres/1024)+' KB para fotos novas na Consultoria.');
+      }
+    }
+  }
   // Migração única: as duas rações laminadas trocaram de nome — "Hectare" virou "Equitage". Troca só
   // essa palavra, preservando o resto do nome (ex: "Guabi Hectare 15 Laminados" -> "Guabi Equitage 15
   // Laminados"). Mexe apenas no campo nome do produto: o id continua o mesmo, então Dietas,
@@ -15786,7 +15824,12 @@ function gerarRelatorioFinanceiroFormulacoes(){
     </div>`;
   });
   const cabecalho = `<h1 style="border:none;">Relatório Financeiro — Formulações</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${selecionadas.length} formulação(ões)</div>`;
-  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}</div>`;
+  // Pedido de compra no fim do relatório: quanto de cada alimento precisa entrar pra 30 dias. É a
+  // MESMA função usada no Relatório Completo (pedido30DiasRelatorioHtml) — mesma regra de lote, mesmo
+  // formato, uma lógica só. Com várias formulações no relatório, sai um pedido consolidado: o que
+  // interessa na hora de comprar é o total por alimento, não uma listinha por formulação.
+  const pedido = pedido30DiasRelatorioHtml(selecionadas.map(fo=>({ formulacao: fo })));
+  const html = `<div class="report-card print-block">${cabecalho}${blocos.join('')}${pedido}</div>`;
   const nomeArquivo = selecionadas.length===1
     ? 'Relatorio_Financeiro_'+(selecionadas[0].nome||'Formulacao').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf'
     : 'Relatorio_Financeiro_'+selecionadas.length+'_Formulacoes.pdf';
