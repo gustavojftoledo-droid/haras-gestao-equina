@@ -1781,7 +1781,7 @@
         </div>
         <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
         <div class="grid-wrap"><table class="grid" data-lista="consultoriaVisitas">
-          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaVisitas" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="objetivo">Objetivo</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
+          <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaVisitas" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="objetivo">Objetivo</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th data-col="avalprop">Aval. propriedade</th><th></th></tr></thead>
           <tbody id="cvTbody"></tbody>
         </table></div>
       </div>
@@ -1827,7 +1827,7 @@
           </div>
           <div class="hint-text" style="margin-bottom:10px;">Marque o checkbox das visitas desejadas pra baixar o PDF (formato do Relatório de Visita Técnica) só delas — sem marcar nenhuma, sai com a lista inteira.</div>
           <div class="grid-wrap"><table class="grid" data-lista="consultoriaHistorico">
-            <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th></th></tr></thead>
+            <thead><tr><th class="col-check" style="width:34px;"><input type="checkbox" data-checkall="consultoriaHistorico" title="Selecionar todas"></th><th>Propriedade</th><th data-col="data">Data</th><th data-col="consultor">Consultor</th><th data-col="responsavel">Responsável</th><th data-col="animais">Animais avaliados</th><th data-col="proprietario">Proprietário(s)</th><th data-col="localizacao">Localização(ões)</th><th data-col="avalprop">Aval. propriedade</th><th></th></tr></thead>
             <tbody id="chTbody"></tbody>
           </table></div>
         </div>
@@ -3034,9 +3034,77 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <thead><tr><th>Animal</th><th>Peso</th><th>Tamanho</th><th>Idade</th><th>Score corporal</th><th>Situação geral</th><th>Fotos</th><th></th></tr></thead>
       <tbody id="csvdTbody"></tbody>
     </table></div>
+    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+      <span>Avaliação da propriedade</span>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAvalPropVisita">📋 Avaliar a propriedade</button>
+    </div>
+    <div class="hint-text" id="csvdAvalPropResumo" style="margin-bottom:4px;"></div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-ghost" id="btnEditarVisitaConsultoria">✎ Editar dados da visita</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayConsultoriaVisitaDetalhe">Fechar</button><button type="button" class="btn" id="btnGerarRelatorioConsultoria">📄 Gerar Relatório PDF</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONSULTORIA: AVALIAÇÃO DA PROPRIEDADE — questionário que o consultor preenche na visita.
+     As 19 perguntas vieram do formulário que o cliente usava fora do sistema. Avaliador, local/cidade,
+     propriedade e responsável já estão no cadastro da visita, então entram preenchidos (editáveis). -->
+<div class="overlay" id="overlayConsultoriaAvalProp">
+  <div class="modal wide">
+    <div class="modal-head"><div class="modal-title" id="cavpModalTitle">Avaliação da Propriedade</div><button class="modal-close" data-close="overlayConsultoriaAvalProp">✕</button></div>
+    <div class="hint-text" id="cavpResumoVisita" style="margin-bottom:12px;"></div>
+    <div class="form-grid">
+      <div class="field"><label>Data da avaliação</label><input type="date" id="cavp_dataAval"></div>
+      <div class="field"><label>1. Nome do avaliador</label><input type="text" id="cavp_avaliador" placeholder="Quem fez a avaliação"></div>
+      <div class="field"><label>2. Local e cidade da avaliação</label><input type="text" id="cavp_local" placeholder="Ex: Itu — SP"></div>
+      <div class="field"><label>3. Nome do animal</label><input type="text" id="cavp_animal" placeholder="Animal observado na avaliação"></div>
+      <div class="field"><label>4. Nome do Haras / Rancho / CT</label><input type="text" id="cavp_haras"></div>
+      <div class="field"><label>5. Responsável pelo cavalo durante a avaliação</label><input type="text" id="cavp_responsavel"></div>
+    </div>
+    <div class="section-label">Volumoso</div>
+    <div class="form-grid">
+      <div class="field"><label>6. Tipo de volumoso utilizado</label><input type="text" id="cavp_volTipo" placeholder="Ex: Feno de Tifton"></div>
+      <div class="field"><label>7. Classificação do volumoso (na sua visão)</label><select id="cavp_volClasse">
+        <option value="">Selecione...</option>
+        <option value="VIP">VIP (Excelente Qualidade)</option>
+        <option value="A">A (Bom)</option>
+        <option value="B">B (Regular)</option>
+        <option value="C">C (Ruim)</option>
+        <option value="Outra">Outra</option>
+      </select></div>
+      <div class="field" id="cavp_volClasseOutraWrap" style="display:none;"><label>Qual?</label><input type="text" id="cavp_volClasseOutra"></div>
+      <div class="field"><label>9. Quantidade de volumoso fornecida</label><input type="text" inputmode="decimal" id="cavp_volQtd" placeholder="Ex: 6 ou 6,5 kg/dia"></div>
+      <div class="field full"><label>8. Forma de fornecimento do volumoso <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(pode marcar mais de uma)</span></label>
+        <div id="cavp_volFormaHost" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+      </div>
+    </div>
+    <div class="section-label">Concentrado e condição</div>
+    <div class="form-grid">
+      <div class="field"><label>10. Usava aveia pura?</label><select id="cavp_aveia"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+      <div class="field"><label>14. Usava sal mineral?</label><select id="cavp_salMineral"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select></div>
+      <div class="field full"><label>11. Qual(is) ração(ões) utilizada(s)?</label><input type="text" id="cavp_racoes"></div>
+      <div class="field full"><label>12. Quantidade informada de cada ração utilizada</label><input type="text" id="cavp_racoesQtd"></div>
+      <div class="field"><label>13. Escore de Condição Corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" id="cavp_escore" placeholder="Opcional"></div>
+    </div>
+    <div class="section-label">Peneiramento da ração</div>
+    <div class="form-grid">
+      <div class="field"><label>15. % da peneira 1</label><input type="text" inputmode="decimal" id="cavp_peneira1" placeholder="Ex: 35 ou 35,5"></div>
+      <div class="field"><label>16. % da peneira 2</label><input type="text" inputmode="decimal" id="cavp_peneira2"></div>
+      <div class="field"><label>17. % da peneira 3</label><input type="text" inputmode="decimal" id="cavp_peneira3"></div>
+      <div class="field" style="align-self:end;"><div class="hint-text" id="cavp_peneiraSoma"></div></div>
+    </div>
+    <div class="section-label">Conclusão</div>
+    <div class="form-grid">
+      <div class="field full"><label>18. Alguma observação sobre o animal? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(detalhe que possa influenciar o resultado: odontologia, manejo etc.)</span></label><textarea id="cavp_obsAnimal" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+      <div class="field full"><label>19. Ações e dieta sugerida pós avaliação <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(opcional)</span></label><textarea id="cavp_acoes" rows="3" spellcheck="true" lang="pt-BR"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <div><button type="button" class="btn btn-danger" id="btnDeleteAvalProp" style="display:none;">Excluir avaliação</button></div>
+      <div class="modal-actions-right">
+        <button type="button" class="btn btn-ghost" data-close="overlayConsultoriaAvalProp">Cancelar</button>
+        <button type="button" class="btn btn-ghost" id="btnPdfAvalProp">📄 Relatório da avaliação</button>
+        <button type="button" class="btn" id="btnSaveAvalProp">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button>
+      </div>
     </div>
   </div>
 </div>
@@ -3453,6 +3521,10 @@ let consultoriaAvaliacoes = []; // Firestore key: 'consultoria_avaliacoes_list'
 let consultoriaFotos = {};      // Firestore key: 'consultoria_fotos' — objeto { [avaliacaoId]: [{id,dataUrl,legenda,ordem}] }
 let consultoriaFormulacoes = []; // Firestore key: 'consultoria_formulacoes_list' — Fase 2 (Formulação/NRC)
 let consultoriaPropriedades = []; // Firestore key: 'consultoria_propriedades_list' — cadastro leve de haras/propriedade (nome, proprietário, cidade, obs)
+// Avaliação da Propriedade: questionário que o consultor preenche NA visita (o cliente fazia isso num
+// formulário fora do sistema). Vive dentro da visita — uma por visita, sempre opcional — e é por isso
+// que guarda visitaId em vez de animalId. Ver overlayConsultoriaAvalProp.
+let consultoriaAvalPropriedade = []; // Firestore key: 'consultoria_aval_propriedade'
 let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, editingFormulacaoConsultoriaId = null;
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Registro avulso de Peso/Score corporal/Foto por animal, com data — pra alimentar a Linha do Tempo
@@ -3588,6 +3660,7 @@ const AUDIT_KEYS = {
   vendas_cobertura:   { modulo:'Reprodução', nome: r=>['Venda de cobertura', r.comprador, r.garanhao].filter(Boolean).join(' · ') },
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
+  consultoria_aval_propriedade: { modulo:'Consultoria', nome: r=>['Avaliação da propriedade', r.haras, r.dataAval&&fmtDate(r.dataAval)].filter(Boolean).join(' · ') },
   consultoria_formulacoes_list:{ modulo:'Consultoria', nome: r=>[r.nome, r.animalNome].filter(Boolean).join(' · ') },
   consultoria_propriedades_list:{ modulo:'Consultoria', nome: r=>r.nome },
   animal_registros_list: { modulo:'Animais', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
@@ -3700,6 +3773,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'exames_animais': examesPorAnimal = val; break;
     case 'consultoria_visitas_list': consultoriaVisitas = val; break;
     case 'consultoria_avaliacoes_list': consultoriaAvaliacoes = val; break;
+    case 'consultoria_aval_propriedade': consultoriaAvalPropriedade = val; break;
     case 'consultoria_fotos': consultoriaFotos = val; break;
     case 'consultoria_formulacoes_list': consultoriaFormulacoes = val; break;
     case 'consultoria_propriedades_list': consultoriaPropriedades = val; break;
@@ -3922,7 +3996,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob, rCAvP] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -3933,7 +4007,7 @@ async function loadAll(){
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
     storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
-    storeGet('piquetes_list'), storeGet('vendas_cobertura')
+    storeGet('piquetes_list'), storeGet('vendas_cobertura'), storeGet('consultoria_aval_propriedade')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   animalRegistros = rARz.value||[];
@@ -3941,6 +4015,7 @@ async function loadAll(){
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
   consultoriaPropriedades = rCPr.value||[];
+  consultoriaAvalPropriedade = Array.isArray(rCAvP.value) ? rCAvP.value : [];
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   vendasCobertura = Array.isArray(rVCob.value) ? rVCob.value : [];
@@ -3963,7 +4038,7 @@ async function loadAll(){
     estoque_produtos:estoqueProdutos, estoque_movimentos:estoqueMovimentos, dietas_list:dietas,
     grupos_list:grupos, financeiro_lancamentos:lancamentos, tratamentos_list:tratamentos,
     visitas_list:visitas, visitas_repro_list:visitasRepro, funcionarios_list:funcionarios, transportes_list:transportes, usuarios_list:usuarios, semen_lotes:semenLotes, vendas_cobertura:vendasCobertura,
-    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades,
+    consultoria_visitas_list:consultoriaVisitas, consultoria_avaliacoes_list:consultoriaAvaliacoes, consultoria_formulacoes_list:consultoriaFormulacoes, consultoria_propriedades_list:consultoriaPropriedades, consultoria_aval_propriedade:consultoriaAvalPropriedade,
     animal_registros_list:animalRegistros, piquetes_list:piquetes
   })[k]));
   // Migração única: exames anexados moravam DENTRO de cada animal (ver comentário na declaração de
@@ -14433,6 +14508,12 @@ async function excluirVisitaConsultoria(id){
     idsAvaliacoes.forEach(aid=>{ delete consultoriaFotos[aid]; });
     await storeSet('consultoria_fotos', consultoriaFotos);
   }
+  // A avaliação da propriedade vive dentro da visita: sem a visita, ela não tem dono. Some junto —
+  // se ficasse para trás, viraria registro órfão invisível, como aconteceu com as fotos.
+  if(consultoriaAvalPropriedade.some(a=>a.visitaId===id)){
+    consultoriaAvalPropriedade = consultoriaAvalPropriedade.filter(a=>a.visitaId!==id);
+    await storeSet('consultoria_aval_propriedade', consultoriaAvalPropriedade, true);
+  }
   closeModal('overlayConsultoriaVisita');
   closeModal('overlayConsultoriaVisitaDetalhe');
   renderConsultoriaVisitas();
@@ -14449,8 +14530,182 @@ function abrirVisitaConsultoriaDetalhe(id){
   document.getElementById('csvdModalTitle').textContent = v.propriedade || 'Visita Técnica';
   document.getElementById('csvdResumo').textContent = [fmtDate(v.data), v.consultorNome&&('Consultor: '+v.consultorNome), v.responsavelNome&&('Responsável: '+v.responsavelNome), v.objetivo].filter(Boolean).join(' · ');
   renderConsultoriaAvaliacoesVisita();
+  atualizarResumoAvalPropVisita();
   openModal('overlayConsultoriaVisitaDetalhe');
 }
+
+/* ================= CONSULTORIA — Avaliação da Propriedade =================
+   Questionário que o consultor preenche na visita, com as 19 perguntas do formulário que o cliente
+   usava por fora. Regras combinadas com ele: UMA por visita, sempre OPCIONAL (a visita funciona
+   igual sem ela) e sempre DENTRO da visita — não existe aba solta, o acesso é pelo detalhe da visita
+   e, por tabela, pelo Histórico de Propriedade, que lista as visitas daquela propriedade.
+   O relatório é da PROPRIEDADE, não dos animais: um documento por avaliação. */
+const AVALPROP_FORMAS = ['No chão','Na rede convencional','Bolsa de feno com malha larga','Alimentador lento','No cocho','Pastejo'];
+function avalPropDaVisita(visitaId){ return consultoriaAvalPropriedade.find(a=>a.visitaId===visitaId) || null; }
+function atualizarResumoAvalPropVisita(){
+  const host = document.getElementById('csvdAvalPropResumo');
+  const btn = document.getElementById('btnAvalPropVisita');
+  if(!host || !btn) return;
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId);
+  if(!a){
+    host.textContent = 'Ainda não avaliada. É opcional — a visita funciona normalmente sem isso.';
+    btn.textContent = '📋 Avaliar a propriedade';
+  } else {
+    host.textContent = ['Avaliada em '+(fmtDate(a.dataAval)||'—'), a.avaliador&&('por '+a.avaliador),
+      a.volTipo&&('volumoso: '+a.volTipo), a.volClasse&&('classificação '+(a.volClasse==='Outra'?(a.volClasseOutra||'outra'):a.volClasse))]
+      .filter(Boolean).join(' · ');
+    btn.textContent = '📋 Ver / editar a avaliação';
+  }
+}
+function atualizarSomaPeneiras(){
+  const v = id=>numDecimalBR(document.getElementById(id).value);
+  const p1=v('cavp_peneira1'), p2=v('cavp_peneira2'), p3=v('cavp_peneira3');
+  const preenchido = ['cavp_peneira1','cavp_peneira2','cavp_peneira3'].some(id=>document.getElementById(id).value.trim()!=='');
+  const el = document.getElementById('cavp_peneiraSoma');
+  if(!preenchido){ el.textContent=''; el.style.color=''; return; }
+  const soma = p1+p2+p3;
+  // Só INFORMA a soma — não bloqueia nem corrige. O cliente ainda não confirmou se as três precisam
+  // fechar 100%, então travar aqui poderia impedir um registro legítimo.
+  el.textContent = 'Soma: ' + soma.toLocaleString('pt-BR',{maximumFractionDigits:2}) + '%' + (Math.abs(soma-100)<0.01 ? ' ✓' : ' (não fecha 100%)');
+  el.style.color = Math.abs(soma-100)<0.01 ? 'var(--ok)' : 'var(--muted)';
+}
+function abrirAvalPropDaVisita(){
+  const v = consultoriaVisitas.find(x=>x.id===visitaConsultoriaDetalheId); if(!v) return;
+  const a = avalPropDaVisita(v.id);
+  document.getElementById('cavpModalTitle').textContent = a ? 'Avaliação da Propriedade' : 'Nova Avaliação da Propriedade';
+  document.getElementById('cavpResumoVisita').textContent = [v.propriedade, fmtDate(v.data)].filter(Boolean).join(' — ');
+  document.getElementById('btnDeleteAvalProp').style.display = a ? 'inline-block' : 'none';
+  document.getElementById('btnPdfAvalProp').style.display = a ? 'inline-block' : 'none';
+  // Formas de fornecimento: múltipla escolha, montada na hora.
+  document.getElementById('cavp_volFormaHost').innerHTML = AVALPROP_FORMAS.map(f=>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" data-avpforma="${escHtml(f)}" style="width:auto;">${escHtml(f)}</label>`).join('');
+  // Campos que a visita já conhece entram preenchidos (editáveis) quando a avaliação é nova.
+  const g = (id,val)=>{ document.getElementById(id).value = val==null?'':val; };
+  g('cavp_dataAval', a ? a.dataAval : (v.data||toISODate(new Date())));
+  g('cavp_avaliador', a ? a.avaliador : (v.consultorNome||''));
+  g('cavp_local', a ? a.local : (v.propriedade||''));
+  g('cavp_animal', a && a.animal);
+  g('cavp_haras', a ? a.haras : (v.propriedade||''));
+  g('cavp_responsavel', a ? a.responsavel : (v.responsavelNome||''));
+  g('cavp_volTipo', a && a.volTipo); g('cavp_volClasse', a && a.volClasse); g('cavp_volClasseOutra', a && a.volClasseOutra);
+  g('cavp_volQtd', a && a.volQtd);
+  g('cavp_aveia', a && a.aveia); g('cavp_salMineral', a && a.salMineral);
+  g('cavp_racoes', a && a.racoes); g('cavp_racoesQtd', a && a.racoesQtd); g('cavp_escore', a && a.escore);
+  g('cavp_peneira1', a && a.peneira1); g('cavp_peneira2', a && a.peneira2); g('cavp_peneira3', a && a.peneira3);
+  g('cavp_obsAnimal', a && a.obsAnimal); g('cavp_acoes', a && a.acoes);
+  const formas = (a && a.volFormas) || [];
+  document.querySelectorAll('[data-avpforma]').forEach(cb=>{ cb.checked = formas.includes(cb.dataset.avpforma); });
+  document.getElementById('cavp_volClasseOutraWrap').style.display = (a && a.volClasse==='Outra') ? '' : 'none';
+  atualizarSomaPeneiras();
+  openModal('overlayConsultoriaAvalProp');
+}
+function lerAvalPropDoForm(){
+  const f = id=>document.getElementById(id).value.trim();
+  return {
+    visitaId: visitaConsultoriaDetalheId,
+    dataAval: f('cavp_dataAval'), avaliador: f('cavp_avaliador'), local: f('cavp_local'),
+    animal: f('cavp_animal'), haras: f('cavp_haras'), responsavel: f('cavp_responsavel'),
+    volTipo: f('cavp_volTipo'), volClasse: f('cavp_volClasse'),
+    volClasseOutra: f('cavp_volClasse')==='Outra' ? f('cavp_volClasseOutra') : '',
+    volFormas: Array.from(document.querySelectorAll('[data-avpforma]:checked')).map(cb=>cb.dataset.avpforma),
+    volQtd: f('cavp_volQtd'), aveia: f('cavp_aveia'), salMineral: f('cavp_salMineral'),
+    racoes: f('cavp_racoes'), racoesQtd: f('cavp_racoesQtd'), escore: f('cavp_escore'),
+    peneira1: f('cavp_peneira1'), peneira2: f('cavp_peneira2'), peneira3: f('cavp_peneira3'),
+    obsAnimal: f('cavp_obsAnimal'), acoes: f('cavp_acoes')
+  };
+}
+// Relatório DA PROPRIEDADE (não dos animais): um documento por avaliação, como o cliente pediu.
+function avalPropRelatorioHtml(a, visita){
+  const sim = v => v || '—';
+  const classe = a.volClasse==='Outra' ? (a.volClasseOutra||'Outra') : (a.volClasse||'');
+  const CLASSE_LABEL = { VIP:'VIP (Excelente Qualidade)', A:'A (Bom)', B:'B (Regular)', C:'C (Ruim)' };
+  const soma = numDecimalBR(a.peneira1)+numDecimalBR(a.peneira2)+numDecimalBR(a.peneira3);
+  const temPeneira = [a.peneira1,a.peneira2,a.peneira3].some(v=>String(v||'').trim()!=='');
+  const linha = (rot, val) => `<tr><td style="width:38%;"><strong>${rot}</strong></td><td>${escHtml(sim(val))}</td></tr>`;
+  return `<div class="report-card print-block">
+    <h1 style="border:none;">Avaliação da Propriedade</h1>
+    <div class="sub">${escHtml([visita?visita.propriedade:a.haras, fmtDate(a.dataAval)].filter(Boolean).join(' — '))}</div>
+    <h2>Identificação</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Avaliador', a.avaliador)}
+      ${linha('Local e cidade', a.local)}
+      ${linha('Haras / Rancho / CT', a.haras)}
+      ${linha('Responsável pelo cavalo', a.responsavel)}
+      ${linha('Animal observado', a.animal)}
+      ${linha('Data da avaliação', fmtDate(a.dataAval))}
+    </tbody></table></div>
+    <h2>Volumoso</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Tipo utilizado', a.volTipo)}
+      ${linha('Classificação', CLASSE_LABEL[a.volClasse] || classe)}
+      ${linha('Forma de fornecimento', (a.volFormas||[]).join(', '))}
+      ${linha('Quantidade fornecida', a.volQtd)}
+    </tbody></table></div>
+    <h2>Concentrado e condição corporal</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Usava aveia pura?', a.aveia)}
+      ${linha('Usava sal mineral?', a.salMineral)}
+      ${linha('Ração(ões) utilizada(s)', a.racoes)}
+      ${linha('Quantidade de cada ração', a.racoesQtd)}
+      ${linha('Escore de condição corporal (1 a 9)', a.escore)}
+    </tbody></table></div>
+    ${temPeneira ? `<h2>Peneiramento da ração</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('% peneira 1', a.peneira1)}
+      ${linha('% peneira 2', a.peneira2)}
+      ${linha('% peneira 3', a.peneira3)}
+      ${linha('Soma', soma.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%')}
+    </tbody></table></div>` : ''}
+    <h2>Observações e encaminhamentos</h2>
+    <div class="grid-wrap"><table class="grid"><tbody>
+      ${linha('Observação sobre o animal', a.obsAnimal)}
+      ${linha('Ações e dieta sugerida pós avaliação', a.acoes)}
+    </tbody></table></div>
+  </div>`;
+}
+function gerarPdfAvalProp(){
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId);
+  if(!a){ showAlert('Salve a avaliação antes de gerar o relatório.'); return; }
+  const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+  const nome = 'Avaliacao_Propriedade_'+((visita&&visita.propriedade)||a.haras||'Visita').replace(/[^a-zA-Z0-9]+/g,'_')+'.pdf';
+  baixarRelatorioManejoPDF(avalPropRelatorioHtml(a, visita), nome);
+}
+document.getElementById('btnAvalPropVisita').addEventListener('click', abrirAvalPropDaVisita);
+document.getElementById('cavp_volClasse').addEventListener('change', e=>{
+  document.getElementById('cavp_volClasseOutraWrap').style.display = e.target.value==='Outra' ? '' : 'none';
+});
+['cavp_peneira1','cavp_peneira2','cavp_peneira3'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', atualizarSomaPeneiras);
+});
+document.getElementById('btnPdfAvalProp').addEventListener('click', gerarPdfAvalProp);
+document.getElementById('btnSaveAvalProp').addEventListener('click', ()=>{
+  if(!visitaConsultoriaDetalheId){ showAlert('Abra a visita antes de avaliar a propriedade.'); return; }
+  const dados = lerAvalPropDoForm();
+  const existente = avalPropDaVisita(visitaConsultoriaDetalheId);
+  const registro = { ...existente, ...dados,
+    id: existente ? existente.id : ('cavp_'+Date.now()),
+    criadoEm: existente ? existente.criadoEm : new Date().toISOString() };
+  consultoriaAvalPropriedade = existente
+    ? consultoriaAvalPropriedade.map(x=>x.id===existente.id?registro:x)
+    : [...consultoriaAvalPropriedade, registro];
+  closeModal('overlayConsultoriaAvalProp');
+  atualizarResumoAvalPropVisita();
+  renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
+  salvarEmSegundoPlano('consultoria_aval_propriedade', consultoriaAvalPropriedade, atualizarResumoAvalPropVisita);
+});
+document.getElementById('btnDeleteAvalProp').addEventListener('click', async ()=>{
+  const a = avalPropDaVisita(visitaConsultoriaDetalheId); if(!a) return;
+  if(!(await showConfirm('Excluir a avaliação da propriedade desta visita?', {danger:true, okLabel:'Excluir'}))) return;
+  consultoriaAvalPropriedade = consultoriaAvalPropriedade.filter(x=>x.id!==a.id);
+  await storeSet('consultoria_aval_propriedade', consultoriaAvalPropriedade, true);
+  closeModal('overlayConsultoriaAvalProp');
+  atualizarResumoAvalPropVisita();
+  renderConsultoriaVisitas();
+  if(document.getElementById('csview_historico').style.display!=='none') refreshHistoricoAtual();
+});
+bindSaveShortcut('overlayConsultoriaAvalProp','btnSaveAvalProp');
+
 function renderConsultoriaAvaliacoesVisita(){
   const tbody = document.getElementById('csvdTbody');
   const lista = consultoriaAvaliacoesDaVisita(visitaConsultoriaDetalheId).slice().sort((a,b)=>(a.animalNome||'').localeCompare(b.animalNome||'','pt'));
@@ -14813,7 +15068,7 @@ function renderConsultoriaHistorico(){
     return matchPropriedade && matchTerm && matchDe && matchAte;
   }).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   consultoriaHistoricoListaAtual = lista;
-  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
+  if(lista.length===0){ tbody.innerHTML = '<tr><td colspan="10" class="empty">Nenhuma visita encontrada.</td></tr>'; sincronizarSelecaoLista('consultoriaHistorico', '#csview_historico [data-lista="consultoriaHistorico"]'); return; }
   tbody.innerHTML = lista.map(v=>{
     return `<tr>
       ${tdCheck('consultoriaHistorico', v.id)}
@@ -14824,6 +15079,7 @@ function renderConsultoriaHistorico(){
       <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
       <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
       <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
+      <td data-col="avalprop">${avalPropDaVisita(v.id) ? '<span class="st st-ativo">Avaliada</span>' : '<span class="hint-text">—</span>'}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-abrirhistvisita="${v.id}">Abrir</button> <button type="button" class="btn btn-sm btn-danger" data-delvisitacons="${v.id}">🗑</button></td>
     </tr>`;
   }).join('');
