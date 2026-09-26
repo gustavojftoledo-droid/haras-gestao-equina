@@ -4309,6 +4309,50 @@ async function loadAll(){
       showAlert('Mais '+marcados+' ração(ões) cadastradas depois da primeira separação foram pro catálogo da Consultoria. No Estoque ficam feno, Equitage 15 Laminados, Equitage Laminados e sal mineral. Nada foi apagado.');
     }
   }
+  // Migração única: cadastra no catálogo da Consultoria as 6 rações da linha equina do fornecedor
+  // Nutrimax (Horse, Nutrimarcha e Intense), com os valores de rótulo (Níveis de Garantia) do site do
+  // fabricante. Roda UMA vez (config.migracaoCatalogoNutrimax) e pula qualquer nome que já exista no
+  // cadastro (Estoque ou catálogo), pra nunca duplicar. Nada é removido nem alterado em produtos já
+  // existentes. Obs: o rótulo do fabricante lista "Energia Digestível" em "Mcal/kg", mas os valores
+  // (3400 a 3900) estão na faixa esperada pelo campo ED (Kcal/kg) do app — mantido o número como no
+  // rótulo, só ajustada a unidade do campo.
+  if(!config.migracaoCatalogoNutrimax){
+    const RACOES_NUTRIMAX = [
+      { nome:'Horse 12 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Aveia Laminada, Milho Floculado e Melaço. Indicação: ração multipartículas para equinos adultos em reprodução, com regime de treinamento contínuo e trabalho de média intensidade. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:12, caPercent:1.20, pPercent:0.65, fibraBrutaPercent:10 } },
+      { nome:'Horse 15 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Pellet de Alfafa, Aveia Laminada, Milho Floculado e Melaço. Indicação: equinos adultos em regime de treinamento contínuo e trabalho de média intensidade; éguas gestantes, lactantes e garanhões. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:15, caPercent:1.40, pPercent:0.70, fibraBrutaPercent:11 } },
+      { nome:'Nutrimarcha Plantel', pesoSaco:40, obs:'Alimento multipartículas de alto desempenho, com bom perfil de aminoácidos, energia moderada e fonte de fibra efetiva. Indicação: equinos em fase reprodutiva ou em trabalho moderado a intenso. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3600, pbPercent:15, caPercent:1.40, pPercent:0.65, fibraBrutaPercent:10 } },
+      { nome:'Nutrimarcha Copa', pesoSaco:40, obs:'Nutrição com energia de liberação lenta. Indicação: ração multipartículas para equinos adultos com trabalho intenso de alta performance e resistência. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3900, pbPercent:12, caPercent:1.20, pPercent:0.65, fibraBrutaPercent:10 } },
+      { nome:'Intense Winner', pesoSaco:30, obs:'Alimento específico para recuperação e reativação da saúde digestiva. Indicação: equinos adultos em atividade física moderada a intensa, a partir de 24 meses de idade. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3400, pbPercent:14, caPercent:1.40, pPercent:0.65, fibraBrutaPercent:10 } },
+      { nome:'Intense Power', pesoSaco:30, obs:'Alimento multipartículas de alto desempenho, ótima densidade energética e fonte de fibra efetiva. Indicação: equinos de alta performance, a partir de 24 meses de idade. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3900, pbPercent:12, caPercent:1.50, pPercent:0.65, fibraBrutaPercent:11 } },
+    ];
+    const jaExistentes = new Set(estoqueProdutos.map(p=>normNomeProduto(p.nome)));
+    let inseridos = 0;
+    RACOES_NUTRIMAX.forEach((r,i)=>{
+      if(jaExistentes.has(normNomeProduto(r.nome))) return;
+      estoqueProdutos.push({
+        id: 'pd_nutrimax_'+i+'_'+Date.now(),
+        tipo: 'Alimento', nome: r.nome, classe: '', unidade: 'kg',
+        pesoSaco: r.pesoSaco, nomeEmbalagem: 'Saco',
+        quantidade: 0, alertaModo: 'fixo', minimo: '',
+        valor: '', valorPorPacote: false, validade: '', obs: r.obs,
+        dataCadastro: toISODate(new Date()),
+        nutrientes: r.nutrientes,
+        catalogoConsultoria: true
+      });
+      if(!aux.nomeProduto) aux.nomeProduto = [];
+      if(!aux.nomeProduto.includes(r.nome)) aux.nomeProduto.push(r.nome);
+      inseridos++;
+    });
+    if(!aux.unidade) aux.unidade = [];
+    if(!aux.unidade.includes('kg')) aux.unidade.push('kg');
+    config.migracaoCatalogoNutrimax = true;
+    await storeSet('config', config);
+    if(inseridos>0){
+      await storeSet('estoque_produtos', estoqueProdutos);
+      await storeSet('aux_lists', aux);
+      showAlert(inseridos+' ração(ões) da linha Nutrimax (Horse, Nutrimarcha e Intense) foram adicionadas ao catálogo da Consultoria, com os valores nutricionais do rótulo do fabricante. Editáveis a qualquer momento pela aba "🌾 Catálogo de Rações".');
+    }
+  }
   refreshDatalists();
   populateAuxSelects();
   renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderTratamentos(); renderVisitas(); renderVetLista(); renderFinanceiro(); renderFuncionarios(); renderTransportes();
