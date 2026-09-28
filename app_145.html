@@ -2671,6 +2671,13 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field"><label>Pai</label><input type="text" id="n_pai" list="dl_machos"></div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="n_semenComprado" style="width:16px;height:16px;">
+          Sêmen comprado?
+        </label>
+        <div class="hint-text" style="margin-top:4px;">Marque se o sêmen usado nessa cobertura foi comprado de terceiros (não veio do estoque próprio).</div>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
           <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
           É transferência de embrião?
         </label>
@@ -7987,6 +7994,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento||ehAtividade||ehRetorno) && arr.length>1;
     const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
+    const btnIrVisitaRepro = (ehRetorno && temPermissao('nascimentos','inserir')) ? `<button type="button" class="btn btn-sm btn-ghost" data-irvisitarepro="${tipo}">📋 Ir para Visita (com essas éguas)</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const iconeGrupo = CAL_ICON[tipo] || (ehAtividade ? '🏇' : '');
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
@@ -8002,11 +8010,11 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${seletorMestre}${dataMestre}${btnConcluirSel}${btnExcluirSel}${btnConcluirTodos}${btnExcluirTodos}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${btnIrVisitaRepro}${seletorMestre}${dataMestre}${btnConcluirSel}${btnExcluirSel}${btnConcluirTodos}${btnExcluirTodos}</div>
         </div>`
       : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${btnConcluirSel}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${btnFront}${btnIrVisitaRepro}${btnConcluirSel}</div>
         </div>`;
     const rows = arr.map(t=>{
       // Casco: mostra o procedimento como select, já pré-marcado com o último que esse animal teve
@@ -8261,6 +8269,21 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     }
     closeModal('overlayCalDetalhe');
   }));
+  document.getElementById('calDetBody').querySelectorAll('[data-irvisitarepro]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const tipo = btn.dataset.irvisitarepro;
+      const arr = porTipo[tipo] || [];
+      const vistos = new Set();
+      const animaisArr = [];
+      arr.forEach(t=>{ if(!vistos.has(t.animalId)){ vistos.add(t.animalId); animaisArr.push({id:t.animalId}); } });
+      closeModal('overlayCalDetalhe');
+      abrirNovaVisitaRepro();
+      visitaReproSelector.setSelected(animaisArr);
+      visitaReproSelector.draw();
+      sincronizarReproEguas();
+      renderReproEguas();
+    });
+  });
   document.getElementById('calDetBody').querySelectorAll('[data-verfrontgrupo]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const tipo = btn.dataset.verfrontgrupo;
@@ -10847,6 +10870,7 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_transferenciaEmbriao').checked=false;
+  document.getElementById('n_semenComprado').checked=false;
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
@@ -10865,6 +10889,7 @@ function openNascEdit(id){
   document.getElementById('btnDeleteNasc').style.display = 'inline-block';
   document.getElementById('n_matriz').value = n.matriz||'';
   document.getElementById('n_pai').value = n.pai||'';
+  document.getElementById('n_semenComprado').checked = !!n.semenComprado;
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
@@ -10910,7 +10935,8 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   // Espalha o registro existente antes dos campos do formulário — sem isso, editar qualquer coisa
   // numa cobertura já confirmada (data, observação...) apagava o protocolo de vacinas da gestação
   // já gerado (e quais doses já tinham sido marcadas como aplicadas).
-  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao,
+  const semenComprado = document.getElementById('n_semenComprado').checked;
+  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado,
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
