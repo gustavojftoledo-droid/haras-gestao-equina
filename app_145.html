@@ -2676,6 +2676,11 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         </label>
         <div class="hint-text" style="margin-top:4px;">Marque se o sêmen usado nessa cobertura foi comprado de terceiros (não veio do estoque próprio).</div>
       </div>
+      <div class="field" id="n_valorSemenWrap" style="display:none;">
+        <label>Valor do sêmen (R$)</label>
+        <input type="number" id="n_valorSemen" min="0" step="0.01" placeholder="0,00">
+        <div class="hint-text" style="margin-top:4px;">Fica represado até o potro nascer — não conta como custo geral do haras nem de nenhum animal. Quando o potro nascer, esse valor vira custo dele.</div>
+      </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
           <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
@@ -10842,6 +10847,11 @@ function atualizarCamposNascimentoConfirmado(){
   document.getElementById('n_sexoWrap').style.display = temData ? 'flex' : 'none';
 }
 document.getElementById('n_datanasc').addEventListener('input', atualizarCamposNascimentoConfirmado);
+document.getElementById('n_semenComprado').addEventListener('change', e=>{
+  const on = e.target.checked;
+  document.getElementById('n_valorSemenWrap').style.display = on ? 'flex' : 'none';
+  if(!on) document.getElementById('n_valorSemen').value = '';
+});
 // Receptora só faz sentido junto de transferência de embrião — desmarcando, some e limpa (pra não
 // ficar um nome de receptora esquecido numa cobertura que não é mais TE).
 document.getElementById('n_transferenciaEmbriao').addEventListener('change', e=>{
@@ -10867,10 +10877,11 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
   document.getElementById('btnDeleteNasc').style.display = 'none';
-  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData'].forEach(id=>document.getElementById(id).value='');
+  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData','n_valorSemen'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_semenComprado').checked=false;
+  document.getElementById('n_valorSemenWrap').style.display='none';
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
@@ -10890,6 +10901,8 @@ function openNascEdit(id){
   document.getElementById('n_matriz').value = n.matriz||'';
   document.getElementById('n_pai').value = n.pai||'';
   document.getElementById('n_semenComprado').checked = !!n.semenComprado;
+  document.getElementById('n_valorSemenWrap').style.display = n.semenComprado ? 'flex' : 'none';
+  document.getElementById('n_valorSemen').value = n.valorSemen || '';
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
@@ -10936,7 +10949,8 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   // numa cobertura já confirmada (data, observação...) apagava o protocolo de vacinas da gestação
   // já gerado (e quais doses já tinham sido marcadas como aplicadas).
   const semenComprado = document.getElementById('n_semenComprado').checked;
-  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado,
+  const valorSemen = semenComprado ? (Number(f('n_valorSemen'))||0) : 0;
+  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado, valorSemen,
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
@@ -19207,6 +19221,20 @@ function lancamentosDerivadosVendaCobertura(){
     valor: Number(v.valor)||0, moeda: 'BRL'
   }));
 }
+// Sêmen comprado numa cobertura: mesmo esquema de "custo represado" do Receptora/Transferência (ver
+// custoDiretoAnimal) — o rateio aponta pro `destino` (o registro de Nascimentos), nunca direto pro
+// animal físico. Enquanto o potro não nasce (n.animalId ainda null), custoDiretoAnimal não acha
+// ninguém pra atribuir e o valor fica represado; assim que a cobertura é confirmada com o nascimento,
+// o mesmo rateio passa a resolver pro potro sozinho, sem precisar editar nada aqui.
+function lancamentosDerivadosSemen(){
+  return nascimentos.filter(n=>n.semenComprado && Number(n.valorSemen)>0).map(n=>({
+    id: 'auto_sm_'+n.id, origemId: n.id, origem: 'nascimentos',
+    data: n.datacob||'', tipo:'saida', categoria:'Sêmen', natureza:'caixa',
+    descricao: `Sêmen comprado — ${n.matriz||'?'}${n.pai?(' × '+n.pai):''}`,
+    valor: Number(n.valorSemen)||0, moeda:'BRL',
+    rateio: [{ destino: n.id, valor: Number(n.valorSemen)||0 }]
+  }));
+}
 // Nome usado só pra RECONHECER se uma venda já foi lançada (não é exibido) — minúsculo e sem espaço
 // duplicado, pra "Estrela" e " estrela " contarem como o mesmo animal.
 function normNomeVenda(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
@@ -19269,7 +19297,7 @@ function renderFinanceiroStats(listaCompleta){
     <div class="stat"><div class="stat-num" style="color:var(--burgundy);">${fmtMoeda(saidaR,'BRL')}</div>${linhaUsd(saidaU)}<div class="stat-label">Saídas</div></div>
     <div class="stat"><div class="stat-num" style="color:${saldoR>=0?'var(--green)':'var(--burgundy)'};">${fmtMoeda(saldoR,'BRL')}</div>${linhaUsd(saldoU)}<div class="stat-label">Saldo do que está listado</div></div>`;
 }
-const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte', animais:'Animais', vendacobertura:'Reprodução' };
+const ORIGEM_FIN_LABEL = { manual:'Manual', manejos:'Manejos', estoque:'Estoque', treinos:'Treinos', visitas:'Visitas', tratamentos:'Aplicações', dietas:'Dietas', transportes:'Transporte', animais:'Animais', vendacobertura:'Reprodução', nascimentos:'Reprodução' };
 // Junta os lançamentos manuais com os derivados (Manejos, Estoque, Treinos Cobrados, Visitas
 // Veterinárias e Aplicações/Tratamentos) — usado tanto na lista filtrável quanto no painel fixo do
 // mês, pra nunca ter duas contas diferentes pro mesmo dinheiro.
@@ -19294,7 +19322,8 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosPiquete(),
     ...lancamentosDerivadosTransporte(),
     ...lancamentosDerivadosVendas(),
-    ...lancamentosDerivadosVendaCobertura()
+    ...lancamentosDerivadosVendaCobertura(),
+    ...lancamentosDerivadosSemen()
   ];
 }
 // Custa caro (junta lançamentos + derivados de manejos/estoque/treinos/visitas/tratamentos/dietas/
@@ -21895,9 +21924,9 @@ document.querySelectorAll('[data-relordem]').forEach(chip=>{
 const CATEGORIA_CUSTO_ANIMAL = {
   'Ferrageamento':'Casco', 'Odontologia':'Dente', 'Vacina':'Saúde', 'Vermífugo':'Saúde',
   'Veterinário / Medicamento':'Saúde', 'Alimentação':'Alimentação', 'Transporte':'Transporte', 'Treino':'Atividades',
-  'Receptora':'Receptora', 'Transferência':'Transferência',
+  'Receptora':'Receptora', 'Transferência':'Transferência', 'Sêmen':'Sêmen',
 };
-const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Outros'];
+const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Sêmen','Outros'];
 // Custo represado: uma linha do rateio pode ter `destino` (id de um registro de Nascimentos) em vez
 // de contar direto pro animal físico que passou pelo procedimento (a receptora) — enquanto o potro não
 // nasce, esse valor fica represado (não conta pra ninguém); depois que nasce e o registro de Nascimentos
