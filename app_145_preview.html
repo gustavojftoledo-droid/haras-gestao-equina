@@ -7302,7 +7302,7 @@ function renderInicioHero(){
   document.getElementById('inicioHeroData').textContent = DIAS_SEMANA[hoje.getDay()]+', '+fmtDate(toISODate(hoje));
   const hora = hoje.getHours();
   const saudacao = hora<12 ? 'Bom dia' : (hora<18 ? 'Boa tarde' : 'Boa noite');
-  const nome = (currentUser && currentUser.nome) ? currentUser.nome.split(' ')[0] : '';
+  const nome = (currentUser && currentUser.nome) ? titleCase(currentUser.nome.split(' ')[0]) : '';
   document.getElementById('inicioSaudacao').textContent = saudacao + (nome?(', '+nome):'') + '.';
 
   const acessos = viewsPermitidas(currentUser);
@@ -20448,7 +20448,7 @@ function aplicarPermissoes(){
   // "Segurança dos dados" (backup/Diagnóstico) some do menu lateral pra quem não tem essa permissão —
   // fica só pra Administrador por padrão (permissaoDe já devolve tudo liberado pra admin sozinho).
   document.getElementById('blocoSegurancaDados').style.display = permissaoDe(currentUser,'seguranca').ver ? '' : 'none';
-  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${currentUser.nome}`;
+  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${titleCase(currentUser.nome)}`;
   const viewAtiva = document.querySelector('.nav-item.active');
   if(!viewAtiva || viewAtiva.style.display==='none'){
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -20840,7 +20840,7 @@ function openUsuarioEdit(id){
 document.getElementById('btnNewUsuario').addEventListener('click', openUsuarioNew);
 document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   e.preventDefault();
-  const nome = document.getElementById('u_nome').value.trim();
+  const nome = titleCase(document.getElementById('u_nome').value.trim());
   const email = document.getElementById('u_email').value.trim().toLowerCase();
   if(!nome){ showAlert('Informe o nome.'); return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showAlert('Informe um e-mail válido — é ele que a pessoa vai usar pra entrar (a conta de login precisa existir no Firebase Authentication).'); return; }
