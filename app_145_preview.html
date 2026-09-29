@@ -17562,8 +17562,24 @@ function renderReproEguas(){
   host.querySelectorAll('[data-refield]').forEach(el=>{
     const ev = (el.tagName==='SELECT') ? 'change' : 'input';
     el.addEventListener(ev, ()=>{
-      reproEguasState[Number(el.dataset.reidx)][el.dataset.refield] = el.value;
+      const idx = Number(el.dataset.reidx);
+      reproEguasState[idx][el.dataset.refield] = el.value;
       if(el.dataset.refield==='diagnostico') renderReproEguas();
+      // Ovulou = Sim numa cobertura de TE em aberto: concilia na hora com o que "Coberturas" vai
+      // agendar sozinho pra coleta do embrião (ovulação + diasColetaEmbriao) — sem isso, esse campo
+      // ficava em branco até alguém lembrar de digitar, e o retorno só aparecia mesmo em Coberturas.
+      if(el.dataset.refield==='ovulou' && el.value==='sim'){
+        const eg = reproEguasState[idx];
+        if(!eg.proximoRetorno){
+          const n = coberturaAbertaDaEgua(eg.nome);
+          if(n && n.transferenciaEmbriao && !n.dataOvulacao){
+            const visitaData = document.getElementById('vr_data').value || toISODate(new Date());
+            const diasColeta = Number(config.diasColetaEmbriao) || 8;
+            eg.proximoRetorno = toISODate(addToDate(visitaData, diasColeta, 'dias'));
+            renderReproEguas();
+          }
+        }
+      }
     });
   });
   reproEguasState.forEach((e,idx)=>{
@@ -17741,6 +17757,9 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
     n.dataColetaEmbriao = toISODate(addToDate(data, diasColeta, 'dias'));
     n.coletaEmbriaoFeita = false;
     mexeuNascimentos = true;
+    // Concilia com o campo "Retorno / próxima visita" da própria visita — mesma data da coleta
+    // agendada em Coberturas, sem sobrescrever se o vet já tinha digitado outra coisa aqui.
+    if(!e.proximoRetorno) e.proximoRetorno = n.dataColetaEmbriao;
     coletasAgendadas.push(e.nome + ' → coleta ' + fmtDate(n.dataColetaEmbriao));
   }
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
