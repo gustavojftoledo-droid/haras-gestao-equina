@@ -1202,7 +1202,7 @@
         <span class="chip" data-nvtab="semen" id="nvtab_semen">🧊 Sêmen</span>
         <span class="chip" data-nvtab="vendacob" id="nvtab_vendacob">💰 Venda de Cobertura</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
-        <span class="chip" data-nvtab="simulacao" id="nvtab_simulacao">🧬 Simulação de Cruzamento</span>
+        <span class="chip" data-nvtab="simulacao" id="nvtab_simulacao">🧬 Simulação de Acasalamento</span>
       </div>
 
       <div id="nview_lista">
@@ -1364,11 +1364,11 @@
       </div>
 
       <div id="nview_simulacao" style="display:none;">
-        <div class="hint-text" style="margin-bottom:12px;">Simule um cruzamento hipotético (reprodutor × matriz) e veja o coeficiente de endogamia calculado a partir do pedigree já cadastrado. Não gera cobertura nem nenhum registro real — é só pra comparar opções antes de decidir. O reprodutor ou a matriz não precisam já ter cruzado antes; se um dos dois nem estiver cadastrado ainda, é só digitar o nome mesmo assim (sem parentesco conhecido, o coeficiente sai 0%).</div>
+        <div class="hint-text" style="margin-bottom:12px;">Simule um acasalamento hipotético (reprodutor × matriz) e veja o coeficiente de endogamia calculado a partir do pedigree já cadastrado. Não gera cobertura nem nenhum registro real — é só pra comparar opções antes de decidir. O reprodutor ou a matriz não precisam já ter cruzado antes; se um dos dois nem estiver cadastrado ainda, é só digitar o nome mesmo assim (sem parentesco conhecido, o coeficiente sai 0%).</div>
         <div class="form-grid" style="margin-bottom:10px;align-items:flex-end;">
           <div class="field"><label>Reprodutor (pai)</label><input type="text" id="sim_pai" list="dl_machos" placeholder="Ex: Bob"></div>
           <div class="field"><label>Matriz (mãe)</label><input type="text" id="sim_mae" list="dl_femeas" placeholder="Ex: União"></div>
-          <div class="field"><button type="button" class="btn" id="btnSimularCruzamento">+ Simular cruzamento</button></div>
+          <div class="field"><button type="button" class="btn" id="btnSimularCruzamento">+ Simular acasalamento</button></div>
         </div>
         <div id="simCruzamentoHost"></div>
       </div>
@@ -19001,7 +19001,7 @@ document.addEventListener('keydown', e=>{
   if(cx && cx.dataset.pedn){ e.preventDefault(); abrirAncestralPedigree(cx.dataset.pedn, cx.dataset.peds); }
 });
 
-/* ===== SIMULAÇÃO DE CRUZAMENTO (Reprodução → aba dedicada) =====
+/* ===== SIMULAÇÃO DE ACASALAMENTO (Reprodução → aba dedicada) =====
    Reaproveita coeficienteEndogamia/buildPedigreeTree — os mesmos que já rodam pra um animal de verdade
    — só que passando um par hipotético {pai, mae} que nunca precisou ter cruzado nem estar cadastrado.
    Cada simulação salva vira uma linha em `simulacoes_cruzamento`; excluir não mexe em nenhum outro
@@ -19009,7 +19009,7 @@ document.addEventListener('keydown', e=>{
 function renderSimulacoesCruzamento(){
   const host = document.getElementById('simCruzamentoHost');
   if(simulacoesCruzamento.length===0){
-    host.innerHTML = '<div class="hint-text">Nenhuma simulação ainda. Preencha reprodutor e matriz acima e clique em "+ Simular cruzamento".</div>';
+    host.innerHTML = '<div class="hint-text">Nenhuma simulação ainda. Preencha reprodutor e matriz acima e clique em "+ Simular acasalamento".</div>';
     return;
   }
   const nomeCap = t => (t||'').replace(/\b\w/g, c=>c.toUpperCase());
