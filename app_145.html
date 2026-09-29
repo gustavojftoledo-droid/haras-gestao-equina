@@ -1222,7 +1222,7 @@
           </div>
         </div>
         <div class="grid-wrap"><table class="grid" data-lista="coberturas">
-          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="lavado" data-col="lavado">Lavado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
+          <thead><tr><th style="width:34px;"><input type="checkbox" id="nSelAll" title="Selecionar todos"></th><th class="sortable" data-ordlista="coberturas" data-ordcol="matriz">Matriz</th><th class="sortable" data-ordlista="coberturas" data-ordcol="pai" data-col="pai">Pai</th><th class="sortable" data-ordlista="coberturas" data-ordcol="receptora" data-col="receptora">Receptora</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtCobertura" data-col="dtCobertura">Dt Cobertura</th><th class="sortable" data-ordlista="coberturas" data-ordcol="estacao" data-col="estacao">Estação</th><th class="sortable" data-ordlista="coberturas" data-ordcol="provavelNasc" data-col="provavelNasc">Provável Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="dtNasc" data-col="dtNasc">Dt Nascimento</th><th class="sortable" data-ordlista="coberturas" data-ordcol="lavado" data-col="lavado">Lavado / Coleta</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirm" data-col="confirm">Confirm.</th><th class="sortable" data-ordlista="coberturas" data-ordcol="prenhez" data-col="prenhez">Prenhez</th><th class="sortable" data-ordlista="coberturas" data-ordcol="confirmado" data-col="confirmado">Confirmado</th><th class="sortable" data-ordlista="coberturas" data-ordcol="obs" data-col="obs">Observações</th><th></th></tr></thead>
           <tbody id="nTbody"></tbody>
         </table></div>
       </div>
@@ -11409,9 +11409,11 @@ function renderNascimentos(){
     const dtCobCell = cobsN.length<=1 ? fmtDate(n.datacob) : `${fmtDate(cobsN[cobsN.length-1])} <span class="pill st-outro" title="${cobsN.map(fmtDate).join(' · ')}">+${cobsN.length-1}</span>`;
     let lavadoCell = '—';
     if(n.transferenciaEmbriao){
-      if(n.lavado==='POS') lavadoCell = `<span class="pill st-ativo" title="Lavado positivo — embrião recuperado${n.lavadoData?(' em '+fmtDate(n.lavadoData)):''}">✓ Positivo</span>`;
-      else if(n.lavado==='NEG') lavadoCell = `<span class="pill st-descarte" title="Lavado negativo${n.lavadoData?(' em '+fmtDate(n.lavadoData)):''} — cobertura encerrada">✕ Negativo</span>`;
-      else lavadoCell = `<span class="pill st-outro" title="Aguardando o lavado do embrião">Pendente</span>`;
+      if(n.lavado==='POS') lavadoCell = `<span class="pill st-ativo" title="Lavado positivo — embrião recuperado">✓ Positivo${n.lavadoData?(' — '+fmtDate(n.lavadoData)):''}</span>`;
+      else if(n.lavado==='NEG') lavadoCell = `<span class="pill st-descarte" title="Cobertura encerrada">✕ Negativo${n.lavadoData?(' — '+fmtDate(n.lavadoData)):''}</span>`;
+      // Data prevista (ovulação + diasColetaEmbriao) — mesma que vira o "Retorno / próxima visita" na
+      // Visita Reprodutiva. Mostra ela aqui pendente pra ficar visível nas duas telas, não só no calendário.
+      else lavadoCell = `<span class="pill st-outro" title="Data prevista pra coleta/lavado do embrião">Pendente${n.dataColetaEmbriao?(' — '+fmtDate(n.dataColetaEmbriao)):''}</span>`;
     }
     let prenhezPill;
     if(n.confirm==='S'){
