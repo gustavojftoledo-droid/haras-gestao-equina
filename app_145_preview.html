@@ -18911,7 +18911,7 @@ function coeficienteEndogamia(h){
   // comuns porque descendem de um mais próximo são "filhos" da mesma linha e confundem a leitura.
   let comuns = Object.keys(cS).filter(x=>cD[x]!==undefined)
     .map(nome=>({ nome, gerPai: cS[nome]+1, gerMae: cD[nome]+1, soma: cS[nome]+cD[nome] }));
-  comuns = comuns.filter(a => !comuns.some(b => b!==a && _ehAncestralDe(b.nome, a.nome, 0)));
+  comuns = comuns.filter(a => !comuns.some(b => b!==a && _ehAncestralDe(a.nome, b.nome, 0)));
   comuns.sort((a,b)=> a.soma-b.soma);
   return { F, comuns };
 }
