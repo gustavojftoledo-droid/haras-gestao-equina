@@ -17565,20 +17565,18 @@ function renderReproEguas(){
       const idx = Number(el.dataset.reidx);
       reproEguasState[idx][el.dataset.refield] = el.value;
       if(el.dataset.refield==='diagnostico') renderReproEguas();
-      // Ovulou = Sim numa cobertura em aberto (TE ou normal): concilia na hora com o que "Coberturas"
-      // vai agendar sozinho (ovulação + diasColetaEmbriao — mesmo número de dias das duas telas, pra
-      // nunca ficar uma data aqui e outra diferente lá). Sem isso, esse campo ficava em branco até
-      // alguém lembrar de digitar, e o retorno só aparecia mesmo em Coberturas.
+      // Ovulou = Sim: preenche sozinho o retorno em ovulação + diasColetaEmbriao — MESMA regra e MESMO
+      // número de dias que "Coberturas" usa pra calcular a coleta do embrião a partir da data de
+      // ovulação (ver o campo Data da ovulação na Cobertura). Sempre preenche aqui, direto na tela,
+      // independente de já existir uma Cobertura cadastrada pra essa égua — não é preciso achar/linkar
+      // nada primeiro pra esse campo bater com a mesma regra.
       if(el.dataset.refield==='ovulou' && el.value==='sim'){
         const eg = reproEguasState[idx];
         if(!eg.proximoRetorno){
-          const n = coberturaAbertaDaEgua(eg.nome);
-          if(n && !n.dataOvulacao){
-            const visitaData = document.getElementById('vr_data').value || toISODate(new Date());
-            const diasColeta = Number(config.diasColetaEmbriao) || 8;
-            eg.proximoRetorno = toISODate(addToDate(visitaData, diasColeta, 'dias'));
-            renderReproEguas();
-          }
+          const visitaData = document.getElementById('vr_data').value || toISODate(new Date());
+          const diasColeta = Number(config.diasColetaEmbriao) || 8;
+          eg.proximoRetorno = toISODate(addToDate(visitaData, diasColeta, 'dias'));
+          renderReproEguas();
         }
       }
     });
@@ -17755,14 +17753,16 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   const diasColeta = Number(config.diasColetaEmbriao) || 8;
   for(const e of eguas){
     if(e.ovulou!=='sim') continue;
+    // Preenche o retorno da PRÓPRIA visita sempre que marcou ovulou (mesma regra/mesmos dias de
+    // Coberturas), independente de existir uma Cobertura em aberto pra linkar — sem isso, uma égua
+    // sem cobertura ainda cadastrada (ex: só em acompanhamento de cio) ficava sem retorno nenhum,
+    // silenciosamente, mesmo tendo marcado ovulou.
+    if(!e.proximoRetorno) e.proximoRetorno = toISODate(addToDate(data, diasColeta, 'dias'));
     const n = coberturaAbertaDaEgua(e.nome);
     if(!n || n.dataOvulacao) continue;
     n.dataOvulacao = data;
     const retorno = toISODate(addToDate(data, diasColeta, 'dias'));
     mexeuNascimentos = true;
-    // Concilia com o campo "Retorno / próxima visita" da própria visita — mesma data agendada em
-    // Coberturas, sem sobrescrever se o vet já tinha digitado outra coisa aqui.
-    if(!e.proximoRetorno) e.proximoRetorno = retorno;
     if(n.transferenciaEmbriao){
       n.dataColetaEmbriao = retorno;
       n.coletaEmbriaoFeita = false;
