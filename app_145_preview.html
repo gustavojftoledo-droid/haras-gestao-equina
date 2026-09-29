@@ -438,6 +438,10 @@
      invisível (letra escura em fundo escuro). Corrige só aqui dentro do cabeçalho do card. */
   .perfil-card-head .btn-ghost{color:#fff;border-color:rgba(255,255,255,.5);}
   .perfil-card-head .btn-ghost:hover{background:rgba(255,255,255,.12);}
+  /* Mesmo problema do .btn-ghost acima, mas pro .btn-danger (ex: "🗑 Remover" da Simulação de
+     Acasalamento): vermelho-escuro sobre fundo transparente fica ilegível no cabeçalho verde-escuro. */
+  .perfil-card-head .btn-danger{background:rgba(255,255,255,.92);color:var(--burgundy);border-color:var(--burgundy);}
+  .perfil-card-head .btn-danger:hover{background:#fff;}
   .perfil-card-body{padding:18px 20px;}
   /* Quadro sem cabeçalho (Foto, Estatísticas): o body é o 1º filho, então o botão ⠿ (posicionado no
      canto do quadro) ficava em cima da 1ª linha de conteúdo. Abre espaço só nesse caso. */
