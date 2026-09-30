@@ -3515,6 +3515,10 @@ async function garantirAuditoriaCarregada(){
   auditoriaCarregada = true;
 }
 let usuarios=[]; let currentUser=null; let editingUsuarioId=null;
+// true só quando a lista de usuários foi LIDA de verdade do banco (mesmo que esteja vazia). Uma leitura
+// que falhou (rede caiu, timeout) devolve [] igual a "ninguém cadastrado" — sem esta marca o app não
+// consegue diferenciar as duas coisas e mostra a tela de Usuários vazia (ou até tenta recriar o admin).
+let usuariosCarregados=false;
 let dismissedDuplicates = new Set();
 let dismissedAnomaliasEstoque = new Set();
 // Tarefas de manejo (Casco/Dente/Vacina/Vermífugo) previstas no Calendário que o usuário excluiu sem
@@ -3622,10 +3626,16 @@ const LS_PREFIX = 'haras_gestao_equina__';
 
 async function storeGet(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
-    try{
-      const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
-      return { ok:true, value: snap.exists ? snap.data().value : [] };
-    }catch(e){ console.error('Firestore get failed for', key, e); return { ok:false, value: [] }; }
+    // Mesmas 3 tentativas do caminho abaixo: uma oscilação de rede na abertura não pode virar "lista vazia".
+    for(let attempt=1; attempt<=3; attempt++){
+      try{
+        const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+        return { ok:true, value: snap.exists ? snap.data().value : [] };
+      }catch(e){
+        if(attempt<3){ await new Promise(res=>setTimeout(res, 400*attempt)); continue; }
+        console.error('Firestore get failed for', key, e); return { ok:false, value: [] };
+      }
+    }
   }
   if(!HAS_CLOUD_STORAGE){
     try{
@@ -3938,6 +3948,12 @@ async function storeSet(key,val,userDeleted){
     if(Array.isArray(val)){
       const minhaBaseAnterior = auditSnapshots[key];
       const releitura = await storeGet(key);
+      // Usuários: se não deu pra reler o banco, NÃO grava a cópia que esta aba tem na memória por cima —
+      // ela pode estar vazia/desatualizada (leitura que falhou) e apagaria os usuários de todo mundo.
+      if(key==='usuarios_list' && !releitura.ok){
+        showAlert('Não consegui conferir a lista de usuários no servidor agora, então não salvei nada (para não apagar ninguém). Verifique a conexão e tente de novo.');
+        return false;
+      }
       const doBanco = releitura.ok ? releitura.value : val;
       val = fundirListaDeEntidades(minhaBaseAnterior, val, doBanco, key);
       atualizarGlobalPosFusao(key, val);
@@ -4039,7 +4055,8 @@ async function loadAll(){
   auditoria = [];
   auditoriaCarregada = false;
   if(rNFA.value && !Array.isArray(rNFA.value)) nfAprendizado = rNFA.value;
-  usuarios = rU.value;
+  usuarios = Array.isArray(rU.value) ? rU.value : [];
+  usuariosCarregados = !!rU.ok;
   examesPorAnimal = (rEx.value && typeof rEx.value==='object' && !Array.isArray(rEx.value)) ? rEx.value : {};
   examesSnapshot = JSON.parse(JSON.stringify(examesPorAnimal));
   horses = rH.value; manejos = rM.value; treinos = rT.value; nascimentos = rN.value;
@@ -4809,7 +4826,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='transporte') renderTransportes();
       if(view==='funcionarios') renderFuncionarios();
       if(view==='financeiro') renderFinanceiro();
-      if(view==='usuarios') renderUsuarios();
+      if(view==='usuarios'){ renderUsuarios(); recarregarUsuarios().then(ok=>{ if(ok) renderUsuarios(); }); }
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
       if(view==='filtrosanimais') renderFiltrosAdmin();
       if(view==='consultoria') renderConsultoria();
@@ -20682,6 +20699,16 @@ document.getElementById('btnAudPDF').addEventListener('click', ()=>{
 });
 
 /* ---- Usuários (CRUD, só visível pra Admin) ---- */
+// Relê a lista de usuários do banco. Só substitui a da memória quando a leitura funcionou — uma leitura
+// que falhou nunca esvazia a tela. Devolve true se conseguiu ler.
+async function recarregarUsuarios(){
+  const r = await storeGet('usuarios_list');
+  if(!r.ok || !Array.isArray(r.value)) return false;
+  usuarios = r.value;
+  usuariosCarregados = true;
+  auditTirarFoto('usuarios_list', usuarios);
+  return true;
+}
 function renderUsuarios(){
   const tbody = document.getElementById('usrTbody');
   if(usuarios.length===0){ tbody.innerHTML='<tr><td colspan="4" class="empty">Nenhum usuário cadastrado.</td></tr>'; return; }
@@ -20851,7 +20878,7 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   }
   const data = { id: editingUsuarioId || ('usr_'+Date.now()), nome, email, admin, permissoes };
   usuarios = editingUsuarioId ? usuarios.map(u=>u.id===editingUsuarioId?data:u) : [...usuarios, data];
-  await storeSet('usuarios_list', usuarios);
+  if(!(await storeSet('usuarios_list', usuarios))){ await recarregarUsuarios(); renderUsuarios(); return; }
   if(currentUser && editingUsuarioId===currentUser.id) currentUser = data;
   closeModal('overlayUsuario'); renderUsuarios(); aplicarPermissoes();
   showAlert('Usuário salvo.');
@@ -20863,7 +20890,7 @@ document.getElementById('btnDeleteUsuario').addEventListener('click', async ()=>
   if(alvo.admin && usuarios.filter(u=>u.admin).length<=1){ showAlert('Esse é o único Administrador — cadastre outro admin antes de excluir este.'); return; }
   if(!(await showConfirm('Excluir o usuário "'+alvo.nome+'"? (Isso não apaga a conta de login dela no Firebase — só o cadastro de acesso aqui dentro do app. Pra impedir o login de vez, apague a conta em Authentication no console do Firebase.)'))) return;
   usuarios = usuarios.filter(u=>u.id!==editingUsuarioId);
-  await storeSet('usuarios_list', usuarios);
+  if(!(await storeSet('usuarios_list', usuarios))){ await recarregarUsuarios(); renderUsuarios(); return; }
   closeModal('overlayUsuario'); renderUsuarios();
 });
 
@@ -22258,10 +22285,29 @@ document.getElementById('btnCompareList').addEventListener('click', ()=>{
 // Se nada disso resolver, devolve usuario:null — quem chamou decide o que fazer (bloquear o login).
 async function resolverUsuarioAtual(authEmail){
   const emailNorm = (authEmail||'').trim().toLowerCase();
+  // A lista não veio do banco (leitura falhou na abertura): tenta de novo. Se continuar falhando, NÃO
+  // segue — lista vazia por falha de leitura não é "ninguém cadastrado", e cair no bootstrap abaixo
+  // recriaria o admin em cima de uma lista que na verdade existe.
+  if(!usuariosCarregados && !(await recarregarUsuarios())) return { usuario:null, erroLeitura:true };
   const existente = usuarios.find(x=>(x.email||'').trim().toLowerCase()===emailNorm);
   if(existente) return { usuario: existente };
 
   if(usuarios.length===0){
+    // Antes de criar o primeiro admin, confirma NO SERVIDOR (não no cache do aparelho) que a lista
+    // realmente não existe. Cache vazio/desatualizado também parece "sem usuários".
+    if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
+      try{
+        const snap = await db.collection(FIRESTORE_COLLECTION).doc('usuarios_list').get({ source:'server' });
+        const doServidor = snap.exists ? snap.data().value : [];
+        if(Array.isArray(doServidor) && doServidor.length>0){
+          usuarios = doServidor; usuariosCarregados = true; auditTirarFoto('usuarios_list', usuarios);
+          return resolverUsuarioAtual(authEmail);
+        }
+      }catch(e){
+        console.error('Confirmação da lista de usuários no servidor falhou:', e);
+        return { usuario:null, erroLeitura:true };
+      }
+    }
     const novo = { id:'usr_'+Date.now(), nome: emailNorm.split('@')[0]||'Administrador', email: emailNorm, admin:true, permissoes:{} };
     usuarios = [novo];
     await storeSet('usuarios_list', usuarios);
@@ -22292,6 +22338,16 @@ function iniciarAppLogado(authUser){
       currentUser = { id:'usr_local', nome:'Usuário', email:'', admin:true, permissoes:{} };
     }else{
       const resolvido = await resolverUsuarioAtual(authUser.email);
+      if(resolvido.erroLeitura){
+        // Não conseguiu ler a lista de usuários: não é falta de acesso, é falha de leitura. Mantém a
+        // sessão (sem signOut) e volta pra tela "Entrar" pra tentar de novo com a conexão boa.
+        document.getElementById('appRoot').style.display='none';
+        document.getElementById('loginGate').style.display='flex';
+        loginMostrarConfirm(authUser);
+        mostrarErroLogin('Não consegui carregar a lista de usuários agora (conexão instável?). Seus dados estão salvos — toque em "Entrar" para tentar de novo.');
+        _appJaIniciou = false;
+        return;
+      }
       if(!resolvido.usuario){
         document.getElementById('appRoot').style.display='none';
         document.getElementById('loginGate').style.display='flex';
