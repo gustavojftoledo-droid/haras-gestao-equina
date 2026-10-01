@@ -2696,20 +2696,6 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <input type="number" id="n_valorSemen" min="0" step="0.01" placeholder="0,00">
         <div class="hint-text" style="margin-top:4px;">Até o potro nascer, conta como custo geral do haras (dividido entre todos os animais), como "Sêmen" desta cobertura (mãe × pai). Quando o nascimento for confirmado, sai do geral e vai inteiro para o potro.</div>
       </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-          <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
-          É transferência de embrião?
-        </label>
-        <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode informar depois (após a coleta e a transferência), editando esta cobertura.</div>
-      </div>
-      <div class="field"><label>Letra do ano</label><input type="text" id="n_letra" maxlength="1"></div>
-      <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
-      <div class="field full">
-        <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
-        <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
-        <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
-      </div>
       <div class="field full" id="n_servicosField">
         <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
         <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
@@ -2726,6 +2712,20 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
           </div>
         </div>
         <button type="button" class="btn btn-sm btn-ghost" id="btnAddServico">+ Inserir serviço</button>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
+          É transferência de embrião?
+        </label>
+        <div class="hint-text" style="margin-top:4px;">A Receptora é quem carrega a prenhez — as vacinas da gestação passam a ser dela. Pode informar depois (após a coleta e a transferência), editando esta cobertura.</div>
+      </div>
+      <div class="field"><label>Letra do ano</label><input type="text" id="n_letra" maxlength="1"></div>
+      <div class="field"><label>Data Cobertura</label><input type="date" id="n_datacob"></div>
+      <div class="field full">
+        <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
+        <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
