@@ -2663,10 +2663,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayListaTreino">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title">Lista de Chuckers</div><button class="modal-close" data-close="overlayListaTreino">✕</button></div>
-    <div class="hint-text" style="margin-bottom:10px;">Só aparecem pra escolher os animais já selecionados pra esse treino, ali acima.</div>
+    <div class="hint-text" style="margin-bottom:10px;">Só aparecem pra escolher os animais já selecionados pra esse treino, ali acima. Com 2 ou 3 treinadores escolhidos, cada um já vem com a sua lista.</div>
     <div id="listaChuckersHost" style="margin-bottom:10px;"></div>
-    <button type="button" class="btn btn-sm btn-ghost" id="btnAddChucker">+ Adicionar chucker</button>
-    <button type="button" class="btn btn-sm btn-ghost" id="btnLimparChuckers" style="margin-left:8px;">Limpar tudo</button>
     <div class="modal-actions">
       <div></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayListaTreino">Cancelar</button><button type="button" class="btn" id="btnPdfListaChuckers">📄 Baixar PDF</button></div>
@@ -10494,7 +10492,7 @@ function openTreinoNew(){
   treinoOutrosCustosState = [];
   renderTreinoOutrosCustos();
   resetSelectorComFront(treinoSelector);
-  listaChuckersState = [];
+  listasChuckersState = [];
   openModal('overlayTreino');
 }
 function openTreinoEdit(id){
@@ -10520,7 +10518,7 @@ function openTreinoEdit(id){
   treinoOutrosCustosState = cobrado ? (t.cobranca.outrosCustos||[]).map(c=>({...c})) : [];
   renderTreinoOutrosCustos();
   treinoSelector.setSelected(t.animais.map(a=>({id:a.id, extra:a.extra||'', valorExtra:a.valorExtra||'', valorExtra2:a.valorExtra2||''})));
-  listaChuckersState = (t.chuckers||[]).map(c=>({...c}));
+  listasChuckersState = listasDoTreino(t).map(l=>({ treinador:l.treinador, chuckers:l.chuckers.map(c=>({...c})) }));
   openModal('overlayTreino');
 }
 document.getElementById('btnNewTreino').addEventListener('click', openTreinoNew);
@@ -10531,9 +10529,12 @@ document.getElementById('btnSaveTreino').addEventListener('click', ()=>{
   if(selected.length===0){ showAlert('Selecione ao menos um animal.'); return; }
   const treinadores = [f('t_treinador1_sel'), f('t_treinador2_sel'), f('t_treinador3_sel')].filter(Boolean).join(', ');
   const cobrado = document.getElementById('t_cobrado').checked;
-  const chuckers = listaChuckersState.filter(it=>it.animal1||it.animal2||it.espera);
+  // Uma lista por treinador quando há 2+ (t.listas); lista única continua em t.chuckers (formato antigo).
+  sincronizarSecoesLista();
+  const listasCheias = listasChuckersState.map(s=>({ treinador:s.treinador, chuckers:s.chuckers.filter(chuckerLinhaPreenchida).map(c=>({animal1:c.animal1||'', animal2:c.animal2||'', espera:c.espera||''})) })).filter(s=>s.chuckers.length>0);
+  const extraListas = (listasCheias.length===1 && !listasCheias[0].treinador) ? { chuckers: listasCheias[0].chuckers } : (listasCheias.length>0 ? { listas: listasCheias } : {});
   const registro = { id: editingTreinoId || ('tr_'+Date.now()), data, tipo:document.getElementById('t_tipo_sel').value, local:document.getElementById('t_local_sel').value,
-    treinadores, obs:document.getElementById('t_obs').value, animais:selected, ...(chuckers.length>0 ? {chuckers} : {}) };
+    treinadores, obs:document.getElementById('t_obs').value, animais:selected, ...extraListas };
   if(cobrado){
     const outrosCustos = treinoOutrosCustosState.filter(c=>c.descricao && Number(c.valor)>0).map(c=>({descricao:c.descricao, valor:Number(c.valor)}));
     registro.cobranca = {
@@ -10549,73 +10550,107 @@ document.getElementById('btnSaveTreino').addEventListener('click', ()=>{
 });
 
 /* ---- Lista de Chuckers (Treino) ---- */
-let listaChuckersState = [];
+// Um treino com 2 ou 3 treinadores tem UMA lista por treinador (cada um monta a sua, com os cavalos dele);
+// com 0 ou 1 treinador é uma lista só, como sempre foi. No cadastro: t.chuckers (formato antigo) quando é
+// lista única, ou t.listas = [{treinador, chuckers}] quando são vários treinadores. listasDoTreino() lê os dois.
+let listasChuckersState = []; // [{ treinador:'Nome' | '', chuckers:[{animal1,animal2,espera}], fora?:true }]
+function chuckerLinhaVazia(){ return {animal1:'', animal2:'', espera:''}; }
+function chuckerLinhaPreenchida(c){ return !!(c && (c.animal1||c.animal2||c.espera)); }
+function treinadoresDoFormulario(){ return [...new Set([f('t_treinador1_sel'), f('t_treinador2_sel'), f('t_treinador3_sel')].filter(Boolean))]; }
+function listasDoTreino(t){
+  if(t && Array.isArray(t.listas) && t.listas.length) return t.listas.map(l=>({ treinador:l.treinador||'', chuckers:l.chuckers||[] }));
+  if(t && Array.isArray(t.chuckers) && t.chuckers.length) return [{ treinador:'', chuckers:t.chuckers }];
+  return [];
+}
+// Ajusta as seções da lista aos treinadores escolhidos AGORA: 2+ treinadores = uma seção por treinador (a lista
+// sem treinador, de antes, vai pro primeiro); 0 ou 1 = seção única. A lista de um treinador que saiu do treino
+// continua à vista (marcada) se tiver algo — nunca some dado sem avisar.
+function sincronizarSecoesLista(){
+  const nomes = treinadoresDoFormulario();
+  const alvo = nomes.length>=2 ? nomes : [''];
+  const resto = listasChuckersState.slice();
+  const tirar = fn => { const i = resto.findIndex(fn); return i>=0 ? resto.splice(i,1)[0] : null; };
+  const novas = alvo.map((nome,i)=>{
+    let s = tirar(x=>x.treinador===nome);
+    if(!s && nome==='' && nomes.length===1) s = tirar(x=>x.treinador===nomes[0]);
+    if(!s && nome!=='' && i===0) s = tirar(x=>x.treinador==='');
+    return { treinador:nome, chuckers: s ? s.chuckers : Array.from({length:6}, chuckerLinhaVazia) };
+  });
+  resto.filter(x=>(x.chuckers||[]).some(chuckerLinhaPreenchida)).forEach(x=>novas.push({ treinador:x.treinador, chuckers:x.chuckers, fora:true }));
+  listasChuckersState = novas;
+}
 function renderListaChuckers(){
   const host = document.getElementById('listaChuckersHost');
   const ativos = treinoSelector.getSelected().slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  if(listaChuckersState.length===0){ host.innerHTML = '<div class="hint-text">Nenhum chucker adicionado.</div>'; return; }
-  // Marca com ● por vez que o animal já JOGOU em outro chucker, e com 🔸 se ele já está de ESPERA em
-  // algum outro chucker — marcas diferentes pra não confundir "já jogou" com "está de reserva".
-  // Nunca conta a própria linha que está sendo montada.
-  const optsPara = idxAtual => {
-    const contagemJogo = {};
-    const emEspera = new Set();
-    listaChuckersState.forEach((it,i)=>{
-      if(i===idxAtual) return;
-      [it.animal1, it.animal2].forEach(id=>{ if(id) contagemJogo[id] = (contagemJogo[id]||0)+1; });
-      if(it.espera) emEspera.add(it.espera);
-    });
-    return '<option value="">Selecione...</option>' + ativos.map(h=>{
-      const marca = (contagemJogo[h.id] ? ' '+'●'.repeat(contagemJogo[h.id]) : '') + (emEspera.has(h.id) ? ' 🔸' : '');
-      return `<option value="${h.id}">${h.nome}${marca}</option>`;
-    }).join('');
-  };
-  host.innerHTML = `<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
-      <div>#</div><div>Animal 1</div><div>Animal 2</div><div>Espera 🔸</div><div></div>
-    </div>` +
-    listaChuckersState.map((it,idx)=>`<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px;">
+  host.innerHTML = listasChuckersState.map((sec,si)=>{
+    const rows = sec.chuckers;
+    // Marca com ● por vez que o animal já JOGOU em outro chucker, e com 🔸 se ele já está de ESPERA em
+    // algum outro chucker DESTA lista — marcas diferentes pra não confundir "já jogou" com "está de reserva".
+    // Nunca conta a própria linha que está sendo montada.
+    const optsPara = idxAtual => {
+      const contagemJogo = {};
+      const emEspera = new Set();
+      rows.forEach((it,i)=>{
+        if(i===idxAtual) return;
+        [it.animal1, it.animal2].forEach(id=>{ if(id) contagemJogo[id] = (contagemJogo[id]||0)+1; });
+        if(it.espera) emEspera.add(it.espera);
+      });
+      return '<option value="">Selecione...</option>' + ativos.map(h=>{
+        const marca = (contagemJogo[h.id] ? ' '+'●'.repeat(contagemJogo[h.id]) : '') + (emEspera.has(h.id) ? ' 🔸' : '');
+        return `<option value="${h.id}">${h.nome}${marca}</option>`;
+      }).join('');
+    };
+    const titulo = sec.treinador ? `<div style="font-weight:600;font-size:13px;margin:${si?'20px':'0'} 0 8px;color:var(--green);">Lista de ${escHtml(sec.treinador)}${sec.fora?' <span style="font-weight:400;color:var(--muted);">(não está mais neste treino)</span>':''}</div>` : '';
+    const corpo = rows.length===0 ? '<div class="hint-text" style="margin-bottom:6px;">Nenhum chucker adicionado.</div>' :
+      `<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
+        <div>#</div><div>Animal 1</div><div>Animal 2</div><div>Espera 🔸</div><div></div>
+      </div>` + rows.map((it,idx)=>`<div style="display:grid;grid-template-columns:26px 1fr 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px;">
         <div style="font-size:12px;color:var(--muted);text-align:center;">${idx+1}</div>
-        <select data-lcfield="animal1" data-idx="${idx}">${optsPara(idx)}</select>
-        <select data-lcfield="animal2" data-idx="${idx}">${optsPara(idx)}</select>
-        <select data-lcfield="espera" data-idx="${idx}">${optsPara(idx)}</select>
-        <button type="button" class="btn btn-sm btn-danger" data-lcremove="${idx}" title="Remover">🗑</button>
+        <select data-lcfield="animal1" data-sec="${si}" data-idx="${idx}">${optsPara(idx)}</select>
+        <select data-lcfield="animal2" data-sec="${si}" data-idx="${idx}">${optsPara(idx)}</select>
+        <select data-lcfield="espera" data-sec="${si}" data-idx="${idx}">${optsPara(idx)}</select>
+        <button type="button" class="btn btn-sm btn-danger" data-lcremove="${si}:${idx}" title="Remover">🗑</button>
       </div>`).join('');
-  listaChuckersState.forEach((it,idx)=>{
-    host.querySelector(`select[data-lcfield="animal1"][data-idx="${idx}"]`).value = it.animal1||'';
-    host.querySelector(`select[data-lcfield="animal2"][data-idx="${idx}"]`).value = it.animal2||'';
-    host.querySelector(`select[data-lcfield="espera"][data-idx="${idx}"]`).value = it.espera||'';
-  });
+    return `<div>${titulo}${corpo}<div style="margin-top:4px;"><button type="button" class="btn btn-sm btn-ghost" data-lcadd="${si}">+ Adicionar chucker</button><button type="button" class="btn btn-sm btn-ghost" data-lcclear="${si}" style="margin-left:8px;">Limpar tudo</button></div></div>`;
+  }).join('');
+  listasChuckersState.forEach((sec,si)=>sec.chuckers.forEach((it,idx)=>{
+    ['animal1','animal2','espera'].forEach(campo=>{
+      host.querySelector(`select[data-lcfield="${campo}"][data-sec="${si}"][data-idx="${idx}"]`).value = it[campo]||'';
+    });
+  }));
   host.querySelectorAll('select[data-lcfield]').forEach(el=>{
     // Reabre o mesmo select em foco depois de redesenhar a tabela — sem isso, cada escolha (mesmo só
     // com a seta do teclado) perdia o foco no redesenho e travava a navegação por teclado no meio.
     el.addEventListener('change', ()=>{
-      const { idx, lcfield } = el.dataset;
-      listaChuckersState[Number(idx)][lcfield] = el.value;
+      const { sec, idx, lcfield } = el.dataset;
+      listasChuckersState[Number(sec)].chuckers[Number(idx)][lcfield] = el.value;
       renderListaChuckers();
-      const de_novo = host.querySelector(`select[data-lcfield="${lcfield}"][data-idx="${idx}"]`);
+      const de_novo = host.querySelector(`select[data-lcfield="${lcfield}"][data-sec="${sec}"][data-idx="${idx}"]`);
       if(de_novo) de_novo.focus();
     });
   });
   host.querySelectorAll('[data-lcremove]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ listaChuckersState.splice(Number(btn.dataset.lcremove),1); renderListaChuckers(); });
+    btn.addEventListener('click', ()=>{ const [s,i] = btn.dataset.lcremove.split(':'); listasChuckersState[Number(s)].chuckers.splice(Number(i),1); renderListaChuckers(); });
+  });
+  host.querySelectorAll('[data-lcadd]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ listasChuckersState[Number(btn.dataset.lcadd)].chuckers.push(chuckerLinhaVazia()); renderListaChuckers(); });
+  });
+  host.querySelectorAll('[data-lcclear]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const s = Number(btn.dataset.lcclear);
+      if(listasChuckersState[s].chuckers.length>0 && !(await showConfirm('Limpar todos os chuckers desta lista?'))) return;
+      listasChuckersState[s].chuckers = [];
+      renderListaChuckers();
+    });
   });
 }
 function openListaChuckers(){
   if(treinoSelector.getSelected().length===0){ showAlert('Selecione ao menos um animal pro treino antes de montar a Lista.'); return; }
-  if(listaChuckersState.length===0) listaChuckersState = Array.from({length:6}, ()=>({animal1:'', animal2:'', espera:''}));
+  sincronizarSecoesLista();
   renderListaChuckers();
   openModal('overlayListaTreino');
 }
 document.getElementById('btnListaChuckers').addEventListener('click', openListaChuckers);
-document.getElementById('btnAddChucker').addEventListener('click', ()=>{
-  listaChuckersState.push({animal1:'', animal2:'', espera:''});
-  renderListaChuckers();
-});
-document.getElementById('btnLimparChuckers').addEventListener('click', async ()=>{
-  if(listaChuckersState.length>0 && !(await showConfirm('Limpar todos os chuckers da lista?'))) return;
-  listaChuckersState = [];
-  renderListaChuckers();
-});
 function tabelaChuckersHtml(chuckersArr, cls){
   const nomeAnimal = id => id ? ((horses.find(h=>h.id===id)||{}).nome||'') : '';
   const linhas = (chuckersArr||[]).filter(it=>it.animal1||it.animal2||it.espera);
@@ -10624,27 +10659,33 @@ function tabelaChuckersHtml(chuckersArr, cls){
     <tbody>${linhas.map((it,idx)=>`<tr><td class="num">${idx+1}</td><td>${nomeAnimal(it.animal1)||'—'}</td><td>${nomeAnimal(it.animal2)||'—'}</td><td>${nomeAnimal(it.espera)||'—'}</td></tr>`).join('')}</tbody>
     </table>`;
 }
+// Uma tabela por treinador (com o nome dele em cima) quando o treino tem mais de uma lista; lista única sai
+// sem título, como antes.
+function tabelasListasTreinoHtml(t, cls){
+  return listasDoTreino(t).map(l=>`${l.treinador?`<div class="report-tipo-titulo" style="font-size:12px;margin-top:8px;">Lista de ${l.treinador}</div>`:''}${tabelaChuckersHtml(l.chuckers, cls)}`).join('');
+}
 document.getElementById('btnPdfListaChuckers').addEventListener('click', async ()=>{
-  if(listaChuckersState.filter(it=>it.animal1||it.animal2||it.espera).length===0){ showAlert('Adicione ao menos um chucker antes de gerar o PDF.'); return; }
+  const secoes = listasChuckersState.map(s=>({ treinador:s.treinador, chuckers:s.chuckers.filter(chuckerLinhaPreenchida) })).filter(s=>s.chuckers.length>0);
+  if(secoes.length===0){ showAlert('Adicione ao menos um chucker antes de gerar o PDF.'); return; }
   const dataTreino = document.getElementById('t_data').value;
   const obs = document.getElementById('t_obs').value.trim();
   const html = `<h1>Lista de Chuckers</h1>
     <div class="sub">${dataTreino ? fmtDate(dataTreino) : ''}${obs ? ' — '+obs : ''}</div>
-    ${tabelaChuckersHtml(listaChuckersState)}`;
+    ${secoes.map(s=>`${s.treinador?`<h2>Lista de ${s.treinador}</h2>`:''}${tabelaChuckersHtml(s.chuckers)}`).join('')}`;
   await baixarRelatorioManejoPDF(html, 'lista_chuckers'+(dataTreino?'_'+dataTreino:'')+'.pdf');
 });
 // Relatório combinado: pega os treinos marcados na tabela do Histórico (ex: jogos de torneio) — sem
 // marcar nenhum, usa todos os que têm Lista de Chuckers salva — e monta UM PDF só, um treino após o
-// outro, cada um com sua data/observação e sua própria tabela de chuckers.
+// outro, cada um com sua data/observação e sua própria tabela de chuckers (uma por treinador, se houver mais de uma).
 function gerarListaChuckersSelecionados(){
   const sel = selLista('treinos');
-  const base = sel.size ? treinos.filter(t=>sel.has(String(t.id))) : treinos.filter(t=>t.chuckers && t.chuckers.length>0);
-  const comLista = base.filter(t=>t.chuckers && t.chuckers.length>0).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  const base = sel.size ? treinos.filter(t=>sel.has(String(t.id))) : treinos.filter(treinoTemLista);
+  const comLista = base.filter(treinoTemLista).slice().sort((a,b)=>a.data.localeCompare(b.data));
   if(comLista.length===0){ showAlert('Nenhum treino selecionado tem Lista de Chuckers salva.'); return; }
   const html = comLista.map(t=>`<div class="report-animal-block">
       <h2>${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}${t.local?' — '+t.local:''}</h2>
       ${t.obs ? `<div class="sub">${t.obs}</div>` : ''}
-      ${tabelaChuckersHtml(t.chuckers)}
+      ${tabelasListasTreinoHtml(t)}
     </div>`).join('');
   baixarRelatorioManejoPDF(`<h1>Lista de Chuckers</h1><div class="sub">${comLista.length} treino(s)</div>${html}`, 'lista_chuckers_'+comLista.length+'_treinos.pdf');
 }
@@ -10666,10 +10707,10 @@ function treinosFiltradosPara(hid, de, ate){
 // Cada treino que tem lista ganha um botão "📋 Lista": clicando (no botão ou na linha) a lista abre/fecha ali
 // mesmo. A caixa "Já abrir com a lista" deixa tudo aberto — e o PDF sai do jeito que está na tela.
 let _trlSeq = 0;
-function treinoTemLista(t){ return !!(t && (t.chuckers||[]).some(c=>c.animal1||c.animal2||c.espera)); }
+function treinoTemLista(t){ return listasDoTreino(t).some(l=>(l.chuckers||[]).some(chuckerLinhaPreenchida)); }
 function listaTreinoAbertaPadrao(){ const c = document.getElementById('trIncluirLista'); return !!(c && c.checked); }
 function listaTreinoConteudo(t){
-  return `<div style="margin:4px 0 8px;"><div class="report-tipo-titulo" style="font-size:12px;">Lista de Chuckers — ${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}</div><div class="grid-wrap compact">${tabelaChuckersHtml(t.chuckers,'grid')}</div></div>`;
+  return `<div style="margin:4px 0 8px;"><div class="report-tipo-titulo" style="font-size:12px;">Lista de Chuckers — ${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}</div><div class="grid-wrap compact">${tabelasListasTreinoHtml(t,'grid')}</div></div>`;
 }
 document.getElementById('treinoRelResult').addEventListener('click', e=>{
   const el = e.target.closest('[data-trlista]'); if(!el) return;
@@ -10682,7 +10723,7 @@ function blocoRelatorioTreino(t){
     <div class="report-tipo-titulo">Animais (${t.animais.length})</div>
     <ul class="animais-simples">${t.animais.map(a=>`<li>${a.nome}${a.extra?(' — '+a.extra):''}</li>`).join('')}</ul>
     ${t.obs?`<div class="sub" style="margin-top:14px;"><b>Obs.:</b> ${t.obs}</div>`:''}
-    ${treinoTemLista(t)?`<div class="report-tipo-titulo" style="margin-top:16px;">Lista de Chuckers</div>${tabelaChuckersHtml(t.chuckers)}`:''}`;
+    ${treinoTemLista(t)?`<div class="report-tipo-titulo" style="margin-top:16px;">Lista de Chuckers</div>${tabelasListasTreinoHtml(t)}`:''}`;
 }
 function gerarRelatorioTreinoUnico(id){
   const t = treinos.find(x=>x.id===id); if(!t) return;
