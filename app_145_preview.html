@@ -2690,11 +2690,28 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
           Sêmen comprado?
         </label>
         <div class="hint-text" style="margin-top:4px;">Marque se o sêmen usado nessa cobertura foi comprado de terceiros (não veio do estoque próprio).</div>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddServicoCob" onclick="abrirPainelServico()" style="margin-top:10px;align-self:flex-start;">+ Inserir serviço</button>
       </div>
       <div class="field" id="n_valorSemenWrap" style="display:none;">
         <label>Valor do sêmen (R$)</label>
         <input type="number" id="n_valorSemen" min="0" step="0.01" placeholder="0,00">
         <div class="hint-text" style="margin-top:4px;">Até o potro nascer, conta como custo geral do haras (dividido entre todos os animais), como "Sêmen" desta cobertura (mãe × pai). Quando o nascimento for confirmado, sai do geral e vai inteiro para o potro.</div>
+      </div>
+      <div class="field full" id="n_servicosField" style="display:none;">
+        <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
+        <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+        <div id="n_svPainel" style="display:none;border:1px solid var(--border,#cdbf9a);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--chip-bg,#efe6cc);">
+          <div class="form-grid">
+            <div class="field"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta"></div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
+            <div class="field full"><label>Destino do custo</label><select id="n_svDestino"></select>
+              <div class="hint-text" style="margin-top:4px;">"Esta cobertura": conta como custo geral do haras até o nascimento ser confirmado; depois sai do geral e vai inteiro para o potro. Ou escolha um animal para o custo ir direto pra ele.</div></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button type="button" class="btn btn-sm" id="n_svOk" onclick="adicionarServicoDoPainel()">Adicionar serviço</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="n_svCancelar" onclick="fecharPainelServico()">Cancelar</button>
+          </div>
+        </div>
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -2709,23 +2726,6 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
         <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
         <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
-      </div>
-      <div class="field full" id="n_servicosField">
-        <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
-        <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
-        <div id="n_svPainel" style="display:none;border:1px solid var(--border,#cdbf9a);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--chip-bg,#efe6cc);">
-          <div class="form-grid">
-            <div class="field"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta"></div>
-            <div class="field"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
-            <div class="field full"><label>Destino do custo</label><select id="n_svDestino"></select>
-              <div class="hint-text" style="margin-top:4px;">"Esta cobertura": conta como custo geral do haras até o nascimento ser confirmado; depois sai do geral e vai inteiro para o potro. Ou escolha um animal para o custo ir direto pra ele.</div></div>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:8px;">
-            <button type="button" class="btn btn-sm" id="n_svOk">Adicionar serviço</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="n_svCancelar">Cancelar</button>
-          </div>
-        </div>
-        <button type="button" class="btn btn-sm btn-ghost" id="btnAddServico">+ Inserir serviço</button>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
@@ -10919,24 +10919,37 @@ function renderNascServicos(){
     </div>`;
   }).join('') + (nascServicos.length>1 ? `<div style="text-align:right;font-size:12px;color:var(--muted);">Total: <strong>${fmt(nascServicos.reduce((a,x)=>a+(Number(x.valor)||0),0))}</strong></div>` : '');
   host.querySelectorAll('[data-svdel]').forEach(el=>el.addEventListener('click',()=>{ nascServicos.splice(+el.dataset.svdel,1); renderNascServicos(); }));
+  atualizarVisibilidadeServicos();
 }
-function fecharPainelServico(){ document.getElementById('n_svPainel').style.display='none'; }
-document.getElementById('btnAddServico').addEventListener('click',()=>{
-  const sel = document.getElementById('n_svDestino');
-  sel.innerHTML = '<option value="">Esta cobertura (custo geral até nascer → potro)</option>'
-    + horses.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR')).map(h=>`<option value="${escHtml(h.id)}">Animal: ${escHtml(h.nome||'?')}</option>`).join('');
+function fecharPainelServico(){ document.getElementById('n_svPainel').style.display='none'; atualizarVisibilidadeServicos(); }
+function atualizarVisibilidadeServicos(){
+  const painelAberto = document.getElementById('n_svPainel').style.display==='block';
+  document.getElementById('n_servicosField').style.display = (nascServicos.length>0 || painelAberto) ? 'flex' : 'none';
+}
+// Chamada direto do onclick do botão (não depende de nenhum listener registrado antes). Abre o painel
+// PRIMEIRO e só depois monta a lista de animais, dentro de try/catch — assim um animal com dado estranho
+// nunca impede o painel de abrir.
+function abrirPainelServico(){
   document.getElementById('n_svDesc').value=''; document.getElementById('n_svValor').value='';
   document.getElementById('n_svPainel').style.display='block';
+  atualizarVisibilidadeServicos();
+  const sel = document.getElementById('n_svDestino');
+  let opcoes = '<option value="">Esta cobertura (custo geral até nascer → potro)</option>';
+  try{
+    opcoes += horses.filter(h=>h && h.id).map(h=>({ id:String(h.id), nome:String(h.nome||'?') }))
+      .sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))
+      .map(h=>`<option value="${escHtml(h.id)}">Animal: ${escHtml(h.nome)}</option>`).join('');
+  }catch(e){ console.error('Lista de animais do serviço:', e); }
+  sel.innerHTML = opcoes;
   document.getElementById('n_svDesc').focus();
-});
-document.getElementById('n_svCancelar').addEventListener('click', fecharPainelServico);
-document.getElementById('n_svOk').addEventListener('click', ()=>{
+}
+function adicionarServicoDoPainel(){
   const desc = document.getElementById('n_svDesc').value.trim();
   const valor = Number(document.getElementById('n_svValor').value)||0;
   if(!desc || !(valor>0)){ showAlert('Informe o serviço e um valor maior que zero.'); return; }
   nascServicos.push({ desc, valor, animalId: document.getElementById('n_svDestino').value||'' });
   renderNascServicos(); fecharPainelServico();
-});
+}
 document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
 function atualizarProvavelNascimentoView(){
   const datas = [document.getElementById('n_datacob').value, ...nascCobExtras.map(c=>c.data)].filter(Boolean).sort();
@@ -11064,7 +11077,7 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_semenComprado').checked=false;
   document.getElementById('n_valorSemenWrap').style.display='none';
-  nascServicos = []; renderNascServicos();
+  nascServicos = []; document.getElementById('n_svPainel').style.display='none'; renderNascServicos();
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
@@ -11088,7 +11101,7 @@ function openNascEdit(id){
   document.getElementById('n_valorSemen').value = n.valorSemen || '';
   nascServicos = Array.isArray(n.servicos) ? n.servicos.map(x=>({...x}))
     : (Number(n.valorServico)>0 ? [{ desc:n.servicoDesc||'', valor:Number(n.valorServico), animalId:'' }] : []);
-  renderNascServicos();
+  document.getElementById('n_svPainel').style.display='none'; renderNascServicos();
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
