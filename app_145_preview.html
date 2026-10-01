@@ -2696,15 +2696,6 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <input type="number" id="n_valorSemen" min="0" step="0.01" placeholder="0,00">
         <div class="hint-text" style="margin-top:4px;">Até o potro nascer, fica como custo da mãe doadora (a Matriz) — não conta como custo geral do haras. Quando o nascimento for confirmado, esse valor vira custo do potro.</div>
       </div>
-      <div class="field" id="n_servicoWrap" style="display:none;">
-        <label>Serviço prestado</label>
-        <input type="text" id="n_servicoDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta">
-      </div>
-      <div class="field" id="n_valorServicoWrap" style="display:none;">
-        <label>Custo do serviço (R$)</label>
-        <input type="number" id="n_valorServico" min="0" step="0.01" placeholder="0,00">
-        <div class="hint-text" style="margin-top:4px;">Mesmo tratamento do sêmen: até o potro nascer é custo da mãe doadora (Matriz); com o nascimento confirmado vira custo dele (categoria Serviço).</div>
-      </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
           <input type="checkbox" id="n_transferenciaEmbriao" style="width:16px;height:16px;">
@@ -2718,6 +2709,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
         <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
         <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
+      </div>
+      <div class="field full" id="n_servicosField">
+        <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
+        <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+        <div id="n_svPainel" style="display:none;border:1px solid var(--border,#cdbf9a);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--chip-bg,#efe6cc);">
+          <div class="form-grid">
+            <div class="field"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta"></div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
+            <div class="field full"><label>Destino do custo</label><select id="n_svDestino"></select>
+              <div class="hint-text" style="margin-top:4px;">"Esta cobertura": é custo da mãe doadora até o nascimento ser confirmado; depois vira custo do potro. Ou escolha um animal para o custo ir direto pra ele.</div></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button type="button" class="btn btn-sm" id="n_svOk">Adicionar serviço</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="n_svCancelar">Cancelar</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddServico">+ Inserir serviço</button>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
@@ -10894,6 +10902,41 @@ function renderNascCobExtras(){
   host.querySelectorAll('[data-cobextra-obs]').forEach(el=>el.addEventListener('input',()=>{ nascCobExtras[+el.dataset.cobextraObs].obs=el.value; }));
   host.querySelectorAll('[data-cobextra-del]').forEach(el=>el.addEventListener('click',()=>{ nascCobExtras.splice(+el.dataset.cobextraDel,1); renderNascCobExtras(); atualizarProvavelNascimentoView(); }));
 }
+// Serviços da cobertura (inseminação, frete, coleta...): cada um é um custo com valor e destino. Destino
+// "Esta cobertura" = custo da mãe doadora até o nascimento confirmado, depois do potro (ver
+// alvoDoRateio); destino "animal" = vai direto pra esse animal.
+let nascServicos = [];
+function renderNascServicos(){
+  const host = document.getElementById('n_servicosHost');
+  const fmt = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  host.innerHTML = nascServicos.map((sv,i)=>{
+    const h = sv.animalId ? horses.find(x=>x.id===sv.animalId) : null;
+    const dest = sv.animalId ? ('→ '+escHtml(h?h.nome:'animal')) : '→ esta cobertura / potro';
+    return `<div style="display:flex;gap:8px;align-items:center;font-size:13px;">
+      <span style="flex:1;">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${dest}</span></span>
+      <strong>${fmt(sv.valor)}</strong>
+      <button type="button" class="btn btn-sm btn-ghost" data-svdel="${i}" title="Remover">✕</button>
+    </div>`;
+  }).join('') + (nascServicos.length>1 ? `<div style="text-align:right;font-size:12px;color:var(--muted);">Total: <strong>${fmt(nascServicos.reduce((a,x)=>a+(Number(x.valor)||0),0))}</strong></div>` : '');
+  host.querySelectorAll('[data-svdel]').forEach(el=>el.addEventListener('click',()=>{ nascServicos.splice(+el.dataset.svdel,1); renderNascServicos(); }));
+}
+function fecharPainelServico(){ document.getElementById('n_svPainel').style.display='none'; }
+document.getElementById('btnAddServico').addEventListener('click',()=>{
+  const sel = document.getElementById('n_svDestino');
+  sel.innerHTML = '<option value="">Esta cobertura (doadora → potro quando nascer)</option>'
+    + horses.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR')).map(h=>`<option value="${escHtml(h.id)}">Animal: ${escHtml(h.nome||'?')}</option>`).join('');
+  document.getElementById('n_svDesc').value=''; document.getElementById('n_svValor').value='';
+  document.getElementById('n_svPainel').style.display='block';
+  document.getElementById('n_svDesc').focus();
+});
+document.getElementById('n_svCancelar').addEventListener('click', fecharPainelServico);
+document.getElementById('n_svOk').addEventListener('click', ()=>{
+  const desc = document.getElementById('n_svDesc').value.trim();
+  const valor = Number(document.getElementById('n_svValor').value)||0;
+  if(!desc || !(valor>0)){ showAlert('Informe o serviço e um valor maior que zero.'); return; }
+  nascServicos.push({ desc, valor, animalId: document.getElementById('n_svDestino').value||'' });
+  renderNascServicos(); fecharPainelServico();
+});
 document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
 function atualizarProvavelNascimentoView(){
   const datas = [document.getElementById('n_datacob').value, ...nascCobExtras.map(c=>c.data)].filter(Boolean).sort();
@@ -10989,9 +11032,7 @@ document.getElementById('n_datanasc').addEventListener('input', atualizarCamposN
 document.getElementById('n_semenComprado').addEventListener('change', e=>{
   const on = e.target.checked;
   document.getElementById('n_valorSemenWrap').style.display = on ? 'flex' : 'none';
-  document.getElementById('n_servicoWrap').style.display = on ? 'flex' : 'none';
-  document.getElementById('n_valorServicoWrap').style.display = on ? 'flex' : 'none';
-  if(!on){ ['n_valorSemen','n_servicoDesc','n_valorServico'].forEach(id=>document.getElementById(id).value=''); }
+  if(!on) document.getElementById('n_valorSemen').value = '';
 });
 // Receptora só faz sentido junto de transferência de embrião — desmarcando, some e limpa (pra não
 // ficar um nome de receptora esquecido numa cobertura que não é mais TE).
@@ -11018,13 +11059,12 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   editingNascId = null;
   document.querySelector('#overlayNasc .modal-title').textContent = 'Nova Cobertura';
   document.getElementById('btnDeleteNasc').style.display = 'none';
-  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData','n_valorSemen','n_servicoDesc','n_valorServico'].forEach(id=>document.getElementById(id).value='');
+  ['n_matriz','n_pai','n_receptora','n_datacob','n_datanasc','n_letra','n_obs','n_nomeAnimal','n_dataOvulacao','n_dataColetaEmbriao','n_lavado','n_lavadoData','n_valorSemen'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('n_confirm').checked=false;
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_semenComprado').checked=false;
   document.getElementById('n_valorSemenWrap').style.display='none';
-  document.getElementById('n_servicoWrap').style.display='none';
-  document.getElementById('n_valorServicoWrap').style.display='none';
+  nascServicos = []; renderNascServicos();
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
@@ -11046,10 +11086,9 @@ function openNascEdit(id){
   document.getElementById('n_semenComprado').checked = !!n.semenComprado;
   document.getElementById('n_valorSemenWrap').style.display = n.semenComprado ? 'flex' : 'none';
   document.getElementById('n_valorSemen').value = n.valorSemen || '';
-  document.getElementById('n_servicoWrap').style.display = n.semenComprado ? 'flex' : 'none';
-  document.getElementById('n_valorServicoWrap').style.display = n.semenComprado ? 'flex' : 'none';
-  document.getElementById('n_servicoDesc').value = n.servicoDesc || '';
-  document.getElementById('n_valorServico').value = n.valorServico || '';
+  nascServicos = Array.isArray(n.servicos) ? n.servicos.map(x=>({...x}))
+    : (Number(n.valorServico)>0 ? [{ desc:n.servicoDesc||'', valor:Number(n.valorServico), animalId:'' }] : []);
+  renderNascServicos();
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
@@ -11097,9 +11136,8 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   // já gerado (e quais doses já tinham sido marcadas como aplicadas).
   const semenComprado = document.getElementById('n_semenComprado').checked;
   const valorSemen = semenComprado ? (Number(f('n_valorSemen'))||0) : 0;
-  const servicoDesc = semenComprado ? f('n_servicoDesc') : '';
-  const valorServico = semenComprado ? (Number(f('n_valorServico'))||0) : 0;
-  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado, valorSemen, servicoDesc, valorServico,
+  const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado, valorSemen,
+    servicos: nascServicos.filter(x=>Number(x.valor)>0).map(x=>({ desc:(x.desc||'').trim(), valor:Number(x.valor), animalId:x.animalId||'' })), servicoDesc:'', valorServico:0,
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
@@ -19479,15 +19517,27 @@ function lancamentosDerivadosSemen(){
     rateio: [{ destino: n.id, valor: Number(n.valorSemen)||0 }]
   }));
 }
-// Serviço prestado junto do sêmen comprado (inseminação, frete, coleta...): mesmo custo represado do sêmen.
+// Serviços da cobertura (inseminação, frete, coleta...): cada um vira uma saída no Financeiro, na categoria
+// "Serviço de Cobertura". Sem animal escolhido, aponta pra cobertura (doadora até o nascimento, depois o
+// potro — ver alvoDoRateio); com animal, vai direto pra ele. Cobre também o formato antigo (1 serviço só).
 function lancamentosDerivadosServicoCobertura(){
-  return nascimentos.filter(n=>n.semenComprado && Number(n.valorServico)>0).map(n=>({
-    id: 'auto_sv_'+n.id, origemId: n.id, origem: 'nascimentos',
-    data: n.datacob||'', tipo:'saida', categoria:'Serviço de Cobertura', natureza:'caixa',
-    descricao: `Serviço${n.servicoDesc?(' — '+n.servicoDesc):''} — ${n.matriz||'?'}${n.pai?(' × '+n.pai):''}`,
-    valor: Number(n.valorServico)||0, moeda:'BRL',
-    rateio: [{ destino: n.id, valor: Number(n.valorServico)||0 }]
-  }));
+  const out = [];
+  nascimentos.forEach(n=>{
+    const lista = Array.isArray(n.servicos) ? n.servicos
+      : (Number(n.valorServico)>0 ? [{ desc:n.servicoDesc||'', valor:Number(n.valorServico), animalId:'' }] : []);
+    lista.forEach((sv,i)=>{
+      const valor = Number(sv.valor)||0;
+      if(valor<=0) return;
+      out.push({
+        id: 'auto_sv_'+n.id+'_'+i, origemId: n.id, origem: 'nascimentos',
+        data: n.datacob||'', tipo:'saida', categoria:'Serviço de Cobertura', natureza:'caixa',
+        descricao: `Serviço${sv.desc?(' — '+sv.desc):''} — ${n.matriz||'?'}${n.pai?(' × '+n.pai):''}`,
+        valor, moeda:'BRL',
+        rateio: [ sv.animalId ? { animalId: sv.animalId, valor } : { destino: n.id, valor } ]
+      });
+    });
+  });
+  return out;
 }
 // Nome usado só pra RECONHECER se uma venda já foi lançada (não é exibido) — minúsculo e sem espaço
 // duplicado, pra "Estrela" e " estrela " contarem como o mesmo animal.
