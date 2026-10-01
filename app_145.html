@@ -3629,44 +3629,15 @@ const LS_PREFIX = 'haras_gestao_equina__';
 // "lista vazia" — e foi exatamente assim que dados já "sumiram" da tela e, pior, foram sobrescritos por
 // uma gravação feita em cima dessa lista vazia. Enquanto a chave estiver aqui, storeSet NÃO grava nela.
 const chavesComFalhaDeLeitura = new Set();
-
-// Limite de tempo: uma chamada ao Firebase que nunca responde deixava o app parado pra sempre
-// ("Entrando..." eterno). Estourou o tempo = falha comum, tratada como as outras.
-function comTimeout(p, ms, rotulo){
-  return new Promise((res, rej)=>{
-    const t = setTimeout(()=>{ const e = new Error('timeout: '+rotulo); e.code='haras/timeout'; rej(e); }, ms);
-    p.then(v=>{ clearTimeout(t); res(v); }, e=>{ clearTimeout(t); rej(e); });
-  });
-}
-// "Target ID already exists" = cache local do Firestore (IndexedDB) corrompido: toda leitura falha e o
-// app não carrega. Os dados na nuvem estão intactos; basta limpar o cache DESTE aparelho e recarregar.
-// Tenta no máximo 1 vez a cada 2 minutos pra nunca entrar em loop de recarga.
-function erroCacheCorrompido(e){ return !!(e && /target id already exists/i.test(String(e.message||''))); }
-let _curaCachePromise = null;
-function curarCacheFirestore(){
-  if(_curaCachePromise) return _curaCachePromise;
-  let ultima = 0;
-  try{ ultima = +localStorage.getItem('haras_cura_cache')||0; }catch(_){}
-  if(Date.now()-ultima < 120000){ console.warn('Cache do Firestore corrompido, mas a limpeza automática já rodou há pouco.'); return Promise.resolve(false); }
-  try{ localStorage.setItem('haras_cura_cache', String(Date.now())); }catch(_){}
-  _curaCachePromise = (async()=>{
-    try{ await db.terminate(); await db.clearPersistence(); }
-    catch(e){ console.error('Não consegui limpar o cache do Firestore:', e); return false; }
-    location.reload();
-    return true;
-  })();
-  return _curaCachePromise;
-}
 async function storeGet(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     // Mesmas 3 tentativas do caminho abaixo: uma oscilação de rede na abertura não pode virar "lista vazia".
     for(let attempt=1; attempt<=3; attempt++){
       try{
-        const snap = await comTimeout(db.collection(FIRESTORE_COLLECTION).doc(key).get(), 15000, key);
+        const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
         chavesComFalhaDeLeitura.delete(key);
         return { ok:true, value: snap.exists ? snap.data().value : [] };
       }catch(e){
-        if(erroCacheCorrompido(e)){ chavesComFalhaDeLeitura.add(key); curarCacheFirestore(); return { ok:false, value: [] }; }
         if(attempt<3){ await new Promise(res=>setTimeout(res, 400*attempt)); continue; }
         chavesComFalhaDeLeitura.add(key);
         console.error('Firestore get failed for', key, e); return { ok:false, value: [] };
@@ -20659,13 +20630,11 @@ function tentarLoginFirebase(){
   if(!email || !senha){ mostrarErroLogin('Preencha e-mail e senha.'); return; }
   const btn = document.getElementById('btnLoginEntrar');
   btn.disabled = true; btn.textContent = 'Entrando...';
-  comTimeout(firebase.auth().signInWithEmailAndPassword(email, senha), 20000, 'login')
+  firebase.auth().signInWithEmailAndPassword(email, senha)
     .then(cred=>{ prosseguirEntrar(cred.user); })
     .catch(err=>{
       const semSenhaOuEmailErrado = ['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(err.code);
-      mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.'
-        : err.code==='haras/timeout' ? 'O servidor demorou demais para responder. Tente de novo, ou marque "Trabalhar offline" para usar os dados deste aparelho.'
-        : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
+      mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.' : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
       btn.disabled = false; btn.textContent = 'Entrar';
     });
 }
