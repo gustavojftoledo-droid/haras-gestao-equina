@@ -438,6 +438,10 @@
      invisível (letra escura em fundo escuro). Corrige só aqui dentro do cabeçalho do card. */
   .perfil-card-head .btn-ghost{color:#fff;border-color:rgba(255,255,255,.5);}
   .perfil-card-head .btn-ghost:hover{background:rgba(255,255,255,.12);}
+  /* Mesmo problema do .btn-ghost acima, mas pro .btn-danger (ex: "🗑 Remover" da Simulação de
+     Acasalamento): vermelho-escuro sobre fundo transparente fica ilegível no cabeçalho verde-escuro. */
+  .perfil-card-head .btn-danger{background:rgba(255,255,255,.92);color:var(--burgundy);border-color:var(--burgundy);}
+  .perfil-card-head .btn-danger:hover{background:#fff;}
   .perfil-card-body{padding:18px 20px;}
   /* Quadro sem cabeçalho (Foto, Estatísticas): o body é o 1º filho, então o botão ⠿ (posicionado no
      canto do quadro) ficava em cima da 1ª linha de conteúdo. Abre espaço só nesse caso. */
@@ -1202,6 +1206,7 @@
         <span class="chip" data-nvtab="semen" id="nvtab_semen">🧊 Sêmen</span>
         <span class="chip" data-nvtab="vendacob" id="nvtab_vendacob">💰 Venda de Cobertura</span>
         <span class="chip" data-nvtab="relatorio" id="nvtab_relatorio">Relatório</span>
+        <span class="chip" data-nvtab="simulacao" id="nvtab_simulacao">🧬 Simulação de Acasalamento</span>
       </div>
 
       <div id="nview_lista">
@@ -1360,6 +1365,16 @@
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelNasc" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelNasc" style="display:none;">⬇ Baixar PDF</button>
         </div>
         <div id="relNascResult" style="margin-top:14px;"></div>
+      </div>
+
+      <div id="nview_simulacao" style="display:none;">
+        <div class="hint-text" style="margin-bottom:12px;">Simule um acasalamento hipotético (reprodutor × matriz) e veja o coeficiente de endogamia calculado a partir do pedigree já cadastrado. Não gera cobertura nem nenhum registro real — é só pra comparar opções antes de decidir. O reprodutor ou a matriz não precisam já ter cruzado antes; se um dos dois nem estiver cadastrado ainda, é só digitar o nome mesmo assim (sem parentesco conhecido, o coeficiente sai 0%).</div>
+        <div class="form-grid" style="margin-bottom:10px;align-items:flex-end;">
+          <div class="field"><label>Reprodutor (pai)</label><input type="text" id="sim_pai" list="dl_machos" placeholder="Ex: Bob"></div>
+          <div class="field"><label>Matriz (mãe)</label><input type="text" id="sim_mae" list="dl_femeas" placeholder="Ex: União"></div>
+          <div class="field"><button type="button" class="btn" id="btnSimularCruzamento">+ Simular acasalamento</button></div>
+        </div>
+        <div id="simCruzamentoHost"></div>
       </div>
     </div>
 
@@ -3523,6 +3538,7 @@ let horses=[], manejos=[], treinos=[], nascimentos=[];
 let estoqueProdutos=[], estoqueMovimentos=[], dietas=[], grupos=[], tratamentos=[], visitas=[], lancamentos=[], funcionarios=[], transportes=[], visitasRepro=[];
 let semenLotes=[]; // estoque de sêmen por garanhão/lote — cada um com .movimentos embutidos
 let vendasCobertura=[]; // venda de doses/coberturas pra terceiros — dá baixa no sêmen e vira receita no Financeiro
+let simulacoesCruzamento=[]; // pares Reprodutor×Matriz salvos na aba Simulação de Cruzamento (só consulta, nada real)
 let auditoria=[];
 let auditoriaCarregada=false; // o log só é lido do banco quando a aba Auditoria (ou um backup) precisa
 async function garantirAuditoriaCarregada(){
@@ -3735,6 +3751,7 @@ const AUDIT_KEYS = {
   usuarios_list:      { modulo:'Usuários',    nome: r=>r.nome },
   semen_lotes:        { modulo:'Reprodução', nome: r=>['Sêmen', r.garanhao, r.lote].filter(Boolean).join(' · ') },
   vendas_cobertura:   { modulo:'Reprodução', nome: r=>['Venda de cobertura', r.comprador, r.garanhao].filter(Boolean).join(' · ') },
+  simulacoes_cruzamento: { modulo:'Reprodução', nome: r=>['Simulação', r.pai, r.mae].filter(Boolean).join(' × ') },
   consultoria_visitas_list:    { modulo:'Consultoria', nome: r=>[r.propriedade, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_avaliacoes_list: { modulo:'Consultoria', nome: r=>[r.animalNome, r.data&&fmtDate(r.data)].filter(Boolean).join(' · ') },
   consultoria_aval_propriedade: { modulo:'Consultoria', nome: r=>['Avaliação da propriedade', r.haras, r.dataAval&&fmtDate(r.dataAval)].filter(Boolean).join(' · ') },
@@ -3844,6 +3861,7 @@ function atualizarGlobalPosFusao(key, val){
     case 'transportes_list': transportes = val; break;
     case 'semen_lotes': semenLotes = val; break;
     case 'vendas_cobertura': vendasCobertura = val; break;
+    case 'simulacoes_cruzamento': simulacoesCruzamento = val; break;
     case 'usuarios_list': usuarios = val; break;
     case 'config': config = val; break;
     case 'aux_lists': aux = val; break;
@@ -4129,7 +4147,7 @@ async function loadAll(){
   // lenta). A ordem do array bate 1:1 com a desestruturação abaixo.
   const [rH, rM, rT, rN, rAux, rDismissed, rDismissedAnomalias, rDismissedManejo, rEP, rEM, rDT, rG,
          rConfig, rU, rTR, rVS, rVR, rTP, rRS, rNFA, rFin, rFU, rEx, rSemen,
-         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob, rCAvP] = await Promise.all([
+         rCV, rCA, rCF, rCFm, rCPr, rARz, rPq, rVCob, rCAvP, rSimCruz] = await Promise.all([
     storeGet('horses_list'), storeGet('manejos_list'), storeGet('treinos_list'), storeGet('nascimentos_list'),
     storeGet('aux_lists'), storeGet('dismissed_duplicates'), storeGet('dismissed_anomalias_estoque'),
     storeGet('dismissed_manejo_tasks'), storeGet('estoque_produtos'), storeGet('estoque_movimentos'),
@@ -4140,7 +4158,8 @@ async function loadAll(){
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
     storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
-    storeGet('piquetes_list'), storeGet('vendas_cobertura'), storeGet('consultoria_aval_propriedade')
+    storeGet('piquetes_list'), storeGet('vendas_cobertura'), storeGet('consultoria_aval_propriedade'),
+    storeGet('simulacoes_cruzamento')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
   animalRegistros = rARz.value||[];
@@ -4152,6 +4171,7 @@ async function loadAll(){
   consultoriaFotosSnapshot = JSON.parse(JSON.stringify(consultoriaFotos));
   semenLotes = Array.isArray(rSemen.value) ? rSemen.value : [];
   vendasCobertura = Array.isArray(rVCob.value) ? rVCob.value : [];
+  simulacoesCruzamento = Array.isArray(rSimCruz.value) ? rSimCruz.value : [];
   // Log de auditoria: NÃO é carregado na abertura (é o maior documento e só é usado na aba dele).
   // Começa vazio; o storeSet('auditoria_log') funde com o disco (união), então nada se perde. É
   // carregado de verdade quando a aba Auditoria abre (ver garantirAuditoriaCarregada).
@@ -11660,7 +11680,7 @@ ORD_RENDERERS.coberturas = renderNascimentos;
 document.getElementById('nSearch').addEventListener('input', debounce(renderNascimentos));
 
 function showNascTab(tab){
-  ['lista','visitas','protocolo','semen','vendacob','relatorio'].forEach(t=>{
+  ['lista','visitas','protocolo','semen','vendacob','relatorio','simulacao'].forEach(t=>{
     document.getElementById('nvtab_'+t).classList.toggle('active', t===tab);
     document.getElementById('nview_'+t).style.display = (t===tab) ? 'block' : 'none';
   });
@@ -11669,6 +11689,7 @@ function showNascTab(tab){
   if(tab==='visitas') renderVisitasRepro();
   if(tab==='semen') renderSemen();
   if(tab==='vendacob') renderVendasCobertura();
+  if(tab==='simulacao') renderSimulacoesCruzamento();
   if(tab==='relatorio'){
     const estSel = document.getElementById('nrFiltroEstacao');
     const ests = [...new Set(nascimentos.map(estacaoDaCobertura).filter(Boolean))].sort().reverse();
@@ -11683,6 +11704,7 @@ document.getElementById('nvtab_protocolo').addEventListener('click', ()=>showNas
 document.getElementById('nvtab_semen').addEventListener('click', ()=>showNascTab('semen'));
 document.getElementById('nvtab_vendacob').addEventListener('click', ()=>showNascTab('vendacob'));
 document.getElementById('nvtab_relatorio').addEventListener('click', ()=>showNascTab('relatorio'));
+document.getElementById('nvtab_simulacao').addEventListener('click', ()=>showNascTab('simulacao'));
 
 /* ===== ESTOQUE DE SÊMEN ===== */
 let editingSemenId = null;
@@ -19033,7 +19055,7 @@ function coeficienteEndogamia(h){
   // comuns porque descendem de um mais próximo são "filhos" da mesma linha e confundem a leitura.
   let comuns = Object.keys(cS).filter(x=>cD[x]!==undefined)
     .map(nome=>({ nome, gerPai: cS[nome]+1, gerMae: cD[nome]+1, soma: cS[nome]+cD[nome] }));
-  comuns = comuns.filter(a => !comuns.some(b => b!==a && _ehAncestralDe(b.nome, a.nome, 0)));
+  comuns = comuns.filter(a => !comuns.some(b => b!==a && _ehAncestralDe(a.nome, b.nome, 0)));
   comuns.sort((a,b)=> a.soma-b.soma);
   return { F, comuns };
 }
@@ -19121,6 +19143,64 @@ document.addEventListener('keydown', e=>{
   if(e.key!=='Enter' && e.key!==' ') return;
   const cx = e.target.closest && e.target.closest('.ped-box-link');
   if(cx && cx.dataset.pedn){ e.preventDefault(); abrirAncestralPedigree(cx.dataset.pedn, cx.dataset.peds); }
+});
+
+/* ===== SIMULAÇÃO DE ACASALAMENTO (Reprodução → aba dedicada) =====
+   Reaproveita coeficienteEndogamia/buildPedigreeTree — os mesmos que já rodam pra um animal de verdade
+   — só que passando um par hipotético {pai, mae} que nunca precisou ter cruzado nem estar cadastrado.
+   Cada simulação salva vira uma linha em `simulacoes_cruzamento`; excluir não mexe em nenhum outro
+   dado (não é uma cobertura de verdade, é só consulta). */
+function renderSimulacoesCruzamento(){
+  const host = document.getElementById('simCruzamentoHost');
+  if(simulacoesCruzamento.length===0){
+    host.innerHTML = '<div class="hint-text">Nenhuma simulação ainda. Preencha reprodutor e matriz acima e clique em "+ Simular acasalamento".</div>';
+    return;
+  }
+  const nomeCap = t => (t||'').replace(/\b\w/g, c=>c.toUpperCase());
+  host.innerHTML = simulacoesCruzamento.slice().reverse().map(s=>{
+    const r = coeficienteEndogamia({ pai:s.pai, mae:s.mae });
+    const pct = r ? r.F*100 : 0;
+    const cor = pct>=12.5 ? 'var(--burgundy)' : pct>=6.25 ? 'var(--warn)' : 'var(--green)';
+    const linhas = (r && r.comuns || []).slice(0,8).map(c=>
+      `<div style="font-size:11.5px;">• <strong>${nomeCap(c.nome)}</strong> — ${c.gerPai}ª geração pelo reprodutor, ${c.gerMae}ª pela matriz</div>`).join('');
+    const arvore = buildPedigreeTree({ nome: nomeCap(s.pai)+' × '+nomeCap(s.mae), pai:s.pai, mae:s.mae });
+    return `<div class="perfil-card" style="margin-bottom:14px;">
+      <div class="perfil-card-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>🧬 ${nomeCap(s.pai)} × ${nomeCap(s.mae)}</span>
+        <button type="button" class="btn btn-sm btn-danger" data-simdel="${s.id}">🗑 Remover</button>
+      </div>
+      <div class="perfil-card-body">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);">Coeficiente de endogamia</span>
+          <strong style="font-family:'Fraunces',serif;font-size:17px;color:${cor};">${pct<0.05?'~0%':('≈ '+pct.toFixed(2).replace('.',',')+'%')}</strong>
+        </div>
+        <div class="hint-text" style="margin-top:4px;">${
+          (r && r.comuns.length>0)
+            ? 'Fórmula de Wright — vale o que está no pedigree cadastrado; quanto mais gerações preenchidas, mais fiel.'
+            : 'Sem parentesco entre os dois nas gerações cadastradas.'
+        }</div>
+        ${linhas ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">${linhas}</div>` : ''}
+        <div style="margin-top:12px;overflow-x:auto;">${arvore}</div>
+      </div>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-simdel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      simulacoesCruzamento = simulacoesCruzamento.filter(s=>s.id!==btn.dataset.simdel);
+      renderSimulacoesCruzamento();
+      await storeSet('simulacoes_cruzamento', simulacoesCruzamento);
+    });
+  });
+}
+document.getElementById('btnSimularCruzamento').addEventListener('click', async ()=>{
+  const pai = titleCase(document.getElementById('sim_pai').value.trim());
+  const mae = titleCase(document.getElementById('sim_mae').value.trim());
+  if(!pai || !mae){ showAlert('Informe o reprodutor (pai) e a matriz (mãe) pra simular.'); return; }
+  simulacoesCruzamento = [...simulacoesCruzamento, { id:'sim_'+Date.now(), pai, mae }];
+  document.getElementById('sim_pai').value = '';
+  document.getElementById('sim_mae').value = '';
+  renderSimulacoesCruzamento();
+  await storeSet('simulacoes_cruzamento', simulacoesCruzamento);
 });
 
 /* ================= FINANCEIRO ================= */
