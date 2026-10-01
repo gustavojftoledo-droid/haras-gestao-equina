@@ -2141,7 +2141,7 @@
           <input type="checkbox" id="fin_destinoGestacao" style="width:16px;height:16px;">
           <span id="fin_destinoGestacaoLabel"></span>
         </label>
-        <div class="hint-text" style="margin:6px 0 8px;">Fica represado até o potro nascer — não conta pro custo da receptora nem pro custo geral do haras. Quando o potro nascer, esse valor vira custo dele.</div>
+        <div class="hint-text" style="margin:6px 0 8px;">Até o potro nascer, conta como custo geral do haras (dividido entre todos os animais), discriminado como Receptora/Transferência com a mãe e o pai. Quando o nascimento for confirmado, sai do geral e vai inteiro para o potro.</div>
         <select id="fin_destinoCategoria" style="display:none;">
           <option value="Receptora">Custo de Receptora — hospedar/manter a receptora</option>
           <option value="Transferência">Custo de Transferência — o procedimento de TE em si</option>
@@ -2679,7 +2679,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <div class="field" id="n_valorSemenWrap" style="display:none;">
         <label>Valor do sêmen (R$)</label>
         <input type="number" id="n_valorSemen" min="0" step="0.01" placeholder="0,00">
-        <div class="hint-text" style="margin-top:4px;">Fica represado até o potro nascer — não conta como custo geral do haras nem de nenhum animal. Quando o potro nascer, esse valor vira custo dele.</div>
+        <div class="hint-text" style="margin-top:4px;">Até o potro nascer, conta como custo geral do haras (dividido entre todos os animais), como "Sêmen" desta cobertura (mãe × pai). Quando o nascimento for confirmado, sai do geral e vai inteiro para o potro.</div>
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -2694,6 +2694,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <label>Coberturas adicionais <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(mesma égua, dias seguintes — ela ainda não tinha ovulado)</span></label>
         <div id="n_cobExtrasHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
         <button type="button" class="btn btn-sm btn-ghost" id="btnAddCobExtra">+ Adicionar outra cobertura</button>
+      </div>
+      <div class="field full" id="n_servicosField">
+        <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
+        <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
+        <div id="n_svPainel" style="display:none;border:1px solid var(--border,#cdbf9a);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--chip-bg,#efe6cc);">
+          <div class="form-grid">
+            <div class="field"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta"></div>
+            <div class="field"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
+            <div class="field full"><label>Destino do custo</label><select id="n_svDestino"></select>
+              <div class="hint-text" style="margin-top:4px;">"Esta cobertura": conta como custo geral do haras até o nascimento ser confirmado; depois sai do geral e vai inteiro para o potro. Ou escolha um animal para o custo ir direto pra ele.</div></div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <button type="button" class="btn btn-sm" id="n_svOk">Adicionar serviço</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="n_svCancelar">Cancelar</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost" id="btnAddServico">+ Inserir serviço</button>
       </div>
       <div class="field" id="n_ovulacaoWrap" style="display:none;"><label>Data da ovulação</label><input type="date" id="n_dataOvulacao"></div>
       <div class="field" id="n_coletaWrap" style="display:none;"><label>Coleta do embrião <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(ovulação + dias configurados)</span></label><input type="date" id="n_dataColetaEmbriao"></div>
@@ -3629,15 +3646,44 @@ const LS_PREFIX = 'haras_gestao_equina__';
 // "lista vazia" — e foi exatamente assim que dados já "sumiram" da tela e, pior, foram sobrescritos por
 // uma gravação feita em cima dessa lista vazia. Enquanto a chave estiver aqui, storeSet NÃO grava nela.
 const chavesComFalhaDeLeitura = new Set();
+
+// Limite de tempo: uma chamada ao Firebase que nunca responde deixava o app parado pra sempre
+// ("Entrando..." eterno). Estourou o tempo = falha comum, tratada como as outras.
+function comTimeout(p, ms, rotulo){
+  return new Promise((res, rej)=>{
+    const t = setTimeout(()=>{ const e = new Error('timeout: '+rotulo); e.code='haras/timeout'; rej(e); }, ms);
+    p.then(v=>{ clearTimeout(t); res(v); }, e=>{ clearTimeout(t); rej(e); });
+  });
+}
+// "Target ID already exists" = cache local do Firestore (IndexedDB) corrompido: toda leitura falha e o
+// app não carrega. Os dados na nuvem estão intactos; basta limpar o cache DESTE aparelho e recarregar.
+// Tenta no máximo 1 vez a cada 2 minutos pra nunca entrar em loop de recarga.
+function erroCacheCorrompido(e){ return !!(e && /target id already exists/i.test(String(e.message||''))); }
+let _curaCachePromise = null;
+function curarCacheFirestore(){
+  if(_curaCachePromise) return _curaCachePromise;
+  let ultima = 0;
+  try{ ultima = +localStorage.getItem('haras_cura_cache')||0; }catch(_){}
+  if(Date.now()-ultima < 120000){ console.warn('Cache do Firestore corrompido, mas a limpeza automática já rodou há pouco.'); return Promise.resolve(false); }
+  try{ localStorage.setItem('haras_cura_cache', String(Date.now())); }catch(_){}
+  _curaCachePromise = (async()=>{
+    try{ await db.terminate(); await db.clearPersistence(); }
+    catch(e){ console.error('Não consegui limpar o cache do Firestore:', e); return false; }
+    location.reload();
+    return true;
+  })();
+  return _curaCachePromise;
+}
 async function storeGet(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     // Mesmas 3 tentativas do caminho abaixo: uma oscilação de rede na abertura não pode virar "lista vazia".
     for(let attempt=1; attempt<=3; attempt++){
       try{
-        const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+        const snap = await comTimeout(db.collection(FIRESTORE_COLLECTION).doc(key).get(), 15000, key);
         chavesComFalhaDeLeitura.delete(key);
         return { ok:true, value: snap.exists ? snap.data().value : [] };
       }catch(e){
+        if(erroCacheCorrompido(e)){ chavesComFalhaDeLeitura.add(key); curarCacheFirestore(); return { ok:false, value: [] }; }
         if(attempt<3){ await new Promise(res=>setTimeout(res, 400*attempt)); continue; }
         chavesComFalhaDeLeitura.add(key);
         console.error('Firestore get failed for', key, e); return { ok:false, value: [] };
@@ -10836,6 +10882,41 @@ function renderNascCobExtras(){
   host.querySelectorAll('[data-cobextra-obs]').forEach(el=>el.addEventListener('input',()=>{ nascCobExtras[+el.dataset.cobextraObs].obs=el.value; }));
   host.querySelectorAll('[data-cobextra-del]').forEach(el=>el.addEventListener('click',()=>{ nascCobExtras.splice(+el.dataset.cobextraDel,1); renderNascCobExtras(); atualizarProvavelNascimentoView(); }));
 }
+// Serviços da cobertura (inseminação, frete, coleta...): cada um é um custo com valor e destino. Destino
+// "Esta cobertura" = custo geral até o nascimento confirmado, depois do potro (ver lancamentoEmGestacao);
+// destino "animal" = vai direto pra esse animal.
+let nascServicos = [];
+function renderNascServicos(){
+  const host = document.getElementById('n_servicosHost');
+  const fmt = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  host.innerHTML = nascServicos.map((sv,i)=>{
+    const h = sv.animalId ? horses.find(x=>x.id===sv.animalId) : null;
+    const dest = sv.animalId ? ('→ '+escHtml(h?h.nome:'animal')) : '→ esta cobertura / potro';
+    return `<div style="display:flex;gap:8px;align-items:center;font-size:13px;">
+      <span style="flex:1;">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${dest}</span></span>
+      <strong>${fmt(sv.valor)}</strong>
+      <button type="button" class="btn btn-sm btn-ghost" data-svdel="${i}" title="Remover">✕</button>
+    </div>`;
+  }).join('') + (nascServicos.length>1 ? `<div style="text-align:right;font-size:12px;color:var(--muted);">Total: <strong>${fmt(nascServicos.reduce((a,x)=>a+(Number(x.valor)||0),0))}</strong></div>` : '');
+  host.querySelectorAll('[data-svdel]').forEach(el=>el.addEventListener('click',()=>{ nascServicos.splice(+el.dataset.svdel,1); renderNascServicos(); }));
+}
+function fecharPainelServico(){ document.getElementById('n_svPainel').style.display='none'; }
+document.getElementById('btnAddServico').addEventListener('click',()=>{
+  const sel = document.getElementById('n_svDestino');
+  sel.innerHTML = '<option value="">Esta cobertura (custo geral até nascer → potro)</option>'
+    + horses.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR')).map(h=>`<option value="${escHtml(h.id)}">Animal: ${escHtml(h.nome||'?')}</option>`).join('');
+  document.getElementById('n_svDesc').value=''; document.getElementById('n_svValor').value='';
+  document.getElementById('n_svPainel').style.display='block';
+  document.getElementById('n_svDesc').focus();
+});
+document.getElementById('n_svCancelar').addEventListener('click', fecharPainelServico);
+document.getElementById('n_svOk').addEventListener('click', ()=>{
+  const desc = document.getElementById('n_svDesc').value.trim();
+  const valor = Number(document.getElementById('n_svValor').value)||0;
+  if(!desc || !(valor>0)){ showAlert('Informe o serviço e um valor maior que zero.'); return; }
+  nascServicos.push({ desc, valor, animalId: document.getElementById('n_svDestino').value||'' });
+  renderNascServicos(); fecharPainelServico();
+});
 document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
 function atualizarProvavelNascimentoView(){
   const datas = [document.getElementById('n_datacob').value, ...nascCobExtras.map(c=>c.data)].filter(Boolean).sort();
@@ -10963,6 +11044,7 @@ document.getElementById('btnNewNasc').addEventListener('click', ()=>{
   document.getElementById('n_transferenciaEmbriao').checked=false;
   document.getElementById('n_semenComprado').checked=false;
   document.getElementById('n_valorSemenWrap').style.display='none';
+  nascServicos = []; renderNascServicos();
   document.getElementById('n_receptoraWrap').style.display='none';
   document.getElementById('n_ovulacaoWrap').style.display='none';
   document.getElementById('n_coletaWrap').style.display='none';
@@ -10984,6 +11066,9 @@ function openNascEdit(id){
   document.getElementById('n_semenComprado').checked = !!n.semenComprado;
   document.getElementById('n_valorSemenWrap').style.display = n.semenComprado ? 'flex' : 'none';
   document.getElementById('n_valorSemen').value = n.valorSemen || '';
+  nascServicos = Array.isArray(n.servicos) ? n.servicos.map(x=>({...x}))
+    : (Number(n.valorServico)>0 ? [{ desc:n.servicoDesc||'', valor:Number(n.valorServico), animalId:'' }] : []);
+  renderNascServicos();
   document.getElementById('n_receptora').value = n.receptora||'';
   document.getElementById('n_transferenciaEmbriao').checked = !!n.transferenciaEmbriao;
   document.getElementById('n_receptoraWrap').style.display = n.transferenciaEmbriao ? 'flex' : 'none';
@@ -11032,6 +11117,7 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   const semenComprado = document.getElementById('n_semenComprado').checked;
   const valorSemen = semenComprado ? (Number(f('n_valorSemen'))||0) : 0;
   const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado, valorSemen,
+    servicos: nascServicos.filter(x=>Number(x.valor)>0).map(x=>({ desc:(x.desc||'').trim(), valor:Number(x.valor), animalId:x.animalId||'' })), servicoDesc:'', valorServico:0,
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
@@ -19306,11 +19392,10 @@ function lancamentosDerivadosVendaCobertura(){
     valor: Number(v.valor)||0, moeda: 'BRL'
   }));
 }
-// Sêmen comprado numa cobertura: mesmo esquema de "custo represado" do Receptora/Transferência (ver
-// custoDiretoAnimal) — o rateio aponta pro `destino` (o registro de Nascimentos), nunca direto pro
-// animal físico. Enquanto o potro não nasce (n.animalId ainda null), custoDiretoAnimal não acha
-// ninguém pra atribuir e o valor fica represado; assim que a cobertura é confirmada com o nascimento,
-// o mesmo rateio passa a resolver pro potro sozinho, sem precisar editar nada aqui.
+// Sêmen comprado numa cobertura: o rateio aponta pro `destino` (o registro de Nascimentos), nunca direto
+// pro animal físico. Enquanto o potro não nasce (n.animalId ainda null) é custo GERAL do haras
+// (lancamentoEmGestacao); assim que o nascimento é confirmado, o mesmo rateio passa a resolver pro
+// potro sozinho (custoDiretoAnimal) e sai do geral, sem precisar editar nada aqui.
 function lancamentosDerivadosSemen(){
   return nascimentos.filter(n=>n.semenComprado && Number(n.valorSemen)>0).map(n=>({
     id: 'auto_sm_'+n.id, origemId: n.id, origem: 'nascimentos',
@@ -19319,6 +19404,28 @@ function lancamentosDerivadosSemen(){
     valor: Number(n.valorSemen)||0, moeda:'BRL',
     rateio: [{ destino: n.id, valor: Number(n.valorSemen)||0 }]
   }));
+}
+// Serviços da cobertura (inseminação, frete, coleta...): cada um vira uma saída no Financeiro, na categoria
+// "Serviço de Cobertura". Sem animal escolhido, aponta pra cobertura (custo geral até o nascimento, depois o
+// potro — ver lancamentoEmGestacao); com animal, vai direto pra ele. Cobre também o formato antigo (1 serviço só).
+function lancamentosDerivadosServicoCobertura(){
+  const out = [];
+  nascimentos.forEach(n=>{
+    const lista = Array.isArray(n.servicos) ? n.servicos
+      : (Number(n.valorServico)>0 ? [{ desc:n.servicoDesc||'', valor:Number(n.valorServico), animalId:'' }] : []);
+    lista.forEach((sv,i)=>{
+      const valor = Number(sv.valor)||0;
+      if(valor<=0) return;
+      out.push({
+        id: 'auto_sv_'+n.id+'_'+i, origemId: n.id, origem: 'nascimentos',
+        data: n.datacob||'', tipo:'saida', categoria:'Serviço de Cobertura', natureza:'caixa',
+        descricao: `Serviço${sv.desc?(' — '+sv.desc):''} — ${n.matriz||'?'}${n.pai?(' × '+n.pai):''}`,
+        valor, moeda:'BRL',
+        rateio: [ sv.animalId ? { animalId: sv.animalId, valor } : { destino: n.id, valor } ]
+      });
+    });
+  });
+  return out;
 }
 // Nome usado só pra RECONHECER se uma venda já foi lançada (não é exibido) — minúsculo e sem espaço
 // duplicado, pra "Estrela" e " estrela " contarem como o mesmo animal.
@@ -19408,7 +19515,8 @@ function todosLancamentosFinanceiro(){
     ...lancamentosDerivadosTransporte(),
     ...lancamentosDerivadosVendas(),
     ...lancamentosDerivadosVendaCobertura(),
-    ...lancamentosDerivadosSemen()
+    ...lancamentosDerivadosSemen(),
+    ...lancamentosDerivadosServicoCobertura()
   ];
 }
 // Custa caro (junta lançamentos + derivados de manejos/estoque/treinos/visitas/tratamentos/dietas/
@@ -19608,16 +19716,38 @@ function animalAtivoNoMes(h, mesStr){
   return true;
 }
 // Junta, mês a mês, todo custo de caixa que sobrou sem nenhum animal marcado — o "pote" geral do
-// haras. Fica de fora: alocação (já foi pra alguém), qualquer linha que já tenha rateio (mesmo que só
-// a título de custo represado de gestação), compras de Estoque (o gasto delas só vira custo de
+// haras. Fica de fora: alocação (já foi pra alguém), qualquer linha que já tenha rateio (EXCETO as de
+// gestação em andamento — ver lancamentoEmGestacao —, que contam aqui até o potro nascer), compras de Estoque (o gasto delas só vira custo de
 // verdade quando consumido — contar aqui de novo na hora da compra dobraria esse mesmo real quando o
 // produto for consumido depois), lançamentos em US$ (rateio só em Reais) e as categorias marcadas
 // como "fora do rateio" (investimento, não manutenção — Benfeitoria, Compra de Animal etc.).
+// Gestação em andamento: lançamento cujo rateio aponta SÓ pra coberturas cujo potro ainda não nasceu
+// (nascimento não confirmado = sem animalId). Enquanto isso o custo de gerar o potro (sêmen, serviço,
+// transferência, receptora...) conta como CUSTO GERAL do haras, dividido entre todos os animais, com a
+// categoria e a mãe × pai à mostra. Com o nascimento confirmado, sai do geral e vai INTEIRO pro potro
+// (custoDiretoAnimal) — a mesma linha, só muda o dono quando o animalId do potro é preenchido.
+function lancamentoEmGestacao(l){
+  if(!l.rateio || l.rateio.length===0) return false;
+  return l.rateio.every(r=>{
+    if(!r.destino) return false;
+    const n = nascimentos.find(x=>x.id===r.destino);
+    return !!n && !n.animalId;
+  });
+}
+// Texto "de onde veio" pro drill-down do geral: acrescenta mãe × pai da cobertura quando a descrição não traz.
+function descricaoComCobertura(l){
+  const base = l.descricao || l.categoria || '';
+  const r = (l.rateio||[]).find(x=>x.destino);
+  const n = r && nascimentos.find(x=>x.id===r.destino);
+  if(!n) return base;
+  const par = (n.matriz||'?')+(n.pai?(' × '+n.pai):'');
+  return (n.matriz && base.includes(n.matriz) ? base : base+' — '+par)+' (gestação em andamento)';
+}
 function poteRateioPorMes(de, ate){
   const porMes = {};
   todosLancamentosFinanceiro().forEach(l=>{
     if(l.tipo!=='saida' || l.natureza==='alocacao') return;
-    if(l.rateio && l.rateio.length>0) return;
+    if(l.rateio && l.rateio.length>0 && !lancamentoEmGestacao(l)) return;
     if(l.origem==='estoque') return;
     if(l.moeda==='USD') return;
     if((config.categoriasForaRateio||[]).includes(l.categoria)) return;
@@ -19650,7 +19780,7 @@ function custoRateioGeralItens(animalId, de, ate){
   const itens = [];
   todosLancamentosFinanceiro().forEach(l=>{
     if(l.tipo!=='saida' || l.natureza==='alocacao') return;
-    if(l.rateio && l.rateio.length>0) return;
+    if(l.rateio && l.rateio.length>0 && !lancamentoEmGestacao(l)) return;
     if(l.origem==='estoque') return;
     if(l.moeda==='USD') return;
     if((config.categoriasForaRateio||[]).includes(l.categoria)) return;
@@ -19661,7 +19791,7 @@ function custoRateioGeralItens(animalId, de, ate){
     if(!(mes in porMesContagem)) porMesContagem[mes] = horses.filter(h=>animalAtivoNoMes(h, mes)).length;
     const ativosNoMes = porMesContagem[mes];
     if(ativosNoMes<=0) return;
-    itens.push({ data: l.data, categoria: l.categoria, descricao: l.descricao, valorPorAnimal: (Number(l.valor)||0)/ativosNoMes });
+    itens.push({ data: l.data, categoria: l.categoria, descricao: descricaoComCobertura(l), valorPorAnimal: (Number(l.valor)||0)/ativosNoMes });
   });
   return itens.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
 }
@@ -20630,11 +20760,13 @@ function tentarLoginFirebase(){
   if(!email || !senha){ mostrarErroLogin('Preencha e-mail e senha.'); return; }
   const btn = document.getElementById('btnLoginEntrar');
   btn.disabled = true; btn.textContent = 'Entrando...';
-  firebase.auth().signInWithEmailAndPassword(email, senha)
+  comTimeout(firebase.auth().signInWithEmailAndPassword(email, senha), 20000, 'login')
     .then(cred=>{ prosseguirEntrar(cred.user); })
     .catch(err=>{
       const semSenhaOuEmailErrado = ['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(err.code);
-      mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.' : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
+      mostrarErroLogin(semSenhaOuEmailErrado ? 'E-mail ou senha incorretos.'
+        : err.code==='haras/timeout' ? 'O servidor demorou demais para responder. Tente de novo, ou marque "Trabalhar offline" para usar os dados deste aparelho.'
+        : 'Não consegui entrar agora. Verifique sua conexão e tente de novo.');
       btn.disabled = false; btn.textContent = 'Entrar';
     });
 }
@@ -22019,9 +22151,9 @@ document.querySelectorAll('[data-relordem]').forEach(chip=>{
 const CATEGORIA_CUSTO_ANIMAL = {
   'Ferrageamento':'Casco', 'Odontologia':'Dente', 'Vacina':'Saúde', 'Vermífugo':'Saúde',
   'Veterinário / Medicamento':'Saúde', 'Alimentação':'Alimentação', 'Transporte':'Transporte', 'Treino':'Atividades',
-  'Receptora':'Receptora', 'Transferência':'Transferência', 'Sêmen':'Sêmen',
+  'Receptora':'Receptora', 'Transferência':'Transferência', 'Sêmen':'Sêmen', 'Serviço de Cobertura':'Serviço',
 };
-const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Sêmen','Outros'];
+const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Sêmen','Serviço','Outros'];
 // Custo represado: uma linha do rateio pode ter `destino` (id de um registro de Nascimentos) em vez
 // de contar direto pro animal físico que passou pelo procedimento (a receptora) — enquanto o potro não
 // nasce, esse valor fica represado (não conta pra ninguém); depois que nasce e o registro de Nascimentos
