@@ -4,7 +4,7 @@
 // realmente abrir e funcionar offline. Os DADOS ficam no cache offline do próprio Firestore
 // (enablePersistence no app): o que você digitar sem internet entra numa fila e sobe sozinho quando
 // reconectar. Só entra em ação servido por http/https (GitHub Pages etc.), não em file://.
-const CACHE_NAME = 'haras-gestao-equina-v9';
+const CACHE_NAME = 'haras-gestao-equina-v10';
 
 // Tudo que o app precisa pra abrir sem internet. As URLs externas (gstatic/cdnjs) mandam cabeçalho
 // CORS, então dá pra guardar uma cópia utilizável (não é "opaque").
@@ -62,7 +62,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   event.respondWith(
-    fetch(req).then((response) => {
+    // Mesma origem (a tela do app): 'no-cache' faz o navegador REVALIDAR com o servidor em vez de usar a
+    // cópia que o GitHub Pages deixa valer por ~10 min — sem isso, uma atualização recém-publicada demorava
+    // a aparecer. Bibliotecas externas (CDN) seguem o cache normal.
+    fetch(req, url.origin === self.location.origin ? { cache: 'no-cache' } : undefined).then((response) => {
       // Guarda cópia de tudo que carregou bem: a tela (mesma origem) e as libs externas (CORS).
       if (response && response.status === 200 &&
           (response.type === 'basic' || response.type === 'cors')) {
