@@ -2701,14 +2701,14 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
         <label>Serviços <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(inseminação, frete, coleta... entram no Financeiro como custo)</span></label>
         <div id="n_servicosHost" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;"></div>
         <div id="n_svPainel" style="display:none;border:1px solid var(--border,#cdbf9a);border-radius:8px;padding:10px;margin-bottom:6px;background:var(--chip-bg,#efe6cc);">
-          <div class="form-grid">
-            <div class="field"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete do sêmen, coleta"></div>
-            <div class="field"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
-            <div class="field full"><label>Destino do custo</label><select id="n_svDestino"></select>
-              <div class="hint-text" style="margin-top:4px;">"Esta cobertura": conta como custo geral do haras até o nascimento ser confirmado; depois sai do geral e vai inteiro para o potro. Ou escolha um animal para o custo ir direto pra ele.</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="field" style="flex:2 1 170px;"><label>Serviço</label><input type="text" id="n_svDesc" placeholder="Ex.: inseminação, frete, coleta"></div>
+            <div class="field" style="flex:0 0 150px;"><label>Data</label><input type="date" id="n_svData"></div>
+            <div class="field" style="flex:0 0 120px;"><label>Valor (R$)</label><input type="number" id="n_svValor" min="0" step="0.01" placeholder="0,00"></div>
           </div>
-          <div style="display:flex;gap:6px;margin-top:8px;">
-            <button type="button" class="btn btn-sm" id="n_svOk" onclick="adicionarServicoDoPainel()">Adicionar serviço</button>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+            <select id="n_svDestino" style="flex:1 1 220px;" title="Esta cobertura: custo geral do haras até o nascimento ser confirmado; depois vai inteiro para o potro. Ou escolha um animal."></select>
+            <button type="button" class="btn btn-sm" id="n_svOk" onclick="adicionarServicoDoPainel()">Adicionar</button>
             <button type="button" class="btn btn-sm btn-ghost" id="n_svCancelar" onclick="fecharPainelServico()">Cancelar</button>
           </div>
         </div>
@@ -10913,7 +10913,7 @@ function renderNascServicos(){
     const h = sv.animalId ? horses.find(x=>x.id===sv.animalId) : null;
     const dest = sv.animalId ? ('→ '+escHtml(h?h.nome:'animal')) : '→ esta cobertura / potro';
     return `<div style="display:flex;gap:8px;align-items:center;font-size:13px;">
-      <span style="flex:1;">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${dest}</span></span>
+      <span style="flex:1;">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${sv.data?('· '+fmtDate(sv.data)+' '):''}${dest}</span></span>
       <strong>${fmt(sv.valor)}</strong>
       <button type="button" class="btn btn-sm btn-ghost" data-svdel="${i}" title="Remover">✕</button>
     </div>`;
@@ -10931,6 +10931,7 @@ function atualizarVisibilidadeServicos(){
 // nunca impede o painel de abrir.
 function abrirPainelServico(){
   document.getElementById('n_svDesc').value=''; document.getElementById('n_svValor').value='';
+  document.getElementById('n_svData').value = document.getElementById('n_datacob').value || toISODate(new Date());
   document.getElementById('n_svPainel').style.display='block';
   atualizarVisibilidadeServicos();
   const sel = document.getElementById('n_svDestino');
@@ -10947,7 +10948,7 @@ function adicionarServicoDoPainel(){
   const desc = document.getElementById('n_svDesc').value.trim();
   const valor = Number(document.getElementById('n_svValor').value)||0;
   if(!desc || !(valor>0)){ showAlert('Informe o serviço e um valor maior que zero.'); return; }
-  nascServicos.push({ desc, valor, animalId: document.getElementById('n_svDestino').value||'' });
+  nascServicos.push({ desc, valor, data: document.getElementById('n_svData').value||'', animalId: document.getElementById('n_svDestino').value||'' });
   renderNascServicos(); fecharPainelServico();
 }
 document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
@@ -11150,7 +11151,7 @@ document.getElementById('btnSaveNasc').addEventListener('click', async ()=>{
   const semenComprado = document.getElementById('n_semenComprado').checked;
   const valorSemen = semenComprado ? (Number(f('n_valorSemen'))||0) : 0;
   const record = { ...(existente||{}), id: editingNascId || ('ns_'+Date.now()), matriz:matrizNome, pai:paiNome, receptora:receptoraNome, transferenciaEmbriao, semenComprado, valorSemen,
-    servicos: nascServicos.filter(x=>Number(x.valor)>0).map(x=>({ desc:(x.desc||'').trim(), valor:Number(x.valor), animalId:x.animalId||'' })), servicoDesc:'', valorServico:0,
+    servicos: nascServicos.filter(x=>Number(x.valor)>0).map(x=>({ desc:(x.desc||'').trim(), valor:Number(x.valor), data:x.data||'', animalId:x.animalId||'' })), servicoDesc:'', valorServico:0,
     datacob:f('n_datacob'), coberturasAdicionais: nascCobExtras.filter(c=>c.data).map(c=>({data:c.data, obs:(c.obs||'').trim()})),
     dataOvulacao: transferenciaEmbriao ? f('n_dataOvulacao') : '',
     dataColetaEmbriao: transferenciaEmbriao ? f('n_dataColetaEmbriao') : '',
@@ -19542,7 +19543,7 @@ function lancamentosDerivadosServicoCobertura(){
       if(valor<=0) return;
       out.push({
         id: 'auto_sv_'+n.id+'_'+i, origemId: n.id, origem: 'nascimentos',
-        data: n.datacob||'', tipo:'saida', categoria:'Serviço de Cobertura', natureza:'caixa',
+        data: sv.data || n.datacob || '', tipo:'saida', categoria:'Serviço de Cobertura', natureza:'caixa',
         descricao: `Serviço${sv.desc?(' — '+sv.desc):''} — ${n.matriz||'?'}${n.pai?(' × '+n.pai):''}`,
         valor, moeda:'BRL',
         rateio: [ sv.animalId ? { animalId: sv.animalId, valor } : { destino: n.id, valor } ]
