@@ -1165,8 +1165,7 @@
 
       <div id="tview_relatorios" style="display:none;">
         <div class="filters">
-          <div class="f"><label>Data de</label><input type="date" id="trFiltroDe"></div>
-          <div class="f"><label>Data até</label><input type="date" id="trFiltroAte"></div>
+          <div class="f"><label>Período</label><div id="trFiltroPeriodo"></div></div>
         </div>
         <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="treinoRelSelectorHost" style="margin:10px 0 16px;"></div>
@@ -1179,7 +1178,7 @@
           </div>
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelTreino" style="display:none;">⬇ Baixar PDF</button>
         </div>
-        <div class="hint-text" style="margin-top:8px;">O Relatório de Cobrança usa os mesmos filtros acima (animais, categoria, localização, proprietário) e o período em "Data de/até" — filtre pelo proprietário/localização da tropa e marque os animais dele antes de gerar.</div>
+        <div class="hint-text" style="margin-top:8px;">O Relatório de Cobrança usa os mesmos filtros acima (animais, categoria, localização, proprietário) e o período escolhido acima — filtre pelo proprietário/localização da tropa e marque os animais dele antes de gerar.</div>
         <div id="treinoRelResult" style="margin-top:14px;"></div>
       </div>
     </div>
@@ -10653,6 +10652,7 @@ document.getElementById('btnPdfListaChuckersSelecionados').addEventListener('cli
 /* ---- Relatórios de Treino ---- */
 const treinoRelHost = document.getElementById('treinoRelSelectorHost');
 treinoRelHost.id = 'treinoRelSelectorHost';
+const trFiltroPeriodo = createDateRangePicker(document.getElementById('trFiltroPeriodo'), {});
 const treinoRelSelector = createAnimalSelector(treinoRelHost, {extraPlaceholder:'', reportFilter:true, hideExternos:true, persistKey:'treino'});
 
 function treinosFiltradosPara(hid, de, ate){
@@ -10674,8 +10674,7 @@ function gerarRelatorioTreinoUnico(id){
 }
 
 function gerarRelatorioTreino1(){
-  const de = document.getElementById('trFiltroDe').value;
-  const ate = document.getElementById('trFiltroAte').value;
+  const { de, ate } = trFiltroPeriodo.getRange();
   const selecionados = treinoRelSelector.getSelected();
   if(selecionados.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
   const linhas = selecionados.map(s=>({ animal: horses.find(x=>x.id===s.id), registros: treinosFiltradosPara(s.id, de, ate) }))
@@ -10717,8 +10716,7 @@ function tipoAbrevTreino(tipo){
   return tipo ? tipo.trim().charAt(0).toUpperCase() : '?';
 }
 function gerarRelatorioTreino2(){
-  const de = document.getElementById('trFiltroDe').value;
-  const ate = document.getElementById('trFiltroAte').value;
+  const { de, ate } = trFiltroPeriodo.getRange();
   const selecionados = treinoRelSelector.getSelected();
   if(selecionados.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
   const idsSelecionados = new Set(selecionados.map(s=>s.id));
@@ -10771,8 +10769,7 @@ function gerarRelatorioTreino2(){
 // Relatório 3 — Por Treino: agrupa por Tipo e, dentro de cada tipo, cada sessão (data + local) com
 // a lista de quem participou. Busca "pelo treino" em vez de pelo animal.
 function gerarRelatorioTreino3(){
-  const de = document.getElementById('trFiltroDe').value;
-  const ate = document.getElementById('trFiltroAte').value;
+  const { de, ate } = trFiltroPeriodo.getRange();
   const selecionados = treinoRelSelector.getSelected();
   if(selecionados.length===0){ showAlert('Selecione ao menos um animal (ou clique em "Selecionar todos").'); return; }
   const idsSelecionados = new Set(selecionados.map(s=>s.id));
@@ -10810,7 +10807,7 @@ document.getElementById('btnPdfRelTreino').addEventListener('click', ()=>{
   baixarRelatorioManejoPDF(host.innerHTML, 'Relatorio_Treinos.pdf', temMatriz ? {orientation:'landscape'} : undefined);
 });
 
-// Relatório de Cobrança — reaproveita 100% o mesmo seletor de animais e o mesmo período (Data de/até)
+// Relatório de Cobrança — reaproveita 100% o mesmo seletor de animais e o mesmo período
 // já usados pelos Relatórios 1/2/3 (sem seção de filtro própria): filtre os animais por Proprietário
 // e/ou Localização (chips que já existem em qualquer seletor) e marque quem interessa antes de gerar.
 // Só entram treinos com t.cobranca que tenham pelo menos um dos animais marcados; dentro de cada
@@ -10820,7 +10817,7 @@ function gerarRelatorioCobrancaTreinos(){
   const selecionados = treinoRelSelector.getSelected();
   if(selecionados.length===0){ showAlert('Selecione ao menos um animal (ou "Selecionar todos") — use os filtros de Proprietário/Localização acima pra achar rápido a tropa certa.'); return; }
   const idsSelecionados = new Set(selecionados.map(a=>a.id));
-  const de = f('trFiltroDe'), ate = f('trFiltroAte');
+  const { de, ate } = trFiltroPeriodo.getRange();
   const lista = treinos.filter(t=>{
     if(!t.cobranca) return false;
     if(de && t.data<de) return false;
