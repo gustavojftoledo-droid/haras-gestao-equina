@@ -22194,21 +22194,6 @@ const CATEGORIA_CUSTO_ANIMAL = {
   'Receptora':'Receptora', 'Transferência':'Transferência', 'Sêmen':'Sêmen', 'Serviço de Cobertura':'Serviço',
 };
 const CATEGORIAS_CUSTO_ANIMAL_ORDEM = ['Alimentação','Saúde','Casco','Dente','Transporte','Atividades','Receptora','Transferência','Sêmen','Serviço','Outros'];
-// Potro de transferência de embrião que FALECEU: todo o custo dele passa pra mãe DOADORA (a matriz da
-// cobertura), nunca pra receptora (a que só criou). Devolve { idDoPotro: idDaDoadora } só pros potros
-// nesse caso; sem doadora identificada pelo nome, o custo fica com o potro como antes.
-function mapaDoadoraDoPotroFalecido(){
-  const mapa = {};
-  nascimentos.forEach(n=>{
-    if(!n.transferenciaEmbriao || !n.animalId) return;
-    const potro = horses.find(h=>h.id===n.animalId);
-    if(!potro || !potro.falecimento) return;
-    const alvo = normNomeVenda(n.matriz);
-    const doadora = alvo && horses.find(h=>h.id!==potro.id && normNomeVenda(h.nome)===alvo);
-    if(doadora) mapa[potro.id] = doadora.id;
-  });
-  return mapa;
-}
 // Custo represado: uma linha do rateio pode ter `destino` (id de um registro de Nascimentos) em vez
 // de contar direto pro animal físico que passou pelo procedimento (a receptora) — enquanto o potro não
 // nasce, esse valor fica represado (não conta pra ninguém); depois que nasce e o registro de Nascimentos
@@ -22216,7 +22201,6 @@ function mapaDoadoraDoPotroFalecido(){
 // Saúde etc. continuam normais — só "Receptora"/"Transferência" são categorias próprias, usadas quando
 // o custo em si É o de hospedar a receptora ou fazer a transferência, não um procedimento qualquer).
 function custoDiretoAnimal(animalId, de, ate){
-  const doadoraDoPotro = mapaDoadoraDoPotroFalecido();
   let total = 0;
   const porCategoria = {};
   todosLancamentosFinanceiro().forEach(l=>{
@@ -22226,10 +22210,12 @@ function custoDiretoAnimal(animalId, de, ate){
     if(!l.rateio || l.rateio.length===0) return;
     let meuValor = 0;
     l.rateio.forEach(r=>{
-      let alvo = r.animalId;
-      if(r.destino){ const n = nascimentos.find(x=>x.id===r.destino); alvo = n ? n.animalId : null; }
-      if(!alvo) return;
-      if((doadoraDoPotro[alvo]||alvo)===animalId) meuValor += (Number(r.valor)||0);
+      if(r.destino){
+        const n = nascimentos.find(x=>x.id===r.destino);
+        if(n && n.animalId===animalId) meuValor += (Number(r.valor)||0);
+        return;
+      }
+      if(r.animalId===animalId) meuValor += (Number(r.valor)||0);
     });
     if(meuValor<=0) return;
     total += meuValor;
@@ -22241,7 +22227,6 @@ function custoDiretoAnimal(animalId, de, ate){
 // Mesma conta de custoDiretoAnimal, mas também guarda CADA lançamento que compôs cada categoria —
 // usado só no Relatório 3 (Custo por Animal), pra clicar num valor e ver de onde ele veio.
 function custoDiretoAnimalDetalhado(animalId, de, ate){
-  const doadoraDoPotro = mapaDoadoraDoPotroFalecido();
   let total = 0;
   const porCategoria = {};
   const itensPorCategoria = {};
@@ -22251,22 +22236,20 @@ function custoDiretoAnimalDetalhado(animalId, de, ate){
     if(ate && l.data>ate) return;
     if(!l.rateio || l.rateio.length===0) return;
     let meuValor = 0;
-    let viaPotro = '';
     l.rateio.forEach(r=>{
-      let alvo = r.animalId;
-      if(r.destino){ const n = nascimentos.find(x=>x.id===r.destino); alvo = n ? n.animalId : null; }
-      if(!alvo) return;
-      if((doadoraDoPotro[alvo]||alvo)===animalId){
-        meuValor += (Number(r.valor)||0);
-        if(alvo!==animalId){ const p = horses.find(x=>x.id===alvo); viaPotro = p ? p.nome : 'potro'; }
+      if(r.destino){
+        const n = nascimentos.find(x=>x.id===r.destino);
+        if(n && n.animalId===animalId) meuValor += (Number(r.valor)||0);
+        return;
       }
+      if(r.animalId===animalId) meuValor += (Number(r.valor)||0);
     });
     if(meuValor<=0) return;
     total += meuValor;
     const cat = CATEGORIA_CUSTO_ANIMAL[l.categoria] || 'Outros';
     porCategoria[cat] = (porCategoria[cat]||0) + meuValor;
     if(!itensPorCategoria[cat]) itensPorCategoria[cat] = [];
-    itensPorCategoria[cat].push({ data:l.data, descricao:(viaPotro?('[potro '+viaPotro+', falecido] '):'')+(l.descricao||l.categoria), valor:meuValor });
+    itensPorCategoria[cat].push({ data:l.data, descricao:l.descricao||l.categoria, valor:meuValor });
   });
   return { total, porCategoria, itensPorCategoria };
 }
