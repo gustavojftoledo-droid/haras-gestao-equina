@@ -1166,7 +1166,6 @@
       <div id="tview_relatorios" style="display:none;">
         <div class="filters">
           <div class="f"><label>Período</label><div id="trFiltroPeriodo"></div></div>
-          <div class="f"><label>Lista de Chuckers</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;"><input type="checkbox" id="trIncluirLista" style="width:15px;height:15px;"> Já abrir com a lista <span style="color:var(--muted);">(sai no PDF)</span></label></div>
         </div>
         <div class="section-label" style="border-top:none;padding-top:0;">Escolha os animais <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— "Selecionar todos os animais" ou marque só quem interessa (setas + espaço navegam rápido)</span></div>
         <div id="treinoRelSelectorHost" style="margin:10px 0 16px;"></div>
@@ -10703,20 +10702,30 @@ function treinosFiltradosPara(hid, de, ate){
 
 // Relatório simples de UM treino só — usado ao clicar em cima da linha no Histórico de Treinos.
 // Mesmo esquema de PDF que já existe em Manejos (mostra prévia antes de baixar).
-// ---- Lista de Chuckers dentro dos relatórios ----
-// Cada treino que tem lista ganha um botão "📋 Lista": clicando (no botão ou na linha) a lista abre/fecha ali
-// mesmo. A caixa "Já abrir com a lista" deixa tudo aberto — e o PDF sai do jeito que está na tela.
-let _trlSeq = 0;
+// ---- Lista de Chuckers nos relatórios ----
+// Relatório 3 (Por Treino): a lista vem direto, logo abaixo dos cavalos, no formato compacto — o NOME DO
+// TREINADOR na frente e "Espera" ao lado, e embaixo "1 Animal 1 / Animal 2" com a espera na outra coluna.
+// Com mais de um treinador, os blocos ficam lado a lado (quebram de linha se não couberem).
 function treinoTemLista(t){ return listasDoTreino(t).some(l=>(l.chuckers||[]).some(chuckerLinhaPreenchida)); }
-function listaTreinoAbertaPadrao(){ const c = document.getElementById('trIncluirLista'); return !!(c && c.checked); }
-function listaTreinoConteudo(t){
-  return `<div style="margin:4px 0 8px;"><div class="report-tipo-titulo" style="font-size:12px;">Lista de Chuckers — ${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}</div><div class="grid-wrap compact">${tabelasListasTreinoHtml(t,'grid')}</div></div>`;
+function listasCompactasTreinoHtml(t){
+  const nomeAnimal = id => id ? ((horses.find(h=>h.id===id)||{}).nome||'') : '';
+  const listas = listasDoTreino(t);
+  if(listas.length===0) return '';
+  const blocos = listas.map(l=>{
+    const linhas = (l.chuckers||[]).filter(chuckerLinhaPreenchida);
+    if(linhas.length===0) return '';
+    const titulo = l.treinador || (t.treinadores||'').trim() || 'Lista';
+    return `<table style="border-collapse:collapse;font-size:13px;min-width:230px;">
+      <thead><tr><th style="text-align:left;padding:2px 22px 2px 0;">${titulo}</th><th style="text-align:left;padding:2px 0;">Espera</th></tr></thead>
+      <tbody>${linhas.map((it,idx)=>{
+        const jogam = [nomeAnimal(it.animal1), nomeAnimal(it.animal2)].filter(Boolean).join(' / ') || '—';
+        return `<tr><td style="padding:1px 22px 1px 0;">${idx+1} ${jogam}</td><td style="padding:1px 0;">${nomeAnimal(it.espera)}</td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }).filter(Boolean);
+  if(blocos.length===0) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px 36px;margin:6px 0 10px;">${blocos.join('')}</div>`;
 }
-document.getElementById('treinoRelResult').addEventListener('click', e=>{
-  const el = e.target.closest('[data-trlista]'); if(!el) return;
-  const alvo = document.getElementById(el.dataset.trlista); if(!alvo) return;
-  alvo.style.display = alvo.style.display==='none' ? '' : 'none';
-});
 function blocoRelatorioTreino(t){
   return `<h1 style="border:none;">Treino — ${t.tipo||'Sem tipo'} — ${fmtDate(t.data)}</h1>
     <div class="sub">${t.local?('Local: '+t.local+' · '):''}${t.treinadores?('Quem treinou: '+t.treinadores):'Quem treinou: —'}</div>
@@ -10747,8 +10756,8 @@ function gerarRelatorioTreino1(){
       return `<div class="report-animal-block">
         <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${l.animal.nome} <span style="font-weight:400;font-size:12px;color:#555;">— ${l.registros.length} sessão(ões): ${resumoTiposTreino(l.registros)}</span></div>
         <div class="grid-wrap compact"><table class="grid">
-          <thead><tr><th>Data</th><th>Local</th><th>Tipo</th><th>Quem treinou</th><th class="no-print">Lista</th></tr></thead>
-          <tbody>${l.registros.map(r=>{ const tl = treinoTemLista(r), k = 'trl_'+(++_trlSeq); return `<tr${tl?` data-trlista="${k}" style="cursor:pointer;" title="Clique para ver a Lista de Chuckers"`:''}><td>${fmtDate(r.data)}</td><td>${r.local||''}</td><td>${r.tipo||''}</td><td>${r.treinadores||''}</td><td class="no-print">${tl?'<button type="button" class="btn btn-sm btn-ghost">📋 Lista</button>':'—'}</td></tr>${tl?`<tr id="${k}" style="${listaTreinoAbertaPadrao()?'':'display:none;'}"><td colspan="5">${listaTreinoConteudo(r)}</td></tr>`:''}`; }).join('')}</tbody>
+          <thead><tr><th>Data</th><th>Local</th><th>Tipo</th><th>Quem treinou</th></tr></thead>
+          <tbody>${l.registros.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.local||''}</td><td>${r.tipo||''}</td><td>${r.treinadores||''}</td></tr>`).join('')}</tbody>
         </table></div>
       </div>`;
     }).join('')}
@@ -10816,8 +10825,8 @@ function gerarRelatorioTreino2(){
     `<div class="report-card print-block" style="margin-top:18px;">
       <div class="title" style="margin-bottom:10px;font-size:14px;">Treinos no período</div>
       <div class="grid-wrap compact"><table class="grid">
-        <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Quem treinou</th><th>Observações</th><th class="no-print">Lista</th></tr></thead>
-        <tbody>${relevantTreinos.map(t=>{ const tl = treinoTemLista(t), k = 'trl_'+(++_trlSeq); return `<tr${tl?` data-trlista="${k}" style="cursor:pointer;" title="Clique para ver a Lista de Chuckers"`:''}><td>${fmtDate(t.data)}</td><td>${t.tipo||''}</td><td>${t.local||''}</td><td>${t.treinadores||''}</td><td>${t.obs||''}</td><td class="no-print">${tl?'<button type="button" class="btn btn-sm btn-ghost">📋 Lista</button>':'—'}</td></tr>${tl?`<tr id="${k}" style="${listaTreinoAbertaPadrao()?'':'display:none;'}"><td colspan="6">${listaTreinoConteudo(t)}</td></tr>`:''}`; }).join('')}</tbody>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Quem treinou</th><th>Observações</th></tr></thead>
+        <tbody>${relevantTreinos.map(t=>`<tr><td>${fmtDate(t.data)}</td><td>${t.tipo||''}</td><td>${t.local||''}</td><td>${t.treinadores||''}</td><td>${t.obs||''}</td></tr>`).join('')}</tbody>
       </table></div>
     </div>`;
   btnPdf.style.display='inline-block';
@@ -10848,7 +10857,7 @@ function gerarRelatorioTreino3(){
         return `
         <div class="report-tipo-titulo">${fmtDate(t.data)} <span style="font-weight:700;color:#2f4a37;">[${t.tipo||'Sem tipo'}]</span>${t.local?(' — '+t.local):''}</div>
         <div class="report-animal-lista">${animaisMostrar.map(a=>`<div>${a.nome}${a.extra?(' — '+a.extra):''}</div>`).join('')}</div>
-        ${(()=>{ if(!treinoTemLista(t)) return ''; const k = 'trl_'+(++_trlSeq); return `<div class="no-print" style="margin-top:6px;"><button type="button" class="btn btn-sm btn-ghost" data-trlista="${k}">📋 Lista de Chuckers</button></div><div id="${k}" style="${listaTreinoAbertaPadrao()?'':'display:none;'}">${listaTreinoConteudo(t)}</div>`; })()}
+        ${listasCompactasTreinoHtml(t)}
       `;}).join('')}`;
   }).join('') + `</div>`;
   btnPdf.style.display='inline-block';
