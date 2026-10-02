@@ -7564,15 +7564,9 @@ function renderInicioPilares(){
 
   if(acessos.includes('veterinaria')){
     const emCurso = tratamentos.filter(t=> statusTratamento(t)!=='concluido').length;
-    const seteDiasAtras = toISODate(new Date(Date.now()-7*86400000));
-    let examesNovos = 0; Object.values(examesPorAnimal).forEach(lista=> (lista||[]).forEach(e=>{ if((e.dataUpload||'')>=seteDiasAtras) examesNovos++; }));
-    const prenhezes = nascimentos.filter(n=>n.prenhezConfirmada==='S' && n.confirm!=='S').length;
     const ultimaVisita = visitas.slice().sort((a,b)=> (b.data||'').localeCompare(a.data||''))[0];
     pilares.push({ view:'veterinaria', icone:'coracao', rotulo:'Saúde', numero:emCurso, legenda:'tratamento(s) em curso',
-      grafico:`<div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <span class="dash-chip" style="background:var(--chip-bg);color:#5C5744;padding:3px 9px;font-size:11px;">${examesNovos} exame(s) novo(s)</span>
-        <span class="dash-chip" style="background:#F6DDE3;color:#8A3B4C;padding:3px 9px;font-size:11px;">${prenhezes} prenhez(es)</span>
-      </div>`,
+      grafico:'', // sem selos de exames/prenhez aqui: reprodução já mostra isso no próprio quadro
       contexto: ultimaVisita ? `Última visita ${fmtDate(ultimaVisita.data)} · ${ultimaVisita.veterinario||'—'}` : 'Nenhuma visita registrada ainda' });
   }
 
