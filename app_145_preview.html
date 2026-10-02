@@ -5734,8 +5734,19 @@ function ordenarComPreferencia(campo, valores){
   const rank = v => { const i = pref.findIndex(p=>norm(p)===norm(v)); return i<0 ? 1e6 : i; };
   return [...valores].sort((a,b)=> (rank(a)-rank(b)) || a.localeCompare(b,'pt'));
 }
+// Quais linhas de filtro aparecem na lista de Animais: escolha de cada pessoa, guardada neste aparelho
+// (localStorage). Sem escolha guardada, aparecem todas, como sempre foi. Esconder uma linha também LIMPA a
+// seleção dela — nunca fica um filtro ativo e invisível mexendo na lista sem você ver.
+const FILTROS_ANIMAIS_LINHAS = [['sexo','Sexo'],['status','Status'],['categoria','Categoria'],['pelagem','Pelagem'],['raca','Raça'],['localizacao','Localização'],['doador','Doadora de embriões']];
+function filtrosAnimaisVisiveis(){
+  try{ const g = JSON.parse(localStorage.getItem('haras_filtros_animais_visiveis')||'null'); if(Array.isArray(g)) return new Set(g); }catch(_){}
+  return new Set(FILTROS_ANIMAIS_LINHAS.map(x=>x[0]));
+}
+function salvarFiltrosAnimaisVisiveis(set){ try{ localStorage.setItem('haras_filtros_animais_visiveis', JSON.stringify([...set])); }catch(_){} }
+let painelFiltrosAnimaisAberto = false;
 function renderFiltrosAnimaisChips(){
   const host = document.getElementById('hFiltrosChips');
+  const visiveis = filtrosAnimaisVisiveis();
   const chipGrupo = (chave, label, opcoes)=>{
     const set = filtrosAnimaisMultiplos[chave];
     return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
@@ -5765,7 +5776,25 @@ function renderFiltrosAnimaisChips(){
   const racaOpts = dedupOrdenado('raca');
   const localizacaoOpts = dedupOrdenado('localizacao');
   const doadorOpts = [{value:'sim',label:'Sim'},{value:'nao',label:'Não'}];
-  host.innerHTML = chipGrupo('sexo','Sexo',sexoOpts) + chipGrupo('status','Status',statusOpts) + chipGrupo('categoria','Categoria',categoriaOpts) + chipGrupo('pelagem','Pelagem',pelagemOpts) + chipGrupo('raca','Raça',racaOpts) + chipGrupo('localizacao','Localização',localizacaoOpts) + chipGrupo('doador','Doadora de embriões',doadorOpts);
+  const grupos = { sexo:()=>chipGrupo('sexo','Sexo',sexoOpts), status:()=>chipGrupo('status','Status',statusOpts), categoria:()=>chipGrupo('categoria','Categoria',categoriaOpts), pelagem:()=>chipGrupo('pelagem','Pelagem',pelagemOpts), raca:()=>chipGrupo('raca','Raça',racaOpts), localizacao:()=>chipGrupo('localizacao','Localização',localizacaoOpts), doador:()=>chipGrupo('doador','Doadora de embriões',doadorOpts) };
+  const controle = `<div style="margin-bottom:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEscolherFiltrosAnimais">⚙ Escolher filtros</button></div>` +
+    (painelFiltrosAnimaisAberto ? `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:10px;background:var(--card);">
+      <div class="hint-text" style="margin:0 0 8px;">Marque as linhas de filtro que você quer ver nesta tela (vale só neste aparelho).</div>
+      <div style="display:flex;gap:6px 18px;flex-wrap:wrap;">${FILTROS_ANIMAIS_LINHAS.map(([k,rot])=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;"><input type="checkbox" data-fav="${k}" ${visiveis.has(k)?'checked':''} style="width:15px;height:15px;"> ${rot}</label>`).join('')}</div>
+      <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnFecharFiltrosAnimais">Fechar</button></div>
+    </div>` : '');
+  host.innerHTML = controle + FILTROS_ANIMAIS_LINHAS.filter(([k])=>visiveis.has(k)).map(([k])=>grupos[k]()).join('');
+  document.getElementById('btnEscolherFiltrosAnimais').addEventListener('click', ()=>{ painelFiltrosAnimaisAberto = !painelFiltrosAnimaisAberto; renderFiltrosAnimaisChips(); });
+  const btnFechar = document.getElementById('btnFecharFiltrosAnimais');
+  if(btnFechar) btnFechar.addEventListener('click', ()=>{ painelFiltrosAnimaisAberto = false; renderFiltrosAnimaisChips(); });
+  host.querySelectorAll('[data-fav]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const set = filtrosAnimaisVisiveis();
+      if(cb.checked) set.add(cb.dataset.fav); else { set.delete(cb.dataset.fav); filtrosAnimaisMultiplos[cb.dataset.fav].clear(); }
+      salvarFiltrosAnimaisVisiveis(set);
+      renderHorses();
+    });
+  });
   host.querySelectorAll('[data-fam]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
       const [chave, val] = chip.dataset.fam.split('|');
