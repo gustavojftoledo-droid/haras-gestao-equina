@@ -2195,7 +2195,7 @@
     <div id="manejoCascoFields" style="display:none;margin-bottom:16px;">
       <div class="form-grid cols3">
         <div class="field"><label>Tipo de Ferrageamento</label><div class="field-plus"><select id="m_subtipoCasco" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="subtipoFerrageamento">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="subtipoFerrageamento" data-selid="m_subtipoCasco" title="Excluir valor selecionado">🗑</button></div></div>
-        <div class="field"><label>Ferrador</label><div class="field-plus"><input type="text" id="m_ferrador_sel" list="dl_ferradores" autocomplete="off" placeholder="Digite o nome ou toque para escolher" style="flex:1;"><datalist id="dl_ferradores"></datalist><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorLista" title="Ver os ferradores cadastrados (com telefone)">📇</button><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorNovo" title="Cadastrar um novo ferrador">+</button></div></div>
+        <div class="field"><label>Ferrador</label><div class="field-plus"><input type="text" id="m_ferrador_sel" list="dl_ferradores" autocomplete="off" placeholder="Digite o nome ou toque para escolher" style="flex:1;"><datalist id="dl_ferradores"></datalist><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorLista" title="Banco de contatos: ver os ferradores cadastrados, com telefone e cidade">📇</button><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorNovo" title="Adicionar um ferrador (só o nome)">+</button><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorExcluir" title="Excluir o ferrador digitado/selecionado da lista">🗑</button></div></div>
         <div class="field"><label>Valor (R$) — por animal</label><input type="number" id="m_valor" min="0" step="0.01" placeholder="0,00"></div>
       </div>
       <div class="form-grid cols3" style="margin-top:13px;">
@@ -9320,7 +9320,37 @@ document.getElementById('btnEnvFornNovo').addEventListener('click', ()=>{
 // Campo Ferrador do Manejo: 📇 abre a lista de ferradores (com telefone) pra escolher; + cadastra um novo na hora.
 function escolherFerradorNoManejo(nome){ const el = document.getElementById('m_ferrador_sel'); el.value = nome; el.dispatchEvent(new Event('change')); }
 document.getElementById('btnFerradorLista').addEventListener('click', ()=> abrirAgendaContatos({ classe:'Ferrador', aoEscolher:escolherFerradorNoManejo }));
-document.getElementById('btnFerradorNovo').addEventListener('click', ()=> abrirAgendaContatos({ classe:'Ferrador', aoEscolher:escolherFerradorNoManejo, novo:true }));
+// "+" é o cadastro rápido de sempre: só o nome, direto do Manejo. Fica na lista deste haras (campo Ferrador).
+// Quem quiser cadastrar o ferrador com telefone/cidade, como prestador de serviço, usa o banco de contatos (📇).
+document.getElementById('btnFerradorNovo').addEventListener('click', async ()=>{
+  let val = await showPrompt('Digite o nome do novo ferrador:');
+  if(!val || !val.trim()) return;
+  val = titleCase(val.trim());
+  if(!aux.ferrador) aux.ferrador = [];
+  if(!nomesFerradoresConhecidos().some(f=>nomeIgual(f.nome,val))) aux.ferrador.push(val);
+  await storeSet('aux_lists', aux);
+  preencherDatalistFerradores();
+  const el = document.getElementById('m_ferrador_sel'); el.value = (nomesFerradoresConhecidos().find(f=>nomeIgual(f.nome,val))||{nome:val}).nome;
+  el.dispatchEvent(new Event('change'));
+});
+// 🗑 exclui da lista de ferradores (e do banco de contatos, se estiver lá). Manejos já registrados não mudam.
+document.getElementById('btnFerradorExcluir').addEventListener('click', async ()=>{
+  const el = document.getElementById('m_ferrador_sel');
+  const atual = (el.value||'').trim();
+  if(!atual){ showAlert('Escolha ou digite um ferrador no campo pra excluir primeiro.'); return; }
+  const existeNaLista = (aux.ferrador||[]).some(n=>nomeIgual(n,atual));
+  const contatos = Object.values(aux.fornecedoresPedido||{}).filter(x=>ehFerrador(x) && nomeIgual(x.nome,atual));
+  if(!existeNaLista && contatos.length===0){ showAlert('"'+atual+'" não está na lista de ferradores cadastrados.'); return; }
+  const usos = manejos.filter(m=>nomeIgual(m.ferrador,atual)).length;
+  const aviso = `Excluir "${atual}" da lista de ferradores?${contatos.length?'\nO contato (telefone, cidade) também sai do banco de contatos.':''}\n\n`
+    + (usos ? `${usos} manejo(s) já registrados com esse ferrador continuam exatamente como estão (o histórico não muda).` : 'Essa ação não pode ser desfeita.');
+  if(!(await showConfirm(aviso))) return;
+  aux.ferrador = (aux.ferrador||[]).filter(n=>!nomeIgual(n,atual));
+  contatos.forEach(x=>{ delete aux.fornecedoresPedido[x.id]; envForn.selecionados.delete(x.id); });
+  await storeSet('aux_lists', aux);
+  preencherDatalistFerradores();
+  el.value = '';
+});
 // Só dígitos; número sem DDI (10 ou 11 dígitos: DDD + número) ganha o 55 do Brasil — sem o DDI o wa.me abre
 // o número errado (ex: 34 viraria Espanha).
 function whatsComDDIBrasil(n){
