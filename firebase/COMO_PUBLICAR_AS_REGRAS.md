@@ -49,3 +49,19 @@ e a claim só pode ser criada por quem administra o Firebase (não pelo próprio
 
 **O que a 2b ainda não resolve:** um funcionário ainda pode ler o financeiro/valores direto pelo navegador (a tela esconde, o servidor não).
 Esconder isso no servidor exige mudar como os dados são divididos (etapa 3).
+
+## Comandos do Cloud Shell (etapa 2b, passo 2)
+1. Abra https://console.cloud.google.com/ logado na conta do Firebase, escolha o projeto **equinos-manager** e toque no ícone `>_` (Ativar Cloud Shell), canto superior direito.
+2. Cole, um bloco de cada vez:
+```
+git clone -b claude/trusting-hawking-lakog5 --depth 1 https://github.com/gustavojftoledo-droid/haras-gestao-equina.git
+cd haras-gestao-equina/firebase
+npm init -y > /dev/null && npm i firebase-admin
+gcloud config set project equinos-manager
+GCLOUD_PROJECT=equinos-manager node definir_papeis.js
+```
+3. Confira a lista (quem é `admin`, quem é `funcionario`, quantos módulos, quem está "SEM CONTA"). Se estiver certo:
+```
+GCLOUD_PROJECT=equinos-manager node definir_papeis.js --aplicar
+```
+4. Se aparecer erro de credencial: `gcloud auth application-default login` e repetir.
