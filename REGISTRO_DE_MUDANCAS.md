@@ -1,9 +1,9 @@
 # Registro de mudanças da auditoria (para poder voltar atrás)
 
 Cada mudança entra por um *Pull Request* separado, então dá para desfazer só aquela parte.
-**Ponto de retorno geral:** a etiqueta (tag) `antes-da-auditoria` marca o programa exatamente como estava antes de qualquer correção da auditoria (commit 9deedb9).
+**Ponto de retorno geral:** o commit `9deedb9` (Pull Request #32) é o programa exatamente como estava antes de qualquer correção da auditoria. Ele continua guardado no histórico da `main`.
 
-Como desfazer uma parte: pedir "desfaz a parte N" (usa `git revert` do PR indicado) ou voltar tudo para a etiqueta.
+Como desfazer uma parte: pedir "desfaz a parte N" (usa `git revert` do PR indicado) ou voltar tudo para o commit 9deedb9.
 
 | Parte | PR | O que mudou | O que conferir depois |
 |---|---|---|---|
