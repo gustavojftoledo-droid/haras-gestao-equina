@@ -26,3 +26,10 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 - Criação livre de contas já foi **desativada** no console.
 - Permissões do app só valem na tela até a etapa 2.
 - Filtros e seleções salvos no aparelho (localStorage) ainda não são por cliente.
+
+## Estado em 05/10/2026 (noite)
+- Etapa 1 (código por cliente): **no ar** (app em uso e teste).
+- Etapa 2 / 2b (regras e papéis no Firebase): **no ar** (publicadas pelo Gustavo).
+- Etapa 3 (fotos no Storage): **preparada na branch** — `firebase/storage/` (regras 43/43, módulo 40/40). Falta encaixar no app e ativar (Blaze).
+- Etapa 4 (funções no servidor): **preparada na branch** — `functions/` (26/26 + teste ponta a ponta nos emuladores): sincroniza papéis sozinho, cria/bloqueia cliente, mede uso. Falta Blaze e `firebase deploy`.
+- Etapa 5 (cobrança, termos, LGPD): a decidir.
