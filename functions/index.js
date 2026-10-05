@@ -1,0 +1,47 @@
+/* Cloud Functions do Haras — firebase-functions v2, Node 20. */
+const { setGlobalOptions } = require('firebase-functions/v2');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onCall } = require('firebase-functions/v2/https');
+const { initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const logger = require('firebase-functions/logger');
+const { sincronizarLista } = require('./papeis');
+const C = require('./clientes');
+
+// Região: precisa ser a mesma do Firestore. Troque criando functions/.env com REGIAO_FUNCOES=southamerica-east1 (por exemplo).
+setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'us-central1', maxInstances: 10 });
+initializeApp();
+const auth = () => getAuth();
+const db = () => getFirestore();
+
+const valorDaLista = (snap) => (snap && snap.exists && snap.data() && Array.isArray(snap.data().value)) ? snap.data().value : [];
+
+async function tratar(event, tenantId){
+  const antes = valorDaLista(event.data && event.data.before);
+  const depois = valorDaLista(event.data && event.data.after);
+  const resumo = await sincronizarLista(auth(), { tenantId, antes, depois });
+  logger.info('sincronizarPapeis', { tenantId: tenantId || 'haras-original', ...resumo });
+  return null;
+}
+
+// 1) Quando a lista de usuários do haras original muda
+exports.sincronizarPapeis = onDocumentWritten('harasData/usuarios_list', (event) => tratar(event, null));
+// 1b) Quando a lista de usuários de um cliente muda
+exports.sincronizarPapeisCliente = onDocumentWritten('tenants/{tid}/dados/usuarios_list', (event) => tratar(event, event.params.tid));
+
+// 2) Criar cliente (só dono)
+exports.criarCliente = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.criarCliente({ auth: auth(), db: db(), FieldValue }, request.data || {});
+});
+// 3) Bloquear / reativar cliente (só dono)
+exports.bloquearCliente = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.bloquearCliente({ auth: auth(), db: db() }, request.data || {});
+});
+// 4) Uso de armazenamento do cliente (só dono)
+exports.usoDoCliente = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.usoDoCliente({ db: db() }, request.data || {});
+});
