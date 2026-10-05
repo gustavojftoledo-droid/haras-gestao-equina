@@ -2195,7 +2195,7 @@
     <div id="manejoCascoFields" style="display:none;margin-bottom:16px;">
       <div class="form-grid cols3">
         <div class="field"><label>Tipo de Ferrageamento</label><div class="field-plus"><select id="m_subtipoCasco" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="subtipoFerrageamento">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="subtipoFerrageamento" data-selid="m_subtipoCasco" title="Excluir valor selecionado">🗑</button></div></div>
-        <div class="field"><label>Ferrador</label><div class="field-plus"><select id="m_ferrador_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="ferrador">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="ferrador" data-selid="m_ferrador_sel" title="Excluir valor selecionado">🗑</button></div></div>
+        <div class="field"><label>Ferrador</label><div class="field-plus"><input type="text" id="m_ferrador_sel" list="dl_ferradores" autocomplete="off" placeholder="Digite o nome ou toque para escolher" style="flex:1;"><datalist id="dl_ferradores"></datalist><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorLista" title="Ver os ferradores cadastrados (com telefone)">📇</button><button type="button" class="btn btn-sm btn-ghost" id="btnFerradorNovo" title="Cadastrar um novo ferrador">+</button></div></div>
         <div class="field"><label>Valor (R$) — por animal</label><input type="number" id="m_valor" min="0" step="0.01" placeholder="0,00"></div>
       </div>
       <div class="form-grid cols3" style="margin-top:13px;">
@@ -3340,13 +3340,16 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
      serviço pago) — o WhatsApp abre um por vez, numa fila de botões; o e-mail sai num só, com todos em cópia oculta. -->
 <div class="overlay" id="overlayPedidoCompraEnvio">
   <div class="modal wide">
-    <div class="modal-head"><div class="modal-title">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
-    <div class="section-label" style="border-top:none;padding-top:0;">Para quem enviar <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— marque as farmácias/fornecedores</span></div>
+    <div class="modal-head"><div class="modal-title" id="envForn_titulo">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
+    <div class="section-label" style="border-top:none;padding-top:0;"><span id="envForn_rotulo">Para quem enviar</span> <span id="envForn_rotuloDica" style="font-family:'Inter';font-size:11px;color:var(--muted);">— marque as farmácias/fornecedores</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><label style="font-size:12px;color:var(--muted);">Classificação</label><select id="envForn_filtroClasse" style="max-width:260px;"></select></div>
     <div id="envForn_lista" style="margin-bottom:8px;"></div>
     <div id="envForn_editor" style="display:none;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--chip-bg);"></div>
-    <div style="margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornNovo">+ Adicionar farmácia/fornecedor</button></div>
-    <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="9" spellcheck="true" lang="pt-BR"></textarea></div>
-    <div class="hint-text" id="envForn_hint" style="margin-top:6px;margin-bottom:10px;"></div>
+    <div style="margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornNovo">+ Adicionar contato</button></div>
+    <div id="envForn_msgWrap">
+      <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="9" spellcheck="true" lang="pt-BR"></textarea></div>
+      <div class="hint-text" id="envForn_hint" style="margin-top:6px;margin-bottom:10px;"></div>
+    </div>
     <div id="envForn_fila" style="display:none;border:1px solid var(--brass-light);border-radius:8px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="modal-actions">
       <div></div>
@@ -4536,7 +4539,7 @@ function populateAuxSelects(){
   fill('pd_classe', aux.classeMedicamento||[]);
   fill('t_tipo_sel', aux.tipotreino||[]); fill('t_local_sel', aux.localtreino||[]);
   fill('t_treinador1_sel', aux.treinador||[]); fill('t_treinador2_sel', aux.treinador||[]); fill('t_treinador3_sel', aux.treinador||[]);
-  fill('m_ferrador_sel', aux.ferrador||[]);
+  preencherDatalistFerradores();
   fill('vs_veterinario_sel', aux.veterinario||[]);
   fill('vr_veterinario_sel', aux.veterinario||[]);
   fill('m_subtipoCasco', aux.subtipoFerrageamento||[]);
@@ -8845,7 +8848,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
   if(tipo==='Casco'){
     registro.subtipoCasco = tipoGeral;
-    registro.ferrador = document.getElementById('m_ferrador_sel').value || '';
+    registro.ferrador = resolverFerradorDigitado(document.getElementById('m_ferrador_sel').value);
     const valor = document.getElementById('m_valor').value;
     const deslocamento = document.getElementById('m_deslocamento').value;
     registro.valor = valor==='' ? null : Number(valor);
@@ -9077,7 +9080,30 @@ function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Bo
 // Lista gravada (aux.fornecedoresPedido, por id): cada um com nome, vários WhatsApps e vários e-mails. Na hora
 // de enviar você marca quem recebe. Contatos antigos (um WhatsApp/e-mail por Tipo de produto) viram
 // fornecedores sozinhos na primeira vez. Grátis: o app só ABRE o WhatsApp/e-mail já preenchido.
-let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null, ordem:{ col:'nome', dir:1 } };
+let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null, ordem:{ col:'nome', dir:1 }, modo:'envio', filtroClasse:'__nao_ferrador', aoEscolher:null, escolherAoSalvar:false };
+function ehFerrador(x){ return (x.classificacao||'').trim().toLowerCase()==='ferrador'; }
+function nomeIgual(a,b){ return (a||'').trim().toLowerCase()===(b||'').trim().toLowerCase(); }
+// Telefone pra mostrar: (34) 99999-0001
+function formatarWhatsExibicao(n){
+  const d = whatsComDDIBrasil(n);
+  if(d.length===13 && d.startsWith('55')) return `(${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`;
+  if(d.length===12 && d.startsWith('55')) return `(${d.slice(2,4)}) ${d.slice(4,8)}-${d.slice(8)}`;
+  return d ? '+'+d : '';
+}
+// Os ferradores que já existiam na lista antiga (aux.ferrador) entram no banco de contatos, uma vez só,
+// com a classificação "Ferrador" — dá pra acrescentar telefone/cidade depois. Nada é apagado da lista antiga.
+function migrarFerradoresAntigosParaContatos(){
+  if(aux.ferradoresMigrados) return;
+  migrarContatosAntigosFornecedores();
+  (aux.ferrador||[]).forEach(nome=>{
+    const n = (nome||'').trim();
+    if(!n || Object.values(aux.fornecedoresPedido).some(x=>nomeIgual(x.nome,n) && ehFerrador(x))) return;
+    const id = 'forn_ferr_'+n.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+    aux.fornecedoresPedido[id] = { id, nome:n, cidade:'', classificacao:'Ferrador', whats:[], emails:[] };
+  });
+  aux.ferradoresMigrados = true;
+  salvarFornecedoresPedido();
+}
 function migrarContatosAntigosFornecedores(){
   if(aux.fornecedoresPedido) return;
   const lista = {};
@@ -9092,28 +9118,84 @@ function migrarContatosAntigosFornecedores(){
 }
 function listaFornecedoresPedido(){
   migrarContatosAntigosFornecedores();
+  migrarFerradoresAntigosParaContatos();
   return Object.values(aux.fornecedoresPedido).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
 }
 function salvarFornecedoresPedido(){ storeSet('aux_lists', aux).catch(e=>console.error('Não consegui guardar os fornecedores:', e)); }
-function lerSelecaoFornecedores(ids){
+function lerSelecaoFornecedores(lista){
+  const ids = lista.map(x=>x.id);
   try{ const g = JSON.parse(localStorage.getItem('haras_envio_forn_sel')||'null'); if(Array.isArray(g)){ const ok = g.filter(id=>ids.includes(id)); if(ok.length) return new Set(ok); } }catch(_){}
-  return new Set(ids); // primeira vez: todos marcados
+  return new Set(lista.filter(x=>!ehFerrador(x)).map(x=>x.id)); // primeira vez: todos marcados, menos ferradores
+}
+// Lista do campo "Ferrador" do Manejo: ferradores do banco de contatos (com cidade e telefone na legenda) +
+// nomes antigos que ainda não estejam lá.
+function nomesFerradoresConhecidos(){
+  const vistos = new Map();
+  listaFornecedoresPedido().filter(ehFerrador).forEach(x=>{
+    const k = (x.nome||'').trim().toLowerCase(); if(!k || vistos.has(k)) return;
+    const tel = (x.whats||[])[0] ? formatarWhatsExibicao(x.whats[0]) : '';
+    vistos.set(k, { nome:x.nome.trim(), rotulo:[x.cidade, tel].filter(Boolean).join(' · ') });
+  });
+  (aux.ferrador||[]).forEach(n=>{ const k=(n||'').trim().toLowerCase(); if(k && !vistos.has(k)) vistos.set(k,{ nome:n.trim(), rotulo:'' }); });
+  return [...vistos.values()].sort((a,b)=>a.nome.localeCompare(b.nome,'pt'));
+}
+function preencherDatalistFerradores(){
+  const dl = document.getElementById('dl_ferradores'); if(!dl) return;
+  dl.innerHTML = nomesFerradoresConhecidos().map(f=>`<option value="${escHtml(f.nome)}">${escHtml(f.rotulo)}</option>`).join('');
+}
+// Ao gravar o manejo: o nome digitado vira o do cadastro (sem diferença de maiúscula); nome novo entra na lista.
+function resolverFerradorDigitado(v){
+  const t = (v||'').trim(); if(!t) return '';
+  const achado = nomesFerradoresConhecidos().find(f=>nomeIgual(f.nome,t));
+  if(achado) return achado.nome;
+  const nome = titleCase(t);
+  if(!aux.ferrador) aux.ferrador = [];
+  if(!aux.ferrador.some(x=>nomeIgual(x,nome))){ aux.ferrador.push(nome); storeSet('aux_lists', aux).catch(()=>{}); preencherDatalistFerradores(); }
+  return nome;
 }
 function guardarSelecaoFornecedores(){ try{ localStorage.setItem('haras_envio_forn_sel', JSON.stringify([...envForn.selecionados])); }catch(_){} }
+function modoJanelaContatos(modo){
+  envForn.modo = modo;
+  const agenda = modo==='agenda';
+  document.getElementById('envForn_msgWrap').style.display = agenda ? 'none' : '';
+  document.getElementById('btnPceEmail').style.display = agenda ? 'none' : '';
+  document.getElementById('btnPceWhats').style.display = agenda ? 'none' : '';
+  document.getElementById('envForn_fila').style.display = 'none';
+  document.getElementById('envForn_rotuloDica').style.display = agenda ? 'none' : '';
+  document.getElementById('envForn_rotulo').textContent = agenda ? 'Contatos cadastrados' : 'Para quem enviar';
+  document.getElementById('envForn_titulo').textContent = agenda ? 'Contatos' : 'Enviar pedido';
+  const ed = document.getElementById('envForn_editor'); ed.style.display='none'; ed.innerHTML='';
+}
 function abrirEnvioFornecedores(opts){
   const lista = listaFornecedoresPedido();
+  modoJanelaContatos('envio');
+  envForn.aoEscolher = null; envForn.escolherAoSalvar = false;
+  envForn.filtroClasse = '__nao_ferrador';
   envForn.mensagem = opts.mensagem || '';
   envForn.assunto = opts.assunto || 'Pedido de compra';
   envForn.comPdf = !!opts.comPdf;
-  envForn.selecionados = lerSelecaoFornecedores(lista.map(x=>x.id));
+  envForn.selecionados = lerSelecaoFornecedores(lista);
   envForn.editando = null;
   document.getElementById('pce_mensagem').value = envForn.mensagem;
   document.getElementById('envForn_hint').textContent = envForn.comPdf
     ? 'Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho). O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.'
     : 'O pedido já vai escrito na mensagem — é só conferir e enviar, sem PDF. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
-  document.getElementById('envForn_fila').style.display = 'none';
   renderEnvioFornecedores();
   openModal('overlayPedidoCompraEnvio');
+}
+// Agenda de contatos (sem envio): usada pelo campo Ferrador do Manejo. classe = classificação já filtrada;
+// aoEscolher(nome) = o que fazer quando você toca em "Escolher"; novo = já abre o cadastro de um contato novo.
+function abrirAgendaContatos(opts){
+  opts = opts || {};
+  listaFornecedoresPedido();
+  modoJanelaContatos('agenda');
+  envForn.filtroClasse = opts.classe || '';
+  envForn.aoEscolher = opts.aoEscolher || null;
+  envForn.escolherAoSalvar = !!(opts.novo && opts.aoEscolher);
+  envForn.editando = null;
+  renderEnvioFornecedores();
+  openModal('overlayPedidoCompraEnvio');
+  if(opts.novo) abrirEditorFornecedor({ id:null, nome:'', cidade:'', classificacao:opts.classe||'', whats:[''], emails:[''] });
 }
 function ordenarFornecedoresEnvio(lista){
   const { col, dir } = envForn.ordem;
@@ -9126,42 +9208,70 @@ function ordenarFornecedoresEnvio(lista){
     return dir * va.localeCompare(vb,'pt',{sensitivity:'base'}) || (a.nome||'').localeCompare(b.nome||'','pt');
   });
 }
+function fornecedoresVisiveisEnvio(){
+  const f = envForn.filtroClasse;
+  const todos = listaFornecedoresPedido();
+  if(f==='') return todos;
+  if(f==='__nao_ferrador') return todos.filter(x=>!ehFerrador(x));
+  return todos.filter(x=>nomeIgual(x.classificacao,f));
+}
 function renderEnvioFornecedores(){
   const host = document.getElementById('envForn_lista');
-  const lista = ordenarFornecedoresEnvio(listaFornecedoresPedido());
+  const agenda = envForn.modo==='agenda';
+  const todos = listaFornecedoresPedido();
+  // filtro por classificação
+  const classes = [...new Set(todos.map(x=>(x.classificacao||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
+  const opcoes = (agenda ? [['','Todas']] : [['__nao_ferrador','Todas, menos ferradores'],['','Todas']]).concat(classes.map(c=>[c,c]));
+  if(!opcoes.some(o=>o[0]===envForn.filtroClasse)) envForn.filtroClasse = opcoes[0][0];
+  const sel = document.getElementById('envForn_filtroClasse');
+  sel.innerHTML = opcoes.map(([v,r])=>`<option value="${escHtml(v)}">${escHtml(r)}</option>`).join('');
+  sel.value = envForn.filtroClasse;
+  sel.onchange = ()=>{ envForn.filtroClasse = sel.value; renderEnvioFornecedores(); };
+  const lista = ordenarFornecedoresEnvio(fornecedoresVisiveisEnvio());
   if(lista.length===0){
-    host.innerHTML = '<div class="hint-text">Nenhuma farmácia/fornecedor gravado ainda. Clique em "+ Adicionar farmácia/fornecedor" abaixo.</div>';
+    host.innerHTML = '<div class="hint-text">'+(todos.length===0 ? 'Nenhum contato gravado ainda. Clique em "+ Adicionar contato" abaixo.' : 'Nenhum contato nessa classificação. Use "+ Adicionar contato" ou troque o filtro.')+'</div>';
     return;
   }
   const seta = col => envForn.ordem.col===col ? (envForn.ordem.dir===1?' ▲':' ▼') : '';
   const th = (col, rot) => `<th class="sortable" data-fordem="${col}" style="cursor:pointer;" title="Clique para ordenar por ${rot.toLowerCase()} (A→Z / Z→A)">${rot}${seta(col)}</th>`;
-  const todos = lista.every(x=>envForn.selecionados.has(x.id));
+  const todosMarcados = lista.every(x=>envForn.selecionados.has(x.id));
+  const telefone = x => {
+    const w = x.whats||[]; const e = (x.emails||[]).length;
+    const partes = [];
+    if(w.length) partes.push('📱 '+formatarWhatsExibicao(w[0])+(w.length>1?` (+${w.length-1})`:''));
+    if(e) partes.push('✉ '+e);
+    return partes.join(' · ') || '—';
+  };
   host.innerHTML = `<div class="grid-wrap compact"><table class="grid">
-    <thead><tr><th style="width:34px;"><input type="checkbox" id="envForn_todos" ${todos?'checked':''} title="Marcar/desmarcar todos"></th>${th('nome','Nome')}${th('cidade','Cidade')}${th('classificacao','Classificação')}<th>Contatos</th><th style="width:84px;"></th></tr></thead>
+    <thead><tr>${agenda?'':`<th style="width:34px;"><input type="checkbox" id="envForn_todos" ${todosMarcados?'checked':''} title="Marcar/desmarcar todos os que aparecem"></th>`}${th('nome','Nome')}${th('cidade','Cidade')}${th('classificacao','Classificação')}<th>${agenda?'Telefone':'Contatos'}</th><th style="width:${agenda&&envForn.aoEscolher?'150':'84'}px;"></th></tr></thead>
     <tbody>${lista.map(x=>`<tr>
-      <td><input type="checkbox" data-fsel="${x.id}" ${envForn.selecionados.has(x.id)?'checked':''} style="width:16px;height:16px;"></td>
+      ${agenda?'':`<td><input type="checkbox" data-fsel="${x.id}" ${envForn.selecionados.has(x.id)?'checked':''} style="width:16px;height:16px;"></td>`}
       <td style="font-weight:600;">${escHtml(x.nome||'(sem nome)')}</td>
       <td>${escHtml(x.cidade||'—')}</td>
       <td>${escHtml(x.classificacao||'—')}</td>
-      <td style="font-size:12px;color:var(--muted);white-space:nowrap;">📱 ${(x.whats||[]).length} · ✉ ${(x.emails||[]).length}</td>
-      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-fedit="${x.id}" title="Editar">✏️</button><button type="button" class="btn btn-sm btn-ghost" data-fdel="${x.id}" title="Excluir">🗑</button></td>
+      <td style="font-size:12px;color:var(--muted);white-space:nowrap;">${escHtml(telefone(x))}</td>
+      <td style="white-space:nowrap;">${agenda&&envForn.aoEscolher?`<button type="button" class="btn btn-sm" data-fescolher="${x.id}">Escolher</button>`:''}<button type="button" class="btn btn-sm btn-ghost" data-fedit="${x.id}" title="Editar">✏️</button><button type="button" class="btn btn-sm btn-ghost" data-fdel="${x.id}" title="Excluir">🗑</button></td>
     </tr>`).join('')}</tbody></table></div>`;
   host.querySelectorAll('[data-fordem]').forEach(h=>h.addEventListener('click',()=>{
     const col = h.dataset.fordem;
     envForn.ordem = { col, dir: envForn.ordem.col===col ? -envForn.ordem.dir : 1 };
     renderEnvioFornecedores();
   }));
-  document.getElementById('envForn_todos').addEventListener('change', e=>{
+  const chkTodos = document.getElementById('envForn_todos');
+  if(chkTodos) chkTodos.addEventListener('change', e=>{
     lista.forEach(x=>{ if(e.target.checked) envForn.selecionados.add(x.id); else envForn.selecionados.delete(x.id); });
     guardarSelecaoFornecedores(); renderEnvioFornecedores();
   });
   host.querySelectorAll('[data-fsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) envForn.selecionados.add(cb.dataset.fsel); else envForn.selecionados.delete(cb.dataset.fsel); guardarSelecaoFornecedores(); renderEnvioFornecedores(); }));
+  host.querySelectorAll('[data-fescolher]').forEach(b=>b.addEventListener('click',()=>{ const x = aux.fornecedoresPedido[b.dataset.fescolher]; const cb = envForn.aoEscolher; closeModal('overlayPedidoCompraEnvio'); if(cb) cb(x.nome); }));
   host.querySelectorAll('[data-fedit]').forEach(b=>b.addEventListener('click',()=>{ const x = aux.fornecedoresPedido[b.dataset.fedit]; abrirEditorFornecedor({ id:x.id, nome:x.nome||'', cidade:x.cidade||'', classificacao:x.classificacao||'', whats:[...(x.whats||[])], emails:[...(x.emails||[])] }); }));
   host.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', async ()=>{
     const x = aux.fornecedoresPedido[b.dataset.fdel];
-    if(!(await showConfirm('Excluir "'+(x.nome||'este fornecedor')+'" da lista?'))) return;
+    if(!(await showConfirm('Excluir "'+(x.nome||'este contato')+'" da lista?'))) return;
     delete aux.fornecedoresPedido[x.id]; envForn.selecionados.delete(x.id);
-    salvarFornecedoresPedido(); renderEnvioFornecedores();
+    // ferrador excluído também sai da lista antiga, senão o nome continuaria aparecendo no campo Ferrador
+    if(ehFerrador(x) && aux.ferrador) aux.ferrador = aux.ferrador.filter(n=>!nomeIgual(n,x.nome));
+    salvarFornecedoresPedido(); preencherDatalistFerradores(); renderEnvioFornecedores();
   }));
 }
 function abrirEditorFornecedor(ed){
@@ -9171,7 +9281,7 @@ function abrirEditorFornecedor(ed){
   const box = document.getElementById('envForn_editor');
   const linhas = (arr, campo, ph) => arr.map((v,i)=>`<div style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" data-fe="${campo}" data-i="${i}" value="${escHtml(v)}" placeholder="${ph}" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" data-fedrem="${campo}:${i}" title="Remover">🗑</button></div>`).join('');
   box.style.display = 'block';
-  const classesUsadas = [...new Set(['Farmácia veterinária','Distribuidora','Casa de ração','Clínica veterinária', ...Object.values(aux.fornecedoresPedido||{}).map(x=>x.classificacao).filter(Boolean)])];
+  const classesUsadas = [...new Set(['Ferrador','Farmácia veterinária','Distribuidora','Casa de ração','Clínica veterinária', ...Object.values(aux.fornecedoresPedido||{}).map(x=>x.classificacao).filter(Boolean)])];
   box.innerHTML = `<datalist id="envForn_dlClasses">${classesUsadas.map(c=>`<option value="${escHtml(c)}">`).join('')}</datalist>
     <div class="form-grid" style="margin-bottom:10px;">
       <div class="field"><label>Nome da farmácia/fornecedor</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba"></div>
@@ -9191,17 +9301,26 @@ function abrirEditorFornecedor(ed){
     const whats = ed.whats.map(x=>x.trim()).filter(Boolean);
     const emails = ed.emails.map(x=>x.trim()).filter(Boolean);
     if(!nome){ showAlert('Dê um nome para a farmácia/fornecedor.'); return; }
-    if(!whats.length && !emails.length){ showAlert('Informe ao menos um WhatsApp ou um e-mail.'); return; }
     const id = ed.id || ('forn_'+Date.now());
     migrarContatosAntigosFornecedores();
     aux.fornecedoresPedido[id] = { id, nome, cidade:(ed.cidade||'').trim(), classificacao:(ed.classificacao||'').trim(), whats, emails };
-    envForn.selecionados.add(id); guardarSelecaoFornecedores();
+    // Só na janela de pedido, e só pra quem não é ferrador: a agenda de contatos nunca mexe na seleção do pedido.
+    if(envForn.modo==='envio' && !ehFerrador(aux.fornecedoresPedido[id] || {})){ envForn.selecionados.add(id); guardarSelecaoFornecedores(); }
     salvarFornecedoresPedido();
     envForn.editando = null; box.style.display='none'; box.innerHTML='';
+    preencherDatalistFerradores();
+    if(envForn.escolherAoSalvar && envForn.aoEscolher){ const cb = envForn.aoEscolher; envForn.escolherAoSalvar = false; closeModal('overlayPedidoCompraEnvio'); cb(nome); return; }
     renderEnvioFornecedores();
   });
 }
-document.getElementById('btnEnvFornNovo').addEventListener('click', ()=> abrirEditorFornecedor({ id:null, nome:'', cidade:'', classificacao:'', whats:[''], emails:[''] }));
+document.getElementById('btnEnvFornNovo').addEventListener('click', ()=>{
+  envForn.escolherAoSalvar = false;
+  abrirEditorFornecedor({ id:null, nome:'', cidade:'', classificacao: (envForn.filtroClasse && envForn.filtroClasse!=='__nao_ferrador') ? envForn.filtroClasse : '', whats:[''], emails:[''] });
+});
+// Campo Ferrador do Manejo: 📇 abre a lista de ferradores (com telefone) pra escolher; + cadastra um novo na hora.
+function escolherFerradorNoManejo(nome){ const el = document.getElementById('m_ferrador_sel'); el.value = nome; el.dispatchEvent(new Event('change')); }
+document.getElementById('btnFerradorLista').addEventListener('click', ()=> abrirAgendaContatos({ classe:'Ferrador', aoEscolher:escolherFerradorNoManejo }));
+document.getElementById('btnFerradorNovo').addEventListener('click', ()=> abrirAgendaContatos({ classe:'Ferrador', aoEscolher:escolherFerradorNoManejo, novo:true }));
 // Só dígitos; número sem DDI (10 ou 11 dígitos: DDD + número) ganha o 55 do Brasil — sem o DDI o wa.me abre
 // o número errado (ex: 34 viraria Espanha).
 function whatsComDDIBrasil(n){
@@ -9209,7 +9328,7 @@ function whatsComDDIBrasil(n){
   if(!d) return '';
   return (d.length===10 || d.length===11) ? '55'+d : d;
 }
-function fornecedoresMarcados(){ return listaFornecedoresPedido().filter(x=>envForn.selecionados.has(x.id)); }
+function fornecedoresMarcados(){ return fornecedoresVisiveisEnvio().filter(x=>envForn.selecionados.has(x.id)); }
 // Tela do Pedido de Compra (prévia do PDF): abre a janela de envio já com a mensagem padrão.
 document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', ()=>{
   abrirEnvioFornecedores({ comPdf:false, assunto:'Pedido de compra'+(lastPreviaTipoPedido?(' - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido)):''),
