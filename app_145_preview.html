@@ -5259,17 +5259,17 @@ function createAnimalSelector(hostEl, opts){
         <div class="selector-toolbar">
           <input type="text" placeholder="Buscar animal..." id="${hostEl.id}_search">
           <button type="button" class="chip" data-cat="__clear">Todas categorias</button>
-          ${cats.map(c=>`<span class="chip" data-cat="${c}">${c}</span>`).join('')}
+          ${cats.map(c=>`<span class="chip" data-cat="${escHtml(c)}">${escHtml(c)}</span>`).join('')}
         </div>
         ${locs.length>0 ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
           <span class="hint-text" style="margin-right:2px;">Localização:</span>
           <button type="button" class="chip" data-loc="__clear">Todas</button>
-          ${locs.map(l=>`<span class="chip" data-loc="${l}">${l}</span>`).join('')}
+          ${locs.map(l=>`<span class="chip" data-loc="${escHtml(l)}">${escHtml(l)}</span>`).join('')}
         </div>` : ''}
         ${props.length>0 ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
           <span class="hint-text" style="margin-right:2px;">Proprietário:</span>
           <button type="button" class="chip" data-prop="__clear">Todos</button>
-          ${props.map(p=>`<span class="chip" data-prop="${p}">${p}</span>`).join('')}
+          ${props.map(p=>`<span class="chip" data-prop="${escHtml(p)}">${escHtml(p)}</span>`).join('')}
         </div>` : ''}
         ${opts.reportFilter ? `<div class="selector-toolbar" style="border-top:1px solid var(--line);">
           <span class="hint-text" style="margin-right:2px;">Ativos sempre aparecem. Incluir também:</span>
@@ -5368,16 +5368,16 @@ function createAnimalSelector(hostEl, opts){
       const paisTxt = opts.mostrarPais ? [h.mae,h.pai].filter(Boolean).join(' x ') : '';
       const colNome = opts.mostrarPais
         ? `<span style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;overflow:hidden;">
-             <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.nome||''}</span>
+             <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(h.nome||'')}</span>
              ${paisTxt?`<span style="font-size:11px;color:var(--muted);white-space:nowrap;">${paisTxt}</span>`:''}
            </span>`
-        : `<span>${h.nome||''}</span>`;
+        : `<span>${escHtml(h.nome||'')}</span>`;
       return `<div class="srow" tabindex="0" data-id="${h.id}" data-idx="${idx}">
         <input type="checkbox" data-id="${h.id}" ${sel.checked?'checked':''}>
         ${colNome}
-        <span style="color:var(--muted)">${h.apelido||''}</span>
+        <span style="color:var(--muted)">${escHtml(h.apelido||'')}</span>
         ${mostrarTipo ? `<select class="srow-tipo" data-idtipo="${h.id}" title="Tipo de ferrageamento deste animal">${(aux.subtipoFerrageamento||[]).map(t=>`<option value="${t}" ${((sel.tipo||tipoAtualDefault)===t)?'selected':''}>${t}</option>`).join('')}</select>` : ''}
-        <input type="text" data-id="${h.id}" placeholder="${opts.extraPlaceholder||''}" value="${sel.extra||''}">
+        <input type="text" data-id="${h.id}" placeholder="${opts.extraPlaceholder||''}" value="${escHtml(sel.extra||'')}">
         ${mostrarValor ? `<input type="text" inputmode="decimal" class="srow-valorextra" data-idval="${h.id}" placeholder="${opts.valorExtraPlaceholder||'+R$'}" title="${opts.valorExtraTitle||'Valor extra a somar por causa dessa observação'}" value="${sel.valorExtra||''}">` : ''}
         ${mostrarValor2 ? `<input type="text" inputmode="decimal" class="srow-valorextra2" data-idval2="${h.id}" placeholder="${opts.valorExtra2Placeholder||'Extra'}" title="${opts.valorExtra2Title||'Valor extra adicional'}" value="${sel.valorExtra2||''}">` : ''}
       </div>`;
@@ -5665,7 +5665,7 @@ function createDateRangePicker(hostEl, opts){
 function populateSelectFilter(id, values){
   const sel=document.getElementById(id); const prev=sel.value;
   const opts=[...new Set(values.filter(Boolean))];
-  sel.innerHTML = sel.querySelector('option').outerHTML + opts.map(v=>`<option value="${v}">${v}</option>`).join('');
+  sel.innerHTML = sel.querySelector('option').outerHTML + opts.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
   sel.value = prev;
 }
 
@@ -5691,6 +5691,12 @@ function titleCase(str){
 // produto, observação...). Sem isso, um "<" ou "&" no meio do texto (ex: observação "aplicar < 5kg")
 // quebra a tag/tabela e some com o resto da linha — parece "relatório com formatação errada" mas é o
 // próprio texto do usuário virando HTML sem querer.
+// Endereço de link/imagem só vale se for http(s), data:image, PDF embutido ou blob — qualquer outra coisa
+// (ex: "javascript:...") vira vazio, para um dado digitado nunca virar código ao clicar.
+function urlSegura(u){
+  const t = String(u==null?'':u).trim();
+  return /^(https?:\/\/|data:image\/|data:application\/pdf|blob:)/i.test(t) ? escHtml(t) : '';
+}
 function escHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -5767,7 +5773,7 @@ function renderFiltrosAnimaisChips(){
     return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
       <span class="hint-text" style="margin:0;min-width:80px;">${label}</span>
       <span class="chip ${set.size===0?'active':''}" data-fam="${chave}|__clear">Todos</span>
-      ${opcoes.map(o=>`<span class="chip ${set.has(o.value)?'active':''}" data-fam="${chave}|${o.value}">${o.label}</span>`).join('')}
+      ${opcoes.map(o=>`<span class="chip ${set.has(o.value)?'active':''}" data-fam="${chave}|${escHtml(o.value)}">${escHtml(o.label)}</span>`).join('')}
     </div>`;
   };
   const sexoOpts = [{value:'MASCULINO',label:'Macho'},{value:'FEMININO',label:'Fêmea'}];
@@ -5824,7 +5830,7 @@ function renderHorses(){
   const banner = document.getElementById('grupoFiltroBanner');
   if(grupoFiltroAtivo){
     banner.style.display='flex';
-    banner.innerHTML = `<span>📁 Mostrando só o grupo <strong>${grupoFiltroAtivo.nome}</strong> (${(grupoFiltroAtivo.animais||[]).length} ${pluralAnimal((grupoFiltroAtivo.animais||[]).length)})</span>
+    banner.innerHTML = `<span>📁 Mostrando só o grupo <strong>${escHtml(grupoFiltroAtivo.nome)}</strong> (${(grupoFiltroAtivo.animais||[]).length} ${pluralAnimal((grupoFiltroAtivo.animais||[]).length)})</span>
       <button type="button" class="btn btn-sm btn-ghost" id="btnLimparFiltroGrupo">✕ Limpar filtro de grupo</button>`;
     document.getElementById('btnLimparFiltroGrupo').addEventListener('click', ()=>{ grupoFiltroAtivo=null; renderHorses(); });
   } else {
@@ -5901,14 +5907,14 @@ function renderHorses(){
     if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:4px;">Vendido</span>');
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
-      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${h.fotoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${h.apelido}</span> `:''}<strong>${h.nome||''}</strong>${tags.join('')}</td>
+      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${urlSegura(h.fotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${escHtml(h.apelido)}</span> `:''}<strong>${escHtml(h.nome||'')}</strong>${tags.join('')}</td>
       <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
-      <td data-col="pai">${h.pai||''}</td><td data-col="mae">${h.mae||''}</td><td data-col="pelagem">${h.pelagem||''}</td><td data-col="raca">${h.raca||''}</td><td data-col="categoria">${h.categoria||''}</td>
+      <td data-col="pai">${escHtml(h.pai||'')}</td><td data-col="mae">${escHtml(h.mae||'')}</td><td data-col="pelagem">${escHtml(h.pelagem||'')}</td><td data-col="raca">${escHtml(h.raca||'')}</td><td data-col="categoria">${escHtml(h.categoria||'')}</td>
       <td data-col="status"><span class="pill st-outro">${h.status||'—'}</span></td>
-      <td data-col="localizacao">${h.localizacao||''}</td>
-      <td data-col="proprietario">${h.proprietario||''}</td>
-      <td data-col="comprador">${h.comprador||''}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
+      <td data-col="localizacao">${escHtml(h.localizacao||'')}</td>
+      <td data-col="proprietario">${escHtml(h.proprietario||'')}</td>
+      <td data-col="comprador">${escHtml(h.comprador||'')}${(h.valor && podeVerValoresAnimais())?' <span style="color:var(--muted);">('+h.valor+')</span>':''}</td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('tr').forEach(tr=>tr.addEventListener('click', ()=>openHorseEdit(tr.dataset.id)));
@@ -6650,7 +6656,7 @@ function renderManejos(){
   });
   tbody.innerHTML = linhasM.map((m,idx)=>`<tr data-id="${m.id}" data-idx="${idx}" tabindex="0" class="${manejoSelecionados.has(m.id)?'row-selected':''}" style="${podeEditarManejo?'cursor:pointer;':''}" title="${podeEditarManejo?'Clique pra abrir e editar esse lançamento':''}">
     <td><input type="checkbox" data-selid="${m.id}" ${manejoSelecionados.has(m.id)?'checked':''}></td>
-    <td>${fmtDate(m.data)}</td><td data-col="tipo">${m.tipo}</td><td data-col="subtipo">${m.subtipoCasco||''}</td><td data-col="ferrador">${m.ferrador||''}</td><td data-col="totalBase">${fmtValor(calcTotalBase(m))}</td><td data-col="totalExtras">${fmtValor(calcTotal(m))}</td><td data-col="deslocamento">${fmtValor(m.deslocamento)}</td><td data-col="qtdAnimais">${m.animais.length}</td><td data-col="obs">${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${m.obs||''}</td>
+    <td>${fmtDate(m.data)}</td><td data-col="tipo">${escHtml(m.tipo)}</td><td data-col="subtipo">${escHtml(m.subtipoCasco||'')}</td><td data-col="ferrador">${escHtml(m.ferrador||'')}</td><td data-col="totalBase">${fmtValor(calcTotalBase(m))}</td><td data-col="totalExtras">${fmtValor(calcTotal(m))}</td><td data-col="deslocamento">${fmtValor(m.deslocamento)}</td><td data-col="qtdAnimais">${m.animais.length}</td><td data-col="obs">${m.pendenteEstoque?'<span class="pill st-descarte" style="margin-right:6px;">⏳ Baixa pendente</span>':''}${escHtml(m.obs||'')}</td>
     <td style="white-space:nowrap;">${m.pendenteEstoque&&podeEditarManejo?`<button type="button" class="btn btn-sm" data-confirmarbaixa="${m.id}" title="Dar baixa no estoque e gerar o custo por animal">✅ Confirmar baixa</button> `:''}<button type="button" class="btn btn-sm btn-ghost" data-rel="${m.id}" title="Relatório deste lançamento">📄</button> ${podeExcluirManejo?`<button type="button" class="btn btn-sm btn-danger" data-del="${m.id}">Excluir</button>`:''}</td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-rel]').forEach(b=>b.addEventListener('click', e=>{
@@ -6872,10 +6878,10 @@ function gerarRelatorioManejos(){
     if(linhas.length===0){ host.innerHTML = `<div class="report-card print-block">${cabecalho}<div class="empty">Nenhum manejo encontrado para os animais e filtros selecionados.</div></div>`; btnPrint.style.display='inline-block'; return; }
     host.innerHTML = `<div class="report-card print-block">${cabecalho}` + linhas.map(l=>{
       const tipos = ['Casco','Vacina','Vermífugo','Dente'].filter(t=>l.registros.some(m=>m.tipo===t));
-      return `<div class="report-data-titulo"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${l.animal.nome}</div>
+      return `<div class="report-data-titulo"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${escHtml(l.animal.nome)}</div>
         ${tipos.map(tipo=>`
-          <div class="report-tipo-titulo">${tipo}</div>
-          <div class="report-animal-lista">${l.registros.filter(m=>m.tipo===tipo).sort((a,b)=>a.data.localeCompare(b.data)).map(m=>`<div>${fmtDate(m.data)}${m.obs?(' — '+m.obs):''}</div>`).join('')}</div>
+          <div class="report-tipo-titulo">${escHtml(tipo)}</div>
+          <div class="report-animal-lista">${l.registros.filter(m=>m.tipo===tipo).sort((a,b)=>a.data.localeCompare(b.data)).map(m=>`<div>${fmtDate(m.data)}${m.obs?(' — '+escHtml(m.obs)):''}</div>`).join('')}</div>
         `).join('')}`;
     }).join('') + `</div>`;
 
@@ -6886,7 +6892,7 @@ function gerarRelatorioManejos(){
       const registrosTipo = [...filtered].filter(m=>m.tipo===tipo).sort((a,b)=>a.data.localeCompare(b.data));
       const linhas = [];
       registrosTipo.forEach(m=>m.animais.forEach(a=>linhas.push(`${fmtDate(m.data)} — ${a.nome}`)));
-      return `<div class="report-data-titulo">${tipo} <span style="font-weight:400;color:var(--muted);font-size:12px;">(${linhas.length} ${pluralAnimal(linhas.length)})</span></div>
+      return `<div class="report-data-titulo">${escHtml(tipo)} <span style="font-weight:400;color:var(--muted);font-size:12px;">(${linhas.length} ${pluralAnimal(linhas.length)})</span></div>
         <div class="report-animal-lista">${linhas.map(l=>`<div>${l}</div>`).join('')}</div>`;
     }).join('') + `</div>`;
 
@@ -6902,8 +6908,8 @@ function gerarRelatorioManejos(){
     host.innerHTML = `<div class="report-card print-block">${cabecalho}` + ordemData.map(data=>`
       <div class="report-data-titulo">${fmtDate(data)}</div>
       ${Object.keys(porData[data]).map(tipo=>`
-        <div class="report-tipo-titulo">${tipo}</div>
-        <div class="report-animal-lista">${porData[data][tipo].map(nome=>`<div>${nome}</div>`).join('')}</div>
+        <div class="report-tipo-titulo">${escHtml(tipo)}</div>
+        <div class="report-animal-lista">${porData[data][tipo].map(nome=>`<div>${escHtml(nome)}</div>`).join('')}</div>
       `).join('')}
     `).join('') + `</div>`;
 
@@ -6912,10 +6918,10 @@ function gerarRelatorioManejos(){
     const tipos = ['Casco','Vacina','Vermífugo','Dente'].filter(t=>filtered.some(m=>m.tipo===t));
     host.innerHTML = `<div class="report-card print-block">${cabecalho}` + tipos.map(tipo=>{
       const registrosTipo = filtered.filter(m=>m.tipo===tipo).sort((a,b)=>a.data.localeCompare(b.data));
-      return `<div class="report-data-titulo">${tipo}</div>
+      return `<div class="report-data-titulo">${escHtml(tipo)}</div>
         ${registrosTipo.map(m=>`
           <div class="report-tipo-titulo">${fmtDate(m.data)}</div>
-          <div class="report-animal-lista">${m.animais.map(a=>`<div>${a.nome}</div>`).join('')}</div>
+          <div class="report-animal-lista">${m.animais.map(a=>`<div>${escHtml(a.nome)}</div>`).join('')}</div>
         `).join('')}`;
     }).join('') + `</div>`;
   }
@@ -7031,7 +7037,7 @@ function gerarRelatorioManejosTabela(){
   const totalCusto = linhas.reduce((s,l)=>s+(Number(l.valor)||0),0);
   const cavalosDistintos = new Set(linhas.filter(l=>l.cavalo!=='Deslocamento').map(l=>l.cavalo)).size;
   const periodoTxt = ordenados.length ? `${fmtDate(ordenados[0].data)} a ${fmtDate(ordenados[ordenados.length-1].data)}` : '';
-  const linhaHtml = l => `<tr><td>${l.cavalo}</td><td>${fmtDate(l.data)}</td><td>${l.tipo||'—'}</td><td>${l.responsavel}</td><td class="num">${l.valor?fmtR(l.valor):'—'}</td><td class="obs">${l.comentario||''}</td></tr>`;
+  const linhaHtml = l => `<tr><td>${escHtml(l.cavalo)}</td><td>${fmtDate(l.data)}</td><td>${escHtml(l.tipo||'—')}</td><td>${escHtml(l.responsavel)}</td><td class="num">${l.valor?fmtR(l.valor):'—'}</td><td class="obs">${escHtml(l.comentario||'')}</td></tr>`;
   const theadHtml = `<thead><tr><th>Cavalo</th><th>Data</th><th>Tipo</th><th>Responsável</th><th class="num">Valor</th><th>Comentários</th></tr></thead>`;
   // Baixa sempre em paisagem (ver btnPdfRelManejo) — mede com o HTML/CSS real quantas linhas cabem.
   const maxPorPagina = calcularLinhasPorPagina(theadHtml, linhas.slice(0,40).map(linhaHtml), true);
@@ -7397,7 +7403,7 @@ function abrirListaInicio(tipo){
       body.innerHTML = itens.map(p=>{
         const sit = situacaoEstoque(p);
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-          <div><strong>${p.nome}</strong> <span style="color:var(--muted);font-size:12px;">(${p.quantidade!==undefined&&p.quantidade!==null?p.quantidade:0}${p.unidade?(' '+p.unidade):''})</span></div>
+          <div><strong>${escHtml(p.nome)}</strong> <span style="color:var(--muted);font-size:12px;">(${p.quantidade!==undefined&&p.quantidade!==null?p.quantidade:0}${p.unidade?(' '+escHtml(p.unidade)):''})</span></div>
           <span class="pill ${sit==='zerado'?'st-descarte':'st-outro'}">${sit==='zerado'?'Zerado':'Perto do mínimo'}</span>
         </div>`;
       }).join('') + `<div style="margin-top:14px;"><button type="button" class="btn btn-sm" id="btnIrEstoqueInicio">Ver na tela de Estoque</button></div>`;
@@ -7420,7 +7426,7 @@ function abrirListaInicio(tipo){
         const situ = h.falecimento ? 'Falecido' : (h.situacao==='V' ? 'Vendido' : (h.situacao==='E' ? 'Externo' : 'Ativo'));
         const cls = situ==='Ativo' ? 'st-ativo' : (situ==='Vendido'||situ==='Falecido' ? 'st-descarte' : 'st-outro');
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:10px;">
-          <div><button type="button" class="eye-inline" data-irperfilinicio="${h.id}" title="Abrir ficha">👁</button> <strong>${h.nome}</strong>${h.compradoDe?` <span style="color:var(--muted);font-size:12px;">— de ${h.compradoDe}</span>`:''}</div>
+          <div><button type="button" class="eye-inline" data-irperfilinicio="${h.id}" title="Abrir ficha">👁</button> <strong>${escHtml(h.nome)}</strong>${h.compradoDe?` <span style="color:var(--muted);font-size:12px;">— de ${escHtml(h.compradoDe)}</span>`:''}</div>
           <span class="pill ${cls}">${situ}</span>
         </div>`;
       }).join('');
@@ -7466,7 +7472,7 @@ function iconeParaTipo(tipo){
 function dashCardHead(icone, titulo, destino){
   return `<div class="dash-card-head">
     <div class="dash-card-titulo">${ico(icone,18)}<span>${titulo}</span></div>
-    <span class="dash-card-destino">${destino} ${icoGo()}</span>
+    <span class="dash-card-destino">${escHtml(destino)} ${icoGo()}</span>
   </div>`;
 }
 
@@ -7597,7 +7603,7 @@ function renderInicioPilares(){
   host.innerHTML = pilares.map(p=>`
     <div class="dash-pilar pillar-btn ${p.peek?'peek-card':''}" data-viewpilar="${p.view}">
       <div class="dash-pilar-rotulo"><span>${ico(p.icone,17)} ${p.rotulo}</span>${icoGo()}</div>
-      <div class="dash-pilar-num">${p.numeroHtml || `<strong>${p.numero}</strong>`}<span>${p.legenda||''}</span></div>
+      <div class="dash-pilar-num">${p.numeroHtml || `<strong>${escHtml(p.numero)}</strong>`}<span>${escHtml(p.legenda||'')}</span></div>
       ${p.grafico||''}
       <div class="dash-pilar-ctx">${p.contexto||''}</div>
     </div>`).join('');
@@ -7617,7 +7623,7 @@ function renderInicioAgenda(){
       <div style="display:flex;justify-content:space-between;"><span class="dash-atrasadas-rotulo">Atrasadas</span><span style="font-size:11px;color:#A5776F;">a mais tempo primeiro</span></div>
       ${atrasadas.slice(0,4).map(t=>{
         const dias = t.proxima ? Math.floor((hoje - new Date(t.proxima)) / 86400000) : null;
-        return `<div class="dash-atrasada-linha"><span style="flex:1;">${ico(iconeParaTipo(t.tipo),15,'var(--alert-ink)')} <strong>${t.label||t.tipo}</strong> · ${t.animalNome}</span><span style="color:var(--alert-ink);font-weight:600;white-space:nowrap;">${dias!==null?(dias+' dia(s)'):''}</span></div>`;
+        return `<div class="dash-atrasada-linha"><span style="flex:1;">${ico(iconeParaTipo(t.tipo),15,'var(--alert-ink)')} <strong>${t.label||t.tipo}</strong> · ${escHtml(t.animalNome)}</span><span style="color:var(--alert-ink);font-weight:600;white-space:nowrap;">${dias!==null?(dias+' dia(s)'):''}</span></div>`;
       }).join('')}
     </div>`;
 
@@ -7658,7 +7664,7 @@ function renderInicioAgenda(){
       <div style="flex:1;">
         ${(grupos.length===0 && animaisTratamento.length===0) ? `<div class="dash-tarefa-sub" style="padding:6px 0;">Nenhuma tarefa prevista.</div>` : ''}
         ${grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${label} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${info.animais.join(', ')}</div></div>`).join('')}
-        ${animaisTratamento.map(([nome,meds])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo('Tratamento'),14,'var(--brass)')} ${nome}</div><div class="dash-tarefa-sub">${meds.join(', ')}</div></div>`).join('')}
+        ${animaisTratamento.map(([nome,meds])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo('Tratamento'),14,'var(--brass)')} ${escHtml(nome)}</div><div class="dash-tarefa-sub">${meds.join(', ')}</div></div>`).join('')}
       </div>
     </div>`;
   }
@@ -7726,7 +7732,7 @@ function renderInicioPlantel(){
       <div style="position:absolute;left:12px;bottom:9px;color:#F4EFE0;font-size:11px;font-weight:600;text-shadow:0 1px 3px rgba(20,17,12,.5);">${ativosArr.length} animal(is) ativo(s)</div>
     </div>
     <div class="dash-barra" style="height:10px;border-radius:5px;">${barra}</div>
-    <div style="display:flex;flex-direction:column;gap:6px;">${legenda}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${escHtml(legenda)}</div>
     ${pelagemHtml}
     ${compradosHtml}
   `;
@@ -7801,11 +7807,11 @@ function renderInicioSaude(host){
     const servicos = (ultimaVisita.custos||[]).filter(c=>c.tipo==='servico').slice(0,2);
     pocoVisita = `<div class="dash-poco-linha">
       <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;color:var(--green);margin-bottom:6px;">
-        <span>Última visita · ${ultimaVisita.veterinario||'—'}</span><span>${fmtDate(ultimaVisita.data)}</span>
+        <span>Última visita · ${escHtml(ultimaVisita.veterinario||'—')}</span><span>${fmtDate(ultimaVisita.data)}</span>
       </div>
       ${servicos.length===0 ? '' : servicos.map(s=>{
         const animalNome = (ultimaVisita.animais||[]).find(a=>a.id===s.animalId)?.nome||'';
-        return `<div style="font-size:11.5px;color:var(--text-body);display:flex;gap:6px;align-items:baseline;"><span style="width:5px;height:5px;border-radius:50%;background:var(--brass);flex-shrink:0;"></span>${s.nome} · <strong>${animalNome}</strong>${s.obs?(' — '+s.obs):''}</div>`;
+        return `<div style="font-size:11.5px;color:var(--text-body);display:flex;gap:6px;align-items:baseline;"><span style="width:5px;height:5px;border-radius:50%;background:var(--brass);flex-shrink:0;"></span>${escHtml(s.nome)} · <strong>${escHtml(animalNome)}</strong>${s.obs?(' — '+escHtml(s.obs)):''}</div>`;
       }).join('')}
       <div style="border-top:1px solid var(--line-well);margin-top:8px;padding-top:6px;font-size:10.5px;color:var(--text-faint);">${(ultimaVisita.documentos||[]).length} documento(s) anexado(s)</div>
     </div>`;
@@ -7819,7 +7825,7 @@ function renderInicioSaude(host){
     const feitas = (t.doseConcluidas||[]).length;
     const pct = Math.min(100, Math.round((feitas/total)*100));
     const animaisTxt = (t.animais||[]).map(a=>a.nome).join(', ');
-    return `<div class="dash-medidor-linha"><span><strong>${animaisTxt||'—'}</strong> · ${t.medicamentoNome||''}</span><span>${feitas} de ${total} doses</span></div>
+    return `<div class="dash-medidor-linha"><span><strong>${animaisTxt||'—'}</strong> · ${escHtml(t.medicamentoNome||'')}</span><span>${feitas} de ${total} doses</span></div>
       <div class="dash-medidor-barra"><div style="width:${pct}%;background:var(--ok);"></div></div>`;
   }).join('');
 
@@ -7841,7 +7847,7 @@ function renderInicioSaude(host){
       : `<div style="display:flex;flex-direction:column;gap:6px;">
           ${comExamesOk.map(x=>`
             <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
-              <div style="font-weight:600;font-size:12.5px;">${x.h.nome||'—'}</div>
+              <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
               <div style="color:var(--text-faint);font-size:11px;">AIE ${curtoData(x.aie)} · Mormo ${curtoData(x.mormo)}</div>
             </div>`).join('')}
         </div>`}
@@ -7879,9 +7885,9 @@ function renderInicioReproducao(host){
     const f = corFaint || 'var(--text-faint)';
     const cruz = [n.matriz, n.pai].filter(Boolean).join(' × ');
     if(n.transferenciaEmbriao && n.receptora)
-      return `<strong>${n.receptora}</strong>${cruz?` <span style="color:${f};">(${cruz})</span>`:''}`;
-    if(n.pai) return `<strong>${n.matriz||'—'}</strong> <span style="color:${f};">× ${n.pai}</span>`;
-    return `<strong>${n.matriz||'—'}</strong>`;
+      return `<strong>${escHtml(n.receptora)}</strong>${cruz?` <span style="color:${f};">(${cruz})</span>`:''}`;
+    if(n.pai) return `<strong>${escHtml(n.matriz||'—')}</strong> <span style="color:${f};">× ${escHtml(n.pai)}</span>`;
+    return `<strong>${escHtml(n.matriz||'—')}</strong>`;
   };
 
   const rowCob = n => linha(rotuloAnimal(n), refCobertura(n) ? fmtDate(refCobertura(n)) : '—');
@@ -7929,7 +7935,7 @@ function renderInicioReproducao(host){
   const retornosHtml = retornos.length===0 ? '<div class="hint-text">Nenhum retorno agendado.</div>'
     : retornos.map(t=>{
         const acao = (t.proximaAcao||'').trim();
-        const esq = acao ? `${t.animalNome||'—'} <span style="color:var(--text-faint);">— ${acao}</span>` : (t.animalNome||'—');
+        const esq = acao ? `${escHtml(t.animalNome||'—')} <span style="color:var(--text-faint);">— ${acao}</span>` : (t.animalNome||'—');
         return linha(esq, fmtDate(t.data), t.situacao==='atrasado'?'var(--burgundy)':'var(--text-faint)');
       }).join('');
 
@@ -7952,7 +7958,7 @@ function renderInicioEstoque(host){
     .slice(0,10);
   const medidores = criticos.length===0 ? '<div class="hint-text">Nenhum produto em alerta agora.</div>' : criticos.map(p=>{
     const sit = situacaoEstoque(p);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;"><span style="font-size:12.5px;">${p.nome}</span><span class="dash-chip" style="background:${sit==='zerado'?'var(--alert-bg)':'var(--warn-bg)'};color:${sit==='zerado'?'var(--alert-ink)':'var(--warn-ink)'};padding:2px 8px;font-size:10.5px;white-space:nowrap;">${sit==='zerado'?'Zerado':'No mínimo'}</span></div>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;"><span style="font-size:12.5px;">${escHtml(p.nome)}</span><span class="dash-chip" style="background:${sit==='zerado'?'var(--alert-bg)':'var(--warn-bg)'};color:${sit==='zerado'?'var(--alert-ink)':'var(--warn-ink)'};padding:2px 8px;font-size:10.5px;white-space:nowrap;">${sit==='zerado'?'Zerado':'No mínimo'}</span></div>`;
   }).join('');
 
   const ultimaSaida = estoqueMovimentos.filter(m=>m.tipoMov==='saida').slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
@@ -7962,7 +7968,7 @@ function renderInicioEstoque(host){
     ${medidores}
     <div class="dash-footer-2col">
       <div><div class="rotulo">Produtos cadastrados</div><div class="valor">${estoqueProdutos.length}</div></div>
-      <div><div class="rotulo">Última baixa</div><div style="font-size:12px;color:var(--text-body);">${ultimaSaida?(fmtDate(ultimaSaida.data)+' — '+ultimaSaida.produtoNome):'—'}</div></div>
+      <div><div class="rotulo">Última baixa</div><div style="font-size:12px;color:var(--text-body);">${ultimaSaida?(fmtDate(ultimaSaida.data)+' — '+escHtml(ultimaSaida.produtoNome)):'—'}</div></div>
     </div>
   `;
 }
@@ -7980,7 +7986,7 @@ function renderInicioAtividades(host){
 
   const ultimas5 = treinos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).slice(0,5);
 
-  const gruposHtml = grupos.slice(0,3).map(g=>`<span class="dash-chip" style="background:var(--chip-bg);color:var(--text-body);padding:4px 10px;font-size:11.5px;">${g.nome} · ${(g.animais||[]).length}</span>`).join('');
+  const gruposHtml = grupos.slice(0,3).map(g=>`<span class="dash-chip" style="background:var(--chip-bg);color:var(--text-body);padding:4px 10px;font-size:11.5px;">${escHtml(g.nome)} · ${(g.animais||[]).length}</span>`).join('');
 
   host.innerHTML = `
     ${dashCardHead('bandeira','Atividades e tropas','Atividades')}
@@ -7991,7 +7997,7 @@ function renderInicioAtividades(host){
     ${ultimas5.length>0 ? `<div>
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Últimas atividades</div>
       ${ultimas5.map(t=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line-soft);">
-        <span><strong>${t.tipo||'Treino'}</strong>${t.local?(' · '+t.local):''} — ${(t.animais||[]).length} animal(is)</span>
+        <span><strong>${escHtml(t.tipo||'Treino')}</strong>${t.local?(' · '+escHtml(t.local)):''} — ${(t.animais||[]).length} animal(is)</span>
         <span style="color:var(--text-faint);white-space:nowrap;">${fmtDate(t.data).slice(0,5)}</span>
       </div>`).join('')}
     </div>` : ''}
@@ -8042,7 +8048,7 @@ function renderCalMonthHtml(byDate){
       ${Object.entries(porTipo).map(([tipo,arr])=>{
         const temAtrasado = arr.some(t=>t.situacao==='atrasado');
         const icone = CAL_ICON[tipo] || (arr[0].categoria==='atividade' ? '🏇' : '');
-        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${tipo}">${icone} ${CAL_GRUPO_LABEL[tipo]||tipo} (${arr.length})</div>`;
+        return `<div class="cal-tag ${temAtrasado?'cal-atrasado':(isHoje?'cal-hoje':'')}" data-caltag="${iso}|${escHtml(tipo)}">${icone} ${CAL_GRUPO_LABEL[tipo]||tipo} (${arr.length})</div>`;
       }).join('')}
     </div>`;
     if(i%7===6 && i<41) {} // apenas fecha visualmente via grid, sem necessidade de nova div (grid cuida das linhas)
@@ -8065,7 +8071,7 @@ function renderCalWeekHtml(byDate, nDias){
     html += `<div class="cal-week-col ${isHoje?'cal-today':''}">
       <div class="cal-week-col-head" style="display:flex;justify-content:space-between;align-items:center;"><span>${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</span><button type="button" class="cal-day-add" data-caladd="${iso}" title="Adicionar registro nesse dia">+</button></div>
       ${tarefasDia.length===0 ? '<div class="hint-text">Nenhuma tarefa prevista.</div>' :
-        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${t.tipo}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${t.label||t.tipo}</strong> — ${t.animalNome||'(sem animais definidos ainda)'}</div>`).join('')}
+        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${escHtml(t.tipo)}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${t.label||t.tipo}</strong> — ${escHtml(t.animalNome||'(sem animais definidos ainda)')}</div>`).join('')}
     </div>`;
   }
   html += '</div>';
@@ -8196,20 +8202,20 @@ function abrirDetalheCalendario(iso, tipoFiltro){
     const ehTransporte = arr[0].categoria==='transporte';
     const ehCasco = tipo==='Casco';
     const podeLote = (ehManejo||ehTratamento||ehAtividade||ehRetorno) && arr.length>1;
-    const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${tipo}">🐴 Selecionar no painel de Animais</button>` : '';
-    const btnIrVisitaRepro = (ehRetorno && temPermissao('nascimentos','inserir')) ? `<button type="button" class="btn btn-sm btn-ghost" data-irvisitarepro="${tipo}">📋 Ir para Visita (com essas éguas)</button>` : '';
+    const btnFront = ehManejo ? `<button type="button" class="btn btn-sm btn-ghost" data-verfrontgrupo="${escHtml(tipo)}">🐴 Selecionar no painel de Animais</button>` : '';
+    const btnIrVisitaRepro = (ehRetorno && temPermissao('nascimentos','inserir')) ? `<button type="button" class="btn btn-sm btn-ghost" data-irvisitarepro="${escHtml(tipo)}">📋 Ir para Visita (com essas éguas)</button>` : '';
     const tituloGrupo = CAL_GRUPO_LABEL[tipo] || tipo;
     const iconeGrupo = CAL_ICON[tipo] || (ehAtividade ? '🏇' : '');
     const optsSubtipo = (aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}">${s}</option>`).join('');
     const seletorMestre = (ehCasco && podeLote) ? `<select data-caldet-subtipomaster="1" title="Muda o procedimento de todos os animais desta lista de uma vez"><option value="">Aplicar a todos...</option>${optsSubtipo}</select>` : '';
     const dataMestre = (ehManejo && podeLote && tipo!=='Vacina' && tipo!=='Vermífugo') ? `<input type="date" data-caldet-datamaster="1" value="${toISODate(new Date())}" title="Data em que foi feito — vale pra todos ao 'Marcar todos concluídos' (o próximo manejo é calculado a partir daqui)">` : '';
-    const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${tipo}">🗑 Excluir todos (${arr.length})</button>`
-      : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${tipo}">🗑 Excluir todos (${arr.length})</button>`
-      : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${tipo}">🗑 Excluir todos (${arr.length})</button>`
-      : ehRetorno ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosretorno="${tipo}">🗑 Excluir todos (${arr.length})</button>` : '';
-    const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${tipo}">✔ Marcar todos concluídos (${arr.length})</button>`;
-    const btnConcluirSel = ((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${tipo}" data-concluirseltrat="${ehTratamento?'1':''}" data-concluirselproto="${(ehGestacao||ehPotro)?'1':''}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
-    const btnExcluirSel = (ehRetorno && arr.length>1) ? `<button type="button" class="btn btn-sm btn-danger" data-excluirselretorno="${tipo}" style="display:none;">🗑 Excluir selecionados (<span data-selcount>0</span>)</button>` : '';
+    const btnExcluirTodos = ehManejo ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosmanejo="${escHtml(tipo)}">🗑 Excluir todos (${arr.length})</button>`
+      : ehTratamento ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodostratamento="${escHtml(tipo)}">🗑 Excluir todos (${arr.length})</button>`
+      : ehAtividade ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosatividade="${escHtml(tipo)}">🗑 Excluir todos (${arr.length})</button>`
+      : ehRetorno ? `<button type="button" class="btn btn-sm btn-danger" data-excluirtodosretorno="${escHtml(tipo)}">🗑 Excluir todos (${arr.length})</button>` : '';
+    const btnConcluirTodos = (ehAtividade||ehRepro||ehTransporte) ? '' : `<button type="button" class="btn btn-sm" data-concluirtodos="${escHtml(tipo)}">✔ Marcar todos concluídos (${arr.length})</button>`;
+    const btnConcluirSel = ((ehManejo||ehTratamento||ehGestacao||ehPotro) && arr.length>1) ? `<button type="button" class="btn btn-sm btn-ghost" data-concluirsel="${escHtml(tipo)}" data-concluirseltrat="${ehTratamento?'1':''}" data-concluirselproto="${(ehGestacao||ehPotro)?'1':''}" style="display:none;">✔ Marcar selecionados (<span data-selcount>0</span>)</button>` : '';
+    const btnExcluirSel = (ehRetorno && arr.length>1) ? `<button type="button" class="btn btn-sm btn-danger" data-excluirselretorno="${escHtml(tipo)}" style="display:none;">🗑 Excluir selecionados (<span data-selcount>0</span>)</button>` : '';
     const header = podeLote
       ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0 4px;gap:8px;flex-wrap:wrap;">
           <div style="font-weight:600;">${iconeGrupo} ${tituloGrupo} <span style="color:var(--muted);font-weight:400;">(${arr.length})</span></div>
@@ -8225,7 +8231,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
       const seletorCasco = ehCasco ? `<select class="cal-subtipo-select" data-caldet-subtipo="${t.animalId}" title="Procedimento (pré-marcado com o último deste animal)">${(aux.subtipoFerrageamento||[]).map(s=>`<option value="${s}" ${ (ultimoSubtipoCasco(t.animalId)===s) ?'selected':''}>${s}</option>`).join('')}</select>` : '';
       return `
       <div class="tarefa-row" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento||ehGestacao||ehPotro||ehRetorno) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selchave="${ehRetorno?chaveTarefaManejo(t):''}" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-selproto="${(ehGestacao||ehPotro)?((ehGestacao?'gestacao':'potro')+'|'+(ehGestacao?t.nascimentoId:t.animalId)+'|'+t.itemId):''}" data-seltipo="${t.tipo}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${t.animalNome}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;">${((ehManejo||ehTratamento||ehGestacao||ehPotro||ehRetorno) && arr.length>1) ? `<input type="checkbox" class="cal-manejo-sel" data-selchave="${ehRetorno?chaveTarefaManejo(t):''}" data-selanimal="${t.animalId}" data-seltrat="${t.tratamentoId||''}" data-seldose="${t.doseKey||''}" data-selproto="${(ehGestacao||ehPotro)?((ehGestacao?'gestacao':'potro')+'|'+(ehGestacao?t.nascimentoId:t.animalId)+'|'+t.itemId):''}" data-seltipo="${escHtml(t.tipo)}" title="Selecionar" style="width:15px;height:15px;flex-shrink:0;">` : ''}<span>${ehTransporte ? `${t.label}${t.animalNome?` <span style="color:var(--muted);">— ${escHtml(t.animalNome)}</span>`:''}` : ehAtividade ? (t.animalNome || '<span style="color:var(--muted);">(sem animais definidos ainda)</span>') : (ehTratamento ? `${t.animalNome} — ${t.periodo} — ${t.medicamentoNome}` : t.animalNome)}${(ehGestacao||ehPotro)?` <span style="color:var(--muted);">— ${t.label.replace(/^Vacinação \([^)]*\):\s*/,'')}</span>`:''} ${t.situacao==='atrasado'?'<span class="pill st-descarte" style="margin-left:6px;">Atrasado</span>':''}</span></div>
         ${ehTransporte
           ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-abrirtransporte="${t.transporteId}">👁 Abrir / marcar realizado</button></div>`
           : ehTratamento
@@ -8240,7 +8246,7 @@ function abrirDetalheCalendario(iso, tipoFiltro){
               ? `<div style="display:flex;gap:6px;align-items:center;"><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">👁 Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirretorno="${chaveTarefaManejo(t)}" title="Remove esse retorno reprodutivo da agenda — só volta se uma visita nova marcar outro retorno pra essa égua">🗑 Excluir</button></div>`
             : ehFuncionario
               ? `<button type="button" class="btn btn-sm" data-confirmarsalariocal="${t.funcionarioId}">💰 Confirmar pagamento</button>`
-              : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${seletorCasco}${(t.tipo==='Vacina'||t.tipo==='Vermífugo')?'':`<input type="date" class="cal-data-conclusao" data-caldet-data="${t.animalId}" value="${toISODate(new Date())}" title="Data em que foi feito — o próximo manejo é calculado a partir daqui">`}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${t.tipo}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
+              : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${seletorCasco}${(t.tipo==='Vacina'||t.tipo==='Vermífugo')?'':`<input type="date" class="cal-data-conclusao" data-caldet-data="${t.animalId}" value="${toISODate(new Date())}" title="Data em que foi feito — o próximo manejo é calculado a partir daqui">`}<button type="button" class="btn btn-sm" data-concluirmanejo="${t.animalId}|${escHtml(t.tipo)}">✔ Marcar concluída</button><button type="button" class="btn btn-sm btn-ghost" data-irperfil="${t.animalId}">Ver ficha</button><button type="button" class="btn btn-sm btn-danger" data-excluirmanejo="${chaveTarefaManejo(t)}" title="Remove essa tarefa da agenda sem registrar execução nem gerar nenhum efeito">🗑 Excluir</button></div>`}
       </div>`;
     }).join('');
     return header+rows;
@@ -8643,7 +8649,7 @@ function renderManejoUtensilios(){
       return `<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;margin-bottom:8px;">
         <select data-mufield="produtoId" data-idx="${idx}">
           <option value="">Selecione...</option>
-          ${produtos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}
+          ${produtos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('')}
         </select>
         <input type="number" step="0.01" data-mufield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="${un||'—'}">
         <button type="button" class="btn btn-sm btn-danger" data-muremove="${idx}" title="Remover">✕</button>
@@ -9397,7 +9403,7 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const link = d => `https://wa.me/${d.numero}?text=${encodeURIComponent(mensagem)}`;
   fila.style.display = 'block';
   fila.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">${envForn.comPdf?`PDF "${escHtml(lastPreviaNomeArquivo)}" baixado. `:''}Abra o WhatsApp de cada um (um de cada vez):</div>` +
-    destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${d.numero}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
+    destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${escHtml(d.numero)}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
   fila.querySelectorAll('[data-fila]').forEach(b=>b.addEventListener('click',()=>{
     const i = Number(b.dataset.fila);
     window.open(link(destinos[i]), '_blank');
@@ -9437,7 +9443,7 @@ function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
 // Pra Vacina/Vermífugo, mostra só a lista de animais e observações (não tem valor a detalhar).
 function blocoRelatorioManejo(m, comoTitulo){
   const fmtR = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
-  const titulo = comoTitulo ? `<h1>${m.tipo} — ${fmtDate(m.data)}</h1>` : `<h2>${m.tipo} — ${fmtDate(m.data)}</h2>`;
+  const titulo = comoTitulo ? `<h1>${escHtml(m.tipo)} — ${fmtDate(m.data)}</h1>` : `<h2>${escHtml(m.tipo)} — ${fmtDate(m.data)}</h2>`;
   if(m.tipo==='Casco'){
     const linhasAnimais = (m.animais||[]).map(a=>{
       const base = (a.valorBase!==undefined && a.valorBase!==null && a.valorBase!=='') ? Number(a.valorBase) : Number(m.valor||0);
@@ -9448,9 +9454,9 @@ function blocoRelatorioManejo(m, comoTitulo){
     const deslocamento = Number(m.deslocamento)||0;
     const totalGeral = totalAnimais + deslocamento;
     return `${titulo}
-      <div class="sub">Ferrador: ${m.ferrador||'—'}${m.obs?(' · Obs. gerais: '+m.obs):''}</div>
+      <div class="sub">Ferrador: ${escHtml(m.ferrador||'—')}${m.obs?(' · Obs. gerais: '+escHtml(m.obs)):''}</div>
       <table><thead><tr><th>Animal</th><th>Tipo aplicado</th><th class="num">Valor base</th><th class="num">Valor extra</th><th class="num">Subtotal</th><th>Observação do animal</th></tr></thead>
-      <tbody>${linhasAnimais.map(l=>`<tr><td>${l.nome}</td><td>${l.tipo}</td><td class="num">${fmtR(l.base)}</td><td class="num">${l.extra?fmtR(l.extra):'—'}</td><td class="num">${fmtR(l.subtotal)}</td><td class="obs">${l.obs||''}</td></tr>`).join('')}</tbody>
+      <tbody>${linhasAnimais.map(l=>`<tr><td>${escHtml(l.nome)}</td><td>${escHtml(l.tipo)}</td><td class="num">${fmtR(l.base)}</td><td class="num">${l.extra?fmtR(l.extra):'—'}</td><td class="num">${fmtR(l.subtotal)}</td><td class="obs">${escHtml(l.obs||'')}</td></tr>`).join('')}</tbody>
       <tfoot>
         <tr><td colspan="4">Soma dos animais (${linhasAnimais.length})</td><td class="num">${fmtR(totalAnimais)}</td><td></td></tr>
         <tr><td colspan="4">Deslocamento do ferrador</td><td class="num">${deslocamento?fmtR(deslocamento):'—'}</td><td></td></tr>
@@ -9466,16 +9472,16 @@ function blocoRelatorioManejo(m, comoTitulo){
     });
     const totalAnimais = linhasAnimais.reduce((s,l)=>s+l.subtotal, 0);
     return `${titulo}
-      <div class="sub">${m.obs?('Obs. gerais: '+m.obs):''}</div>
+      <div class="sub">${m.obs?('Obs. gerais: '+escHtml(m.obs)):''}</div>
       <table><thead><tr><th>Animal</th><th class="num">Valor base</th><th class="num">Valor extra</th><th class="num">Subtotal</th><th>Observação do animal</th></tr></thead>
-      <tbody>${linhasAnimais.map(l=>`<tr><td>${l.nome}</td><td class="num">${fmtR(l.base)}</td><td class="num">${l.extra?fmtR(l.extra):'—'}</td><td class="num">${fmtR(l.subtotal)}</td><td class="obs">${l.obs||''}</td></tr>`).join('')}</tbody>
+      <tbody>${linhasAnimais.map(l=>`<tr><td>${escHtml(l.nome)}</td><td class="num">${fmtR(l.base)}</td><td class="num">${l.extra?fmtR(l.extra):'—'}</td><td class="num">${fmtR(l.subtotal)}</td><td class="obs">${escHtml(l.obs||'')}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td>TOTAL GERAL</td><td></td><td></td><td class="num">${fmtR(totalAnimais)}</td><td></td></tr></tfoot>
       </table>`;
   }
   // Vacina, Vermífugo: sem valores, só a lista de animais e observação de cada um.
   return `${titulo}
-    <div class="sub">${m.obs?('Obs. gerais: '+m.obs):''}</div>
-    <ul class="animais-simples">${(m.animais||[]).map(a=>`<li>${a.nome}${a.extra?(' — '+a.extra):''}</li>`).join('')}</ul>`;
+    <div class="sub">${m.obs?('Obs. gerais: '+escHtml(m.obs)):''}</div>
+    <ul class="animais-simples">${(m.animais||[]).map(a=>`<li>${escHtml(a.nome)}${a.extra?(' — '+escHtml(a.extra)):''}</li>`).join('')}</ul>`;
 }
 function gerarRelatorioManejoUnico(id){
   const m = manejos.find(x=>x.id===id); if(!m) return;
@@ -9496,7 +9502,7 @@ document.getElementById('btnEditarValoresCasco').addEventListener('click', ()=>{
   const container = document.getElementById('vc_camposDinamicos');
   container.innerHTML = (aux.subtipoFerrageamento||[]).map(tipo=>{
     const val = (config.valoresCasco && config.valoresCasco[tipo]!==undefined) ? config.valoresCasco[tipo] : '';
-    return `<div class="field"><label>${tipo} (R$)</label><input type="number" min="0" step="0.01" data-vctipo="${tipo}" value="${val}"></div>`;
+    return `<div class="field"><label>${escHtml(tipo)} (R$)</label><input type="number" min="0" step="0.01" data-vctipo="${escHtml(tipo)}" value="${val}"></div>`;
   }).join('')
     + `<div class="field"><label>Deslocamento padrão do ferrador (R$)</label><input type="number" id="vc_deslocamentoPadrao" min="0" step="0.01" value="${config.deslocamentoFerrador||0}"></div>`
     + `<div class="field"><label>Próxima data — Ferrageamento (dias)</label><input type="number" min="1" step="1" id="vc_freqFerrageamento" value="${config.freqFerrageamento||30}"></div>`
@@ -9527,7 +9533,7 @@ document.getElementById('btnEditarFreqVacinas').addEventListener('click', ()=>{
   } else {
     container.innerHTML = nomesVacinas.map(nome=>{
       const val = config.freqVacinas[nome]!==undefined ? config.freqVacinas[nome] : '';
-      return `<div class="field"><label>${nome} (dias)</label><input type="number" min="1" step="1" data-fvnome="${nome}" value="${val}" placeholder="365"></div>`;
+      return `<div class="field"><label>${escHtml(nome)} (dias)</label><input type="number" min="1" step="1" data-fvnome="${escHtml(nome)}" value="${val}" placeholder="365"></div>`;
     }).join('');
   }
   openModal('overlayFreqVacinas');
@@ -9705,7 +9711,7 @@ document.getElementById('btnAnalisarImportCasco').addEventListener('click', ()=>
   if(importCascoGrupos.length>0){
     html += `<div class="grid-wrap" style="max-height:280px;overflow:auto;margin-bottom:14px;"><table class="grid">
       <thead><tr><th>Data</th><th>Ferrador</th><th>Animais (tipo — valor de cada um)</th></tr></thead>
-      <tbody>${importCascoGrupos.map(g=>`<tr><td>${fmtDate(g.data)}</td><td>${g.ferrador||''}</td><td>${g.animais.map(a=>`${a.nome} (${a.tipo} — R$ ${a.valorBase}${a.extra?(' — '+a.extra):''})`).join(', ')}</td></tr>`).join('')}</tbody>
+      <tbody>${importCascoGrupos.map(g=>`<tr><td>${fmtDate(g.data)}</td><td>${escHtml(g.ferrador||'')}</td><td>${g.animais.map(a=>`${a.nome} (${a.tipo} — R$ ${a.valorBase}${a.extra?(' — '+a.extra):''})`).join(', ')}</td></tr>`).join('')}</tbody>
     </table></div>`;
   }
   if(naoEncontrados.length>0){
@@ -9984,17 +9990,17 @@ function analisarImportTreinoListagem(grupos, mismatches){
   html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
     <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Treinador</th><th>Observação</th><th>Animais</th></tr></thead>
     <tbody>${todos.map(g=>`<tr${g.animais.length===0?' style="opacity:.5;"':''}>
-      <td style="white-space:nowrap;">${fmtDate(g.data)}</td><td>${g.tipo||''}</td><td>${g.local||''}</td>
-      <td>${g.treinador||'<span style="color:var(--muted);">—</span>'}</td>
-      <td style="font-size:11.5px;">${g.obs||''}</td>
-      <td style="font-size:11.5px;">${g.animais.length ? g.animais.map(a=>a.nome+(a.extra?(' <span style="color:var(--muted);">['+a.extra+']</span>'):'')).join(', ') : '<span style="color:#a33;">nenhum reconhecido de '+g.totalLido+'</span>'}</td>
+      <td style="white-space:nowrap;">${fmtDate(g.data)}</td><td>${escHtml(g.tipo||'')}</td><td>${escHtml(g.local||'')}</td>
+      <td>${g.treinador?escHtml(g.treinador):'<span style="color:var(--muted);">—</span>'}</td>
+      <td style="font-size:11.5px;">${escHtml(g.obs||'')}</td>
+      <td style="font-size:11.5px;">${g.animais.length ? g.animais.map(a=>a.nome+(a.extra?(' <span style="color:var(--muted);">['+escHtml(a.extra)+']</span>'):'')).join(', ') : '<span style="color:#a33;">nenhum reconhecido de '+g.totalLido+'</span>'}</td>
     </tr>`).join('')}</tbody>
   </table></div>`;
   if(naoEncontrados.size){
     html += `<div class="hint-text" style="color:#a33;margin-bottom:8px;"><strong>Cavalos não encontrados no cadastro</strong> (não entram — cadastre com esse nome e reimporte, se quiser incluí-los):<br>${[...naoEncontrados].sort().join(', ')}</div>`;
   }
   if(mismatches.length){
-    html += `<div class="hint-text" style="color:#a33;"><strong>Contagem divergente</strong> (li um nº de marcas diferente do total impresso na matriz — confira esses depois de importar):<br>${mismatches.map(m=>m.nome+': li '+m.lido+', esperado '+m.esperado).join(' · ')}</div>`;
+    html += `<div class="hint-text" style="color:#a33;"><strong>Contagem divergente</strong> (li um nº de marcas diferente do total impresso na matriz — confira esses depois de importar):<br>${mismatches.map(m=>escHtml(m.nome)+': li '+m.lido+', esperado '+m.esperado).join(' · ')}</div>`;
   }
   document.getElementById('importTreinoResumo').innerHTML = html;
   const btn = document.getElementById('btnConfirmarImportTreino');
@@ -10045,7 +10051,7 @@ document.getElementById('btnAnalisarImportTreino').addEventListener('click', ()=
   if(importTreinoGrupos.length>0){
     html += `<div class="grid-wrap" style="max-height:280px;overflow:auto;margin-bottom:14px;"><table class="grid">
       <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Treinador</th><th>Animais</th></tr></thead>
-      <tbody>${importTreinoGrupos.map(g=>`<tr><td>${fmtDate(g.data)}</td><td>${g.tipo||''}</td><td>${g.local||''}</td><td>${g.treinador||''}</td><td>${g.animais.map(a=>a.nome).join(', ')}</td></tr>`).join('')}</tbody>
+      <tbody>${importTreinoGrupos.map(g=>`<tr><td>${fmtDate(g.data)}</td><td>${escHtml(g.tipo||'')}</td><td>${escHtml(g.local||'')}</td><td>${escHtml(g.treinador||'')}</td><td>${g.animais.map(a=>a.nome).join(', ')}</td></tr>`).join('')}</tbody>
     </table></div>`;
   }
   if(naoEncontrados.length>0){
@@ -10226,11 +10232,11 @@ document.getElementById('btnAnalisarImportNasc').addEventListener('click', ()=>{
   if(validos.length>0){
     html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
       <thead><tr><th>Matriz</th><th>Pai</th><th>Receptora</th><th>Dt Cobertura</th><th>Dt Nascimento</th><th>Nome</th><th>Sexo</th></tr></thead>
-      <tbody>${validos.map(v=>`<tr><td>${v.matriz}</td><td>${v.pai||'—'}</td><td>${v.receptora||'—'}</td><td>${v.datacob?fmtDate(v.datacob):'—'}</td><td>${fmtDate(v.datanasc)}</td><td>${v.nome}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td></tr>`).join('')}</tbody>
+      <tbody>${validos.map(v=>`<tr><td>${escHtml(v.matriz)}</td><td>${escHtml(v.pai||'—')}</td><td>${escHtml(v.receptora||'—')}</td><td>${v.datacob?fmtDate(v.datacob):'—'}</td><td>${fmtDate(v.datanasc)}</td><td>${escHtml(v.nome)}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td></tr>`).join('')}</tbody>
     </table></div>`;
   }
   if(jaExistentes.length>0){
-    html += `<div class="hint-text" style="margin-bottom:8px;"><strong>Já existentes</strong> (não importados de novo):<br>${jaExistentes.map(j=>j.nome+' ('+j.matriz+')').join(', ')}</div>`;
+    html += `<div class="hint-text" style="margin-bottom:8px;"><strong>Já existentes</strong> (não importados de novo):<br>${jaExistentes.map(j=>escHtml(j.nome)+' ('+escHtml(j.matriz)+')').join(', ')}</div>`;
   }
   document.getElementById('importNascResumo').innerHTML = html;
   document.getElementById('btnConfirmarImportNasc').disabled = validos.length===0;
@@ -10318,7 +10324,7 @@ document.getElementById('btnAnalisarImportAnimais').addEventListener('click', ()
   if(validos.length>0){
     html += `<div class="grid-wrap" style="max-height:320px;overflow:auto;margin-bottom:14px;"><table class="grid">
       <thead><tr><th>Nome</th><th>Sexo</th><th>Nascimento</th><th>Raça</th><th>Pelagem</th><th>Pai</th><th>Mãe</th><th>Proprietário</th><th>Localização</th><th>Categoria</th></tr></thead>
-      <tbody>${validos.map(v=>`<tr><td>${v.nome}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td><td>${v.nascimento?fmtDate(v.nascimento):'—'}</td><td>${v.raca||'—'}</td><td>${v.pelagem||'—'}</td><td>${v.pai||'—'}</td><td>${v.mae||'—'}</td><td>${v.proprietario||'—'}</td><td>${v.localizacao||'—'}</td><td>${v.categoria||'—'}</td></tr>`).join('')}</tbody>
+      <tbody>${validos.map(v=>`<tr><td>${escHtml(v.nome)}</td><td>${v.sexo==='MASCULINO'?'M':'F'}</td><td>${v.nascimento?fmtDate(v.nascimento):'—'}</td><td>${escHtml(v.raca||'—')}</td><td>${escHtml(v.pelagem||'—')}</td><td>${escHtml(v.pai||'—')}</td><td>${escHtml(v.mae||'—')}</td><td>${escHtml(v.proprietario||'—')}</td><td>${escHtml(v.localizacao||'—')}</td><td>${escHtml(v.categoria||'—')}</td></tr>`).join('')}</tbody>
     </table></div>`;
   }
   if(jaExistentes.length>0){
@@ -10457,9 +10463,9 @@ function renderTransportes(){
     return `<tr data-id="${t.id}">
       ${tdCheck('transporte', t.id)}
       <td>${fmtDate(t.data)}</td>
-      <td data-col="origemDestino">${t.origem||'—'} → ${t.destino||'—'}</td>
+      <td data-col="origemDestino">${escHtml(t.origem||'—')} → ${escHtml(t.destino||'—')}</td>
       <td data-col="meio">${t.meioTransporte||'—'}</td>
-      <td data-col="motorista">${t.motorista||'—'}</td>
+      <td data-col="motorista">${escHtml(t.motorista||'—')}</td>
       <td data-col="motivo">${t.motivo||'—'}</td>
       <td data-col="qtdAnimais" style="cursor:pointer;text-decoration:underline dotted;" title="Clique pra ver quais animais">${nAnimais}</td>
       <td data-col="gta">${t.gta==='sim'?`<span class="pill st-ativo"${t.gtaNumero?` title="Nº ${t.gtaNumero}"`:''}>✓ Sim${t.gtaNumero?(' — '+t.gtaNumero):''}</span>`:(t.gta==='nao'?'<span class="pill st-descarte">✕ Não</span>':'—')}</td>
@@ -10535,7 +10541,7 @@ function abrirAnimaisTransporte(id){
   document.getElementById('tpAnimaisModalTitle').textContent = `Animais — ${fmtDate(t.data)} (${t.origem||'—'} → ${t.destino||'—'})`;
   document.getElementById('tpAnimaisModalBody').innerHTML = animais.length===0
     ? '<div class="empty">Nenhum animal registrado nesse transporte.</div>'
-    : `<ul style="margin:8px 0 0;padding-left:20px;">${animais.map(a=>`<li>${a.nome||'—'}</li>`).join('')}</ul>`;
+    : `<ul style="margin:8px 0 0;padding-left:20px;">${animais.map(a=>`<li>${escHtml(a.nome||'—')}</li>`).join('')}</ul>`;
   openModal('overlayTransporteAnimais');
 }
 function openTransporteEdit(id){
@@ -10637,7 +10643,7 @@ function renderTpSessaoResumo(){
   const host = document.getElementById('tpSessaoResumo');
   if(transporteSessao.length===0){ host.innerHTML=''; return; }
   host.innerHTML = `<div class="hint-text" style="margin-bottom:6px;">Já adicionados nesta sessão (${transporteSessao.length}):</div>` +
-    transporteSessao.map(t=>`<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">🚚 <strong>${t.origem||'—'} → ${t.destino||'—'}</strong> — ${fmtDate(t.data)} · ${t.animais.length} animal(is)${t.valorFrete?(' · '+fmtMoeda(t.valorFrete,'BRL')):''}</div>`).join('');
+    transporteSessao.map(t=>`<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">🚚 <strong>${escHtml(t.origem||'—')} → ${escHtml(t.destino||'—')}</strong> — ${fmtDate(t.data)} · ${t.animais.length} animal(is)${t.valorFrete?(' · '+fmtMoeda(t.valorFrete,'BRL')):''}</div>`).join('');
 }
 document.getElementById('btnAddOutroTransporte').addEventListener('click', async ()=>{
   const r = await tentarSalvarTransporteAtual();
@@ -10693,7 +10699,7 @@ function renderTreinoOutrosCustos(){
       <div>Descrição</div><div>Valor</div><div></div>
     </div>` +
     treinoOutrosCustosState.map((it,idx)=>`<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;margin-bottom:8px;">
-        <input type="text" data-tcfield="descricao" data-idx="${idx}" value="${it.descricao||''}" placeholder="Ex: Frete">
+        <input type="text" data-tcfield="descricao" data-idx="${idx}" value="${escHtml(it.descricao||'')}" placeholder="Ex: Frete">
         <input type="number" step="0.01" data-tcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00">
         <button type="button" class="btn btn-sm btn-danger" data-tcremove="${idx}" title="Remover">✕</button>
       </div>`).join('');
@@ -10764,7 +10770,7 @@ function renderTreinoStats(tipoAtivo){
     `<div class="stat clickable ${!tipoAtivo?'active':''}" data-tstat=""><div class="stat-num">${treinos.length}</div><div class="stat-label">Total de atividades</div></div>` +
     tipos.map(tp=>{
       const n = treinos.filter(t=>t.tipo===tp).length;
-      return `<div class="stat clickable ${tipoAtivo===tp?'active':''}" data-tstat="${tp.replace(/"/g,'&quot;')}"><div class="stat-num">${n}</div><div class="stat-label">${tp}</div></div>`;
+      return `<div class="stat clickable ${tipoAtivo===tp?'active':''}" data-tstat="${escHtml(tp)}"><div class="stat-num">${n}</div><div class="stat-label">${escHtml(tp)}</div></div>`;
     }).join('');
   host.querySelectorAll('[data-tstat]').forEach(card=>card.addEventListener('click', ()=>{
     const tp = card.dataset.tstat;
@@ -10793,7 +10799,7 @@ function renderTreinos(){
   if(listaT.length===0){ tbody.innerHTML=`<tr><td colspan="8" class="empty">Nenhum treino encontrado.</td></tr>`; sincronizarSelecaoLista('treinos', '#view-treinos [data-lista="treinos"]'); return; }
   tbody.innerHTML = listaT.map(t=>`<tr data-id="${t.id}" style="cursor:pointer;" title="Clique na linha para gerar o relatório em PDF deste treino">
     ${tdCheck('treinos', t.id)}
-    <td>${fmtDate(t.data)}</td><td data-col="local">${t.local||''}</td><td data-col="tipo">${t.tipo||''}</td><td data-col="quemTreinou">${t.treinadores||''}</td><td data-col="qtdAnimais">${t.animais.length}</td><td data-col="obs">${t.obs||''}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
+    <td>${fmtDate(t.data)}</td><td data-col="local">${escHtml(t.local||'')}</td><td data-col="tipo">${escHtml(t.tipo||'')}</td><td data-col="quemTreinou">${escHtml(t.treinadores||'')}</td><td data-col="qtdAnimais">${t.animais.length}</td><td data-col="obs">${escHtml(t.obs||'')}${t.cobranca?` <span class="pill st-ativo">💰 ${fmtMoeda(valorTotalTreino(t), t.cobranca.moeda)}</span>`:''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-edit="${t.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-del="${t.id}">Excluir</button></td>
   </tr>`).join('');
   sincronizarSelecaoLista('treinos', '#view-treinos [data-lista="treinos"]');
@@ -10936,7 +10942,7 @@ function renderListaChuckers(){
       });
       return '<option value="">Selecione...</option>' + ativos.map(h=>{
         const marca = (contagemJogo[h.id] ? ' '+'●'.repeat(contagemJogo[h.id]) : '') + (emEspera.has(h.id) ? ' 🔸' : '');
-        return `<option value="${h.id}">${h.nome}${marca}</option>`;
+        return `<option value="${h.id}">${escHtml(h.nome)}${escHtml(marca)}</option>`;
       }).join('');
     };
     const titulo = sec.treinador ? `<div style="font-weight:600;font-size:13px;margin:${si?'20px':'0'} 0 8px;color:var(--green);">Lista de ${escHtml(sec.treinador)}${sec.fora?' <span style="font-weight:400;color:var(--muted);">(não está mais neste treino)</span>':''}</div>` : '';
@@ -11001,7 +11007,7 @@ function tabelaChuckersHtml(chuckersArr, cls){
 // Uma tabela por treinador (com o nome dele em cima) quando o treino tem mais de uma lista; lista única sai
 // sem título, como antes.
 function tabelasListasTreinoHtml(t, cls){
-  return listasDoTreino(t).map(l=>`${l.treinador?`<div class="report-tipo-titulo" style="font-size:12px;margin-top:8px;">Lista de ${l.treinador}</div>`:''}${tabelaChuckersHtml(l.chuckers, cls)}`).join('');
+  return listasDoTreino(t).map(l=>`${l.treinador?`<div class="report-tipo-titulo" style="font-size:12px;margin-top:8px;">Lista de ${escHtml(l.treinador)}</div>`:''}${tabelaChuckersHtml(l.chuckers, cls)}`).join('');
 }
 document.getElementById('btnPdfListaChuckers').addEventListener('click', async ()=>{
   const secoes = listasChuckersState.map(s=>({ treinador:s.treinador, chuckers:s.chuckers.filter(chuckerLinhaPreenchida) })).filter(s=>s.chuckers.length>0);
@@ -11010,7 +11016,7 @@ document.getElementById('btnPdfListaChuckers').addEventListener('click', async (
   const obs = document.getElementById('t_obs').value.trim();
   const html = `<h1>Lista de Chuckers</h1>
     <div class="sub">${dataTreino ? fmtDate(dataTreino) : ''}${obs ? ' — '+obs : ''}</div>
-    ${secoes.map(s=>`${s.treinador?`<h2>Lista de ${s.treinador}</h2>`:''}${tabelaChuckersHtml(s.chuckers)}`).join('')}`;
+    ${secoes.map(s=>`${s.treinador?`<h2>Lista de ${escHtml(s.treinador)}</h2>`:''}${tabelaChuckersHtml(s.chuckers)}`).join('')}`;
   await baixarRelatorioManejoPDF(html, 'lista_chuckers'+(dataTreino?'_'+dataTreino:'')+'.pdf');
 });
 // Relatório combinado: pega os treinos marcados na tabela do Histórico (ex: jogos de torneio) — sem
@@ -11022,8 +11028,8 @@ function gerarListaChuckersSelecionados(){
   const comLista = base.filter(treinoTemLista).slice().sort((a,b)=>a.data.localeCompare(b.data));
   if(comLista.length===0){ showAlert('Nenhum treino selecionado tem Lista de Chuckers salva.'); return; }
   const html = comLista.map(t=>`<div class="report-animal-block">
-      <h2>${fmtDate(t.data)}${t.tipo?' — '+t.tipo:''}${t.local?' — '+t.local:''}</h2>
-      ${t.obs ? `<div class="sub">${t.obs}</div>` : ''}
+      <h2>${fmtDate(t.data)}${t.tipo?' — '+escHtml(t.tipo):''}${t.local?' — '+escHtml(t.local):''}</h2>
+      ${t.obs ? `<div class="sub">${escHtml(t.obs)}</div>` : ''}
       ${tabelasListasTreinoHtml(t)}
     </div>`).join('');
   baixarRelatorioManejoPDF(`<h1>Lista de Chuckers</h1><div class="sub">${comLista.length} treino(s)</div>${html}`, 'lista_chuckers_'+comLista.length+'_treinos.pdf');
@@ -11067,11 +11073,11 @@ function listasCompactasTreinoHtml(t){
   return `<div style="display:flex;flex-wrap:wrap;gap:6px 36px;margin:6px 0 10px;">${blocos.join('')}</div>`;
 }
 function blocoRelatorioTreino(t){
-  return `<h1 style="border:none;">Treino — ${t.tipo||'Sem tipo'} — ${fmtDate(t.data)}</h1>
-    <div class="sub">${t.local?('Local: '+t.local+' · '):''}${t.treinadores?('Quem treinou: '+t.treinadores):'Quem treinou: —'}</div>
+  return `<h1 style="border:none;">Treino — ${escHtml(t.tipo||'Sem tipo')} — ${fmtDate(t.data)}</h1>
+    <div class="sub">${t.local?('Local: '+escHtml(t.local)+' · '):''}${t.treinadores?('Quem treinou: '+escHtml(t.treinadores)):'Quem treinou: —'}</div>
     <div class="report-tipo-titulo">Animais (${t.animais.length})</div>
-    <ul class="animais-simples">${t.animais.map(a=>`<li>${a.nome}${a.extra?(' — '+a.extra):''}</li>`).join('')}</ul>
-    ${t.obs?`<div class="sub" style="margin-top:14px;"><b>Obs.:</b> ${t.obs}</div>`:''}
+    <ul class="animais-simples">${t.animais.map(a=>`<li>${escHtml(a.nome)}${a.extra?(' — '+escHtml(a.extra)):''}</li>`).join('')}</ul>
+    ${t.obs?`<div class="sub" style="margin-top:14px;"><b>Obs.:</b> ${escHtml(t.obs)}</div>`:''}
     ${treinoTemLista(t)?`<div class="report-tipo-titulo" style="margin-top:16px;">Lista de Chuckers</div>${tabelasListasTreinoHtml(t)}`:''}`;
 }
 function gerarRelatorioTreinoUnico(id){
@@ -11094,10 +11100,10 @@ function gerarRelatorioTreino1(){
   host.innerHTML = `<div class="report-card print-block">${cabecalho}
     ${linhas.map(l=>{
       return `<div class="report-animal-block">
-        <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${l.animal.nome} <span style="font-weight:400;font-size:12px;color:#555;">— ${l.registros.length} sessão(ões): ${resumoTiposTreino(l.registros)}</span></div>
+        <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${l.animal.id}" title="Abrir ficha em nova aba">👁</button> ${escHtml(l.animal.nome)} <span style="font-weight:400;font-size:12px;color:#555;">— ${l.registros.length} sessão(ões): ${resumoTiposTreino(l.registros)}</span></div>
         <div class="grid-wrap compact"><table class="grid">
           <thead><tr><th>Data</th><th>Local</th><th>Tipo</th><th>Quem treinou</th></tr></thead>
-          <tbody>${l.registros.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${r.local||''}</td><td>${r.tipo||''}</td><td>${r.treinadores||''}</td></tr>`).join('')}</tbody>
+          <tbody>${l.registros.map(r=>`<tr><td>${fmtDate(r.data)}</td><td>${escHtml(r.local||'')}</td><td>${escHtml(r.tipo||'')}</td><td>${escHtml(r.treinadores||'')}</td></tr>`).join('')}</tbody>
         </table></div>
       </div>`;
     }).join('')}
@@ -11159,14 +11165,14 @@ function gerarRelatorioTreino2(){
       ${blocos.length>1?`<div class="matrix-block-title">Parte ${bi+1} de ${blocos.length}</div>`:''}
       <table class="matrix">
         <thead><tr><th class="animal-name">Animal</th><th class="tot-col">Tot.</th>${bloco.map(b=>`<th>${fmtDate(b.t.data)}</th>`).join('')}</tr></thead>
-        <tbody>${animaisOrdenados.map(h=>`<tr><td class="animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${h.nome}</td><td class="tot-col" style="font-weight:600;">${totais[h.id]}</td>${bloco.map(b=>`<td class="${presenca[h.id][b.idx]?'hit':''}">${presenca[h.id][b.idx]||''}</td>`).join('')}</tr>`).join('')}</tbody>
+        <tbody>${animaisOrdenados.map(h=>`<tr><td class="animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${escHtml(h.nome)}</td><td class="tot-col" style="font-weight:600;">${totais[h.id]}</td>${bloco.map(b=>`<td class="${presenca[h.id][b.idx]?'hit':''}">${presenca[h.id][b.idx]||''}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
     </div>`).join('') +
     `<div class="report-card print-block" style="margin-top:18px;">
       <div class="title" style="margin-bottom:10px;font-size:14px;">Treinos no período</div>
       <div class="grid-wrap compact"><table class="grid">
         <thead><tr><th>Data</th><th>Tipo</th><th>Local</th><th>Quem treinou</th><th>Observações</th></tr></thead>
-        <tbody>${relevantTreinos.map(t=>`<tr><td>${fmtDate(t.data)}</td><td>${t.tipo||''}</td><td>${t.local||''}</td><td>${t.treinadores||''}</td><td>${t.obs||''}</td></tr>`).join('')}</tbody>
+        <tbody>${relevantTreinos.map(t=>`<tr><td>${fmtDate(t.data)}</td><td>${escHtml(t.tipo||'')}</td><td>${escHtml(t.local||'')}</td><td>${escHtml(t.treinadores||'')}</td><td>${escHtml(t.obs||'')}</td></tr>`).join('')}</tbody>
       </table></div>
     </div>`;
   btnPdf.style.display='inline-block';
@@ -11190,13 +11196,13 @@ function gerarRelatorioTreino3(){
   const tipos = [...new Set(relevantTreinos.map(t=>t.tipo||'Sem tipo'))];
   host.innerHTML = `<div class="report-card print-block">${cabecalho}` + tipos.map(tipo=>{
     const doTipo = relevantTreinos.filter(t=>(t.tipo||'Sem tipo')===tipo);
-    return `<div class="report-data-titulo">${tipo} (${doTipo.length})</div>
+    return `<div class="report-data-titulo">${escHtml(tipo)} (${doTipo.length})</div>
       ${doTipo.map(t=>{
         // Só os animais selecionados no filtro (não a sessão inteira, se ela tiver outros animais).
         const animaisMostrar = t.animais.filter(a=>idsSelecionados.has(a.id));
         return `
-        <div class="report-tipo-titulo">${fmtDate(t.data)} <span style="font-weight:700;color:#2f4a37;">[${t.tipo||'Sem tipo'}]</span>${t.local?(' — '+t.local):''}</div>
-        <div class="report-animal-lista">${animaisMostrar.map(a=>`<div>${a.nome}${a.extra?(' — '+a.extra):''}</div>`).join('')}</div>
+        <div class="report-tipo-titulo">${fmtDate(t.data)} <span style="font-weight:700;color:#2f4a37;">[${escHtml(t.tipo||'Sem tipo')}]</span>${t.local?(' — '+escHtml(t.local)):''}</div>
+        <div class="report-animal-lista">${animaisMostrar.map(a=>`<div>${escHtml(a.nome)}${a.extra?(' — '+escHtml(a.extra)):''}</div>`).join('')}</div>
         ${listasCompactasTreinoHtml(t)}
       `;}).join('')}`;
   }).join('') + `</div>`;
@@ -11242,7 +11248,7 @@ function gerarRelatorioCobrancaTreinos(){
     totalAnimaisLinha += animaisDoFiltro.length;
     const animaisDetalhe = animaisDoFiltro.map(a=>`${a.nome}: ${fmtMoeda(valorTreinoAnimal(a), t.cobranca.moeda)}`).join(', ');
     return `<tr>
-      <td>${fmtDate(t.data)}</td><td>${t.tipo||'—'}</td><td>${t.local||'—'}</td>
+      <td>${fmtDate(t.data)}</td><td>${escHtml(t.tipo||'—')}</td><td>${escHtml(t.local||'—')}</td>
       <td>${animaisDoFiltro.length}</td>
       <td style="font-size:11.5px;color:var(--muted);">${animaisDetalhe}</td>
       <td style="font-weight:600;white-space:nowrap;">${fmtMoeda(totalTreino, t.cobranca.moeda)}</td>
@@ -11894,8 +11900,8 @@ function blocoRelatorioNascimento(n){
   const provavel = !n.datanasc ? calcProvavelNascimento(refCobertura(n)) : '';
   const confirmacoes = (n.prenhezHistorico||[]).slice().sort();
   const cobs = todasCoberturas(n);
-  return `<h1 style="border:none;">Nascimento — ${n.matriz}</h1>
-    <div class="sub">Pai: ${n.pai||'—'} ${n.receptora?(' · Receptora: '+n.receptora):''}</div>
+  return `<h1 style="border:none;">Nascimento — ${escHtml(n.matriz)}</h1>
+    <div class="sub">Pai: ${escHtml(n.pai||'—')} ${n.receptora?(' · Receptora: '+escHtml(n.receptora)):''}</div>
     <div class="report-tipo-titulo">Datas</div>
     <ul class="animais-simples">
       <li>Cobertura${cobs.length>1?'s':''}: ${cobs.length ? cobs.map(fmtDate).join(', ') : '—'}${estacaoDaCobertura(n)?` <span style="color:#666;">(estação ${estacaoDaCobertura(n)})</span>`:''}</li>
@@ -11908,7 +11914,7 @@ function blocoRelatorioNascimento(n){
     </ul>
     <div class="report-tipo-titulo">Confirmações de prenhez</div>
     <ul class="animais-simples">${confirmacoes.length ? confirmacoes.map(d=>`<li>${fmtDate(d)}</li>`).join('') : '<li>Nenhuma confirmação registrada</li>'}</ul>
-    ${n.obs?`<div class="sub" style="margin-top:14px;"><b>Obs.:</b> ${n.obs}</div>`:''}`;
+    ${n.obs?`<div class="sub" style="margin-top:14px;"><b>Obs.:</b> ${escHtml(n.obs)}</div>`:''}`;
 }
 function gerarRelatorioNascimentoUnico(id){
   const n = nascimentos.find(x=>x.id===id); if(!n) return;
@@ -12005,7 +12011,7 @@ function renderNascimentos(){
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
-    return h ? `<span class="animal-eye-wrap">${nome}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : nome;
+    return h ? `<span class="animal-eye-wrap">${escHtml(nome)}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : escHtml(nome);
   };
   tbody.innerHTML = filteredOrd.map(n=>{
     const animal = n.animalId ? horses.find(h=>h.id===n.animalId) : null;
@@ -12039,7 +12045,7 @@ function renderNascimentos(){
       <td data-col="lavado">${lavadoCell}</td>
       <td data-col="confirm"><span class="pill ${n.confirm==='S'?'st-ativo':'st-descarte'}">${n.confirm==='S'?'Sim':'Não'}</span></td>
       <td data-col="prenhez">${prenhezPill}</td>
-      <td data-col="confirmado">${animal?`${animal.nome} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${n.obs||''}</td>
+      <td data-col="confirmado">${animal?`${escHtml(animal.nome)} <button type="button" class="eye-inline" data-eyeid="${animal.id}" title="Abrir ficha em nova aba">👁</button>`:'—'}</td><td data-col="obs">${escHtml(n.obs||'')}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm btn-ghost" data-nedit="${n.id}" title="Editar">✏️</button>
         ${(()=>{
@@ -12178,14 +12184,14 @@ function renderSemen(){
           ? `<button type="button" data-semenmovs="${l.id}" title="Ver movimentações" style="background:none;border:none;padding:0;font:inherit;color:var(--green);text-decoration:underline dotted;cursor:pointer;">só entradas</button>`
           : '<span style="color:var(--muted);">—</span>');
     return `<tr data-id="${l.id}" style="cursor:pointer;" title="Clique pra editar">
-      <td><strong>${l.garanhao||'—'}</strong></td>
-      <td>${l.lote||'—'}</td>
-      <td>${l.tipo||'—'}</td>
+      <td><strong>${escHtml(l.garanhao||'—')}</strong></td>
+      <td>${escHtml(l.lote||'—')}</td>
+      <td>${escHtml(l.tipo||'—')}</td>
       <td>${q} <span class="pill ${s.cls}">${s.txt}</span></td>
       <td>${l.minimo!=null&&l.minimo!==''?l.minimo:'—'}</td>
       <td style="white-space:nowrap;">${validadeCel}</td>
       <td>${ultimoUsoCel}</td>
-      <td>${l.obs||''}</td>
+      <td>${escHtml(l.obs||'')}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-semenusar="${l.id}" title="Registrar uso numa inseminação (dá baixa)">− Usar</button>
         <button type="button" class="btn btn-sm btn-ghost" data-semenentrada="${l.id}" title="Entrada de palhetas">+ Entrada</button>
@@ -12567,7 +12573,7 @@ function renderRegrasProtocolo(){
     const ordinal = r.regra==='mes_gestacao';
     const valoresTxt = ordinal ? (r.valores||[]).map(v=>v+'º').join(', ') : (r.valores||[]).join(', ');
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${valoresTxt} ${REGRA_LABEL_GEST[r.regra]||r.regra}</span></div>
+      <div><strong>${escHtml(r.nome)}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${valoresTxt} ${REGRA_LABEL_GEST[r.regra]||r.regra}</span></div>
       <button type="button" class="btn btn-sm btn-ghost" data-editregra="gestacao|${r.id}">Editar</button>
     </div>`;
   }).join('');
@@ -12577,7 +12583,7 @@ function renderRegrasProtocolo(){
   const regrasPotro = config.protocoloVacinasPotro||[];
   listaPotro.innerHTML = regrasPotro.length===0 ? '<div class="hint-text">Nenhuma vacina cadastrada ainda.</div>' : regrasPotro.map(r=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-      <div><strong>${r.nome}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${(r.valores||[]).join(', ')} ${REGRA_LABEL_POTRO[r.regra]||r.regra}</span></div>
+      <div><strong>${escHtml(r.nome)}</strong> <span style="color:var(--muted);font-size:12.5px;">— ${(r.valores||[]).join(', ')} ${REGRA_LABEL_POTRO[r.regra]||r.regra}</span></div>
       <button type="button" class="btn btn-sm btn-ghost" data-editregra="potro|${r.id}">Editar</button>
     </div>`).join('');
   listaPotro.querySelectorAll('[data-editregra]').forEach(b=>b.addEventListener('click', ()=>{ const [g,id]=b.dataset.editregra.split('|'); abrirRegraProtocolo(g,id); }));
@@ -12601,11 +12607,11 @@ function renderProtocoloAgenda(){
     const atrasado = !l.feito && l.dataAlvo<hoje;
     const situ = l.feito ? `<span class="pill st-ativo">Aplicada em ${fmtDate(l.dataFeito)}</span>` : (atrasado ? '<span class="pill st-descarte">Atrasada</span>' : '<span class="pill st-outro">Prevista</span>');
     return `<tr>
-      <td>${l.animalNome}</td>
-      <td>${l.nome}</td>
+      <td>${escHtml(l.animalNome)}</td>
+      <td>${escHtml(l.nome)}</td>
       <td>${fmtDate(l.dataAlvo)}</td>
       <td>${situ}</td>
-      <td>${l.feito ? `<button type="button" class="btn btn-sm btn-ghost" data-desmarcarprotocolo="${l.origem}|${l.refId}|${l.id}">Desfazer</button>` : `<button type="button" class="btn btn-sm" data-marcarprotocolo="${l.origem}|${l.refId}|${l.id}">✔ Marcar aplicada</button>`}</td>
+      <td>${l.feito ? `<button type="button" class="btn btn-sm btn-ghost" data-desmarcarprotocolo="${escHtml(l.origem)}|${l.refId}|${l.id}">Desfazer</button>` : `<button type="button" class="btn btn-sm" data-marcarprotocolo="${escHtml(l.origem)}|${l.refId}|${l.id}">✔ Marcar aplicada</button>`}</td>
     </tr>`;
   }).join('');
   tbody.querySelectorAll('[data-marcarprotocolo]').forEach(b=>b.addEventListener('click', async ()=>{
@@ -12650,7 +12656,7 @@ function montarQtdHostPedidoVacina(grupo){
         const nome = alvoVacinaGestacao(n).nome || '(sem nome)';
         const prov = calcProvavelNascimento(refCobertura(n));
         return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;">
-          <input type="checkbox" data-pedidoegua="${n.id}" data-nome="${nome}" checked> ${nome} <span style="color:var(--muted);font-size:12px;">— parto previsto ${prov?fmtDate(prov):'—'}</span>
+          <input type="checkbox" data-pedidoegua="${n.id}" data-nome="${escHtml(nome)}" checked> ${escHtml(nome)} <span style="color:var(--muted);font-size:12px;">— parto previsto ${prov?fmtDate(prov):'—'}</span>
         </label>`;
       }).join('')}
     </div>`;
@@ -12673,7 +12679,7 @@ function abrirPedidoVacina(grupo){
   document.getElementById('pedidoVacinaVacinasLista').innerHTML = regras.map(r=>{
     const doses = (r.valores||[]).length;
     return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;cursor:pointer;">
-      <input type="checkbox" data-pedidovacinaid="${r.id}" data-doses="${doses}" data-nome="${r.nome}" checked> ${r.nome} <span style="color:var(--muted);font-size:12px;">— ${doses} dose(s) por ${unidade}</span>
+      <input type="checkbox" data-pedidovacinaid="${r.id}" data-doses="${doses}" data-nome="${escHtml(r.nome)}" checked> ${escHtml(r.nome)} <span style="color:var(--muted);font-size:12px;">— ${doses} dose(s) por ${escHtml(unidade)}</span>
     </label>`;
   }).join('');
   montarQtdHostPedidoVacina(grupo);
@@ -12707,7 +12713,7 @@ document.getElementById('btnPedidoVacinaGerar').addEventListener('click', ()=>{
     return { nome: cb.dataset.nome, doses, qtd, total: doses*qtd };
   });
   pedidoVacinaUltimoResultado = { grupo, qtdLabel, itens };
-  document.getElementById('pedidoVacinaTbody').innerHTML = itens.map(i=>`<tr><td>${i.nome}</td><td>${i.doses}</td><td>${i.qtd}</td><td><strong>${i.total}</strong></td></tr>`).join('');
+  document.getElementById('pedidoVacinaTbody').innerHTML = itens.map(i=>`<tr><td>${escHtml(i.nome)}</td><td>${i.doses}</td><td>${i.qtd}</td><td><strong>${i.total}</strong></td></tr>`).join('');
   document.getElementById('pedidoVacinaResultadoWrap').style.display = '';
   document.getElementById('btnPedidoVacinaCopiar').style.display = '';
   document.getElementById('btnPedidoVacinaPdf').style.display = '';
@@ -12733,7 +12739,7 @@ document.getElementById('btnPedidoVacinaPdf').addEventListener('click', ()=>{
   if(!pedidoVacinaUltimoResultado) return;
   const { grupo, qtdLabel, itens } = pedidoVacinaUltimoResultado;
   const titulo = 'Pedido de Vacina — '+(grupo==='gestacao'?'Gestação':'Potro');
-  const linhasVacinas = itens.map(i=>`<tr><td>${i.nome}</td><td class="num">${i.doses}</td><td class="num">${i.qtd}</td><td class="num">${i.total}</td></tr>`).join('');
+  const linhasVacinas = itens.map(i=>`<tr><td>${escHtml(i.nome)}</td><td class="num">${i.doses}</td><td class="num">${i.qtd}</td><td class="num">${i.total}</td></tr>`).join('');
   const html = `<h1>${titulo}</h1>
     <div class="sub">${new Date().toLocaleDateString('pt-BR')} · ${qtdLabel}</div>
     <table><thead><tr><th>Vacina</th><th class="num">Doses por unidade</th><th class="num">Quantidade</th><th class="num">Total sugerido</th></tr></thead>
@@ -12756,7 +12762,7 @@ function exportarProtocolo(grupo){
   const linhas = regras.map(r=>{
     const ordinal = r.regra==='mes_gestacao';
     const valoresTxt = ordinal ? (r.valores||[]).map(v=>v+'º').join(', ') : (r.valores||[]).join(', ');
-    return `<tr><td>${r.nome}</td><td>${valoresTxt} ${labelMap[r.regra]||r.regra}</td></tr>`;
+    return `<tr><td>${escHtml(r.nome)}</td><td>${valoresTxt} ${labelMap[r.regra]||r.regra}</td></tr>`;
   }).join('');
   const titulo = 'Protocolo de Vacinas — '+(grupo==='gestacao'?'Gestação':'Potro');
   const html = `<h1>${titulo}</h1><div class="sub">${new Date().toLocaleDateString('pt-BR')}</div>
@@ -12867,7 +12873,7 @@ function gerarRelatorioNascimentos(){
   const nomeComOlho = nome=>{
     if(!nome) return '';
     const h = findHorseByName(nome);
-    return h ? `<span class="animal-eye-wrap">${nome}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : nome;
+    return h ? `<span class="animal-eye-wrap">${escHtml(nome)}<button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button></span>` : escHtml(nome);
   };
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:14px;">Relatório de Coberturas</div>
@@ -12879,7 +12885,7 @@ function gerarRelatorioNascimentos(){
         return `<tr>
           <td>${nomeComOlho(n.matriz)}</td><td>${nomeComOlho(n.pai)}</td><td>${nomeComOlho(n.receptora)}</td>
           <td>${cobsR.map(fmtDate).join(', ')||'—'}</td><td>${provavel?fmtDate(provavel):'—'}</td><td>${fmtDate(n.datanasc)}</td>
-          <td>${n.confirm==='S'?'Sim':'Não'}</td><td>${n.obs||''}</td>
+          <td>${n.confirm==='S'?'Sim':'Não'}</td><td>${escHtml(n.obs||'')}</td>
         </tr>`;
       }).join('')}</tbody>
     </table></div>
@@ -12912,14 +12918,14 @@ document.getElementById('btnPdfCoberturas').addEventListener('click', ()=>{
         : n.prenhezConfirmada==='S' ? 'Prenhe' + (n.prenhezUltima?(' '+fmtDate(n.prenhezUltima)):'')
         : 'Em aberto';
       return `<tr>
-        <td>${n.matriz||'—'}</td><td>${n.pai||'—'}</td><td>${n.receptora||'—'}</td>
+        <td>${escHtml(n.matriz||'—')}</td><td>${escHtml(n.pai||'—')}</td><td>${escHtml(n.receptora||'—')}</td>
         <td>${todasCoberturas(n).map(fmtDate).join(', ')||'—'}</td>
         <td>${estacaoDaCobertura(n)||'—'}</td>
         <td>${ovulColeta}</td>
         <td>${prov?fmtDate(prov):'—'}</td>
         <td>${n.datanasc?fmtDate(n.datanasc):'—'}</td>
         <td>${situacao}</td>
-        <td class="obs">${n.obs||''}</td>
+        <td class="obs">${escHtml(n.obs||'')}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
   abrirPreviaRelatorio(html, 'Relatorio_Coberturas.pdf', 'Relatório de Coberturas', {orientation:'landscape'});
@@ -13414,7 +13420,7 @@ function renderEstoque(){
       <div class="produto-group-title">${TIPO_PRODUTO_LABEL[tipo]||tipo} <span class="count">(${items.length})</span></div>
       <div class="grid-wrap compact"><table class="grid">
         <thead><tr>
-          <th style="width:26px;"><input type="checkbox" class="eGroupSelectAll" data-grupo="${tipo}" ${items.every(p=>selectedProdutoIds.has(p.id))?'checked':''} title="Selecionar todos deste grupo (toque de novo para desmarcar)"></th>
+          <th style="width:26px;"><input type="checkbox" class="eGroupSelectAll" data-grupo="${escHtml(tipo)}" ${items.every(p=>selectedProdutoIds.has(p.id))?'checked':''} title="Selecionar todos deste grupo (toque de novo para desmarcar)"></th>
           <th class="sortable ${eSortColumn==='nome'?'sort-active':''}" data-esort="nome">Nome ${sortArrow('nome')}</th>
           ${cv.classe ? `<th class="sortable ${eSortColumn==='classe'?'sort-active':''}" data-esort="classe">Classe do Medicamento ${sortArrow('classe')}</th>` : ''}
           ${cv.unidade ? `<th class="sortable ${eSortColumn==='unidade'?'sort-active':''}" data-esort="unidade">Unidade ${sortArrow('unidade')}</th>` : ''}
@@ -13448,13 +13454,13 @@ function renderEstoque(){
           }
           return `<tr data-id="${p.id}">
             <td><input type="checkbox" class="eRowSelect" data-id="${p.id}" ${selectedProdutoIds.has(p.id)?'checked':''} onclick="event.stopPropagation()"></td>
-            <td><strong>${p.nome||''}</strong></td>
-            ${cv.classe ? `<td>${p.classe||'—'}</td>` : ''}
-            ${cv.unidade ? `<td>${p.unidade||''}</td>` : ''}
+            <td><strong>${escHtml(p.nome||'')}</strong></td>
+            ${cv.classe ? `<td>${escHtml(p.classe||'—')}</td>` : ''}
+            ${cv.unidade ? `<td>${escHtml(p.unidade||'')}</td>` : ''}
             ${cv.quantidade ? `<td>${pillClass?`<span class="pill ${pillClass}" ${titleProj?`title="${titleProj}"`:''}>${qtdTxt}</span>`:`<span ${titleProj?`title="${titleProj}"`:''}>${qtdTxt}</span>`}</td>` : ''}
             ${cv.valor ? `<td${valorTitle}>${valorTxt}</td>` : ''}
             ${cv.validade ? `<td>${p.validade?fmtDate(p.validade):'—'}</td>` : ''}
-            ${cv.obs ? `<td>${p.obs||''}</td>` : ''}
+            ${cv.obs ? `<td>${escHtml(p.obs||'')}</td>` : ''}
             <td style="text-align:right;"><button type="button" class="btn btn-sm btn-danger eRowExcluir" data-id="${p.id}" title="Excluir este produto">🗑</button></td>
           </tr>`;
         }).join('')}</tbody>
@@ -13736,10 +13742,10 @@ function renderHistoricoProduto(){
     : movs.map(m=>`<tr>
         <td>${fmtDate(m.data)}</td>
         <td><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
-        <td>${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
+        <td>${m.quantidade}${m.unidade?(' '+escHtml(m.unidade)):''}</td>
         <td>${fmtValorMov(m.valor)}</td>
         <td>${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
-        <td>${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
+        <td>${m.motivo||''}${m.obs?(' — '+escHtml(m.obs)):''}</td>
         <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
       </tr>`).join('');
   tbody.querySelectorAll('[data-editmov]').forEach(b=>b.addEventListener('click', ()=>openEditarMov(b.dataset.editmov, 'produto')));
@@ -14151,17 +14157,17 @@ function renderImportNotaStep2(){
       .map(p=>{
         const selSomar = cand.acao==='somar'&&cand.matchProdutoId===p.id ? 'selected' : '';
         const selAjustar = cand.acao==='ajustar'&&cand.matchProdutoId===p.id ? 'selected' : '';
-        return `<option value="somar:${p.id}" ${selSomar}>➕ Somar ao estoque de: ${p.nome} (tem ${p.quantidade||0} ${p.unidade||''})</option>`
-             + `<option value="ajustar:${p.id}" ${selAjustar}>📏 Definir o estoque de: ${p.nome} como este valor (tem ${p.quantidade||0} ${p.unidade||''})</option>`;
+        return `<option value="somar:${p.id}" ${selSomar}>➕ Somar ao estoque de: ${escHtml(p.nome)} (tem ${p.quantidade||0} ${escHtml(p.unidade||'')})</option>`
+             + `<option value="ajustar:${p.id}" ${selAjustar}>📏 Definir o estoque de: ${escHtml(p.nome)} como este valor (tem ${p.quantidade||0} ${escHtml(p.unidade||'')})</option>`;
       }).join('');
     const dica = (cand.matchScore>=40 && cand.matchScore<80 && cand.acao==='novo')
-      ? `<div class="hint-text" style="color:var(--warn-ink);margin-top:4px;">❓ Pode ser o mesmo que "${cand.matchProdutoNome}" já cadastrado — se for, mude a opção abaixo.</div>` : '';
+      ? `<div class="hint-text" style="color:var(--warn-ink);margin-top:4px;">❓ Pode ser o mesmo que "${escHtml(cand.matchProdutoNome)}" já cadastrado — se for, mude a opção abaixo.</div>` : '';
     const dicaConhecido = cand.conhecidoNome
-      ? `<div class="hint-text" style="color:var(--ok);margin-top:4px;">📖 Reconhecido: <strong>${cand.conhecidoNome}</strong>${cand.conhecidoObs?(' — '+cand.conhecidoObs):''}</div>` : '';
+      ? `<div class="hint-text" style="color:var(--ok);margin-top:4px;">📖 Reconhecido: <strong>${escHtml(cand.conhecidoNome)}</strong>${cand.conhecidoObs?(' — '+cand.conhecidoObs):''}</div>` : '';
     const dicaAprendido = cand.aprendido
-      ? `<div class="hint-text" style="color:var(--ok);margin-top:4px;">🧠 Lembrado de uma importação anterior — já vinculado a "${cand.matchProdutoNome}". Confira e mude se não for esse.</div>` : '';
+      ? `<div class="hint-text" style="color:var(--ok);margin-top:4px;">🧠 Lembrado de uma importação anterior — já vinculado a "${escHtml(cand.matchProdutoNome)}". Confira e mude se não for esse.</div>` : '';
     const dicaUnidade = cand.unidadeDivergente
-      ? `<div class="hint-text" style="color:var(--burgundy);margin-top:4px;">⚠ A nota traz em <strong>${cand.unidade}</strong>, mas esse item costuma ser controlado em <strong>${cand.conhecidoUnidadeEsperada}</strong> — confira a quantidade e a unidade antes de confirmar (a conversão não é automática).</div>` : '';
+      ? `<div class="hint-text" style="color:var(--burgundy);margin-top:4px;">⚠ A nota traz em <strong>${escHtml(cand.unidade)}</strong>, mas esse item costuma ser controlado em <strong>${cand.conhecidoUnidadeEsperada}</strong> — confira a quantidade e a unidade antes de confirmar (a conversão não é automática).</div>` : '';
     const dicaInventario = cand.origemInventario
       ? `<div class="hint-text" style="color:var(--muted);margin-top:4px;">📋 Vindo de um Inventário: por padrão vai <strong>definir</strong> o estoque nesse valor (não somar), já que é uma contagem, não uma compra.</div>` : '';
     const dicaSuspeito = cand.valorSuspeito==='negativo'
@@ -14172,7 +14178,7 @@ function renderImportNotaStep2(){
       <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr;">
         <div class="field"><label>Descrição</label><input type="text" data-f="nome" value="${cand.nome.replace(/"/g,'&quot;')}"></div>
         <div class="field"><label>Quantidade</label><input type="number" step="0.01" data-f="quantidade" value="${cand.quantidade}"></div>
-        <div class="field"><label>Unidade</label><input type="text" data-f="unidade" value="${cand.unidade}"></div>
+        <div class="field"><label>Unidade</label><input type="text" data-f="unidade" value="${escHtml(cand.unidade)}"></div>
       </div>
       ${dicaConhecido}${dicaAprendido}${dicaUnidade}${dicaInventario}${dicaSuspeito}
       <div class="field full">
@@ -14397,7 +14403,7 @@ document.getElementById('btnSaidaPiquete').addEventListener('click', ()=>{
   if(!editingProdutoId) return;
   const sel = document.getElementById('spq_piquete');
   const lista = piquetes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(pq=>`<option value="${pq.id}">${pq.nome} (${(pq.animais||[]).length} animal(is))</option>`).join('');
+  sel.innerHTML = '<option value="">Selecione...</option>' + lista.map(pq=>`<option value="${pq.id}">${escHtml(pq.nome)} (${(pq.animais||[]).length} animal(is))</option>`).join('');
   sel.value = '';
   document.getElementById('spq_semPiquetes').style.display = lista.length===0 ? 'block' : 'none';
   document.getElementById('spq_infoAnimais').textContent = '';
@@ -14470,7 +14476,7 @@ function renderDietaItens(){
       return `<div class="dieta-item-row" data-idx="${idx}" style="display:grid;grid-template-columns:1fr 90px 90px 90px 32px;gap:8px;align-items:center;margin-bottom:8px;">
         <select data-ifield="produtoId" data-idx="${idx}">
           <option value="">Selecione...</option>
-          ${alimentos.map(a=>`<option value="${a.id}" ${it.produtoId===a.id?'selected':''}>${a.nome}</option>`).join('')}
+          ${alimentos.map(a=>`<option value="${a.id}" ${it.produtoId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}
         </select>
         <input type="number" step="0.01" data-ifield="manha" data-idx="${idx}" value="${it.manha||''}" placeholder="${un||'—'}">
         <input type="number" step="0.01" data-ifield="tarde" data-idx="${idx}" value="${it.tarde||''}" placeholder="${un||'—'}">
@@ -14599,9 +14605,9 @@ function renderPiquetes(){
   if(piquetes.length===0){ tbody.innerHTML = '<tr><td colspan="4" class="empty">Nenhum piquete cadastrado ainda.</td></tr>'; return; }
   const lista = piquetes.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
   tbody.innerHTML = lista.map(pq=>`<tr data-id="${pq.id}">
-    <td><strong>${pq.nome||''}</strong></td>
+    <td><strong>${escHtml(pq.nome||'')}</strong></td>
     <td>${(pq.animais||[]).length}</td>
-    <td>${pq.obs||''}</td>
+    <td>${escHtml(pq.obs||'')}</td>
     <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editpiqueteanimais="${pq.id}">👥 Animais</button> <button type="button" class="btn btn-sm btn-ghost" data-editpiquete="${pq.id}">Editar</button></td>
   </tr>`).join('');
   tbody.querySelectorAll('[data-editpiquete]').forEach(b=>b.addEventListener('click', ()=>openPiqueteEdit(b.dataset.editpiquete)));
@@ -14820,11 +14826,11 @@ function renderDietas(){
       : '<span style="color:var(--muted);">—</span>';
     return `<tr>
       ${tdCheck('dietas', d.id)}
-      <td><strong>${d.nome}</strong><br>${modoTxt}</td>
+      <td><strong>${escHtml(d.nome)}</strong><br>${modoTxt}</td>
       <td data-col="animais">${nAnimais>0 ? animaisComOlhoHTML(d.animais) : '<span style="color:var(--muted);">Nenhum ainda</span>'}</td>
       <td data-col="itens" style="font-size:12px;">${itensResumo||'—'}</td>
       <td data-col="custoMes" style="font-size:12.5px;">${custoTxt}</td>
-      <td data-col="obs">${d.obs||''}</td>
+      <td data-col="obs">${escHtml(d.obs||'')}</td>
       <td style="white-space:nowrap;">
         <button type="button" class="btn btn-sm" data-consumir="${d.id}">Registrar consumo (hoje)</button>
         <button type="button" class="btn btn-sm btn-ghost" data-animais="${d.id}">🐴 Animais</button>
@@ -15047,11 +15053,11 @@ function renderConsultoriaVisitas(){
   tbody.innerHTML = lista.map(v=>{
     return `<tr data-abrirvisitacons="${v.id}" style="cursor:pointer;">
       ${tdCheck('consultoriaVisitas', v.id)}
-      <td><strong>${v.propriedade||'—'}</strong></td>
+      <td><strong>${escHtml(v.propriedade||'—')}</strong></td>
       <td data-col="data">${fmtDate(v.data)||'—'}</td>
-      <td data-col="consultor">${v.consultorNome||'—'}</td>
-      <td data-col="responsavel">${v.responsavelNome||'—'}</td>
-      <td data-col="objetivo">${v.objetivo||''}</td>
+      <td data-col="consultor">${escHtml(v.consultorNome||'—')}</td>
+      <td data-col="responsavel">${escHtml(v.responsavelNome||'—')}</td>
+      <td data-col="objetivo">${escHtml(v.objetivo||'')}</td>
       <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
       <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
       <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
@@ -15469,7 +15475,7 @@ function renderConsultoriaAvaliacoesVisita(){
   tbody.innerHTML = lista.map(a=>{
     const nFotos = (consultoriaFotos[a.id]||[]).length;
     return `<tr>
-      <td><button type="button" class="eye-inline" data-eyeid="${a.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${a.animalNome||''}</strong></td>
+      <td><button type="button" class="eye-inline" data-eyeid="${a.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${escHtml(a.animalNome||'')}</strong></td>
       <td>${a.peso?a.peso+' kg':'—'}</td>
       <td>${a.tamanho?a.tamanho+' cm':'—'}</td>
       <td>${fmtIdadeAnos(a.idadeAnos)}</td>
@@ -15535,7 +15541,7 @@ function renderBlocosAvaliacaoLote(){
   const podeRemover = avaliacaoLoteState.length>1 || !editingAvaliacaoConsultoriaId;
   host.innerHTML = avaliacaoLoteState.map((item,idx)=>`
     <div class="perfil-card" style="margin-bottom:14px;">
-      <div class="perfil-card-head">${item.animalNome||''}${podeRemover?` <button type="button" class="btn btn-sm btn-ghost no-print" data-loteremover="${idx}" title="Remover este animal da avaliação">✕</button>`:''}</div>
+      <div class="perfil-card-head">${escHtml(item.animalNome||'')}${podeRemover?` <button type="button" class="btn btn-sm btn-ghost no-print" data-loteremover="${idx}" title="Remover este animal da avaliação">✕</button>`:''}</div>
       <div class="perfil-card-body">
         <div class="form-grid">
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" data-lotefield="peso" data-loteidx="${idx}" value="${item.peso}"></div>
@@ -15543,7 +15549,7 @@ function renderBlocosAvaliacaoLote(){
           <div class="field"><label>Idade (anos)</label><input type="number" step="0.1" data-lotefield="idadeAnos" data-loteidx="${idx}" value="${item.idadeAnos}" title="Sugerida a partir do nascimento cadastrado — editável"></div>
           <div class="field"><label>Score corporal (1 a 9)</label><input type="number" step="0.5" min="1" max="9" data-lotefield="scoreCorporal" data-loteidx="${idx}" value="${item.scoreCorporal}"></div>
           <div class="field full"><label>Situação geral</label><input type="text" data-lotefield="situacaoGeral" data-loteidx="${idx}" value="${(item.situacaoGeral||'').replace(/"/g,'&quot;')}" placeholder="Ex: bom estado, magro, sobrepeso..."></div>
-          <div class="field full"><label>Observações</label><textarea data-lotefield="observacoes" data-loteidx="${idx}" rows="2" spellcheck="true" lang="pt-BR">${item.observacoes||''}</textarea></div>
+          <div class="field full"><label>Observações</label><textarea data-lotefield="observacoes" data-loteidx="${idx}" rows="2" spellcheck="true" lang="pt-BR">${escHtml(item.observacoes||'')}</textarea></div>
         </div>
       </div>
     </div>`).join('');
@@ -15643,7 +15649,7 @@ function renderFotosConsultoria(avaliacaoId){
   if(fotos.length===0){ host.innerHTML = '<div class="hint-text">Nenhuma foto ainda.</div>'; return; }
   host.innerHTML = fotos.map((foto,idx)=>`
     <div style="width:150px;border:1px solid var(--line);border-radius:8px;padding:6px;">
-      <img src="${foto.dataUrl}" style="width:100%;height:110px;object-fit:cover;border-radius:5px;display:block;">
+      <img src="${urlSegura(foto.dataUrl)}" style="width:100%;height:110px;object-fit:cover;border-radius:5px;display:block;">
       <input type="text" data-legendafoto="${foto.id}" value="${(foto.legenda||'').replace(/"/g,'&quot;')}" placeholder="Legenda (opcional)" style="width:100%;margin-top:6px;font-size:11.5px;padding:4px 6px;">
       <div style="display:flex;justify-content:space-between;margin-top:6px;">
         <span>
@@ -15775,9 +15781,9 @@ function renderConsultoriaPropriedadesLista(){
   consultoriaPropriedadesHistListaAtual = linhas;
   if(linhas.length===0){ tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhuma propriedade encontrada.</td></tr>'; return; }
   tbody.innerHTML = linhas.map(l=>`<tr style="cursor:pointer;" data-abrirproprhist="${escHtml(l.nome)}">
-      <td><strong>${l.nome}</strong></td>
-      <td data-col="proprietario">${l.proprietario||'—'}</td>
-      <td data-col="cidade">${l.cidade||'—'}</td>
+      <td><strong>${escHtml(l.nome)}</strong></td>
+      <td data-col="proprietario">${escHtml(l.proprietario||'—')}</td>
+      <td data-col="cidade">${escHtml(l.cidade||'—')}</td>
       <td data-col="visitas">${l.nVisitas}</td>
       <td data-col="ultima">${fmtDate(l.ultima)||'—'}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-editarproprhist="${escHtml(l.nome)}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delproprhist="${escHtml(l.nome)}">🗑</button> <button type="button" class="btn btn-sm btn-ghost" data-abrirproprhistbtn="${escHtml(l.nome)}">Abrir</button></td>
@@ -15828,10 +15834,10 @@ function renderConsultoriaHistorico(){
   tbody.innerHTML = lista.map(v=>{
     return `<tr>
       ${tdCheck('consultoriaHistorico', v.id)}
-      <td><strong>${v.propriedade||'—'}</strong></td>
+      <td><strong>${escHtml(v.propriedade||'—')}</strong></td>
       <td data-col="data">${fmtDate(v.data)||'—'}</td>
-      <td data-col="consultor">${v.consultorNome||'—'}</td>
-      <td data-col="responsavel">${v.responsavelNome||'—'}</td>
+      <td data-col="consultor">${escHtml(v.consultorNome||'—')}</td>
+      <td data-col="responsavel">${escHtml(v.responsavelNome||'—')}</td>
       <td data-col="animais">${nomesAnimaisAvaliadosDaVisita(v.id)}</td>
       <td data-col="proprietario">${valoresCadastroAnimaisDaVisita(v.id,'proprietario')}</td>
       <td data-col="localizacao">${valoresCadastroAnimaisDaVisita(v.id,'localizacao')}</td>
@@ -15906,7 +15912,7 @@ function fotosDaVisitaHtml(avaliacaoId){
   const fotos = (consultoriaFotos[avaliacaoId]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
   if(fotos.length===0) return ''; // sem foto na visita, a seção simplesmente não aparece
   return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">${fotos.map(f=>`
-    <div style="width:170px;"><img src="${f.dataUrl}" style="width:100%;border-radius:4px;">
+    <div style="width:170px;"><img src="${urlSegura(f.dataUrl)}" style="width:100%;border-radius:4px;">
     ${f.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${escHtml(f.legenda)}</div>`:''}</div>`).join('')}</div>`;
 }
 function dietaPlanejadaRelatorioHtml(formulacao, pesoKg){
@@ -16304,7 +16310,7 @@ function blocoAvaliacaoConsultoriaHtml(a, contexto, classeBloco){
   const fotos = (consultoriaFotos[a.id]||[]).slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0));
   const subtitulo = contexto ? `<div class="sub" style="margin-top:-4px;">${[contexto.propriedade, fmtDate(contexto.data)].filter(Boolean).join(' — ')}</div>` : '';
   return `<div class="${classeBloco||'report-animal-block'}">
-    <div class="report-animal-name">${a.animalNome||''}</div>
+    <div class="report-animal-name">${escHtml(a.animalNome||'')}</div>
     ${subtitulo}
     <div class="grid-wrap"><table class="grid">
       <tbody>
@@ -16314,7 +16320,7 @@ function blocoAvaliacaoConsultoriaHtml(a, contexto, classeBloco){
       </tbody>
     </table></div>
     ${a.observacoes?`<div style="margin:8px 0;"><strong>Observações:</strong><br>${a.observacoes.replace(/\n/g,'<br>')}</div>`:''}
-    ${fotos.length>0?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${fotos.map(foto=>`<div style="width:150px;"><img src="${foto.dataUrl}" style="width:100%;border-radius:4px;">${foto.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${foto.legenda}</div>`:''}</div>`).join('')}</div>`:''}
+    ${fotos.length>0?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">${fotos.map(foto=>`<div style="width:150px;"><img src="${urlSegura(foto.dataUrl)}" style="width:100%;border-radius:4px;">${foto.legenda?`<div style="font-size:10.5px;color:#555;margin-top:2px;">${escHtml(foto.legenda)}</div>`:''}</div>`).join('')}</div>`:''}
   </div>`;
 }
 // Cabeçalho de identificação da visita — reaproveitado no relatório completo (1 visita, com sugestões/
@@ -16324,11 +16330,11 @@ function cabecalhoVisitaConsultoriaHtml(visita){
     <div class="sub">${[visita.propriedade, fmtDate(visita.data)].filter(Boolean).join(' — ')}</div>
     <div class="grid-wrap"><table class="grid">
       <tbody>
-        <tr><td><strong>Propriedade</strong></td><td>${visita.propriedade||'—'}</td></tr>
+        <tr><td><strong>Propriedade</strong></td><td>${escHtml(visita.propriedade||'—')}</td></tr>
         <tr><td><strong>Data</strong></td><td>${fmtDate(visita.data)||'—'}</td></tr>
-        <tr><td><strong>Consultor</strong></td><td>${visita.consultorNome||'—'}</td></tr>
-        <tr><td><strong>Responsável / Proprietário</strong></td><td>${visita.responsavelNome||'—'}</td></tr>
-        <tr><td><strong>Objetivo</strong></td><td>${visita.objetivo||'—'}</td></tr>
+        <tr><td><strong>Consultor</strong></td><td>${escHtml(visita.consultorNome||'—')}</td></tr>
+        <tr><td><strong>Responsável / Proprietário</strong></td><td>${escHtml(visita.responsavelNome||'—')}</td></tr>
+        <tr><td><strong>Objetivo</strong></td><td>${escHtml(visita.objetivo||'—')}</td></tr>
       </tbody>
     </table></div>
     ${visita.obsGerais?`<div style="margin:10px 0;"><strong>Observações gerais:</strong><br>${visita.obsGerais.replace(/\n/g,'<br>')}</div>`:''}`;
@@ -16410,8 +16416,8 @@ function gerarRelatorioIndividualAvaliacao(avaliacaoId){
   const cabecalho = `<h1 style="border:none;">Relatório de Avaliação Técnica</h1>
     <div class="sub">${[a.animalNome, visita&&visita.propriedade, fmtDate(a.data)].filter(Boolean).join(' — ')}</div>
     ${visita?`<div class="grid-wrap"><table class="grid"><tbody>
-      <tr><td><strong>Propriedade</strong></td><td>${visita.propriedade||'—'}</td></tr>
-      <tr><td><strong>Consultor</strong></td><td>${visita.consultorNome||'—'}</td></tr>
+      <tr><td><strong>Propriedade</strong></td><td>${escHtml(visita.propriedade||'—')}</td></tr>
+      <tr><td><strong>Consultor</strong></td><td>${escHtml(visita.consultorNome||'—')}</td></tr>
     </tbody></table></div>`:''}`;
   const html = `<div class="report-card print-block">${cabecalho}${blocoAvaliacaoConsultoriaHtml(a)}</div>`;
   const nomeArquivo = 'Avaliacao_'+(a.animalNome||'Animal').replace(/[^a-zA-Z0-9]+/g,'_')+'_'+(a.data||'').replace(/-/g,'')+'.pdf';
@@ -16435,13 +16441,13 @@ function blocoConsultoriaAnimalFicha(h){
       <td data-col="idade">${fmtIdadeAnos(a.idadeAnos)}</td>
       <td data-col="score">${a.scoreCorporal||'—'}</td>
       <td>${a.situacaoGeral||'—'}</td>
-      <td data-col="observacoes">${a.observacoes||'—'}</td>
-      <td data-col="raca">${h.raca||'—'}</td>
-      <td data-col="pelagem">${h.pelagem||'—'}</td>
+      <td data-col="observacoes">${escHtml(a.observacoes||'—')}</td>
+      <td data-col="raca">${escHtml(h.raca||'—')}</td>
+      <td data-col="pelagem">${escHtml(h.pelagem||'—')}</td>
       <td data-col="sexo">${h.sexo||'—'}</td>
-      <td data-col="categoria">${h.categoria||'—'}</td>
-      <td data-col="proprietario">${h.proprietario||'—'}</td>
-      <td data-col="localizacao">${h.localizacao||'—'}</td>
+      <td data-col="categoria">${escHtml(h.categoria||'—')}</td>
+      <td data-col="proprietario">${escHtml(h.proprietario||'—')}</td>
+      <td data-col="localizacao">${escHtml(h.localizacao||'—')}</td>
       <td class="no-print"><button type="button" class="btn btn-sm btn-ghost" data-relatorioavaliacaocons="${a.id}" title="Baixar relatório desta avaliação em PDF">📄 Relatório</button></td>
     </tr>`;
   }).join('');
@@ -16533,7 +16539,7 @@ function renderPesoBlocosFormulacao(){
   if(csfPesoLoteState.length===0){ host.innerHTML = '<div class="hint-text">Selecione ao menos um animal acima.</div>'; return; }
   host.innerHTML = csfPesoLoteState.map((item,idx)=>`
     <div class="field" style="display:inline-flex;flex-direction:column;margin-right:12px;margin-bottom:10px;min-width:160px;">
-      <label>${item.animalNome||''} — Peso (kg)</label>
+      <label>${escHtml(item.animalNome||'')} — Peso (kg)</label>
       <input type="number" step="0.1" min="0" data-pesoloteidx="${idx}" value="${item.pesoKg}">
     </div>`).join('');
   host.querySelectorAll('[data-pesoloteidx]').forEach(el=>{
@@ -16579,7 +16585,7 @@ function renderConsultoriaFormulacaoItens(){
       <div style="display:grid;grid-template-columns:1fr 110px 100px 32px;gap:8px;align-items:center;margin-bottom:8px;">
         <select data-cffield="produtoId" data-idx="${idx}">
           <option value="">Selecione...</option>
-          ${alimentos.map(a=>`<option value="${a.id}" ${it.produtoId===a.id?'selected':''}>${a.nome}${!a.nutrientes?' (sem nutrientes)':''}</option>`).join('')}
+          ${alimentos.map(a=>`<option value="${a.id}" ${it.produtoId===a.id?'selected':''}>${escHtml(a.nome)}${!a.nutrientes?' (sem nutrientes)':''}</option>`).join('')}
         </select>
         <select data-cffield="horario" data-idx="${idx}">
           ${['Manhã','Tarde','Noite'].map(h=>`<option value="${h}" ${it.horario===h?'selected':''}>${h}</option>`).join('')}
@@ -16692,7 +16698,7 @@ function linhasResumoNutrientesHtml(resumo){
 }
 function avisosNutrientesHtml(resumo){
   if(resumo.avisos.length===0) return '';
-  return resumo.avisos.map(a=>`<div class="hint-text" style="color:var(--alert-ink,#8a3b2f);">⚠ ${a.produtoNome} sem valores nutricionais cadastrados — <button type="button" class="btn btn-sm btn-ghost" data-abrirprodutonutriente="${a.produtoId}">cadastrar agora</button></div>`).join('');
+  return resumo.avisos.map(a=>`<div class="hint-text" style="color:var(--alert-ink,#8a3b2f);">⚠ ${escHtml(a.produtoNome)} sem valores nutricionais cadastrados — <button type="button" class="btn btn-sm btn-ghost" data-abrirprodutonutriente="${a.produtoId}">cadastrar agora</button></div>`).join('');
 }
 // Formulação com vários animais: os itens/ingredientes são os mesmos pra todos (1 receita só), então
 // Fornecido/Custo saem idênticos pra qualquer animal do grupo — só a Exigência muda (depende do peso de
@@ -16717,7 +16723,7 @@ function renderConsultoriaFormulacaoResultado(){
     const resumo = calcResumoFormulacao({ pesoKg:Number(item.pesoKg)||0, categoriaAtividade:categoria, itens:consultoriaFormulacaoItensState });
     if(!resumoPrincipal) resumoPrincipal = resumo;
     return `<div style="margin-bottom:14px;">
-      <div style="font-weight:600;margin-bottom:6px;">${item.animalNome||''}</div>
+      <div style="font-weight:600;margin-bottom:6px;">${escHtml(item.animalNome||'')}</div>
       <div class="grid-wrap"><table class="grid">
         <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
         <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
@@ -16781,7 +16787,7 @@ function renderConsultoriaFormulacoes(){
     const pesoTxt = animais.length===1 ? (animais[0].pesoKg?animais[0].pesoKg+' kg':'—') : (animais.length>1?'vários':'—');
     return `<tr>
       ${tdCheck('consultoriaFormulacoes', fo.id)}
-      <td><strong>${fo.nome||'—'}</strong></td>
+      <td><strong>${escHtml(fo.nome||'—')}</strong></td>
       <td data-col="animal" title="${animais.map(a=>a.animalNome).join(', ')}">${animais.length>1?animais.length+' animais':formulacaoAnimaisNomes(fo)}</td>
       <td data-col="categoria">${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
       <td data-col="peso">${pesoTxt}</td>
@@ -16812,7 +16818,7 @@ function popularSelectCopiarFormulacao(excluirId){
   // Só o nome da dieta na opção — sem o nome do animal original, pra não parecer que ela "pertence" a
   // ele: a ideia é justamente testar a MESMA dieta com outros animais.
   sel.innerHTML = '<option value="">Não copiar — começar do zero</option>' +
-    opcoes.map(fo=>`<option value="${fo.id}">${fo.nome||'—'}</option>`).join('');
+    opcoes.map(fo=>`<option value="${fo.id}">${escHtml(fo.nome||'—')}</option>`).join('');
 }
 document.getElementById('csf_copiarDeFormulacao').addEventListener('change', async ()=>{
   const origemId = document.getElementById('csf_copiarDeFormulacao').value;
@@ -16979,14 +16985,14 @@ function gerarRelatorioFinanceiroFormulacoes(){
     // animais vem da própria formulação (lista de animais ou, no modo grupo, a quantidade informada).
     const nAnimais = formulacaoNumAnimais(fo);
     const linhas = det.itens.length===0 ? '<tr><td colspan="7" class="empty">Nenhum item nesta formulação.</td></tr>' : det.itens.map(it=>`<tr>
-      <td>${it.produtoNome}</td><td>${it.horario||'—'}</td><td>${it.quantidade} ${it.unidade||'kg'}</td>
+      <td>${escHtml(it.produtoNome)}</td><td>${it.horario||'—'}</td><td>${it.quantidade} ${escHtml(it.unidade||'kg')}</td>
       <td>${it.custoUnit!=null?fmtMoeda(it.custoUnit,'BRL'):'—'}</td>
       <td>${fmtMoeda(it.subtotalDia,'BRL')}</td>
       <td>${fmtMoeda(it.subtotalDia*nAnimais,'BRL')}</td>
       <td>${it.participacaoPct!=null?it.participacaoPct.toFixed(0)+'%':'—'}</td>
     </tr>`).join('');
     return `<div class="report-animal-block">
-      <div class="report-animal-name">${fo.nome||''}</div>
+      <div class="report-animal-name">${escHtml(fo.nome||'')}</div>
       ${cabecalhoFormulacaoRelatorioHtml(fo)}
       <div class="grid-wrap"><table class="grid">
         <thead><tr><th>Ingrediente</th><th>Horário</th><th>Quantidade</th><th>Custo/kg</th><th>Custo/dia<br>(1 animal)</th><th>Custo/dia<br>(lote: ${nAnimais})</th><th>% do custo</th></tr></thead>
@@ -17025,11 +17031,11 @@ function gerarRelatorioNutricionalFormulacoes(){
       const resumo = calcResumoFormulacao({ pesoKg:Number(a.pesoKg)||0, categoriaAtividade:fo.categoriaAtividade, itens:fo.itens });
       if(!avisosHtml) avisosHtml = avisosNutrientesHtml(resumo);
       const abreFormulacao = idx===0
-        ? `<div class="report-animal-name">${fo.nome||''}</div>${cabecalhoFormulacaoRelatorioHtml(fo)}`
+        ? `<div class="report-animal-name">${escHtml(fo.nome||'')}</div>${cabecalhoFormulacaoRelatorioHtml(fo)}`
         : '';
       return `<div class="pdf-item-block" style="padding:6px 2px 10px;">
         ${abreFormulacao}
-        ${a.animalNome?`<div style="font-weight:600;margin-top:8px;">${a.animalNome}${a.pesoKg?(' — '+a.pesoKg+' kg'):''}</div>`:''}
+        ${a.animalNome?`<div style="font-weight:600;margin-top:8px;">${escHtml(a.animalNome)}${a.pesoKg?(' — '+a.pesoKg+' kg'):''}</div>`:''}
         <div class="grid-wrap"><table class="grid">
           <thead><tr><th>Nutriente</th><th>Exigência</th><th>Fornecido</th><th>Diferença</th><th>% Atendimento</th></tr></thead>
           <tbody>${linhasResumoNutrientesHtml(resumo)}</tbody>
@@ -17064,7 +17070,7 @@ function renderConsultoriaComparacaoLista(){
     const animal = formulacaoAnimais(fo)[0];
     return `<tr>
     ${tdCheck('consultoriaFormulacoesComparacao', fo.id)}
-    <td><strong>${fo.nome||'—'}</strong></td>
+    <td><strong>${escHtml(fo.nome||'—')}</strong></td>
     <td>${animal?animal.animalNome:'—'}</td>
     <td>${NRC_CATEGORIA_LABEL[fo.categoriaAtividade]||'—'}</td>
     <td>${animal&&animal.pesoKg?animal.pesoKg+' kg':'—'}</td>
@@ -17084,7 +17090,7 @@ function montarBreakdownCustoHtml(fo, resumo, nAnimais, tipoLinha){
     if(!produto) return null;
     const preco = custoUnitarioProduto(produto);
     const subtotal = (preco||0)*qtd;
-    return `<tr><td>${produto.nome}</td><td>${qtd} kg/dia</td><td>${preco!=null?fmtMoeda(preco,'BRL')+'/kg':'sem preço'}</td><td>${fmtMoeda(subtotal,'BRL')}</td></tr>`;
+    return `<tr><td>${escHtml(produto.nome)}</td><td>${qtd} kg/dia</td><td>${preco!=null?fmtMoeda(preco,'BRL')+'/kg':'sem preço'}</td><td>${fmtMoeda(subtotal,'BRL')}</td></tr>`;
   }).filter(Boolean).join('');
   const linhasFinal = {
     custokg: `${fmtMoeda(resumo.custoDia,'BRL')} (custo/dia) ÷ ${resumo.totalKgDia} kg/dia = <strong>${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}/kg</strong>`,
@@ -17093,7 +17099,7 @@ function montarBreakdownCustoHtml(fo, resumo, nAnimais, tipoLinha){
     customes: `${fmtMoeda(resumo.custoDia,'BRL')} (custo/dia) × 30 dias = <strong>${fmtMoeda(resumo.custoMes,'BRL')}/mês</strong>`,
     customestotal: `${fmtMoeda(resumo.custoMes,'BRL')} (custo/mês de 1 animal) × ${nAnimais} animal(is) = <strong>${fmtMoeda(resumo.custoMes*nAnimais,'BRL')}/mês</strong>`
   }[tipoLinha] || '';
-  return `<div style="font-size:12px;margin-bottom:6px;"><strong>${fo.nome}</strong> — como chegamos nesse número:</div>
+  return `<div style="font-size:12px;margin-bottom:6px;"><strong>${escHtml(fo.nome)}</strong> — como chegamos nesse número:</div>
     <table class="grid" style="font-size:11.5px;"><thead><tr><th>Ingrediente</th><th>Qtd</th><th>Preço</th><th>Subtotal/dia</th></tr></thead>
     <tbody>${linhasIng||'<tr><td colspan="4" class="empty">Sem itens.</td></tr>'}</tbody></table>
     <div class="hint-text" style="margin-top:8px;margin-bottom:0;">${linhasFinal}</div>`;
@@ -17180,7 +17186,7 @@ function compararFormulacoesConsultoria(){
   host.innerHTML = `
     <div class="section-label" style="border-top:none;">Ingredientes e quantidades</div>
     <div class="grid-wrap"><table class="grid grid-compare">
-      <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
+      <thead><tr><th>Alimento</th>${resumos.map(({fo})=>`<th>${escHtml(fo.nome)}</th>`).join('')}</tr></thead>
       <tbody>${linhasIngredientes || '<tr><td colspan="'+(resumos.length+1)+'" class="empty">Nenhum item.</td></tr>'}</tbody>
     </table></div>
     <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
@@ -17192,7 +17198,7 @@ function compararFormulacoesConsultoria(){
       </select>
     </div>
     <div class="grid-wrap"><table class="grid grid-compare">
-      <thead><tr><th>Nutriente</th>${resumos.map(({fo, animalNome})=>`<th>${fo.nome} <span style="font-weight:400;color:var(--muted);">— ${animalNome||'—'}</span></th>`).join('')}</tr></thead>
+      <thead><tr><th>Nutriente</th>${resumos.map(({fo, animalNome})=>`<th>${escHtml(fo.nome)} <span style="font-weight:400;color:var(--muted);">— ${escHtml(animalNome||'—')}</span></th>`).join('')}</tr></thead>
       <tbody>
         ${linhaNutriente('Energia Digestível (ED)','deKcal','Kcal')}
         ${linhaNutriente('Proteína Bruta (PB)','pbG','g')}
@@ -17202,7 +17208,7 @@ function compararFormulacoesConsultoria(){
     </table></div>
     <div class="section-label">Custo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">("total" já multiplica pelos animais reais daquela formulação; "por animal" é sempre de 1 só, pra comparar o preço da dieta em si)</span></div>
     <div class="grid-wrap"><table class="grid grid-compare">
-      <thead><tr><th></th>${resumos.map(({fo})=>`<th>${fo.nome}</th>`).join('')}</tr></thead>
+      <thead><tr><th></th>${resumos.map(({fo})=>`<th>${escHtml(fo.nome)}</th>`).join('')}</tr></thead>
       <tbody>
         <tr><td>Custo/kg da dieta</td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_custokg`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'custokg'}; return `<td class="custo-clicavel" data-custobreak="${k}">${resumo.custoPorKg!=null?fmtMoeda(resumo.custoPorKg,'BRL'):'—'}</td>`; }).join('')}</tr>
         <tr><td>Custo/dia/animal</td>${resumos.map(({fo,resumo,nAnimais},i)=>{ const k=`${i}_custodia`; custoBreakdownMap[k]={fo,resumo,nAnimais,tipo:'custodia'}; return `<td class="custo-clicavel" data-custobreak="${k}">${fmtMoeda(resumo.custoDia,'BRL')}</td>`; }).join('')}</tr>
@@ -17271,7 +17277,7 @@ function renderConsultoriaRecomendacaoForm(){
   const valorAnimalAtual = animalSel.value;
   const isAtivoCsr = h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento;
   const ativos = horses.filter(isAtivoCsr).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  animalSel.innerHTML = '<option value="">Selecione...</option>' + ativos.map(h=>`<option value="${h.id}">${h.nome}</option>`).join('');
+  animalSel.innerHTML = '<option value="">Selecione...</option>' + ativos.map(h=>`<option value="${h.id}">${escHtml(h.nome)}</option>`).join('');
   animalSel.value = valorAnimalAtual;
 
   const catSel = document.getElementById('csr_categoria');
@@ -17283,7 +17289,7 @@ function renderConsultoriaRecomendacaoForm(){
   const forSel = document.getElementById('csr_forragem');
   const valorForragemAtual = forSel.value;
   const alimentos = estoqueProdutos.filter(p=>p.tipo==='Alimento').slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  forSel.innerHTML = '<option value="">Nenhum / não informar</option>' + alimentos.map(p=>`<option value="${p.id}">${p.nome}${!p.nutrientes?' (sem nutrientes)':''}</option>`).join('');
+  forSel.innerHTML = '<option value="">Nenhum / não informar</option>' + alimentos.map(p=>`<option value="${p.id}">${escHtml(p.nome)}${!p.nutrientes?' (sem nutrientes)':''}</option>`).join('');
   forSel.value = valorForragemAtual;
 
   atualizarCsrPesoIdadeView();
@@ -17461,13 +17467,13 @@ function gerarRecomendacaoRacao(qtdMostrar){
         <tr><td>Fósforo (P)</td><td>${fmtNumNutriente(exigencia.pG)} g</td><td>${fmtNumNutriente(fornecidoVolumoso.pG)} g</td><td>${fmtNumNutriente(restante.pG)} g</td></tr>
       </tbody>
     </table></div>
-    <div class="hint-text" style="margin:8px 0 16px;">Perfil considerado: ${h.nome} — ${pesoKg} kg, ${fmtIdadeAnos(idadeAnos)}${jovem?' (jovem)':''}${senior?' (sênior)':''} · ${NRC_CATEGORIA_LABEL[categoria]} · ${objetivo==='performance'?'Alta performance':'Lazer/Hobby'} · ${esforcoLabel} · ${custoLabel}</div>
+    <div class="hint-text" style="margin:8px 0 16px;">Perfil considerado: ${escHtml(h.nome)} — ${pesoKg} kg, ${fmtIdadeAnos(idadeAnos)}${jovem?' (jovem)':''}${senior?' (sênior)':''} · ${NRC_CATEGORIA_LABEL[categoria]} · ${objetivo==='performance'?'Alta performance':'Lazer/Hobby'} · ${esforcoLabel} · ${custoLabel}</div>
 
     <div class="section-label">As ${Math.min(qtdMostrar,candidatos.length)} rações mais recomendadas <span style="font-family:'Inter';font-size:11px;color:var(--muted);font-weight:400;">— fecham ED, PB, Ca e P (nenhum nutriente abaixo de 100%); ordenadas pela pontuação que combina custo, objetivo, esforço, idade e fibra</span></div>
     ${mostrar.map((l,i)=>`
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-          <div style="font-weight:600;font-size:15px;">${i+1}º — ${l.produto.nome} ${ehCatalogoConsultoria(l.produto)
+          <div style="font-weight:600;font-size:15px;">${i+1}º — ${escHtml(l.produto.nome)} ${ehCatalogoConsultoria(l.produto)
             ? '<span class="pill st-outro" title="Ração de referência do catálogo da Consultoria — não é comprada pelo haras hoje">catálogo</span>'
             : '<span class="pill st-ativo" title="Já é comprada pelo haras (está no Estoque)">em estoque</span>'}</div>
           ${l.volumosoPct!=null ? `<span class="hint-text" style="margin:0;" title="% do peso total da dieta (feno + esta ração) que é feno — não é a Fibra Bruta do produto">Volumoso nessa combinação: ${(l.volumosoPct*100).toFixed(0)}% do peso da dieta</span>` : ''}
@@ -17487,7 +17493,7 @@ function gerarRecomendacaoRacao(qtdMostrar){
           </tr></tbody>
         </table></div>
         ${l.faltamDados.length ? `<div class="hint-text" style="margin-top:8px;">⚠ Sem dado cadastrado de ${l.faltamDados.join(', ')} — não dá pra garantir que essa(s) exigência(s) fecham em 100%.</div>` : ''}
-        ${l.produto.obs ? `<div class="hint-text" style="margin-top:8px;"><strong>Observações do cadastro:</strong> ${l.produto.obs}</div>` : ''}
+        ${l.produto.obs ? `<div class="hint-text" style="margin-top:8px;"><strong>Observações do cadastro:</strong> ${escHtml(l.produto.obs)}</div>` : ''}
       </div>`).join('')}
     ${restantes>0 ? `<button type="button" class="btn btn-sm btn-ghost" id="btnVerMaisRacoes">Ver mais ${restantes} opção(ões)</button>` : ''}
     ${semDados.length>0 ? `<div class="hint-text" style="margin-top:8px;">${semDados.length} alimento(s) do Estoque ficaram de fora por não ter ED (Kcal/kg) cadastrado: ${semDados.map(p=>p.nome).join(', ')}.</div>` : ''}
@@ -17519,7 +17525,7 @@ function renderTratamentoUtensilios(){
       return `<div style="display:grid;grid-template-columns:1fr 110px 32px;gap:8px;align-items:center;margin-bottom:8px;">
         <select data-ufield="produtoId" data-idx="${idx}">
           <option value="">Selecione...</option>
-          ${produtos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}
+          ${produtos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('')}
         </select>
         <input type="number" step="0.01" data-ufield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="${un||'—'}">
         <button type="button" class="btn btn-sm btn-danger" data-uremove="${idx}" title="Remover">✕</button>
@@ -17716,7 +17722,7 @@ function renderTrSessaoResumo(){
   host.innerHTML = `<div class="hint-text" style="margin-bottom:6px;">Já adicionados nesta sessão (${tratamentoSessao.length}):</div>` +
     tratamentoSessao.map(t=>{
       const per = Object.entries(t.periodos||{}).filter(([,v])=>v).map(([k])=>k).join('/');
-      return `<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">💊 <strong>${t.medicamentoNome}</strong> — ${t.quantidade}${t.unidade?(' '+t.unidade):''} · ${per} · ${t.diasTratamento}x a cada ${t.intervaloDias}d</div>`;
+      return `<div style="font-size:12.5px;padding:5px 10px;background:var(--chip-bg);border-radius:6px;margin-bottom:4px;">💊 <strong>${escHtml(t.medicamentoNome)}</strong> — ${t.quantidade}${t.unidade?(' '+escHtml(t.unidade)):''} · ${per} · ${t.diasTratamento}x a cada ${t.intervaloDias}d</div>`;
     }).join('');
 }
 document.getElementById('btnAddOutroTratamento').addEventListener('click', async ()=>{
@@ -17773,9 +17779,9 @@ function renderVisitaCustos(){
     visitaCustosState.map((it,idx)=>{
       const isProduto = it.tipo==='produto';
       const nomeField = isProduto
-        ? `<select data-vcfield="produtoId" data-idx="${idx}"><option value="">Selecione...</option>${estoqueProdutos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${p.nome}</option>`).join('')}</select>`
+        ? `<select data-vcfield="produtoId" data-idx="${idx}"><option value="">Selecione...</option>${estoqueProdutos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('')}</select>`
         : `<select data-vcfield="nome" data-idx="${idx}"><option value="">Selecione...</option>${(aux.servicoVeterinario||[]).map(s=>`<option value="${s}" ${it.nome===s?'selected':''}>${s}</option>`).join('')}</select>`;
-      const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>`;
+      const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>`;
       return `<div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line);">
       <div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:6px;">
         <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option></select>
@@ -17785,7 +17791,7 @@ function renderVisitaCustos(){
         <input type="number" step="0.01" min="0" data-vcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00" ${isProduto?'readonly title="Calculado pelo produto x quantidade"':''}>
         <button type="button" class="btn btn-sm btn-danger" data-vcremove="${idx}" title="Remover">✕</button>
       </div>
-      <input type="text" data-vcfield="obs" data-idx="${idx}" value="${it.obs||''}" placeholder="Observação (opcional)" style="width:100%;">
+      <input type="text" data-vcfield="obs" data-idx="${idx}" value="${escHtml(it.obs||'')}" placeholder="Observação (opcional)" style="width:100%;">
       </div>`;
     }).join('');
   host.querySelectorAll('[data-vcfield="tipo"]').forEach(sel=>{
@@ -17860,9 +17866,9 @@ function renderListaServicos(){
   const nomes = aux.servicoVeterinario||[];
   if(nomes.length===0){ host.innerHTML = '<div class="hint-text">Nenhum serviço cadastrado ainda.</div>'; return; }
   host.innerHTML = nomes.map(nome=>`<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
-      <span style="flex:1;font-size:12.8px;">${nome}</span>
-      <input type="number" step="0.01" min="0" style="width:100px;" data-svfield="${nome}" value="${valorRefServico(nome)}">
-      <button type="button" class="btn btn-sm btn-danger" data-svremove="${nome}" title="Excluir">✕</button>
+      <span style="flex:1;font-size:12.8px;">${escHtml(nome)}</span>
+      <input type="number" step="0.01" min="0" style="width:100px;" data-svfield="${escHtml(nome)}" value="${valorRefServico(nome)}">
+      <button type="button" class="btn btn-sm btn-danger" data-svremove="${escHtml(nome)}" title="Excluir">✕</button>
     </div>`).join('');
   host.querySelectorAll('[data-svfield]').forEach(inp=>{
     inp.addEventListener('change', async ()=>{
@@ -17912,8 +17918,8 @@ function renderVisitaDocs(){
       <div>Animal</div><div>Nome</div><div>Link</div><div></div>
     </div>` +
     visitaDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
-      <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>
-      <input type="text" data-vdfield="nome" data-idx="${idx}" value="${it.nome||''}" placeholder="Ex: Raio-X do casco">
+      <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
+      <input type="text" data-vdfield="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Ex: Raio-X do casco">
       <input type="text" data-vdfield="url" data-idx="${idx}" value="${it.url||''}" placeholder="Link (Drive, foto na nuvem...)">
       <button type="button" class="btn btn-sm btn-danger" data-vdremove="${idx}" title="Remover">✕</button>
     </div>`).join('');
@@ -18059,9 +18065,9 @@ function renderVisitas(){
     const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra editar">
     ${tdCheck('vetVisitas', v.id)}
-    <td>${fmtDate(v.data)}</td><td data-col="veterinario">${v.veterinario||'—'}</td>
+    <td>${fmtDate(v.data)}</td><td data-col="veterinario">${escHtml(v.veterinario||'—')}</td>
     <td data-col="animais">${animaisComOlhoHTML(v.animais)||'—'}</td>
-    <td data-col="obsGeral">${v.obsGeral||''}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+    <td data-col="obsGeral">${escHtml(v.obsGeral||'')}${totalCustos>0?` <span class="pill st-ativo">💰 ${fmtMoeda(totalCustos,'BRL')}</span>`:''}${(v.documentos||[]).length>0?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
     <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisita="${v.id}" title="Gerar PDF desta visita">📄</button></td>
   </tr>`;
   }).join('');
@@ -18090,14 +18096,14 @@ function blocoRelatorioVisita(v){
   const totalCustos = (v.custos||[]).reduce((s,c)=>s+(Number(c.valor)||0),0);
   const nomeAnimal = id => { const a=(v.animais||[]).find(x=>x.id===id); return a?a.nome:''; };
   return `<h1 style="border:none;">Visita Veterinária — ${fmtDate(v.data)}</h1>
-    <div class="sub">Veterinário / Responsável: ${v.veterinario||'—'}</div>
+    <div class="sub">Veterinário / Responsável: ${escHtml(v.veterinario||'—')}</div>
     <div class="report-tipo-titulo">Animais revisados (${(v.animais||[]).length})</div>
-    <ul class="animais-simples">${(v.animais||[]).map(a=>`<li>${a.nome}${a.obs?(' — '+a.obs):''}</li>`).join('')}</ul>
-    ${v.obsGeral?`<div class="sub" style="margin-top:14px;"><b>Observação geral:</b> ${v.obsGeral}</div>`:''}
+    <ul class="animais-simples">${(v.animais||[]).map(a=>`<li>${escHtml(a.nome)}${a.obs?(' — '+escHtml(a.obs)):''}</li>`).join('')}</ul>
+    ${v.obsGeral?`<div class="sub" style="margin-top:14px;"><b>Observação geral:</b> ${escHtml(v.obsGeral)}</div>`:''}
     ${(v.custos||[]).length>0 ? `<div class="report-tipo-titulo" style="margin-top:14px;">Serviços e Produtos — Total: ${fmtMoeda(totalCustos,'BRL')}</div>
-    <ul class="animais-simples">${v.custos.map(c=>`<li>${nomeAnimal(c.animalId)} — ${c.tipo==='produto'?(c.produtoNome+' (x'+c.quantidade+')'):c.nome} — ${fmtMoeda(c.valor,'BRL')}</li>`).join('')}</ul>` : ''}
+    <ul class="animais-simples">${v.custos.map(c=>`<li>${nomeAnimal(c.animalId)} — ${c.tipo==='produto'?(escHtml(c.produtoNome)+' (x'+c.quantidade+')'):c.nome} — ${fmtMoeda(c.valor,'BRL')}</li>`).join('')}</ul>` : ''}
     ${(v.documentos||[]).length>0 ? `<div class="report-tipo-titulo" style="margin-top:14px;">Documentos / Exames</div>
-    <ul class="animais-simples">${v.documentos.map(d=>`<li>${nomeAnimal(d.animalId)} — ${d.nome}: ${d.url}</li>`).join('')}</ul>` : ''}`;
+    <ul class="animais-simples">${v.documentos.map(d=>`<li>${nomeAnimal(d.animalId)} — ${escHtml(d.nome)}: ${d.url}</li>`).join('')}</ul>` : ''}`;
 }
 function gerarRelatorioVisitaUnica(id){
   const v = visitas.find(x=>x.id===id); if(!v) return;
@@ -18175,7 +18181,7 @@ function renderReproEguas(){
   host.innerHTML = reproEguasState.map((e,idx)=>`
     <div class="perfil-card" style="margin-bottom:12px;" data-reidx="${idx}">
       <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-        <span>🐴 ${e.nome}${reproDiagPrenhe(e.diagnostico)?' <span class="pill st-ativo">prenhe</span>':''}</span>
+        <span>🐴 ${escHtml(e.nome)}${reproDiagPrenhe(e.diagnostico)?' <span class="pill st-ativo">prenhe</span>':''}</span>
         <button type="button" class="btn btn-sm btn-ghost" id="revoz_${idx}" style="text-transform:none;">🎤 Ditar exame</button>
       </div>
       <div class="perfil-card-body">
@@ -18193,7 +18199,7 @@ function renderReproEguas(){
           <div class="field"><label>Medicação aplicada</label><input type="text" list="dl_medicamentos" data-refield="medicacao" data-reidx="${idx}" value="${(e.medicacao||'').replace(/"/g,'&quot;')}" placeholder="Ex: PGF 2ml (do Estoque)"></div>
           <div class="field"><label>Próxima ação / conduta</label><input type="text" data-refield="proximaAcao" data-reidx="${idx}" value="${(e.proximaAcao||'').replace(/"/g,'&quot;')}" placeholder="Ex: cobrir amanhã"></div>
           <div class="field"><label>Retorno / próxima visita <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(é essa data que aparece no Calendário)</span></label><input type="date" data-refield="proximoRetorno" data-reidx="${idx}" value="${e.proximoRetorno||''}"></div>
-          <div class="field full"><label>Observação</label><textarea rows="2" data-refield="obs" data-reidx="${idx}" spellcheck="true" lang="pt-BR" placeholder="Texto livre — ditável por voz">${e.obs||''}</textarea></div>
+          <div class="field full"><label>Observação</label><textarea rows="2" data-refield="obs" data-reidx="${idx}" spellcheck="true" lang="pt-BR" placeholder="Texto livre — ditável por voz">${escHtml(e.obs||'')}</textarea></div>
         </div>
       </div>
     </div>`).join('');
@@ -18243,7 +18249,7 @@ function renderVisitaReproDocs(){
       <div>Égua</div><div>Nome</div><div>Link</div><div></div>
     </div>` +
     visitaReproDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
-      <select data-vrdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${a.nome}</option>`).join('')}</select>
+      <select data-vrdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
       <input type="text" data-vrdfield="nome" data-idx="${idx}" value="${(it.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex: Ultrassom 14d">
       <input type="text" data-vrdfield="url" data-idx="${idx}" value="${(it.url||'').replace(/"/g,'&quot;')}" placeholder="Link (Drive, foto na nuvem...)">
       <button type="button" class="btn btn-sm btn-danger" data-vrdremove="${idx}" title="Remover">✕</button>
@@ -18580,8 +18586,8 @@ function renderVisitasRepro(){
     return `<tr data-id="${v.id}" style="cursor:pointer;" title="Clique pra abrir a visita">
       <td><input type="checkbox" data-vrselk="${kSel.replace(/"/g,'&quot;')}" ${visitaExameSel.has(kSel)?'checked':''}></td>
       <td style="white-space:nowrap;">${fmtDate(v.data)}</td>
-      <td>${v.veterinario||'—'}</td>
-      <td><strong>${e.nome||'—'}</strong>${prenhe?' <span class="pill st-ativo">prenhe</span>':''}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
+      <td>${escHtml(v.veterinario||'—')}</td>
+      <td><strong>${escHtml(e.nome||'—')}</strong>${prenhe?' <span class="pill st-ativo">prenhe</span>':''}${(v.documentos||[]).length?` <span class="pill st-outro">📎 ${v.documentos.length}</span>`:''}</td>
       ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-relvisitarepro="${v.id}" title="Gerar PDF desta visita">📄</button></td>
     </tr>`;
@@ -18628,7 +18634,7 @@ document.getElementById('btnPdfVisitasRepro').addEventListener('click', ()=>{
     <div class="sub">${periodo} · ${linhasRel.length} linha(s)</div>
     <table><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${linhasRel.map(({v,e})=>`<tr>
-      <td>${fmtDate(v.data)}</td><td>${v.veterinario||'—'}</td><td>${e.nome||'—'}</td>
+      <td>${fmtDate(v.data)}</td><td>${escHtml(v.veterinario||'—')}</td><td>${escHtml(e.nome||'—')}</td>
       ${cols.map(c=>`<td>${celulaVisitaRepro(c.key, c.key==='local'?v:e)}</td>`).join('')}
     </tr>`).join('')}</tbody></table>`;
   abrirPreviaRelatorio(html, 'Relatorio_Visitas_Exames_Reprodutivos.pdf', 'Visitas / Exames Reprodutivos', {orientation:'landscape'});
@@ -18652,15 +18658,15 @@ function blocoExameEgua(e){
     ['Retorno', e.proximoRetorno && fmtDate(e.proximoRetorno)],
     ['Observação', e.obs],
   ].filter(([,v])=>v);
-  return `<div class="report-tipo-titulo" style="margin-top:14px;">${e.nome}</div>
+  return `<div class="report-tipo-titulo" style="margin-top:14px;">${escHtml(e.nome)}</div>
     <ul class="animais-simples">${linhas.map(([k,v])=>`<li><b>${k}:</b> ${v}</li>`).join('')}</ul>`;
 }
 function blocoRelatorioVisitaRepro(v){
   return `<h1 style="border:none;">Visita Reprodutiva — ${fmtDate(v.data)}</h1>
-    <div class="sub">Veterinário: ${v.veterinario||'—'}${v.local?(' · Local: '+v.local):''}</div>
-    ${v.obsGeral?`<div class="sub" style="margin-top:8px;"><b>Observação geral:</b> ${v.obsGeral}</div>`:''}
+    <div class="sub">Veterinário: ${escHtml(v.veterinario||'—')}${v.local?(' · Local: '+escHtml(v.local)):''}</div>
+    ${v.obsGeral?`<div class="sub" style="margin-top:8px;"><b>Observação geral:</b> ${escHtml(v.obsGeral)}</div>`:''}
     ${(v.eguas||[]).map(blocoExameEgua).join('')}
-    ${(v.documentos||[]).length?`<div class="report-tipo-titulo" style="margin-top:14px;">Documentos</div><ul class="animais-simples">${v.documentos.map(d=>`<li>${d.nome}: ${d.url}</li>`).join('')}</ul>`:''}`;
+    ${(v.documentos||[]).length?`<div class="report-tipo-titulo" style="margin-top:14px;">Documentos</div><ul class="animais-simples">${v.documentos.map(d=>`<li>${escHtml(d.nome)}: ${d.url}</li>`).join('')}</ul>`:''}`;
 }
 function gerarRelatorioVisitaReproUnica(id){
   const v = visitasRepro.find(x=>x.id===id); if(!v) return;
@@ -18725,7 +18731,7 @@ function renderTratamentos(){
     const rot = rotuloStatusTratamento(t);
     return `<tr data-id="${t.id}" tabindex="0" class="${tratSelecionados.has(t.id)?'row-selected':''}">
       <td><input type="checkbox" data-selid="${t.id}" ${tratSelecionados.has(t.id)?'checked':''}></td>
-      <td><strong>${t.medicamentoNome||'(produto excluído)'}</strong><br><span style="font-size:11px;color:var(--muted);">${t.quantidade}${t.unidade?(' '+t.unidade):''} por dose</span></td>
+      <td><strong>${escHtml(t.medicamentoNome||'(produto excluído)')}</strong><br><span style="font-size:11px;color:var(--muted);">${t.quantidade}${t.unidade?(' '+escHtml(t.unidade)):''} por dose</span></td>
       <td data-col="animais">${animaisComOlhoHTML(t.animais)||'<span style="color:var(--muted);">Nenhum</span>'}</td>
       <td data-col="periodo" style="font-size:12px;">${fmtDate(t.dataInicio)} a ${fmtDate(termino)}<br>${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''}</td>
       <td data-col="meio">${t.meioAplicacao||'—'}</td>
@@ -18829,7 +18835,7 @@ function renderVetLista(){
     ${tdCheck('vetLista', r.origemTipo+':'+r.id)}
     <td>${fmtDate(r.data)}</td>
     <td data-col="tipo"><span class="pill ${r.origemTipo==='visita'?'st-ativo':'st-outro'}">${r.origemTipo==='visita'?'Visita':'Tratamento'}</span>${r.statusRot?` <span class="pill ${r.statusRot.cls}">${r.statusRot.label}</span>`:''}</td>
-    <td data-col="resumo">${r.resumo}</td>
+    <td data-col="resumo">${escHtml(r.resumo)}</td>
     <td data-col="animais">${animaisComOlhoHTML(r.animais)||'—'}</td>
     <td style="white-space:nowrap;">
       <button type="button" class="btn btn-sm btn-ghost" data-vlabrir="${r.origemTipo}|${r.id}" title="Ver folha">${r.origemTipo==='visita'?'📄':'🖨'}</button>
@@ -18895,11 +18901,11 @@ function gerarRelatorioVeterinaria(){
       const doses = gerarDosesTratamento(t);
       const concluidas = new Set(t.doseConcluidas||[]);
       return `<div class="report-animal-block">
-        <div class="report-animal-name">${t.medicamentoNome||'(produto excluído)'} <span class="pill ${cls}" style="font-size:10px;">${label}</span></div>
+        <div class="report-animal-name">${escHtml(t.medicamentoNome||'(produto excluído)')} <span class="pill ${cls}" style="font-size:10px;">${label}</span></div>
         <div class="report-row">Animais: ${animaisComOlhoHTML(t.animais)||'—'}</div>
-        <div class="report-row" style="font-size:12px;color:var(--muted);">${fmtDate(t.dataInicio)} a ${fmtDate(termino)} · ${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''} · ${t.quantidade}${t.unidade?(' '+t.unidade):''} por dose · Meio: ${t.meioAplicacao||'—'}</div>
-        ${t.responsavel?`<div class="report-row" style="font-size:12px;color:var(--muted);">Responsável: ${t.responsavel}</div>`:''}
-        ${t.obs?`<div class="report-row" style="font-size:12px;color:var(--muted);">Obs: ${t.obs}</div>`:''}
+        <div class="report-row" style="font-size:12px;color:var(--muted);">${fmtDate(t.dataInicio)} a ${fmtDate(termino)} · ${periodosTxt}${t.intervaloDias>1?(' · a cada '+t.intervaloDias+' dias'):''} · ${t.quantidade}${t.unidade?(' '+escHtml(t.unidade)):''} por dose · Meio: ${t.meioAplicacao||'—'}</div>
+        ${t.responsavel?`<div class="report-row" style="font-size:12px;color:var(--muted);">Responsável: ${escHtml(t.responsavel)}</div>`:''}
+        ${t.obs?`<div class="report-row" style="font-size:12px;color:var(--muted);">Obs: ${escHtml(t.obs)}</div>`:''}
         ${doses.length>0?`<div class="report-row" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">
           ${doses.map(ds=>`<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;">
             <span style="display:inline-block;width:13px;height:13px;border:1.5px solid #333;border-radius:3px;text-align:center;line-height:11px;">${concluidas.has(ds.key)?'✓':''}</span>
@@ -19004,12 +19010,12 @@ function renderVinculosQuebrados(){
     const matchPorNome = estoqueProdutos.find(p=>p.nome.toLowerCase()===item.produtoNomeAntigo.toLowerCase());
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
       <div style="flex:1;min-width:220px;">
-        <div style="font-weight:600;">${item.nomeRegistro}</div>
-        <div style="font-size:12px;color:var(--muted);">Produto excluído: <strong>${item.produtoNomeAntigo||'(sem nome)'}</strong></div>
+        <div style="font-weight:600;">${escHtml(item.nomeRegistro)}</div>
+        <div style="font-size:12px;color:var(--muted);">Produto excluído: <strong>${escHtml(item.produtoNomeAntigo||'(sem nome)')}</strong></div>
       </div>
       <select data-vinculoidx="${i}" style="flex:1;min-width:180px;">
         <option value="">Escolher produto atual...</option>
-        ${estoqueProdutos.map(p=>`<option value="${p.id}" ${matchPorNome&&matchPorNome.id===p.id?'selected':''}>${p.nome}</option>`).join('')}
+        ${estoqueProdutos.map(p=>`<option value="${p.id}" ${matchPorNome&&matchPorNome.id===p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('')}
       </select>
       <button type="button" class="btn btn-sm" data-vinculoaplicar="${i}">Corrigir</button>
     </div>`;
@@ -19080,8 +19086,8 @@ function gerarFolhaTratamento(id){
   const periodosTxt = PERIODOS_TRATAMENTO.filter(p=>t.periodos&&t.periodos[p]).join(' e ');
   const doses = gerarDosesTratamento(t);
   const concluidas = new Set(t.doseConcluidas||[]);
-  const htmlConteudo = `<h1>Aplicação: ${t.quantidade}${t.unidade?(' '+t.unidade):''} de ${t.medicamentoNome} ${t.meioAplicacao?('('+t.meioAplicacao+') '):''}— ${t.diasTratamento} aplicaç${Number(t.diasTratamento)===1?'ão':'ões'}${t.intervaloDias>1?(', a cada '+t.intervaloDias+' dias'):''}</h1>
-    <div class="sub">${periodosTxt} · Animais: ${(t.animais||[]).map(a=>a.nome).join(', ')} · Responsável: ${t.responsavel||'—'}${t.obs?(' · Obs: '+t.obs):''}${(t.utensilios&&t.utensilios.length>0)?(' · Utensílios: '+t.utensilios.map(u=>u.quantidade+(u.unidade?(' '+u.unidade):'')+' de '+u.produtoNome).join(', ')):''}</div>
+  const htmlConteudo = `<h1>Aplicação: ${t.quantidade}${t.unidade?(' '+escHtml(t.unidade)):''} de ${escHtml(t.medicamentoNome)} ${t.meioAplicacao?('('+t.meioAplicacao+') '):''}— ${t.diasTratamento} aplicaç${Number(t.diasTratamento)===1?'ão':'ões'}${t.intervaloDias>1?(', a cada '+t.intervaloDias+' dias'):''}</h1>
+    <div class="sub">${periodosTxt} · Animais: ${(t.animais||[]).map(a=>a.nome).join(', ')} · Responsável: ${escHtml(t.responsavel||'—')}${t.obs?(' · Obs: '+escHtml(t.obs)):''}${(t.utensilios&&t.utensilios.length>0)?(' · Utensílios: '+t.utensilios.map(u=>u.quantidade+(u.unidade?(' '+escHtml(u.unidade)):'')+' de '+escHtml(u.produtoNome)).join(', ')):''}</div>
     <table><thead><tr><th>Data</th><th>Período</th><th style="width:60px;text-align:center;">Aplicado</th><th>Assinatura / hora</th></tr></thead><tbody>
     ${doses.map(d=>`<tr><td>${fmtDate(d.data)}</td><td>${d.periodo}</td><td style="text-align:center;">${concluidas.has(d.key)?'✔':'☐'}</td><td></td></tr>`).join('')}
     </tbody></table>`;
@@ -19141,7 +19147,7 @@ document.getElementById('btnPdfGrupoSelecao').addEventListener('click', ()=>{
   if(selecionados.length===0){ showAlert('Marque ao menos um animal antes de gerar o PDF.'); return; }
   const nome = f('g_nome').trim() || 'Grupo sem nome';
   const conteudo = `<div class="report-card print-block">
-    <div class="title" style="margin-bottom:6px;">${nome}</div>
+    <div class="title" style="margin-bottom:6px;">${escHtml(nome)}</div>
     <div class="subtitle" style="margin-bottom:14px;">${selecionados.length} ${pluralAnimal(selecionados.length)}</div>
     <div class="report-row">${animaisComOlhoHTML(selecionados)}</div>
   </div>`;
@@ -19195,9 +19201,9 @@ function renderGrupos(){
   if(filtered.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">${grupos.length===0?'Nenhum grupo criado ainda.':'Nenhum grupo encontrado.'}</td></tr>`; sincronizarSelecaoLista('grupos', '#grview_lista [data-lista="grupos"]'); return; }
   tbody.innerHTML = filtered.map(g=>`<tr>
     ${tdCheck('grupos', g.id)}
-    <td><strong>${g.nome}</strong></td>
+    <td><strong>${escHtml(g.nome)}</strong></td>
     <td>${(g.animais||[]).length}</td>
-    <td>${g.obs||''}</td>
+    <td>${escHtml(g.obs||'')}</td>
     <td style="white-space:nowrap;">
       <button type="button" class="btn btn-sm" data-vergrupo="${g.id}">👁 Ver Grupo</button>
       <button type="button" class="btn btn-sm btn-ghost" data-editar="${g.id}">Editar</button>
@@ -19230,9 +19236,9 @@ function gerarRelatorioGrupos(){
     <div class="title" style="margin-bottom:14px;">Relatório de Grupos</div>
     ${lista.map(g=>`
       <div class="report-animal-block">
-        <div class="report-animal-name">${g.nome} <span style="font-size:11px;color:var(--muted);font-weight:400;">(${(g.animais||[]).length} ${pluralAnimal((g.animais||[]).length)})</span></div>
+        <div class="report-animal-name">${escHtml(g.nome)} <span style="font-size:11px;color:var(--muted);font-weight:400;">(${(g.animais||[]).length} ${pluralAnimal((g.animais||[]).length)})</span></div>
         <div class="report-row">${animaisComOlhoHTML(g.animais)||'<span style="color:var(--muted);">Nenhum animal</span>'}</div>
-        ${g.obs?`<div class="report-row" style="color:var(--muted);font-size:12px;">Obs: ${g.obs}</div>`:''}
+        ${g.obs?`<div class="report-row" style="color:var(--muted);font-size:12px;">Obs: ${escHtml(g.obs)}</div>`:''}
       </div>`).join('')}
   </div>`;
   document.getElementById('btnPrintRelGrupo').style.display='inline-block'; document.getElementById('btnPdfRelGrupo').style.display='inline-block';
@@ -19264,12 +19270,12 @@ function renderMovimentos(){
   tbody.innerHTML = filtered.map(m=>`<tr>
     ${tdCheck('estoqueMov', m.id)}
     <td>${fmtDate(m.data)}</td>
-    <td data-col="produto">${m.produtoNome||''}</td>
+    <td data-col="produto">${escHtml(m.produtoNome||'')}</td>
     <td data-col="movimento"><span class="pill ${m.tipoMov==='entrada'?'st-ativo':'st-descarte'}">${m.tipoMov==='entrada'?'Entrada':'Saída'}</span></td>
-    <td data-col="qtd">${m.quantidade}${m.unidade?(' '+m.unidade):''}</td>
+    <td data-col="qtd">${m.quantidade}${m.unidade?(' '+escHtml(m.unidade)):''}</td>
     <td data-col="valor">${fmtValorMov(m.valor)}</td>
     <td data-col="origem">${ORIGEM_MOV_LABEL[m.origem]||m.origem}</td>
-    <td data-col="motivo">${m.motivo||''}${m.obs?(' — '+m.obs):''}</td>
+    <td data-col="motivo">${m.motivo||''}${m.obs?(' — '+escHtml(m.obs)):''}</td>
     <td><button type="button" class="btn btn-sm btn-ghost" data-editmov="${m.id}">Editar</button></td>
   </tr>`).join('');
   sincronizarSelecaoLista('estoqueMov', '#eview_movimentos [data-lista="estoqueMov"]');
@@ -19393,9 +19399,9 @@ function renderRelatorioEstoqueHtml(lista, subtitulo, hostId, btnPrintId){
             const un = p.unidade?(' '+p.unidade):'';
             const qtdTxt = (p.quantidade!==''&&p.quantidade!=null?p.quantidade:0)+un;
             return `<tr>
-              <td><strong>${p.nome||''}</strong></td>
-              <td>${p.classe||'—'}</td>
-              <td>${p.unidade||''}</td>
+              <td><strong>${escHtml(p.nome||'')}</strong></td>
+              <td>${escHtml(p.classe||'—')}</td>
+              <td>${escHtml(p.unidade||'')}</td>
               <td>${pillClass?`<span class="pill ${pillClass}">${qtdTxt}</span>`:qtdTxt}</td>
               <td>${p.alertaModo==='projetado'?'Previsão (10 dias)':(p.minimo!=null&&p.minimo!==''?p.minimo:'—')}</td>
               <td>${p.valor||'—'}</td>
@@ -19554,7 +19560,7 @@ function buildPedigreeTree(h){
     // tiver ficha, clicar cria como Externo — ver listener em .pedigree-tree-wrap.
     const attrs = destaque ? '' : ` data-pedn="${String(nome).replace(/"/g,'&quot;')}" data-peds="${sexo||''}" role="button" tabindex="0" title="Abrir ficha de ${String(nome).replace(/"/g,'&quot;')}"`;
     return `<foreignObject x="${x}" y="${y-PED_BOX_H/2}" width="${PED_BOX_W}" height="${PED_BOX_H}">
-      <div xmlns="http://www.w3.org/1999/xhtml" class="ped-box${destaque?' ped-box-root':' ped-box-link'}"${attrs}>${nome}</div>
+      <div xmlns="http://www.w3.org/1999/xhtml" class="ped-box${destaque?' ped-box-root':' ped-box-link'}"${attrs}>${escHtml(nome)}</div>
     </foreignObject>`;
   };
   const linha = (x1,y1,x2,y2)=>{
@@ -20158,14 +20164,14 @@ function renderFinanceiro(){
   tbody.innerHTML = listaFin.map(l=>{
     const acoes = l.origem==='manual'
       ? `<button type="button" class="btn btn-sm btn-ghost" data-editfin="${l.id}">Editar</button> <button type="button" class="btn btn-sm btn-danger" data-delfin="${l.id}">Excluir</button>`
-      : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${l.origem}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
+      : `<button type="button" class="btn btn-sm btn-ghost" data-verorigemfin="${l.id}" data-tipoorigemfin="${escHtml(l.origem)}" data-idorigemfin="${l.origemId}">Ver em ${ORIGEM_FIN_LABEL[l.origem]||l.origem}</button>`;
     return `<tr>
     ${tdCheck('financeiro', l.id)}
     <td>${fmtDate(l.data)}</td>
     <td data-col="origem"><span class="pill ${l.origem==='manual'?'st-outro':'st-warn'}">${ORIGEM_FIN_LABEL[l.origem]||l.origem}</span></td>
     <td data-col="tipo"><span class="pill ${l.tipo==='entrada'?'st-ativo':'st-descarte'}">${l.tipo==='entrada'?'Entrada':'Saída'}</span>${l.natureza==='alocacao'?' <span class="pill st-outro" title="Já foi pago quando o produto foi comprado — isso aqui só mostra em quem foi usado, não conta de novo no caixa.">Alocação — já pago na compra</span>':''}${l.natureza==='previsto'?' <span class="pill st-warn" title="Venda registrada mas ainda não recebida — só entra no caixa quando for marcada como recebida na aba Venda de Cobertura.">A receber — ainda não entrou no caixa</span>':''}</td>
-    <td data-col="categoria">${l.categoria||''}</td>
-    <td data-col="descricao">${l.descricao||''}</td>
+    <td data-col="categoria">${escHtml(l.categoria||'')}</td>
+    <td data-col="descricao">${escHtml(l.descricao||'')}</td>
     <td style="font-family:'IBM Plex Mono',monospace;">${fmtMoedaFin(l)}</td>
     <td style="white-space:nowrap;">${acoes}</td>
   </tr>`;
@@ -20376,7 +20382,7 @@ function montarTabelaCustoCategoria(lista, de, ate, {clicavel}){
   const html = `<table class="grid">
       <thead><tr><th>Animal</th>${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>`<th>${c}</th>`).join('')}<th>Total</th></tr></thead>
       <tbody>${linhas.length===0 ? `<tr><td colspan="${CATEGORIAS_CUSTO_ANIMAL_ORDEM.length+2}" class="empty">Nenhum custo atribuído no período.</td></tr>` : linhas.map((r,i)=>`<tr>
-        <td>${clicavel?`<button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> `:''}<strong>${r.h.nome||''}</strong></td>
+        <td>${clicavel?`<button type="button" class="eye-inline" data-eyeid="${r.h.id}" title="Abrir ficha em nova aba">👁</button> `:''}<strong>${escHtml(r.h.nome||'')}</strong></td>
         ${CATEGORIAS_CUSTO_ANIMAL_ORDEM.map(c=>{
           if(!(r.porCategoria[c]>0)) return `<td><span style="color:var(--muted);">—</span></td>`;
           if(!clicavel) return `<td>${fmtR(r.porCategoria[c])}</td>`;
@@ -20436,11 +20442,11 @@ function abrirDetalheCustoAnimal(animalId, de, ate){
   const linhaDetalheHtml = ({l,meuValor}, indent) => `<tr${indent?' class="custo-subitem" data-grupopai="'+indent+'" style="display:none;background:var(--chip-bg);"':''}>
         <td${indent?' style="padding-left:26px;"':''}>${fmtDate(l.data)}</td>
         <td>${indent?'':(l.categoria||'')+(l.natureza==='alocacao'?' <span class="pill st-outro" style="font-size:10px;">Alocação</span>':'')}</td>
-        <td>${l.descricao||''}</td>
+        <td>${escHtml(l.descricao||'')}</td>
         <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(meuValor)}</td>
         <td style="white-space:nowrap;">${l.origem==='manual'
           ? `<button type="button" class="btn btn-sm btn-ghost" data-editarcustomanual="${l.id}">Editar</button>`
-          : `<button type="button" class="btn btn-sm btn-ghost" data-vercustoorigem="${l.origem}" data-idcustoorigem="${l.origemId}">Ver origem</button>`}</td>
+          : `<button type="button" class="btn btn-sm btn-ghost" data-vercustoorigem="${escHtml(l.origem)}" data-idcustoorigem="${l.origemId}">Ver origem</button>`}</td>
       </tr>`;
   const gruposMap = {}; const ordemGrupos = [];
   linhas.forEach(item => {
@@ -20463,9 +20469,9 @@ function abrirDetalheCustoAnimal(animalId, de, ate){
     return linhaResumo + itens.map(it=>linhaDetalheHtml(it, grupoId)).join('');
   }).join('');
   body.innerHTML = `
-    <div class="hint-text" style="margin-bottom:12px;">Lançamentos ${periodoTxt} com ${h.nome} no rateio — clique em "Ver origem" (ou "Editar", pros manuais) pra abrir onde cada um nasceu.</div>
+    <div class="hint-text" style="margin-bottom:12px;">Lançamentos ${periodoTxt} com ${escHtml(h.nome)} no rateio — clique em "Ver origem" (ou "Editar", pros manuais) pra abrir onde cada um nasceu.</div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${escHtml(h.nome)})</th><th></th></tr></thead>
       <tbody>${linhasHtml}</tbody>
     </table></div>`;
   body.querySelectorAll('[data-togglegrupo]').forEach(btn=>btn.addEventListener('click', ()=>{
@@ -20502,13 +20508,13 @@ function abrirDetalheCustoGeralAnimal(animalId, de, ate){
     return;
   }
   body.innerHTML = `
-    <div class="hint-text" style="margin-bottom:12px;">Custos gerais do haras ${periodoTxt} — sem dono, sem uma origem única, divididos mês a mês entre os animais que estavam ativos naquele mês. O valor já é a fatia que coube a ${h.nome}.</div>
+    <div class="hint-text" style="margin-bottom:12px;">Custos gerais do haras ${periodoTxt} — sem dono, sem uma origem única, divididos mês a mês entre os animais que estavam ativos naquele mês. O valor já é a fatia que coube a ${escHtml(h.nome)}.</div>
     <div class="grid-wrap"><table class="grid">
-      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${h.nome})</th></tr></thead>
+      <thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor (${escHtml(h.nome)})</th></tr></thead>
       <tbody>${itens.map(it=>`<tr>
         <td>${fmtDate(it.data)}</td>
-        <td>${it.categoria||''}</td>
-        <td>${it.descricao||''}</td>
+        <td>${escHtml(it.categoria||'')}</td>
+        <td>${escHtml(it.descricao||'')}</td>
         <td style="font-family:'IBM Plex Mono',monospace;">${fmtR(it.valorPorAnimal)}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
@@ -21017,15 +21023,15 @@ function renderFuncionarios(){
     const pago = salarioConfirmadoNoMes(fu.id, hoje.getFullYear(), hoje.getMonth());
     return `<tr>
     ${tdCheck('funcionarios', fu.id)}
-    <td><strong>${fu.nome||''}</strong></td>
-    <td data-col="documento">${fu.documento||'—'}</td>
+    <td><strong>${escHtml(fu.nome||'')}</strong></td>
+    <td data-col="documento">${escHtml(fu.documento||'—')}</td>
     <td data-col="nascimento">${fu.dataNascimento ? fmtDate(fu.dataNascimento) : '—'}</td>
     <td data-col="ultimoSalario" style="font-family:'IBM Plex Mono',monospace;">${fu.ultimoSalarioValor ? fmtMoeda(fu.ultimoSalarioValor, fu.ultimoSalarioMoeda) : '—'}${pago?' <span class="pill st-ativo" style="margin-left:4px;">Mês em dia</span>':''}</td>
     <td style="white-space:nowrap;">
       <button type="button" class="btn btn-sm" data-confirmarsalario="${fu.id}">Confirmar salário</button>
       <button type="button" class="btn btn-sm btn-ghost" data-lancarcusto="${fu.id}">Lançar custo</button>
       <button type="button" class="btn btn-sm btn-ghost" data-editfunc="${fu.id}">Editar</button>
-      ${qtdLancamentos>0 ? `<button type="button" class="btn btn-sm btn-ghost" data-verlancfunc="${fu.nome}">Ver ${qtdLancamentos} lançamento(s)</button>` : ''}
+      ${qtdLancamentos>0 ? `<button type="button" class="btn btn-sm btn-ghost" data-verlancfunc="${escHtml(fu.nome)}">Ver ${qtdLancamentos} lançamento(s)</button>` : ''}
     </td>
   </tr>`;
   }).join('');
@@ -21197,7 +21203,7 @@ function aplicarPermissoes(){
   // "Segurança dos dados" (backup/Diagnóstico) some do menu lateral pra quem não tem essa permissão —
   // fica só pra Administrador por padrão (permissaoDe já devolve tudo liberado pra admin sozinho).
   document.getElementById('blocoSegurancaDados').style.display = permissaoDe(currentUser,'seguranca').ver ? '' : 'none';
-  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${titleCase(currentUser.nome)}`;
+  document.getElementById('userBadge').innerHTML = `<span class="perfil-tag">${currentUser.admin?'Administrador':'Acesso restrito'}</span> ${escHtml(titleCase(currentUser.nome))}`;
   const viewAtiva = document.querySelector('.nav-item.active');
   if(!viewAtiva || viewAtiva.style.display==='none'){
     document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
@@ -21379,7 +21385,7 @@ function fmtDataHora(iso){
 }
 function descreverMudancas(e){
   if(e.acao!=='edicao' || !e.mudancas || e.mudancas.length===0) return '<span style="color:var(--muted);">—</span>';
-  return e.mudancas.map(m=>`<div style="font-size:11.5px;"><strong>${auditNomeCampo(m.campo)}</strong>: <span style="color:var(--muted);">${m.de}</span> → ${m.para}</div>`).join('');
+  return e.mudancas.map(m=>`<div style="font-size:11.5px;"><strong>${auditNomeCampo(m.campo)}</strong>: <span style="color:var(--muted);">${escHtml(m.de)}</span> → ${escHtml(m.para)}</div>`).join('');
 }
 function renderAuditoria(){
   if(!auditoriaCarregada){
@@ -21419,10 +21425,10 @@ function renderAuditoria(){
   }
   tbody.innerHTML = filtrada.map(e=>`<tr>
     <td style="white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:12px;">${fmtDataHora(e.quando)}</td>
-    <td>${e.usuario||'—'}</td>
-    <td><span class="pill ${AUDIT_ACAO_PILL[e.acao]||'st-outro'}">${AUDIT_ACAO_LABEL[e.acao]||e.acao}</span></td>
-    <td>${e.modulo||''}</td>
-    <td>${e.registro||''}</td>
+    <td>${escHtml(e.usuario||'—')}</td>
+    <td><span class="pill ${AUDIT_ACAO_PILL[e.acao]||'st-outro'}">${escHtml(AUDIT_ACAO_LABEL[e.acao]||e.acao)}</span></td>
+    <td>${escHtml(e.modulo||'')}</td>
+    <td>${escHtml(e.registro||'')}</td>
     <td>${descreverMudancas(e)}</td>
   </tr>`).join('');
 }
@@ -21450,7 +21456,7 @@ function renderUsuarios(){
   if(usuarios.length===0){ tbody.innerHTML='<tr><td colspan="4" class="empty">Nenhum usuário cadastrado.</td></tr>'; return; }
   tbody.innerHTML = usuarios.map(u=>`
     <tr>
-      <td><strong>${u.nome}</strong>${currentUser&&currentUser.id===u.id?' <span class="pill st-ativo">Você</span>':''}<div style="font-size:11px;color:var(--muted);">${u.email||'<em>sem e-mail cadastrado</em>'}</div></td>
+      <td><strong>${escHtml(u.nome)}</strong>${currentUser&&currentUser.id===u.id?' <span class="pill st-ativo">Você</span>':''}<div style="font-size:11px;color:var(--muted);">${u.email?escHtml(u.email):'<em>sem e-mail cadastrado</em>'}</div></td>
       <td><span class="pill st-outro">${u.admin?'Administrador':'Acesso restrito'}</span></td>
       <td style="font-size:12px;color:var(--muted);">${descreverAcesso(u)}</td>
       <td><button type="button" class="btn btn-sm btn-ghost" data-editarusr="${u.id}">Editar</button></td>
@@ -21650,7 +21656,7 @@ function abrirFichaNovaAba(id){
 // pra abrir a ficha daquele animal numa aba nova sem sair da tela atual.
 function animaisComOlhoHTML(arr){
   if(!arr || arr.length===0) return '';
-  return arr.map(a=>`<span class="animal-eye-wrap">${a.nome||''}<button type="button" class="eye-inline" data-eyeid="${a.id}" title="Abrir ficha em nova aba">👁</button></span>`).join(', ');
+  return arr.map(a=>`<span class="animal-eye-wrap">${escHtml(a.nome||'')}<button type="button" class="eye-inline" data-eyeid="${a.id}" title="Abrir ficha em nova aba">👁</button></span>`).join(', ');
 }
 // Fase de CAPTURA (3º parâmetro=true): garante que este listener rode ANTES de qualquer listener de
 // clique de linha (ex: abrir edição ao clicar na linha da tabela), senão o clique no olho também dispararia
@@ -21852,11 +21858,11 @@ function renderAnimalPerfil(id){
         <div class="perfil-subsection">Identificação</div>
         <div class="perfil-fields">
           <div class="perfil-field"><label>Sexo</label><div class="val">${h.sexo==='MASCULINO'?'Macho':(h.sexo==='FEMININO'?'Fêmea':'—')}</div></div>
-          <div class="perfil-field"><label>Categoria</label><div class="val">${h.categoria||'—'}</div></div>
+          <div class="perfil-field"><label>Categoria</label><div class="val">${escHtml(h.categoria||'—')}</div></div>
           <div class="perfil-field"><label>Status</label><div class="val">${h.status||'—'}</div></div>
-          <div class="perfil-field"><label>Pelagem</label><div class="val">${h.pelagem||'—'}</div></div>
-          <div class="perfil-field"><label>Raça</label><div class="val">${h.raca||'—'}</div></div>
-          <div class="perfil-field"><label>Localização</label><div class="val">${h.localizacao||'—'}</div></div>
+          <div class="perfil-field"><label>Pelagem</label><div class="val">${escHtml(h.pelagem||'—')}</div></div>
+          <div class="perfil-field"><label>Raça</label><div class="val">${escHtml(h.raca||'—')}</div></div>
+          <div class="perfil-field"><label>Localização</label><div class="val">${escHtml(h.localizacao||'—')}</div></div>
         </div>
 
         <div class="perfil-subsection">Datas</div>
@@ -21867,21 +21873,21 @@ function renderAnimalPerfil(id){
 
         <div class="perfil-subsection">Filiação</div>
         <div class="perfil-fields">
-          <div class="perfil-field"><label>Pai</label><div class="val">${h.pai||'—'}</div></div>
-          <div class="perfil-field"><label>Mãe</label><div class="val">${h.mae||'—'}</div></div>
+          <div class="perfil-field"><label>Pai</label><div class="val">${escHtml(h.pai||'—')}</div></div>
+          <div class="perfil-field"><label>Mãe</label><div class="val">${escHtml(h.mae||'—')}</div></div>
         </div>
 
         <div class="perfil-subsection">Propriedade</div>
         <div class="perfil-fields">
-          <div class="perfil-field"><label>Proprietário</label><div class="val">${h.proprietario||'—'}</div></div>
-          ${h.compra?`<div class="perfil-field"><label>Comprado de</label><div class="val">${h.compradoDe||'—'}</div></div>`:''}
-          ${h.situacao==='V'?`<div class="perfil-field"><label>Comprador</label><div class="val">${h.comprador||'—'}</div></div>
+          <div class="perfil-field"><label>Proprietário</label><div class="val">${escHtml(h.proprietario||'—')}</div></div>
+          ${h.compra?`<div class="perfil-field"><label>Comprado de</label><div class="val">${escHtml(h.compradoDe||'—')}</div></div>`:''}
+          ${h.situacao==='V'?`<div class="perfil-field"><label>Comprador</label><div class="val">${escHtml(h.comprador||'—')}</div></div>
           <div class="perfil-field"><label>Data da venda</label><div class="val">${h.dataVenda?fmtDate(h.dataVenda):'—'}</div></div>
           ${podeVerValoresAnimais()?`<div class="perfil-field"><label>Valor da venda</label><div class="val">${h.valor||'—'}</div></div>`:''}`:
           ((h.valor && podeVerValoresAnimais())?`<div class="perfil-field"><label>Valor</label><div class="val">${h.valor}</div></div>`:'')}
         </div>
 
-        ${h.obs?`<div class="perfil-subsection">Observações</div><div class="perfil-fields full"><div class="perfil-field"><div class="val">${h.obs}</div></div></div>`:''}
+        ${h.obs?`<div class="perfil-subsection">Observações</div><div class="perfil-fields full"><div class="perfil-field"><div class="val">${escHtml(h.obs)}</div></div></div>`:''}
       </div>
     </div>` });
 
@@ -21951,7 +21957,7 @@ function renderAnimalPerfil(id){
   if(gruposDoAnimal.length>0) cardsDefs.push({ key:'grupos', defaultCol:'principal', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">📁 Grupos</div>
-      <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${g.nome}</span>`).join('')}</div>
+      <div class="perfil-card-body">${gruposDoAnimal.map(g=>`<span class="pill st-outro" style="margin-right:6px;margin-bottom:6px;display:inline-block;">${escHtml(g.nome)}</span>`).join('')}</div>
     </div>` });
 
   const consultoriaCardHtml = blocoConsultoriaAnimalFicha(h);
@@ -21960,7 +21966,7 @@ function renderAnimalPerfil(id){
   cardsDefs.push({ key:'foto', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-body">
-        ${h.fotoUrl ? `<img class="perfil-photo" id="perfilFotoPrincipal" src="${h.fotoUrl}" alt="Foto de ${h.nome}" style="cursor:pointer;" title="Clique pra ampliar" onerror="this.outerHTML='<div class=perfil-photo-placeholder>Não consegui carregar essa imagem. Confira se o link é público e aponta direto pro arquivo.</div>';">`
+        ${h.fotoUrl ? `<img class="perfil-photo" id="perfilFotoPrincipal" src="${urlSegura(h.fotoUrl)}" alt="Foto de ${escHtml(h.nome)}" style="cursor:pointer;" title="Clique pra ampliar" onerror="this.outerHTML='<div class=perfil-photo-placeholder>Não consegui carregar essa imagem. Confira se o link é público e aponta direto pro arquivo.</div>';">`
           : `<div class="perfil-photo-placeholder no-print">Sem foto ainda.<br>Cole um link (Google Drive, Imgur...) no cadastro do animal.</div>`}
       </div>
     </div>` });
@@ -21984,7 +21990,7 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body">
         <div id="perfilVideosLista">${(h.videos||[]).length===0 ? '<div class="hint-text">Nenhum vídeo ainda.</div>' : (h.videos||[]).map((v,i)=>`
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
-            <a href="${v}" target="_blank" rel="noopener" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v}</a>
+            <a href="${urlSegura(v)}" target="_blank" rel="noopener" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(v)}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delvideo="${i}" title="Remover">✕</button>
           </div>`).join('')}</div>
         <div class="no-print" style="display:flex;gap:6px;margin-top:8px;">
@@ -22000,7 +22006,7 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body">
         <div id="perfilExamesLista">${(examesPorAnimal[h.id]||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (examesPorAnimal[h.id]||[]).map((e,i)=>`
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
-            <a href="${e.url || e.dataUrl}" target="_blank" rel="noopener"${e.url?'':` download="${e.nome}"`} style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${e.nome} — ${fmtDate(e.dataUpload)}">${e.url?'🔗':'📄'} ${e.nome}</a>
+            <a href="${urlSegura(e.url || e.dataUrl)}" target="_blank" rel="noopener"${e.url?'':` download="${escHtml(e.nome)}"`} style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(e.nome)} — ${fmtDate(e.dataUpload)}">${e.url?'🔗':'📄'} ${escHtml(e.nome)}</a>
             <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
           </div>`).join('')}</div>
         <div class="no-print" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
@@ -22222,7 +22228,7 @@ function computeTimelineAnimal(h){
     const custosDoAnimal = (v.custos||[]).filter(c=>c.animalId===h.id);
     const totalCusto = custosDoAnimal.reduce((s,c)=>s+(Number(c.valor)||0),0);
     const nomesCustos = custosDoAnimal.map(c=>c.tipo==='produto'?c.produtoNome:c.nome).filter(Boolean).join(', ');
-    const linksDoc = (v.documentos||[]).filter(d=>d.animalId===h.id).map(d=>`<a href="${d.url}" target="_blank" rel="noopener">📎 ${d.nome||'Documento'}</a>`).join(' · ');
+    const linksDoc = (v.documentos||[]).filter(d=>d.animalId===h.id).map(d=>`<a href="${urlSegura(d.url)}" target="_blank" rel="noopener">📎 ${escHtml(d.nome||'Documento')}</a>`).join(' · ');
     eventos.push({
       data: v.data, tipo:'visita', titulo:'Visita Veterinária'+(v.veterinario?(' — '+v.veterinario):''),
       detalhe: [a.extra, nomesCustos||null, totalCusto>0?('💰 '+fmtMoeda(totalCusto,'BRL')):null, linksDoc||null].filter(Boolean).join(' · ')
@@ -22329,7 +22335,7 @@ function renderAnimalTimeline(h){
               <div class="timeline-dot">${TIMELINE_ICON[e.tipo]||'•'}</div>
               <div class="timeline-date">${fmtDate(e.data)}</div>
               <div class="timeline-title">${e.titulo}</div>
-              ${e.detalhe?`<div class="timeline-detail">${e.detalhe}</div>`:''}
+              ${e.detalhe?`<div class="timeline-detail">${escHtml(e.detalhe)}</div>`:''}
             </div>`).join('')}</div>`}
       </div>
     </div>`;
@@ -22503,10 +22509,10 @@ function renderLinhaDoTempoVisual(){
         ${eventos.map(ev=>{
           const left = pct(ev.data);
           if(c.key==='foto' && ev.fotoUrl){
-            return `<img src="${ev.fotoUrl}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
+            return `<img src="${urlSegura(ev.fotoUrl)}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
           }
           const info = encodeURIComponent(`${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}`);
-          return `<div data-ltvponto="${info}" title="${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}" style="position:absolute;left:${left}%;top:12px;width:14px;height:14px;border-radius:50%;background:${c.cor};cursor:pointer;transform:translateX(-50%);border:2px solid var(--card,#fff);"></div>`;
+          return `<div data-ltvponto="${info}" title="${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+escHtml(ev.detalhe)):''}" style="position:absolute;left:${left}%;top:12px;width:14px;height:14px;border-radius:50%;background:${c.cor};cursor:pointer;transform:translateX(-50%);border:2px solid var(--card,#fff);"></div>`;
         }).join('')}
       </div>
     </div>`;
@@ -22631,7 +22637,7 @@ function gerarRelatorioFicha1(){
     ${lista.map(h=>{
       return `<div class="report-animal-block" style="display:flex;gap:18px;align-items:flex-start;">
         <div style="flex:1;min-width:0;">
-          <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${h.apelido?`<span style="color:var(--muted);font-weight:400;font-size:13px;">${h.apelido}</span> `:''}${h.nome}</div>
+          <div class="report-animal-name"><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> ${h.apelido?`<span style="color:var(--muted);font-weight:400;font-size:13px;">${escHtml(h.apelido)}</span> `:''}${escHtml(h.nome)}</div>
           <div class="report-row"><span class="lbl">Idade</span>${calcAgeYears(h.nascimento)||'—'}</div>
           <div class="report-row"><span class="lbl">Nascimento</span>${fmtDate(h.nascimento)||'—'}</div>
           <div class="report-row"><span class="lbl">Sexo</span>${h.sexo==='MASCULINO'?'Macho':(h.sexo==='FEMININO'?'Fêmea':'—')}</div>
@@ -22654,7 +22660,7 @@ function gerarRelatorioFicha2(){
     <div class="title" style="margin-bottom:12px;">Relatório 2 — Lista Resumida</div>
     <div class="grid-wrap compact"><table class="grid">
       <thead><tr><th>Nome</th><th>Idade</th><th>Nascimento</th><th>Sexo</th><th>Status</th><th>Categoria</th><th>Pai</th><th>Mãe</th></tr></thead>
-      <tbody>${lista.map(h=>`<tr><td><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${h.nome||''}</strong></td><td>${calcAgeYears(h.nascimento)||'—'}</td><td>${fmtDate(h.nascimento)||'—'}</td><td>${h.sexo==='MASCULINO'?'M':(h.sexo==='FEMININO'?'F':'—')}</td><td>${h.status||'—'}</td><td>${h.categoria||'—'}</td><td>${h.pai||'—'}</td><td>${h.mae||'—'}</td></tr>`).join('')}</tbody>
+      <tbody>${lista.map(h=>`<tr><td><button type="button" class="eye-inline" data-eyeid="${h.id}" title="Abrir ficha em nova aba">👁</button> <strong>${escHtml(h.nome||'')}</strong></td><td>${calcAgeYears(h.nascimento)||'—'}</td><td>${fmtDate(h.nascimento)||'—'}</td><td>${h.sexo==='MASCULINO'?'M':(h.sexo==='FEMININO'?'F':'—')}</td><td>${h.status||'—'}</td><td>${escHtml(h.categoria||'—')}</td><td>${escHtml(h.pai||'—')}</td><td>${escHtml(h.mae||'—')}</td></tr>`).join('')}</tbody>
     </table></div>
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
@@ -22666,7 +22672,7 @@ function gerarRelatorioFicha4(){
   const host = document.getElementById('relFichaResult');
   host.innerHTML = `<div class="report-card print-block">
     <div class="title" style="margin-bottom:12px;">Relatório 4 — Lista Simples (${lista.length} ${pluralAnimal(lista.length)})</div>
-    <ul class="animais-simples">${lista.map(h=>`<li>${h.nome||''}</li>`).join('')}</ul>
+    <ul class="animais-simples">${lista.map(h=>`<li>${escHtml(h.nome||'')}</li>`).join('')}</ul>
   </div>`;
   document.getElementById('btnPrintRelFicha').style.display='inline-block'; document.getElementById('btnPdfRelFicha').style.display='inline-block';
 }
@@ -22835,7 +22841,7 @@ function blocoReproducaoFicha(h){
       : (refCobertura(n) ? ('prev. '+fmtDate(calcProvavelNascimento(refCobertura(n)))) : '');
     const cobsL = todasCoberturas(n);
     const cobTxt = cobsL.length ? (cobsL.map(fmtDate).join(', ')) : '—';
-    return `<div class="stat-list-row clicavel" data-abrircob="${n.id}"><span>${cobTxt} · ${detalhe}${prov?(' · '+prov):''}</span>${statusCob(n)}</div>`;
+    return `<div class="stat-list-row clicavel" data-abrircob="${n.id}"><span>${cobTxt} · ${escHtml(detalhe)}${prov?(' · '+prov):''}</span>${statusCob(n)}</div>`;
   };
   const partesExame = e => [
     e.diagnostico ? (REPRO_DIAG_LABEL[e.diagnostico]||e.diagnostico) : null,
@@ -22848,7 +22854,7 @@ function blocoReproducaoFicha(h){
   if(comoMatriz.length) corpo += `<div class="perfil-subsection">Como matriz (${comoMatriz.length})</div>${comoMatriz.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'matriz')).join('')}`;
   if(comoReceptora.length) corpo += `<div class="perfil-subsection">Como receptora (${comoReceptora.length})</div>${comoReceptora.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'receptora')).join('')}`;
   if(comoPai.length) corpo += `<div class="perfil-subsection">Serviços como reprodutor (${comoPai.length})</div>${comoPai.slice().sort((a,b)=>(b.datacob||'').localeCompare(a.datacob||'')).map(n=>linhaCob(n,'pai')).join('')}`;
-  if(exames.length) corpo += `<div class="perfil-subsection">Exames reprodutivos (${exames.length})</div>${exames.map(({v,e})=>`<div class="stat-list-row clicavel" data-abrirexamerepro="${v.id}"><span>${fmtDate(v.data)}${v.veterinario?(' · '+v.veterinario):''}${partesExame(e)?(' · '+partesExame(e)):''}</span>${e.proximoRetorno?('<span class="pill st-outro">retorno '+fmtDate(e.proximoRetorno)+'</span>'):''}</div>`).join('')}`;
+  if(exames.length) corpo += `<div class="perfil-subsection">Exames reprodutivos (${exames.length})</div>${exames.map(({v,e})=>`<div class="stat-list-row clicavel" data-abrirexamerepro="${v.id}"><span>${fmtDate(v.data)}${v.veterinario?(' · '+escHtml(v.veterinario)):''}${partesExame(e)?(' · '+partesExame(e)):''}</span>${e.proximoRetorno?('<span class="pill st-outro">retorno '+fmtDate(e.proximoRetorno)+'</span>'):''}</div>`).join('')}`;
   if(!corpo) corpo = '<div class="hint-text">Nenhum registro reprodutivo ainda.</div>';
   return `<div class="perfil-card">
     <div class="perfil-card-head">🐣 Reprodução ${temPermissao('nascimentos','inserir')?`<button type="button" class="btn btn-sm btn-ghost no-print" id="btnFichaNovoExameRepro" style="text-transform:none;">+ Exame reprodutivo</button>`:''}</div>
@@ -22889,7 +22895,7 @@ function gerarRelatorioFicha3(){
     <div class="grid-wrap"><table class="grid">
       <thead><tr><th>Animal</th><th title="Clique no valor de um animal pra ver de onde veio">Direto 🔍</th><th>Geral rateado</th><th>Total</th></tr></thead>
       <tbody>${linhas.map(r=>`<tr>
-        <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${r.nome||''}</strong></td>
+        <td><button type="button" class="eye-inline" data-eyeid="${r.id}" title="Abrir ficha em nova aba">👁</button> <strong>${escHtml(r.nome||'')}</strong></td>
         <td>${r.direto>0 ? `<button type="button" data-vercustodireto="${r.id}" title="Ver de onde veio esse custo" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.direto)}</button>` : fmtR(r.direto)}</td>
         <td>${r.geral>0 ? `<button type="button" data-vercustogeral="${r.id}" title="Ver quais lançamentos formam esse rateio" style="background:none;border:none;padding:0;font:inherit;font-family:'IBM Plex Mono',monospace;color:var(--green);text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;">${fmtR(r.geral)}</button>` : fmtR(r.geral)}</td>
         <td style="font-weight:600;">${fmtR(r.total)}</td>
@@ -22962,8 +22968,8 @@ function renderRelatorios(){
   if(list.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Nenhum animal encontrado.</td></tr>`; return; }
   tbody.innerHTML = list.map((h,i)=>`<tr>
     <td style="color:var(--muted);">${i+1}</td>
-    <td><strong>${h.nome||''}</strong></td>
-    <td>${h.codigo||'—'}</td>
+    <td><strong>${escHtml(h.nome||'')}</strong></td>
+    <td>${escHtml(h.codigo||'—')}</td>
     <td>${h.sexo==='MASCULINO'?'M':(h.sexo==='FEMININO'?'F':'—')}</td>
     <td>${h.situacao==='E'?'Externo':(h.situacao==='V'?'Vendido':'Interno')}</td>
   </tr>`).join('');
@@ -23428,9 +23434,9 @@ function renderDuplicatesList(){
     <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <div>
         <span class="pill ${p.exact?'st-descarte':'st-outro'}">${p.exact?'Nome idêntico':'Nome parecido'}</span>
-        <div style="margin-top:6px;font-size:14px;"><strong>${p.a.nome}</strong> <span style="color:var(--muted);">(#${p.a.codigo||'—'}, ${p.a.situacao==='E'?'Externo':(p.a.situacao==='V'?'Vendido':'Interno')})</span>
+        <div style="margin-top:6px;font-size:14px;"><strong>${escHtml(p.a.nome)}</strong> <span style="color:var(--muted);">(#${escHtml(p.a.codigo||'—')}, ${p.a.situacao==='E'?'Externo':(p.a.situacao==='V'?'Vendido':'Interno')})</span>
         &nbsp;vs&nbsp;
-        <strong>${p.b.nome}</strong> <span style="color:var(--muted);">(#${p.b.codigo||'—'}, ${p.b.situacao==='E'?'Externo':(p.b.situacao==='V'?'Vendido':'Interno')})</span></div>
+        <strong>${escHtml(p.b.nome)}</strong> <span style="color:var(--muted);">(#${escHtml(p.b.codigo||'—')}, ${p.b.situacao==='E'?'Externo':(p.b.situacao==='V'?'Vendido':'Interno')})</span></div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
         <button type="button" class="btn btn-sm btn-ghost" data-dismiss="${p.key}">Não é o mesmo</button>
@@ -23501,8 +23507,8 @@ function renderAnomaliasList(){
     <div style="border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
       <div>
         <span class="pill st-descarte">Muito acima do normal</span>
-        <div style="margin-top:6px;font-size:14px;"><strong>${m.produtoNome||'(produto excluído)'}</strong> — ${fmtDate(m.data)}</div>
-        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Baixou <strong>${m.quantidade}${m.unidade?(' '+m.unidade):''}</strong> — o normal desse produto costuma ser em torno de ${mediana}${m.unidade?(' '+m.unidade):''} por baixa.${m.motivo?(' Motivo registrado: '+m.motivo):''}</div>
+        <div style="margin-top:6px;font-size:14px;"><strong>${escHtml(m.produtoNome||'(produto excluído)')}</strong> — ${fmtDate(m.data)}</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">Baixou <strong>${m.quantidade}${m.unidade?(' '+escHtml(m.unidade)):''}</strong> — o normal desse produto costuma ser em torno de ${mediana}${m.unidade?(' '+escHtml(m.unidade)):''} por baixa.${m.motivo?(' Motivo registrado: '+m.motivo):''}</div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
         <button type="button" class="btn btn-sm btn-ghost" data-anomdismiss="${m.id}">Não é erro</button>
