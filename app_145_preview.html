@@ -3345,7 +3345,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div id="envForn_lista" style="margin-bottom:8px;"></div>
     <div id="envForn_editor" style="display:none;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--chip-bg);"></div>
     <div style="margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornNovo">+ Adicionar farmácia/fornecedor</button></div>
-    <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
+    <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="9" spellcheck="true" lang="pt-BR"></textarea></div>
     <div class="hint-text" id="envForn_hint" style="margin-top:6px;margin-bottom:10px;"></div>
     <div id="envForn_fila" style="display:none;border:1px solid var(--brass-light);border-radius:8px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="modal-actions">
@@ -9071,13 +9071,13 @@ function calcularLinhasPorPagina(theadHtml, linhasHtmlAmostra, paisagem){
 // Mostra o relatório na tela ANTES de baixar — usado nos botões rápidos de relatório (📄 em
 // Manejos/Treinos/Nascimentos/Visitas), pra dar a chance de conferir antes de gerar o PDF.
 let lastPreviaTipoPedido = '';
-let lastPreviaHtmlConteudo = '', lastPreviaNomeArquivo = '', lastPreviaOptsPdf = null;
+let lastPreviaHtmlConteudo = '', lastPreviaNomeArquivo = '', lastPreviaOptsPdf = null, lastPreviaMensagemPedido = '';
 function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Boa tarde'; }
 // ===== Farmácias/fornecedores do Pedido de Compra =====
 // Lista gravada (aux.fornecedoresPedido, por id): cada um com nome, vários WhatsApps e vários e-mails. Na hora
 // de enviar você marca quem recebe. Contatos antigos (um WhatsApp/e-mail por Tipo de produto) viram
 // fornecedores sozinhos na primeira vez. Grátis: o app só ABRE o WhatsApp/e-mail já preenchido.
-let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null };
+let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null, ordem:{ col:'nome', dir:1 } };
 function migrarContatosAntigosFornecedores(){
   if(aux.fornecedoresPedido) return;
   const lista = {};
@@ -9110,27 +9110,53 @@ function abrirEnvioFornecedores(opts){
   document.getElementById('pce_mensagem').value = envForn.mensagem;
   document.getElementById('envForn_hint').textContent = envForn.comPdf
     ? 'Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho). O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.'
-    : 'Ao clicar, o WhatsApp/e-mail abre com a mensagem pronta. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
+    : 'O pedido já vai escrito na mensagem — é só conferir e enviar, sem PDF. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
   document.getElementById('envForn_fila').style.display = 'none';
   renderEnvioFornecedores();
   openModal('overlayPedidoCompraEnvio');
 }
+function ordenarFornecedoresEnvio(lista){
+  const { col, dir } = envForn.ordem;
+  const chave = x => (x[col]||'').toString().trim();
+  // Vazios (sem cidade/classificação) sempre por último, nos dois sentidos.
+  return lista.slice().sort((a,b)=>{
+    const va = chave(a), vb = chave(b);
+    if(!va && !vb) return (a.nome||'').localeCompare(b.nome||'','pt');
+    if(!va) return 1; if(!vb) return -1;
+    return dir * va.localeCompare(vb,'pt',{sensitivity:'base'}) || (a.nome||'').localeCompare(b.nome||'','pt');
+  });
+}
 function renderEnvioFornecedores(){
   const host = document.getElementById('envForn_lista');
-  const lista = listaFornecedoresPedido();
+  const lista = ordenarFornecedoresEnvio(listaFornecedoresPedido());
   if(lista.length===0){
     host.innerHTML = '<div class="hint-text">Nenhuma farmácia/fornecedor gravado ainda. Clique em "+ Adicionar farmácia/fornecedor" abaixo.</div>';
-  } else {
-    host.innerHTML = lista.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line);">
-      <input type="checkbox" data-fsel="${x.id}" ${envForn.selecionados.has(x.id)?'checked':''} style="width:16px;height:16px;">
-      <div style="flex:1;"><div style="font-weight:600;">${escHtml(x.nome||'(sem nome)')}</div>
-        <div style="font-size:12px;color:var(--muted);">📱 ${(x.whats||[]).length} WhatsApp · ✉ ${(x.emails||[]).length} e-mail</div></div>
-      <button type="button" class="btn btn-sm btn-ghost" data-fedit="${x.id}" title="Editar">✏️</button>
-      <button type="button" class="btn btn-sm btn-ghost" data-fdel="${x.id}" title="Excluir">🗑</button>
-    </div>`).join('');
+    return;
   }
-  host.querySelectorAll('[data-fsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) envForn.selecionados.add(cb.dataset.fsel); else envForn.selecionados.delete(cb.dataset.fsel); guardarSelecaoFornecedores(); }));
-  host.querySelectorAll('[data-fedit]').forEach(b=>b.addEventListener('click',()=>{ const x = aux.fornecedoresPedido[b.dataset.fedit]; abrirEditorFornecedor({ id:x.id, nome:x.nome||'', whats:[...(x.whats||[])], emails:[...(x.emails||[])] }); }));
+  const seta = col => envForn.ordem.col===col ? (envForn.ordem.dir===1?' ▲':' ▼') : '';
+  const th = (col, rot) => `<th class="sortable" data-fordem="${col}" style="cursor:pointer;" title="Clique para ordenar por ${rot.toLowerCase()} (A→Z / Z→A)">${rot}${seta(col)}</th>`;
+  const todos = lista.every(x=>envForn.selecionados.has(x.id));
+  host.innerHTML = `<div class="grid-wrap compact"><table class="grid">
+    <thead><tr><th style="width:34px;"><input type="checkbox" id="envForn_todos" ${todos?'checked':''} title="Marcar/desmarcar todos"></th>${th('nome','Nome')}${th('cidade','Cidade')}${th('classificacao','Classificação')}<th>Contatos</th><th style="width:84px;"></th></tr></thead>
+    <tbody>${lista.map(x=>`<tr>
+      <td><input type="checkbox" data-fsel="${x.id}" ${envForn.selecionados.has(x.id)?'checked':''} style="width:16px;height:16px;"></td>
+      <td style="font-weight:600;">${escHtml(x.nome||'(sem nome)')}</td>
+      <td>${escHtml(x.cidade||'—')}</td>
+      <td>${escHtml(x.classificacao||'—')}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:nowrap;">📱 ${(x.whats||[]).length} · ✉ ${(x.emails||[]).length}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-fedit="${x.id}" title="Editar">✏️</button><button type="button" class="btn btn-sm btn-ghost" data-fdel="${x.id}" title="Excluir">🗑</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+  host.querySelectorAll('[data-fordem]').forEach(h=>h.addEventListener('click',()=>{
+    const col = h.dataset.fordem;
+    envForn.ordem = { col, dir: envForn.ordem.col===col ? -envForn.ordem.dir : 1 };
+    renderEnvioFornecedores();
+  }));
+  document.getElementById('envForn_todos').addEventListener('change', e=>{
+    lista.forEach(x=>{ if(e.target.checked) envForn.selecionados.add(x.id); else envForn.selecionados.delete(x.id); });
+    guardarSelecaoFornecedores(); renderEnvioFornecedores();
+  });
+  host.querySelectorAll('[data-fsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) envForn.selecionados.add(cb.dataset.fsel); else envForn.selecionados.delete(cb.dataset.fsel); guardarSelecaoFornecedores(); renderEnvioFornecedores(); }));
+  host.querySelectorAll('[data-fedit]').forEach(b=>b.addEventListener('click',()=>{ const x = aux.fornecedoresPedido[b.dataset.fedit]; abrirEditorFornecedor({ id:x.id, nome:x.nome||'', cidade:x.cidade||'', classificacao:x.classificacao||'', whats:[...(x.whats||[])], emails:[...(x.emails||[])] }); }));
   host.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', async ()=>{
     const x = aux.fornecedoresPedido[b.dataset.fdel];
     if(!(await showConfirm('Excluir "'+(x.nome||'este fornecedor')+'" da lista?'))) return;
@@ -9145,11 +9171,17 @@ function abrirEditorFornecedor(ed){
   const box = document.getElementById('envForn_editor');
   const linhas = (arr, campo, ph) => arr.map((v,i)=>`<div style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" data-fe="${campo}" data-i="${i}" value="${escHtml(v)}" placeholder="${ph}" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" data-fedrem="${campo}:${i}" title="Remover">🗑</button></div>`).join('');
   box.style.display = 'block';
-  box.innerHTML = `<div class="field" style="margin-bottom:10px;"><label>Nome da farmácia/fornecedor</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba"></div>
+  const classesUsadas = [...new Set(['Farmácia veterinária','Distribuidora','Casa de ração','Clínica veterinária', ...Object.values(aux.fornecedoresPedido||{}).map(x=>x.classificacao).filter(Boolean)])];
+  box.innerHTML = `<datalist id="envForn_dlClasses">${classesUsadas.map(c=>`<option value="${escHtml(c)}">`).join('')}</datalist>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div class="field"><label>Nome da farmácia/fornecedor</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba"></div>
+      <div class="field"><label>Cidade</label><input type="text" id="envForn_cidade" value="${escHtml(ed.cidade||'')}" placeholder="Ex: Uberaba"></div>
+      <div class="field"><label>Classificação</label><input type="text" id="envForn_classe" list="envForn_dlClasses" value="${escHtml(ed.classificacao||'')}" placeholder="Ex: Farmácia veterinária"></div>
+    </div>
     <div class="field" style="margin-bottom:10px;"><label>WhatsApps</label>${linhas(ed.whats,'whats','Ex: 5534999998888 (com DDI 55)')}<div><button type="button" class="btn btn-sm btn-ghost" data-fedadd="whats">+ outro WhatsApp</button></div></div>
     <div class="field" style="margin-bottom:10px;"><label>E-mails</label>${linhas(ed.emails,'emails','Ex: compras@farmacia.com')}<div><button type="button" class="btn btn-sm btn-ghost" data-fedadd="emails">+ outro e-mail</button></div></div>
     <div style="display:flex;gap:8px;"><button type="button" class="btn btn-sm" id="btnEnvFornSalvar">Salvar</button><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornCancelar">Cancelar</button></div>`;
-  const ler = ()=>{ ed.nome = document.getElementById('envForn_nome').value; box.querySelectorAll('[data-fe]').forEach(i=>{ ed[i.dataset.fe][Number(i.dataset.i)] = i.value; }); };
+  const ler = ()=>{ ed.nome = document.getElementById('envForn_nome').value; ed.cidade = document.getElementById('envForn_cidade').value; ed.classificacao = document.getElementById('envForn_classe').value; box.querySelectorAll('[data-fe]').forEach(i=>{ ed[i.dataset.fe][Number(i.dataset.i)] = i.value; }); };
   box.querySelectorAll('[data-fedadd]').forEach(b=>b.addEventListener('click',()=>{ ler(); ed[b.dataset.fedadd].push(''); abrirEditorFornecedor(ed); }));
   box.querySelectorAll('[data-fedrem]').forEach(b=>b.addEventListener('click',()=>{ ler(); const [c,i]=b.dataset.fedrem.split(':'); ed[c].splice(Number(i),1); abrirEditorFornecedor(ed); }));
   document.getElementById('btnEnvFornCancelar').addEventListener('click',()=>{ envForn.editando=null; box.style.display='none'; box.innerHTML=''; });
@@ -9162,14 +9194,14 @@ function abrirEditorFornecedor(ed){
     if(!whats.length && !emails.length){ showAlert('Informe ao menos um WhatsApp ou um e-mail.'); return; }
     const id = ed.id || ('forn_'+Date.now());
     migrarContatosAntigosFornecedores();
-    aux.fornecedoresPedido[id] = { id, nome, whats, emails };
+    aux.fornecedoresPedido[id] = { id, nome, cidade:(ed.cidade||'').trim(), classificacao:(ed.classificacao||'').trim(), whats, emails };
     envForn.selecionados.add(id); guardarSelecaoFornecedores();
     salvarFornecedoresPedido();
     envForn.editando = null; box.style.display='none'; box.innerHTML='';
     renderEnvioFornecedores();
   });
 }
-document.getElementById('btnEnvFornNovo').addEventListener('click', ()=> abrirEditorFornecedor({ id:null, nome:'', whats:[''], emails:[''] }));
+document.getElementById('btnEnvFornNovo').addEventListener('click', ()=> abrirEditorFornecedor({ id:null, nome:'', cidade:'', classificacao:'', whats:[''], emails:[''] }));
 // Só dígitos; número sem DDI (10 ou 11 dígitos: DDD + número) ganha o 55 do Brasil — sem o DDI o wa.me abre
 // o número errado (ex: 34 viraria Espanha).
 function whatsComDDIBrasil(n){
@@ -9180,8 +9212,8 @@ function whatsComDDIBrasil(n){
 function fornecedoresMarcados(){ return listaFornecedoresPedido().filter(x=>envForn.selecionados.has(x.id)); }
 // Tela do Pedido de Compra (prévia do PDF): abre a janela de envio já com a mensagem padrão.
 document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', ()=>{
-  abrirEnvioFornecedores({ comPdf:true, assunto:'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido),
-    mensagem:`${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.` });
+  abrirEnvioFornecedores({ comPdf:false, assunto:'Pedido de compra'+(lastPreviaTipoPedido?(' - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido)):''),
+    mensagem: lastPreviaMensagemPedido || `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido.\nObrigado.` });
 });
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
@@ -9227,7 +9259,9 @@ function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   // Relatório). Sem tipoPedido (relatórios de Manejo/Treino/etc.), fica escondido, sem afetar nada.
   lastPreviaTipoPedido = (opts && opts.tipoPedido) || '';
   lastPreviaHtmlConteudo = htmlConteudo; lastPreviaNomeArquivo = nomeArquivo; lastPreviaOptsPdf = opts;
-  document.getElementById('previaRelatorioEnvioWrap').style.display = lastPreviaTipoPedido ? 'flex' : 'none';
+  lastPreviaMensagemPedido = (opts && opts.mensagemPedido) || '';
+  // O botão de enviar aparece em todo Pedido de Compra: o contato vem do banco de farmácias, não mais do Tipo do produto.
+  document.getElementById('previaRelatorioEnvioWrap').style.display = (lastPreviaTipoPedido || lastPreviaMensagemPedido) ? 'flex' : 'none';
   openModal('overlayRelatorioPrevia');
 }
 // Gera o HTML de UM lançamento (usado tanto no relatório individual quanto no de vários seguidos).
@@ -13362,7 +13396,10 @@ document.getElementById('btnPedidoGerar').addEventListener('click', ()=>{
   // produto — é o Tipo que decide qual contato de fornecedor usar (mesmo esquema de Estoque > Relatório).
   const tiposDoPedido = [...new Set(comQtd.map(it=>{ const p=estoqueProdutos.find(x=>x.id===it.id); return p?(p.tipo||''):''; }))];
   const tipoPedido = tiposDoPedido.length===1 ? tiposDoPedido[0] : '';
-  abrirPreviaRelatorio(htmlConteudo, 'Pedido_de_Compra.pdf', 'Pedido de Compra', {tipoPedido});
+  // O pedido também vai ESCRITO na mensagem (produto — quantidade — observação), pra enviar sem PDF.
+  const linhasMsg = comQtd.map(it=>`• ${it.nome} — ${it.quantidade} unidade(s)${it.obs?` (${it.obs})`:''}`);
+  const mensagemPedido = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido:\n\n${linhasMsg.join('\n')}${obsGeral?`\n\nObservação: ${obsGeral}`:''}\n\nObrigado.`;
+  abrirPreviaRelatorio(htmlConteudo, 'Pedido_de_Compra.pdf', 'Pedido de Compra', {tipoPedido, mensagemPedido});
   closeModal('overlayPedido');
 });
 
