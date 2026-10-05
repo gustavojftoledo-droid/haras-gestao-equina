@@ -19,3 +19,5 @@ Para voltar só esta promoção: pedir "volta um passo" (reverte o PR #38). Para
 | Etapa 1 multi-cliente (só branch, NÃO publicada) | — | O app passa a ler/gravar na coleção do cliente (`tenants/{id}/dados`) quando o login tem a claim `tenantId`; sem claim continua em `harasData` (haras original, nada muda). Ver PLANO_MULTI_CLIENTE.md. | Nada deve mudar para o haras original: abrir, salvar, trocar de tela |
 
 | Etapa 2 multi-cliente (regras do Firestore, preparada, NÃO publicada no Firebase) | — | `firebase/firestore.rules` + testes (19/19 no emulador) + passo a passo. Haras original sem mudança; clientes isolados. Só vale depois que o Gustavo colar no console do Firebase. | Depois de publicar: recarregar o app, salvar uma observação, conferir que salvou |
+
+| Etapa 2b multi-cliente (papéis, preparada, NÃO publicada no Firebase) | — | `firebase/firestore.rules.2b` (só admin grava `usuarios_list`) + `firebase/definir_papeis.js` (define claims) + testes 14/14 e teste do script nos emuladores. Ordem obrigatória no `COMO_PUBLICAR_AS_REGRAS.md`. | Depois de publicar: sair e entrar; como admin, editar um usuário e salvar |

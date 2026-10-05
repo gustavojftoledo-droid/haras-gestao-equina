@@ -24,3 +24,28 @@ Para repetir: `firebase emulators:start --only firestore` e `node test_rules.mjs
 - Só agora é seguro criar o **primeiro cliente** (etapa 4), porque ele não consegue ver o haras original.
 - Ainda **não** impede que um funcionário do haras original mexa em dados que a tela esconde (financeiro, usuários). Isso é a etapa 2b:
   precisa de papéis (claims) para cada usuário.
+
+---
+
+# Etapa 2b — só administrador altera a lista de usuários
+
+**O problema que resolve:** hoje a lista de usuários (e o "administrador") fica num documento comum; quem está logado poderia
+editá-la pelo navegador e se promover a administrador. Na 2b, o servidor só aceita essa gravação de quem tem a claim `papel = admin`,
+e a claim só pode ser criada por quem administra o Firebase (não pelo próprio usuário).
+
+**Ordem obrigatória (se inverter, o administrador fica sem poder editar usuários até corrigir):**
+1. Publicar a **2a** (`firestore.rules`) — já descrita acima.
+2. No **Google Cloud Shell** (computador, não tablet): rodar `definir_papeis.js` — primeiro sem `--aplicar` (simulação), conferir a lista,
+   depois com `--aplicar`. Ele grava `papel` e `modulos` no login de cada usuário, mantém `tenantId` se existir, e pode rodar de novo à vontade.
+3. **Todos** saem do app e entram de novo (a claim só vale no login novo). Confirmar, como administrador, que a tela Usuários ainda salva.
+4. Publicar a **2b** (`firestore.rules.2b`) no console, no mesmo lugar da 2a.
+5. Se algo falhar: colar de volta o texto da 2a e publicar.
+
+**Quando criar um usuário novo:** criar a conta no console do Firebase, cadastrar no app (Administração → Usuários) e rodar o script de novo
+(para ele receber o papel). Sem a claim, o usuário funciona como funcionário comum (não altera a lista de usuários).
+
+**Testes:** `test_rules_2b.mjs` — 14 verificações no emulador (funcionário não se promove a admin, admin grava, cliente A não toca no original, etc.): 14/14.
+`definir_papeis.js` foi testado nos emuladores do Firestore e do Authentication: simulação não grava; aplicar grava; mantém `tenantId`; idempotente; ignora e-mail sem conta.
+
+**O que a 2b ainda não resolve:** um funcionário ainda pode ler o financeiro/valores direto pelo navegador (a tela esconde, o servidor não).
+Esconder isso no servidor exige mudar como os dados são divididos (etapa 3).
