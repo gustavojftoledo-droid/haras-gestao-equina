@@ -653,7 +653,6 @@
           <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
           <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
           <div class="nav-item" data-view="dietas" title="Atalho: Alt+Shift+D"><span class="dot"></span>Dietas</div>
-          <div class="nav-acao" id="navOrcamento" title="Banco de contatos: pedir orçamento por WhatsApp a ferrador, veterinário ou qualquer prestador"><span class="dot"></span>📱 Pedir orçamento</div>
         </div>
       </div>
 
@@ -1397,6 +1396,7 @@
         <span class="chip active" data-etab="produtos" id="etab_produtos">Produtos</span>
         <span class="chip" data-etab="movimentos" id="etab_movimentos">Movimentações</span>
         <span class="chip" data-etab="relatorio" id="etab_relatorio">Relatório</span>
+        <span class="chip" id="btnPedirOrcamentoEstoque" style="margin-left:auto;" title="Marque os produtos na lista (caixinha), toque aqui, informe as quantidades e escolha os fornecedores">📱 Pedir orçamento</span>
       </div>
 
       <div id="eview_produtos">
@@ -2472,8 +2472,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <!-- GERAR PEDIDO (Estoque) -->
 <div class="overlay" id="overlayPedido">
   <div class="modal wide">
-    <div class="modal-head"><div class="modal-title">Gerar Pedido</div><button class="modal-close" data-close="overlayPedido">✕</button></div>
-    <div class="hint-text" style="margin-bottom:12px;">Preencha a quantidade a pedir (e uma observação, se quiser) pra cada produto selecionado.</div>
+    <div class="modal-head"><div class="modal-title" id="pedidoTitulo">Gerar Pedido</div><button class="modal-close" data-close="overlayPedido">✕</button></div>
+    <div class="hint-text" id="pedidoDica" style="margin-bottom:12px;">Preencha a quantidade a pedir (e uma observação, se quiser) pra cada produto selecionado.</div>
     <div id="pedidoItensHost"></div>
     <div class="field full" style="margin-top:6px;"><label>Observação geral do pedido <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><textarea id="pedidoObsGeral" rows="2" spellcheck="true" lang="pt-BR" placeholder="Ex: entregar até sexta, fornecedor tal..."></textarea></div>
     <div class="modal-actions">
@@ -9210,7 +9210,6 @@ function abrirPedidoOrcamento(){
   abrirEnvioFornecedores({ orcamento:true, comPdf:false, assunto:'Pedido de orçamento',
     mensagem: `${saudacaoPorHorario()}, tudo bem?\nGostaria de pedir um orçamento para:\n\n(descreva aqui o serviço, o número de animais e a data desejada)\n\nPode me passar o valor e a disponibilidade?\nObrigado.` });
 }
-document.getElementById('navOrcamento').addEventListener('click', ()=>{ abrirPedidoOrcamento(); });
 function ordenarFornecedoresEnvio(lista){
   const { col, dir } = envForn.ordem;
   const chave = x => (x[col]||'').toString().trim();
@@ -13517,7 +13516,25 @@ document.getElementById('eSearch').addEventListener('input', debounce(renderEsto
    e observação de cada um. Não mexe em estoque nenhum, é só uma lista de "o que pedir" pra imprimir/enviar. */
 let pedidoItens = []; // [{id, nome, quantidade, obs}] — sem unidade: pedido é sempre pensado em "unidade(s)" (quantos frascos/caixas/pacotes comprar), não na unidade de controle do estoque (ml, kg, mg...)
 
-document.getElementById('btnGerarPedidoLote').addEventListener('click', ()=>{
+let pedidoModoOrcamento = false;
+function configurarModalPedido(orc){
+  pedidoModoOrcamento = orc;
+  document.getElementById('pedidoTitulo').textContent = orc ? 'Pedir orçamento' : 'Gerar Pedido';
+  document.getElementById('pedidoDica').textContent = orc ? 'Preencha a quantidade que você quer cotar (e uma observação, se quiser) pra cada produto. Depois você escolhe os fornecedores.' : 'Preencha a quantidade a pedir (e uma observação, se quiser) pra cada produto selecionado.';
+  document.getElementById('btnPedidoGerar').textContent = orc ? '📱 Escolher fornecedores' : '📄 Gerar Pedido';
+}
+document.getElementById('btnPedirOrcamentoEstoque').addEventListener('click', ()=>{
+  if(selectedProdutoIds.size===0){
+    document.querySelector('#view-estoque [data-etab="produtos"]').click();
+    showAlert('Marque, na lista de Produtos, os itens que você quer pedir orçamento (caixinha à esquerda) e toque de novo em "Pedir orçamento".');
+    return;
+  }
+  document.getElementById('btnGerarPedidoLote').dispatchEvent(new CustomEvent('abrirpedido',{detail:{orcamento:true}}));
+});
+document.getElementById('btnGerarPedidoLote').addEventListener('click', ()=>abrirModalPedido(false));
+document.getElementById('btnGerarPedidoLote').addEventListener('abrirpedido', e=>abrirModalPedido(!!(e.detail&&e.detail.orcamento)));
+function abrirModalPedido(orc){
+  configurarModalPedido(orc);
   if(selectedProdutoIds.size===0) return;
   pedidoItens = [...selectedProdutoIds].map(id=>{
     const p = estoqueProdutos.find(x=>x.id===id);
@@ -13527,7 +13544,7 @@ document.getElementById('btnGerarPedidoLote').addEventListener('click', ()=>{
   document.getElementById('pedidoObsGeral').value = '';
   renderPedidoItens();
   openModal('overlayPedido');
-});
+}
 function renderPedidoItens(){
   const host = document.getElementById('pedidoItensHost');
   host.innerHTML = pedidoItens.map((it,i)=>`
@@ -13549,6 +13566,13 @@ document.getElementById('btnPedidoGerar').addEventListener('click', ()=>{
   const comQtd = pedidoItens.filter(it=>it.quantidade!=='' && Number(it.quantidade)>0);
   if(comQtd.length===0){ showAlert('Informe a quantidade de ao menos um produto pra gerar o pedido.'); return; }
   const obsGeral = document.getElementById('pedidoObsGeral').value.trim();
+  if(pedidoModoOrcamento){
+    const linhas = comQtd.map(it=>`• ${it.nome} — ${it.quantidade} unidade(s)${it.obs?` (${it.obs})`:''}`);
+    const msg = `${saudacaoPorHorario()}, tudo bem?\nGostaria de pedir um orçamento para:\n\n${linhas.join('\n')}${obsGeral?`\n\nObservação: ${obsGeral}`:''}\n\nPode me passar o valor e a disponibilidade?\nObrigado.`;
+    closeModal('overlayPedido');
+    abrirEnvioFornecedores({ orcamento:true, comPdf:false, assunto:'Pedido de orçamento', mensagem: msg });
+    return;
+  }
   const htmlConteudo = `<h1>Pedido de Compra</h1>
     <div class="sub">Gerado em ${fmtDate(toISODate(new Date()))} · ${comQtd.length} item(ns)</div>
     <table><thead><tr><th>Produto</th><th>Quantidade</th><th>Observação</th></tr></thead>
