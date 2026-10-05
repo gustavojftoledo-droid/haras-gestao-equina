@@ -7297,6 +7297,22 @@ function computeCalendarTasks(){
       situacao: n.dataColetaEmbriao<hoje ? 'atrasado' : 'proximo'
     });
   });
+  // Uma égua com coleta/lavado de embrião marcado em Coberturas NÃO mostra também o "Retorno reprodutivo" da
+  // visita: o lavado já é o retorno, e as duas datas nascem da mesma ovulação (ovulação + dias de coleta).
+  // Vale tanto com a coleta pendente quanto depois de feita (senão o retorno reapareceria atrasado logo após
+  // o lavado). Só conta como "o mesmo evento" se as datas ficarem a até 3 dias uma da outra — um retorno bem
+  // depois (ex: exame de prenhez) continua aparecendo.
+  const diasEntre = (a,b)=> Math.abs((new Date(a+'T12:00:00') - new Date(b+'T12:00:00'))/86400000);
+  const coletasPorEgua = {};
+  nascimentos.forEach(n=>{
+    if(!n.dataColetaEmbriao) return;
+    const eg = findHorseByName(n.matriz);
+    if(eg) (coletasPorEgua[eg.id] = coletasPorEgua[eg.id] || []).push(n.dataColetaEmbriao);
+  });
+  for(let i=retornoReproTasks.length-1; i>=0; i--){
+    const r = retornoReproTasks[i];
+    if((coletasPorEgua[r.animalId]||[]).some(d=>diasEntre(d, r.data)<=3)) retornoReproTasks.splice(i,1);
+  }
   // Transporte planejado (ainda não marcado como realizado) — some da agenda quando você marca
   // "realizado" no cadastro. Atrasado = data de saída já passou e não foi marcado.
   const transporteTasks = [];
