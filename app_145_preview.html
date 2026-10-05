@@ -1457,11 +1457,6 @@
             </div>
           </div>
         </div>
-        <div class="filters" id="relEstContatoWrap" style="display:none;">
-          <div class="f"><label>WhatsApp do fornecedor deste tipo</label><input type="text" id="relEstContatoWhats" placeholder="Ex: 5534999998888 (com DDI 55)"></div>
-          <div class="f"><label>E-mail do fornecedor deste tipo</label><input type="text" id="relEstContatoEmail" placeholder="Ex: fornecedor@email.com"></div>
-        </div>
-        <div class="hint-text" id="relEstContatoHint" style="margin-top:-4px;margin-bottom:10px;display:none;">Fica salvo por tipo — pode deixar um WhatsApp/e-mail pra Medicamento, outro pra Ração, outro pra Feno, etc.</div>
         <div class="toolbar-row">
           <button type="button" class="btn btn-sm" id="btnGerarRelEstoque">Gerar Relatório</button>
           <button type="button" class="btn btn-sm btn-ghost no-print" id="btnPrintRelEstoque" style="display:none;">🖨 Imprimir</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnPdfRelEstoque" style="display:none;">⬇ Baixar PDF</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnWhatsRelEstoque" style="display:none;">📱 Pedido via WhatsApp</button><button type="button" class="btn btn-sm btn-ghost no-print" id="btnEmailRelEstoque" style="display:none;">✉ Pedido via E-mail</button>
@@ -3339,22 +3334,23 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
   </div>
 </div>
 
-<!-- Envio do Pedido de Compra (Estoque) por WhatsApp/e-mail — mesma ideia do "Pedir mais". Ao clicar,
-     baixa o PDF sozinho (mesmo conteúdo da prévia) e abre o app já com a mensagem pronta; anexar o
-     PDF no WhatsApp/e-mail continua manual — nenhum site consegue anexar arquivo sozinho. -->
+<!-- Envio do Pedido de Compra (Estoque) para várias farmácias/fornecedores, por WhatsApp e/ou e-mail.
+     Cada fornecedor fica gravado (nome + vários WhatsApps + vários e-mails) e você marca pra quem enviar.
+     Tudo grátis: o app só abre o WhatsApp/e-mail já preenchido (nenhum site consegue enviar sozinho sem
+     serviço pago) — o WhatsApp abre um por vez, numa fila de botões; o e-mail sai num só, com todos em cópia oculta. -->
 <div class="overlay" id="overlayPedidoCompraEnvio">
-  <div class="modal">
+  <div class="modal wide">
     <div class="modal-head"><div class="modal-title">Enviar pedido</div><button class="modal-close" data-close="overlayPedidoCompraEnvio">✕</button></div>
-    <div class="form-grid">
-      <div class="field"><label>WhatsApp do fornecedor</label><div class="field-plus"><input type="text" id="pce_whats" placeholder="Ex: 5534999998888 (com DDI 55)" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnPceWhats2Add" title="Adicionar outro WhatsApp">+</button></div></div>
-      <div class="field"><label>E-mail do fornecedor</label><input type="email" id="pce_email" placeholder="fornecedor@exemplo.com"></div>
-      <div class="field" id="pce_whats2Wrap" style="display:none;"><label>Outro WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label><div class="field-plus"><input type="text" id="pce_whats2" placeholder="Ex: 5534999998888 (com DDI 55)" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnPceWhats2Remove" title="Remover">🗑</button></div></div>
-      <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
-    </div>
-    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo pra esse Tipo de produto, pra próxima vez. Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho).</div>
+    <div class="section-label" style="border-top:none;padding-top:0;">Para quem enviar <span style="font-family:'Inter';font-size:11px;color:var(--muted);">— marque as farmácias/fornecedores</span></div>
+    <div id="envForn_lista" style="margin-bottom:8px;"></div>
+    <div id="envForn_editor" style="display:none;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--chip-bg);"></div>
+    <div style="margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornNovo">+ Adicionar farmácia/fornecedor</button></div>
+    <div class="field full"><label>Mensagem</label><textarea id="pce_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
+    <div class="hint-text" id="envForn_hint" style="margin-top:6px;margin-bottom:10px;"></div>
+    <div id="envForn_fila" style="display:none;border:1px solid var(--brass-light);border-radius:8px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="modal-actions">
       <div></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoCompraEnvio">Cancelar</button><button type="button" class="btn btn-ghost" id="btnPceEmail">✉ Abrir E-mail</button><button type="button" class="btn" id="btnPceWhats">📱 Abrir WhatsApp</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoCompraEnvio">Fechar</button><button type="button" class="btn btn-ghost" id="btnPceEmail">✉ Enviar e-mail</button><button type="button" class="btn" id="btnPceWhats">📱 Enviar WhatsApp</button></div>
     </div>
   </div>
 </div>
@@ -9077,56 +9073,148 @@ function calcularLinhasPorPagina(theadHtml, linhasHtmlAmostra, paisagem){
 let lastPreviaTipoPedido = '';
 let lastPreviaHtmlConteudo = '', lastPreviaNomeArquivo = '', lastPreviaOptsPdf = null;
 function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Boa tarde'; }
-// Tela dedicada (igual o "Pedir mais" de 1 produto): WhatsApp, e-mail e mensagem ficam abertos pra
-// edição — nada é automático/escondido — mas vêm pré-preenchidos com o último contato usado nesse
-// Tipo de produto, e o que for editado aqui já atualiza esse "último usado" pra próxima vez.
-document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', ()=>{
-  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastPreviaTipoPedido]) || {};
-  document.getElementById('pce_whats').value = c.whats || '';
-  document.getElementById('pce_email').value = c.email || '';
-  document.getElementById('pce_whats2').value = c.whats2 || '';
-  document.getElementById('pce_whats2Wrap').style.display = c.whats2 ? 'flex' : 'none';
-  document.getElementById('pce_mensagem').value = `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.`;
-  openModal('overlayPedidoCompraEnvio');
-});
-document.getElementById('btnPceWhats2Add').addEventListener('click', ()=>{
-  document.getElementById('pce_whats2Wrap').style.display = 'flex';
-  document.getElementById('pce_whats2').focus();
-});
-document.getElementById('btnPceWhats2Remove').addEventListener('click', ()=>{
-  document.getElementById('pce_whats2').value = '';
-  document.getElementById('pce_whats2Wrap').style.display = 'none';
-});
-function salvarContatoPedidoCompra(){
-  if(!lastPreviaTipoPedido) return;
-  if(!aux.contatosFornecedorTipo) aux.contatosFornecedorTipo = {};
-  aux.contatosFornecedorTipo[lastPreviaTipoPedido] = { whats: f('pce_whats').trim(), email: f('pce_email').trim(), whats2: f('pce_whats2').trim() };
-  storeSet('aux_lists', aux);
+// ===== Farmácias/fornecedores do Pedido de Compra =====
+// Lista gravada (aux.fornecedoresPedido, por id): cada um com nome, vários WhatsApps e vários e-mails. Na hora
+// de enviar você marca quem recebe. Contatos antigos (um WhatsApp/e-mail por Tipo de produto) viram
+// fornecedores sozinhos na primeira vez. Grátis: o app só ABRE o WhatsApp/e-mail já preenchido.
+let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null };
+function migrarContatosAntigosFornecedores(){
+  if(aux.fornecedoresPedido) return;
+  const lista = {};
+  Object.entries(aux.contatosFornecedorTipo||{}).forEach(([tipo,c])=>{
+    const whats = [c.whats, c.whats2].map(x=>(x||'').trim()).filter(Boolean);
+    const emails = [(c.email||'').trim()].filter(Boolean);
+    if(!whats.length && !emails.length) return;
+    const id = 'forn_'+tipo;
+    lista[id] = { id, nome:'Fornecedor — '+(TIPO_PRODUTO_LABEL[tipo]||tipo), whats, emails };
+  });
+  aux.fornecedoresPedido = lista;
 }
+function listaFornecedoresPedido(){
+  migrarContatosAntigosFornecedores();
+  return Object.values(aux.fornecedoresPedido).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+}
+function salvarFornecedoresPedido(){ storeSet('aux_lists', aux).catch(e=>console.error('Não consegui guardar os fornecedores:', e)); }
+function lerSelecaoFornecedores(ids){
+  try{ const g = JSON.parse(localStorage.getItem('haras_envio_forn_sel')||'null'); if(Array.isArray(g)){ const ok = g.filter(id=>ids.includes(id)); if(ok.length) return new Set(ok); } }catch(_){}
+  return new Set(ids); // primeira vez: todos marcados
+}
+function guardarSelecaoFornecedores(){ try{ localStorage.setItem('haras_envio_forn_sel', JSON.stringify([...envForn.selecionados])); }catch(_){} }
+function abrirEnvioFornecedores(opts){
+  const lista = listaFornecedoresPedido();
+  envForn.mensagem = opts.mensagem || '';
+  envForn.assunto = opts.assunto || 'Pedido de compra';
+  envForn.comPdf = !!opts.comPdf;
+  envForn.selecionados = lerSelecaoFornecedores(lista.map(x=>x.id));
+  envForn.editando = null;
+  document.getElementById('pce_mensagem').value = envForn.mensagem;
+  document.getElementById('envForn_hint').textContent = envForn.comPdf
+    ? 'Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho). O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.'
+    : 'Ao clicar, o WhatsApp/e-mail abre com a mensagem pronta. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
+  document.getElementById('envForn_fila').style.display = 'none';
+  renderEnvioFornecedores();
+  openModal('overlayPedidoCompraEnvio');
+}
+function renderEnvioFornecedores(){
+  const host = document.getElementById('envForn_lista');
+  const lista = listaFornecedoresPedido();
+  if(lista.length===0){
+    host.innerHTML = '<div class="hint-text">Nenhuma farmácia/fornecedor gravado ainda. Clique em "+ Adicionar farmácia/fornecedor" abaixo.</div>';
+  } else {
+    host.innerHTML = lista.map(x=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line);">
+      <input type="checkbox" data-fsel="${x.id}" ${envForn.selecionados.has(x.id)?'checked':''} style="width:16px;height:16px;">
+      <div style="flex:1;"><div style="font-weight:600;">${escHtml(x.nome||'(sem nome)')}</div>
+        <div style="font-size:12px;color:var(--muted);">📱 ${(x.whats||[]).length} WhatsApp · ✉ ${(x.emails||[]).length} e-mail</div></div>
+      <button type="button" class="btn btn-sm btn-ghost" data-fedit="${x.id}" title="Editar">✏️</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-fdel="${x.id}" title="Excluir">🗑</button>
+    </div>`).join('');
+  }
+  host.querySelectorAll('[data-fsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) envForn.selecionados.add(cb.dataset.fsel); else envForn.selecionados.delete(cb.dataset.fsel); guardarSelecaoFornecedores(); }));
+  host.querySelectorAll('[data-fedit]').forEach(b=>b.addEventListener('click',()=>{ const x = aux.fornecedoresPedido[b.dataset.fedit]; abrirEditorFornecedor({ id:x.id, nome:x.nome||'', whats:[...(x.whats||[])], emails:[...(x.emails||[])] }); }));
+  host.querySelectorAll('[data-fdel]').forEach(b=>b.addEventListener('click', async ()=>{
+    const x = aux.fornecedoresPedido[b.dataset.fdel];
+    if(!(await showConfirm('Excluir "'+(x.nome||'este fornecedor')+'" da lista?'))) return;
+    delete aux.fornecedoresPedido[x.id]; envForn.selecionados.delete(x.id);
+    salvarFornecedoresPedido(); renderEnvioFornecedores();
+  }));
+}
+function abrirEditorFornecedor(ed){
+  envForn.editando = ed;
+  if(ed.whats.length===0) ed.whats.push('');
+  if(ed.emails.length===0) ed.emails.push('');
+  const box = document.getElementById('envForn_editor');
+  const linhas = (arr, campo, ph) => arr.map((v,i)=>`<div style="display:flex;gap:6px;margin-bottom:6px;"><input type="text" data-fe="${campo}" data-i="${i}" value="${escHtml(v)}" placeholder="${ph}" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" data-fedrem="${campo}:${i}" title="Remover">🗑</button></div>`).join('');
+  box.style.display = 'block';
+  box.innerHTML = `<div class="field" style="margin-bottom:10px;"><label>Nome da farmácia/fornecedor</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba"></div>
+    <div class="field" style="margin-bottom:10px;"><label>WhatsApps</label>${linhas(ed.whats,'whats','Ex: 5534999998888 (com DDI 55)')}<div><button type="button" class="btn btn-sm btn-ghost" data-fedadd="whats">+ outro WhatsApp</button></div></div>
+    <div class="field" style="margin-bottom:10px;"><label>E-mails</label>${linhas(ed.emails,'emails','Ex: compras@farmacia.com')}<div><button type="button" class="btn btn-sm btn-ghost" data-fedadd="emails">+ outro e-mail</button></div></div>
+    <div style="display:flex;gap:8px;"><button type="button" class="btn btn-sm" id="btnEnvFornSalvar">Salvar</button><button type="button" class="btn btn-sm btn-ghost" id="btnEnvFornCancelar">Cancelar</button></div>`;
+  const ler = ()=>{ ed.nome = document.getElementById('envForn_nome').value; box.querySelectorAll('[data-fe]').forEach(i=>{ ed[i.dataset.fe][Number(i.dataset.i)] = i.value; }); };
+  box.querySelectorAll('[data-fedadd]').forEach(b=>b.addEventListener('click',()=>{ ler(); ed[b.dataset.fedadd].push(''); abrirEditorFornecedor(ed); }));
+  box.querySelectorAll('[data-fedrem]').forEach(b=>b.addEventListener('click',()=>{ ler(); const [c,i]=b.dataset.fedrem.split(':'); ed[c].splice(Number(i),1); abrirEditorFornecedor(ed); }));
+  document.getElementById('btnEnvFornCancelar').addEventListener('click',()=>{ envForn.editando=null; box.style.display='none'; box.innerHTML=''; });
+  document.getElementById('btnEnvFornSalvar').addEventListener('click',()=>{
+    ler();
+    const nome = ed.nome.trim();
+    const whats = ed.whats.map(x=>x.trim()).filter(Boolean);
+    const emails = ed.emails.map(x=>x.trim()).filter(Boolean);
+    if(!nome){ showAlert('Dê um nome para a farmácia/fornecedor.'); return; }
+    if(!whats.length && !emails.length){ showAlert('Informe ao menos um WhatsApp ou um e-mail.'); return; }
+    const id = ed.id || ('forn_'+Date.now());
+    migrarContatosAntigosFornecedores();
+    aux.fornecedoresPedido[id] = { id, nome, whats, emails };
+    envForn.selecionados.add(id); guardarSelecaoFornecedores();
+    salvarFornecedoresPedido();
+    envForn.editando = null; box.style.display='none'; box.innerHTML='';
+    renderEnvioFornecedores();
+  });
+}
+document.getElementById('btnEnvFornNovo').addEventListener('click', ()=> abrirEditorFornecedor({ id:null, nome:'', whats:[''], emails:[''] }));
+// Só dígitos; número sem DDI (10 ou 11 dígitos: DDD + número) ganha o 55 do Brasil — sem o DDI o wa.me abre
+// o número errado (ex: 34 viraria Espanha).
+function whatsComDDIBrasil(n){
+  const d = String(n||'').replace(/\D/g,'');
+  if(!d) return '';
+  return (d.length===10 || d.length===11) ? '55'+d : d;
+}
+function fornecedoresMarcados(){ return listaFornecedoresPedido().filter(x=>envForn.selecionados.has(x.id)); }
+// Tela do Pedido de Compra (prévia do PDF): abre a janela de envio já com a mensagem padrão.
+document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', ()=>{
+  abrirEnvioFornecedores({ comPdf:true, assunto:'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido),
+    mensagem:`${saudacaoPorHorario()}, tudo bem?\nSegue o pedido em pdf.\nObrigado.` });
+});
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
-  const numero = f('pce_whats').replace(/\D/g,'');
-  const numero2 = f('pce_whats2').replace(/\D/g,'');
-  if(!numero){ showAlert('Informe o WhatsApp do fornecedor.'); document.getElementById('pce_whats').focus(); return; }
-  salvarContatoPedidoCompra();
+  const marcados = fornecedoresMarcados();
+  if(marcados.length===0){ showAlert('Marque ao menos uma farmácia/fornecedor.'); return; }
+  const destinos = [];
+  marcados.forEach(x=>(x.whats||[]).forEach(n=>{ const d = whatsComDDIBrasil(n); if(d && !destinos.some(y=>y.numero===d)) destinos.push({ nome:x.nome, numero:d }); }));
+  if(destinos.length===0){ showAlert('As farmácias marcadas não têm WhatsApp cadastrado.'); return; }
   const mensagem = f('pce_mensagem');
-  closeModal('overlayPedidoCompraEnvio');
   // Gera o PDF ANTES de abrir o WhatsApp — a captura do PDF precisa da aba em foco/visível, e abrir
   // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
-  await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
-  showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo WhatsApp...`);
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
-  if(numero2) window.open(`https://wa.me/${numero2}?text=${encodeURIComponent(mensagem)}`, '_blank');
+  if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); }
+  const fila = document.getElementById('envForn_fila');
+  const link = d => `https://wa.me/${d.numero}?text=${encodeURIComponent(mensagem)}`;
+  fila.style.display = 'block';
+  fila.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">${envForn.comPdf?`PDF "${escHtml(lastPreviaNomeArquivo)}" baixado. `:''}Abra o WhatsApp de cada um (um de cada vez):</div>` +
+    destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${d.numero}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
+  fila.querySelectorAll('[data-fila]').forEach(b=>b.addEventListener('click',()=>{
+    const i = Number(b.dataset.fila);
+    window.open(link(destinos[i]), '_blank');
+    fila.querySelector(`[data-filaok="${i}"]`).textContent = '✓ aberto';
+  }));
+  fila.scrollIntoView({block:'nearest'});
 });
 document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
-  const email = f('pce_email').trim();
-  if(!email){ showAlert('Informe o e-mail do fornecedor.'); document.getElementById('pce_email').focus(); return; }
-  salvarContatoPedidoCompra();
-  const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido);
+  const marcados = fornecedoresMarcados();
+  if(marcados.length===0){ showAlert('Marque ao menos uma farmácia/fornecedor.'); return; }
+  const emails = [];
+  marcados.forEach(x=>(x.emails||[]).forEach(e=>{ const t = String(e).trim(); if(t && !emails.includes(t)) emails.push(t); }));
+  if(emails.length===0){ showAlert('As farmácias marcadas não têm e-mail cadastrado.'); return; }
   const mensagem = f('pce_mensagem');
-  closeModal('overlayPedidoCompraEnvio');
-  await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf);
-  showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`);
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(mensagem)}`, '_blank');
+  if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`); }
+  // Todos em cópia oculta (bcc): cada farmácia recebe o pedido sem ver as outras.
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(envForn.assunto)}&body=${encodeURIComponent(mensagem)}`, '_blank');
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
@@ -18995,27 +19083,9 @@ function populateRelEstoqueTipos(){
   sel.value = cur||'';
   carregarContatoRelEstoque();
 }
-// Um WhatsApp/e-mail de fornecedor por Tipo de produto (Medicamento, Alimento...) — assim dá pra
-// pedir Ração e Feno de fornecedores diferentes do de Medicamento, cada um guardado à parte.
-function carregarContatoRelEstoque(){
-  const tipo = document.getElementById('relEstTipo').value;
-  const mostrar = !!tipo;
-  document.getElementById('relEstContatoWrap').style.display = mostrar ? 'flex' : 'none';
-  document.getElementById('relEstContatoHint').style.display = mostrar ? 'block' : 'none';
-  const c = (tipo && aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[tipo]) || {};
-  document.getElementById('relEstContatoWhats').value = c.whats || '';
-  document.getElementById('relEstContatoEmail').value = c.email || '';
-}
-document.getElementById('relEstTipo').addEventListener('change', carregarContatoRelEstoque);
-function salvarContatoRelEstoque(){
-  const tipo = document.getElementById('relEstTipo').value;
-  if(!tipo) return;
-  if(!aux.contatosFornecedorTipo) aux.contatosFornecedorTipo = {};
-  aux.contatosFornecedorTipo[tipo] = { whats: f('relEstContatoWhats').trim(), email: f('relEstContatoEmail').trim() };
-  storeSet('aux_lists', aux);
-}
-document.getElementById('relEstContatoWhats').addEventListener('change', salvarContatoRelEstoque);
-document.getElementById('relEstContatoEmail').addEventListener('change', salvarContatoRelEstoque);
+// Os contatos de fornecedor agora ficam na lista de farmácias/fornecedores da janela "Enviar pedido"
+// (ver abrirEnvioFornecedores) — vários WhatsApps e e-mails por farmácia, em vez de um por Tipo de produto.
+function carregarContatoRelEstoque(){}
 function montarMensagemPedidoEstoque(lista, tipo){
   const linhas = lista.map(p=>{
     const sit = situacaoEstoque(p);
@@ -19034,19 +19104,12 @@ function atualizarBotoesEnvioRelEstoque(lista, tipo){
   document.getElementById('btnWhatsRelEstoque').style.display = podeEnviar ? 'inline-block' : 'none';
   document.getElementById('btnEmailRelEstoque').style.display = podeEnviar ? 'inline-block' : 'none';
 }
-document.getElementById('btnWhatsRelEstoque').addEventListener('click', ()=>{
-  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastRelEstoqueTipo]) || {};
-  const numero = (c.whats||'').replace(/\D/g,'');
-  if(!numero){ showAlert('Informe o WhatsApp do fornecedor desse tipo, no campo acima.'); document.getElementById('relEstContatoWhats').focus(); return; }
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(montarMensagemPedidoEstoque(lastRelEstoqueLista, lastRelEstoqueTipo))}`, '_blank');
-});
-document.getElementById('btnEmailRelEstoque').addEventListener('click', ()=>{
-  const c = (aux.contatosFornecedorTipo && aux.contatosFornecedorTipo[lastRelEstoqueTipo]) || {};
-  const email = (c.email||'').trim();
-  if(!email){ showAlert('Informe o e-mail do fornecedor desse tipo, no campo acima.'); document.getElementById('relEstContatoEmail').focus(); return; }
-  const assunto = 'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastRelEstoqueTipo]||lastRelEstoqueTipo);
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(montarMensagemPedidoEstoque(lastRelEstoqueLista, lastRelEstoqueTipo))}`, '_blank');
-});
+function abrirEnvioRelEstoque(){
+  abrirEnvioFornecedores({ comPdf:false, assunto:'Pedido de compra - '+(TIPO_PRODUTO_LABEL[lastRelEstoqueTipo]||lastRelEstoqueTipo),
+    mensagem: montarMensagemPedidoEstoque(lastRelEstoqueLista, lastRelEstoqueTipo) });
+}
+document.getElementById('btnWhatsRelEstoque').addEventListener('click', abrirEnvioRelEstoque);
+document.getElementById('btnEmailRelEstoque').addEventListener('click', abrirEnvioRelEstoque);
 function gerarRelatorioEstoque(){
   const tipo = document.getElementById('relEstTipo').value;
   const sitPerto = document.getElementById('relEstSitPerto').checked;
