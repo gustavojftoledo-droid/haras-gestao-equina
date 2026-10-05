@@ -13537,7 +13537,7 @@ function abrirModalPedido(orc){
   pedidoItens = [...selectedProdutoIds].map(id=>{
     const p = estoqueProdutos.find(x=>x.id===id);
     if(!p) return null;
-    return { id, nome: p.nome, quantidade: '', obs: '' };
+    return { id, nome: p.nome, quantidade: orc ? '1' : '', obs: '' };
   }).filter(Boolean).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
   document.getElementById('pedidoObsGeral').value = '';
   renderPedidoItens();
