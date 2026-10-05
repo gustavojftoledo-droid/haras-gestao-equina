@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Regras do Firebase Storage - fotos dos animais.
+// Claims no login: papel, modulos, tenantId.
+//  - SEM claim tenantId  = haras original do dono
+//  - COM claim tenantId  = cliente (so enxerga a propria pasta)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Usuario logado e sem claim tenantId = haras original.
+    function ehHarasOriginal() {
+      return request.auth != null && !('tenantId' in request.auth.token);
+    }
+
+    // Usuario logado cuja claim tenantId e igual ao cliente da pasta.
+    function ehDoCliente(tid) {
+      return request.auth != null
+        && 'tenantId' in request.auth.token
+        && request.auth.token.tenantId is string
+        && request.auth.token.tenantId == tid;
+    }
+
+    // Somente foto reduzida: jpeg/png/webp de ate 400 KB.
+    function fotoValida() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/(jpeg|png|webp)')
+        && request.resource.size <= 400 * 1024;
+    }
+
+    // Fotos de um cliente (multi-cliente)
+    match /tenants/{tid}/fotos/{animalId}/{arquivo} {
+      allow read: if ehDoCliente(tid);
+      allow create, update: if ehDoCliente(tid) && fotoValida();
+      allow delete: if ehDoCliente(tid);
+    }
+
+    // Fotos do haras original
+    match /haras-original/fotos/{animalId}/{arquivo} {
+      allow read: if ehHarasOriginal();
+      allow create, update: if ehHarasOriginal() && fotoValida();
+      allow delete: if ehHarasOriginal();
+    }
+
+    // Todo o resto fica bloqueado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
