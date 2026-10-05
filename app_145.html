@@ -4051,6 +4051,11 @@ async function storeSet(key,val,userDeleted){
     const releitura = await storeGet(key);
     if(!releitura.ok && !HAS_CLOUD_STORAGE && HAS_FIRESTORE){ showAlert(MSG_SEM_RELEITURA); return false; }
     const doBanco = releitura.ok ? releitura.value : val;
+    // Se esta aba nunca leu aux_lists (leitura falhou na abertura) mas o banco TEM dados, gravar agora
+    // trocaria contatos e listas do servidor pelos padrões vazios — melhor recusar e pedir recarregar.
+    if(key==='aux_lists' && !minhaBaseAnterior && releitura.ok && doBanco && typeof doBanco==='object' && !Array.isArray(doBanco) && Object.keys(doBanco).length>0){
+      showAlert('Os cadastros auxiliares (contatos, listas) não foram lidos na abertura do app. Recarregue a página antes de salvar, para não apagar o que já está no servidor.'); return false;
+    }
     val = fundirObjetoPorChave(minhaBaseAnterior, val, doBanco);
     if(key==='config') configSnapshot = JSON.parse(JSON.stringify(val));
     else if(key==='aux_lists') auxSnapshot = JSON.parse(JSON.stringify(val));
@@ -5948,7 +5953,7 @@ document.getElementById('btnAnimSelSo').addEventListener('click', ()=>{
   renderHorses();
 });
 
-function parseValorNum(v){ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : 0; }
+function parseValorNum(v){ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : (parseValorLivre(v)||0); }
 
 function renderValorSelecaoBar(list){
   const bar = document.getElementById('valorSelecaoBar');
@@ -19692,7 +19697,9 @@ function parseValorLivre(str){
   if(str===undefined || str===null || str==='') return null;
   const limpo = String(str).replace(/[^\d,.-]/g,'').trim();
   if(!limpo) return null;
-  const normalizado = limpo.includes(',') ? limpo.replace(/\./g,'').replace(',','.') : limpo;
+  // "1.500" / "1.234.567" (só pontos de milhar, sem vírgula) = mil e quinhentos, não 1,5.
+  const soMilhar = !limpo.includes(',') && /^[1-9]\d{0,2}(\.\d{3})+$/.test(limpo);
+  const normalizado = limpo.includes(',') ? limpo.replace(/\./g,'').replace(',','.') : (soMilhar ? limpo.replace(/\./g,'') : limpo);
   const n = Number(normalizado);
   return (isFinite(n) && n>0) ? n : null;
 }
@@ -21348,6 +21355,8 @@ function entrarNoApp(){
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
   const eraOffline = localStorage.getItem('haras_modo_offline')==='1';
   localStorage.removeItem('haras_modo_offline');
+  // Sair de verdade: o aparelho deixa de valer como "já entrou aqui" (senão o modo offline entrava sem senha).
+  localStorage.removeItem('haras_ja_entrou');
   atualizarBadgeOffline();
   if(HAS_FIRESTORE){
     if(eraOffline){
@@ -23057,6 +23066,11 @@ async function resolverUsuarioAtual(authEmail){
 // carga da página quanto depois de um login bem-sucedido.
 function iniciarAppLogado(authUser){
   if(_appJaIniciou) return;
+  // Com Firebase ativo nunca entra "no escuro" como Administrador: sem sessão válida, volta pro login.
+  if(HAS_FIRESTORE && !authUser){
+    mostrarErroLogin('Sessão expirada neste aparelho. Entre com e-mail e senha (com internet).');
+    return;
+  }
   _appJaIniciou = true;
   loadAll().then(async ()=>{
     if(!HAS_FIRESTORE || !authUser){
@@ -23336,9 +23350,17 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     const existingVendaCobIds = new Set(vendasCobertura.map(v=>v.id));
     vendasCobertura = [...vendasCobertura, ...((backup.vendasCobertura||[]).filter(v=>!existingVendaCobIds.has(v.id)))];
     if(backup.aux){
+      // aux tem listas (arrays), objetos por id (ex: fornecedoresPedido) e marcas (true/false):
+      // cada tipo é fundido do seu jeito, e o que não for lista nem objeto é ignorado (não derruba a importação).
       Object.keys(backup.aux).forEach(k=>{
-        if(!aux[k]) aux[k]=[];
-        (backup.aux[k]||[]).forEach(v=>{ if(!aux[k].includes(v)) aux[k].push(v); });
+        const v = backup.aux[k];
+        if(Array.isArray(v)){
+          if(!Array.isArray(aux[k])) aux[k]=[];
+          v.forEach(x=>{ if(!aux[k].includes(x)) aux[k].push(x); });
+        }else if(v && typeof v==='object'){
+          if(!aux[k] || typeof aux[k]!=='object' || Array.isArray(aux[k])) aux[k]={};
+          Object.keys(v).forEach(id=>{ if(!(id in aux[k])) aux[k][id]=v[id]; });
+        }
       });
     }
     if(backup.config && typeof backup.config.gestacaoDias==='number'){ config.gestacaoDias = backup.config.gestacaoDias; }
