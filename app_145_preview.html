@@ -2504,7 +2504,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 
 <div class="overlay" id="overlayTratamento">
   <div class="modal wide">
-    <div class="modal-head"><div class="modal-title" id="trModalTitle">Nova Aplicação de Medicamento</div><button class="modal-close" data-close="overlayTratamento">✕</button></div>
+    <div class="modal-head"><div class="modal-title" id="tratModalTitle">Nova Aplicação de Medicamento</div><button class="modal-close" data-close="overlayTratamento">✕</button></div>
     <div id="trSessaoResumo" style="margin-bottom:12px;"></div>
     <div class="form-grid cols3" style="margin-bottom:10px;">
       <div class="field"><label>Medicamento</label><input type="text" id="tr_medicamento" list="dl_medicamentos" placeholder="Digite pra buscar..."></div>
@@ -3996,7 +3996,22 @@ function apararAuditoria(lista){
   return out;
 }
 const MSG_SEM_RELEITURA = 'Não consegui conferir os dados no servidor agora, então NÃO salvei (para não apagar o que já está lá). Verifique a conexão e tente de novo.';
+// Cada lista grande vive num documento só do banco, com teto de ~1 MB. Quando passa de ~80% avisa uma vez
+// (e de novo aos ~95%) — antes o teto estourava e as alterações simplesmente deixavam de salvar.
+const LIMITE_DOC_BYTES = 1048576;
+const NOME_DOC_GRANDE = { horses_list:'Animais (inclui as fotos)', exames_animais:'Exames dos animais', consultoria_fotos:'Fotos da consultoria', animal_registros_list:'Registros de peso/foto dos animais', estoque_movimentos:'Movimentações de estoque', financeiro_lancamentos:'Financeiro', auditoria_log:'Auditoria' };
+const _avisoEspacoDoc = {};
+function tamanhoDocBytes(val){ try{ return new Blob([JSON.stringify(val)]).size; }catch(_){ return 0; } }
+function avisarEspacoDoc(key, val){
+  if(!NOME_DOC_GRANDE[key] || key==='auditoria_log') return;
+  const pct = Math.round(tamanhoDocBytes(val)/LIMITE_DOC_BYTES*100);
+  const nivel = pct>=95 ? 95 : (pct>=80 ? 80 : 0);
+  if(!nivel || (_avisoEspacoDoc[key]||0)>=nivel) return;
+  _avisoEspacoDoc[key] = nivel;
+  showAlert('Atenção: o cadastro "'+NOME_DOC_GRANDE[key]+'" já ocupa '+pct+'% do espaço máximo do banco. '+(nivel>=95 ? 'Ao chegar em 100% NENHUMA alteração nesse cadastro será salva. ' : '')+'Evite colocar mais fotos grandes e fale comigo antes de continuar.');
+}
 async function storeSet(key,val,userDeleted){
+  avisarEspacoDoc(key, val);
   // Esta aba só pode gravar numa chave se conseguir ler o banco agora — a cópia que ela tem na memória
   // pode estar vazia/desatualizada por uma leitura que falhou na abertura. Chave que não é fundida
   // (não dá pra aplicar só "o que mudei") exige recarregar a página antes.
@@ -5132,7 +5147,6 @@ const RELATORIO_CONTEXTUAL = {
   treinos: ()=>document.getElementById('ttab_relatorios').click(),
   nascimentos: ()=>document.getElementById('nvtab_relatorio').click(),
   estoque: ()=>document.getElementById('etab_relatorio').click(),
-  veterinaria: ()=>document.getElementById('vtrtab_relatorio').click(),
 };
 document.addEventListener('keydown', (e)=>{
   if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -6263,6 +6277,8 @@ document.getElementById('f_fotoFile').addEventListener('change', e=>{
       const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
       document.getElementById('f_fotoUrl').value = dataUrl;
       atualizarFotoPreview();
+      const projPct = Math.round((tamanhoDocBytes(horses) + dataUrl.length)/LIMITE_DOC_BYTES*100);
+      if(projPct>=80) showAlert('Atenção: com esta foto o cadastro de animais chega a cerca de '+projPct+'% do espaço máximo do banco. '+(projPct>=100 ? 'Passando de 100% NENHUM animal consegue mais salvar. Use um link de foto em vez de anexar o arquivo, ou fale comigo.' : 'Perto de 100% as alterações deixam de salvar.'));
     };
     img.onerror = ()=> showAlert('Não consegui ler essa imagem. Tente outra foto.');
     img.src = ev.target.result;
@@ -17611,7 +17627,7 @@ function rotuloStatusTratamento(t){
 
 function openTratamentoNew(){
   editingTratamentoId = null;
-  document.getElementById('trModalTitle').textContent = 'Nova Aplicação de Medicamento';
+  document.getElementById('tratModalTitle').textContent = 'Nova Aplicação de Medicamento';
   document.getElementById('btnDeleteTratamento').style.display = 'none';
   document.getElementById('btnAddOutroTratamento').style.display = '';
   tratamentoSessao = [];
@@ -17637,7 +17653,7 @@ function openTratamentoNew(){
 function openTratamentoEdit(id){
   const t = tratamentos.find(x=>x.id===id); if(!t) return;
   editingTratamentoId = id;
-  document.getElementById('trModalTitle').textContent = 'Editar Aplicação';
+  document.getElementById('tratModalTitle').textContent = 'Editar Aplicação';
   document.getElementById('btnDeleteTratamento').style.display = 'inline-block';
   document.getElementById('btnAddOutroTratamento').style.display = 'none';
   tratamentoSessao = [];
@@ -23173,7 +23189,8 @@ document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   for(const key of keys){
     const r = await storeGet(key);
     const count = Array.isArray(r.value) ? r.value.length : '(não é lista)';
-    lines.push(`${key}: ${r.ok?'OK':'ERRO'} — ${count} registro(s)`);
+    const kb = Math.round(tamanhoDocBytes(r.value)/1024);
+    lines.push(`${key}: ${r.ok?'OK':'ERRO'} — ${count} registro(s) — ${kb} KB (${Math.round(kb*1024/LIMITE_DOC_BYTES*100)}% do limite de 1 MB)`);
     if(Array.isArray(r.value) && r.value.length>0 && key==='horses_list'){
       lines.push('  Nomes: ' + r.value.slice(0,15).map(h=>h.nome).join(', ') + (r.value.length>15?'...':''));
     }
@@ -23275,7 +23292,7 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   await garantirAuditoriaCarregada(); // o log não é carregado na abertura; o backup precisa dele inteiro
-  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, vendasCobertura, auditoria, aux, config };
+  const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, vendasCobertura, auditoria, aux, config, examesPorAnimal, consultoriaVisitas, consultoriaAvaliacoes, consultoriaFotos, consultoriaFormulacoes, consultoriaPropriedades, consultoriaAvalPropriedade, animalRegistros, piquetes };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
   const nomeArquivo = 'haras_backup_'+stamp+'.json';
@@ -23355,6 +23372,18 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
     semenLotes = [...semenLotes, ...((backup.semenLotes||[]).filter(l=>!existingSemenIds.has(l.id)))];
     const existingVendaCobIds = new Set(vendasCobertura.map(v=>v.id));
     vendasCobertura = [...vendasCobertura, ...((backup.vendasCobertura||[]).filter(v=>!existingVendaCobIds.has(v.id)))];
+    // Listas e objetos que o backup antigo não trazia (exames, consultoria, piquetes, registros): só soma o que falta.
+    const somarPorId = (atual, vindo)=>{ if(!Array.isArray(vindo)) return atual; const ids = new Set(atual.map(x=>x&&x.id)); return [...atual, ...vindo.filter(x=>x && !ids.has(x.id))]; };
+    const somarChaves = (atual, vindo)=>{ if(!vindo || typeof vindo!=='object' || Array.isArray(vindo)) return atual; const r = {...atual}; Object.keys(vindo).forEach(k=>{ if(!(k in r)) r[k] = vindo[k]; }); return r; };
+    animalRegistros = somarPorId(animalRegistros, backup.animalRegistros);
+    piquetes = somarPorId(piquetes, backup.piquetes);
+    consultoriaVisitas = somarPorId(consultoriaVisitas, backup.consultoriaVisitas);
+    consultoriaAvaliacoes = somarPorId(consultoriaAvaliacoes, backup.consultoriaAvaliacoes);
+    consultoriaFormulacoes = somarPorId(consultoriaFormulacoes, backup.consultoriaFormulacoes);
+    consultoriaPropriedades = somarPorId(consultoriaPropriedades, backup.consultoriaPropriedades);
+    consultoriaAvalPropriedade = somarPorId(consultoriaAvalPropriedade, backup.consultoriaAvalPropriedade);
+    examesPorAnimal = somarChaves(examesPorAnimal, backup.examesPorAnimal);
+    consultoriaFotos = somarChaves(consultoriaFotos, backup.consultoriaFotos);
     if(backup.aux){
       // aux tem listas (arrays), objetos por id (ex: fornecedoresPedido) e marcas (true/false):
       // cada tipo é fundido do seu jeito, e o que não for lista nem objeto é ignorado (não derruba a importação).
@@ -23378,6 +23407,15 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
       await storeSet('transportes_list', transportes); await storeSet('visitas_repro_list', visitasRepro);
       await storeSet('semen_lotes', semenLotes); await storeSet('vendas_cobertura', vendasCobertura);
+      if(backup.animalRegistros) await storeSet('animal_registros_list', animalRegistros);
+      if(backup.piquetes) await storeSet('piquetes_list', piquetes);
+      if(backup.consultoriaVisitas) await storeSet('consultoria_visitas_list', consultoriaVisitas);
+      if(backup.consultoriaAvaliacoes) await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
+      if(backup.consultoriaFormulacoes) await storeSet('consultoria_formulacoes_list', consultoriaFormulacoes);
+      if(backup.consultoriaPropriedades) await storeSet('consultoria_propriedades_list', consultoriaPropriedades);
+      if(backup.consultoriaAvalPropriedade) await storeSet('consultoria_aval_propriedade', consultoriaAvalPropriedade);
+      if(backup.examesPorAnimal) await storeSet('exames_animais', examesPorAnimal);
+      if(backup.consultoriaFotos) await storeSet('consultoria_fotos', consultoriaFotos);
     });
     refreshDatalists(); populateAuxSelects(); renderHorses(); renderManejos(); renderTreinos(); renderNascimentos(); renderVisitasRepro(); renderEstoque(); renderGrupos(); renderFinanceiro(); renderTratamentos(); renderVisitas(); renderFuncionarios(); if(typeof renderTransportes==='function') renderTransportes();
     showAlert(newHorses.length+' animais adicionados com sucesso.'+(skipped>0?' ('+skipped+' ignorados por já serem exatamente iguais)':''));
