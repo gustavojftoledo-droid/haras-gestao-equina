@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado() { return request.auth != null; }
+    // Sem claim "tenantId" = haras original (Gustavo). Com claim = cliente.
+    function ehHarasOriginal() { return logado() && !('tenantId' in request.auth.token); }
+    function ehDoCliente(tid) { return logado() && ('tenantId' in request.auth.token) && request.auth.token.tenantId == tid; }
+    // Papel gravado no login pelo servidor (script/Cloud Function). O usuário NÃO consegue alterar a própria claim.
+    function ehAdmin() { return logado() && request.auth.token.get('papel', '') == 'admin'; }
+
+    // Haras original: tudo como antes, EXCETO a lista de usuários (quem é administrador), que só administrador grava.
+    match /harasData/{doc} {
+      allow read: if ehHarasOriginal();
+      allow write: if ehHarasOriginal() && (doc != 'usuarios_list' || ehAdmin());
+    }
+    // Cliente: só a própria área; a lista de usuários dele também só administrador grava.
+    match /tenants/{tid}/dados/{doc} {
+      allow read: if ehDoCliente(tid);
+      allow write: if ehDoCliente(tid) && (doc != 'usuarios_list' || ehAdmin());
+    }
+    // Todo o resto bloqueado.
+    match /{outro=**} {
+      allow read, write: if false;
+    }
+  }
+}
