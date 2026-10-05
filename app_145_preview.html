@@ -7391,7 +7391,7 @@ function abrirListaInicio(tipo){
         porDia[iso].forEach(r=>{ const key = r.label||r.tipo; if(!porManejo[key]) porManejo[key]=[]; porManejo[key].push(r); });
         const linhas = Object.entries(porManejo).map(([label,animais])=>`
           <div style="padding:6px 0;border-bottom:1px solid var(--line);">
-            <strong>${label}:</strong> ${animais.map(r=>`<button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> ${r.animal}`).join(', ')}
+            <strong>${label}:</strong> ${animais.map(r=>`<button type="button" class="eye-inline" data-irperfilinicio="${r.animalId}" title="Abrir ficha">👁</button> ${escHtml(r.animal)}`).join(', ')}
           </div>`).join('');
         return `<div style="margin-bottom:16px;">
           <div style="font-family:'Fraunces',serif;font-weight:600;font-size:14px;padding:6px 0 4px;border-bottom:2px solid var(--line);margin-bottom:4px;">${iso==='—'?'Sem data prevista':fmtDate(iso)} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${porDia[iso].length})</span></div>
@@ -7639,7 +7639,7 @@ function renderInicioAgenda(){
       <div style="display:flex;justify-content:space-between;"><span class="dash-atrasadas-rotulo">Atrasadas</span><span style="font-size:11px;color:#A5776F;">a mais tempo primeiro</span></div>
       ${atrasadas.slice(0,4).map(t=>{
         const dias = t.proxima ? Math.floor((hoje - new Date(t.proxima)) / 86400000) : null;
-        return `<div class="dash-atrasada-linha"><span style="flex:1;">${ico(iconeParaTipo(t.tipo),15,'var(--alert-ink)')} <strong>${t.label||t.tipo}</strong> · ${escHtml(t.animalNome)}</span><span style="color:var(--alert-ink);font-weight:600;white-space:nowrap;">${dias!==null?(dias+' dia(s)'):''}</span></div>`;
+        return `<div class="dash-atrasada-linha"><span style="flex:1;">${ico(iconeParaTipo(t.tipo),15,'var(--alert-ink)')} <strong>${escHtml(t.label||t.tipo)}</strong> · ${escHtml(t.animalNome)}</span><span style="color:var(--alert-ink);font-weight:600;white-space:nowrap;">${dias!==null?(dias+' dia(s)'):''}</span></div>`;
       }).join('')}
     </div>`;
 
@@ -7679,8 +7679,8 @@ function renderInicioAgenda(){
       <div class="dash-timeline-trilho"></div>
       <div style="flex:1;">
         ${(grupos.length===0 && animaisTratamento.length===0) ? `<div class="dash-tarefa-sub" style="padding:6px 0;">Nenhuma tarefa prevista.</div>` : ''}
-        ${grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${label} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${info.animais.join(', ')}</div></div>`).join('')}
-        ${animaisTratamento.map(([nome,meds])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo('Tratamento'),14,'var(--brass)')} ${escHtml(nome)}</div><div class="dash-tarefa-sub">${meds.join(', ')}</div></div>`).join('')}
+        ${grupos.map(([label,info])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo(info.tipo),14,'var(--brass)')} ${escHtml(label)} · ${info.animais.length} animal(is)</div><div class="dash-tarefa-sub">${escHtml(info.animais.join(', '))}</div></div>`).join('')}
+        ${animaisTratamento.map(([nome,meds])=>`<div class="dash-tarefa-box"><div class="dash-tarefa-titulo">${ico(iconeParaTipo('Tratamento'),14,'var(--brass)')} ${escHtml(nome)}</div><div class="dash-tarefa-sub">${escHtml(meds.join(', '))}</div></div>`).join('')}
       </div>
     </div>`;
   }
@@ -7715,7 +7715,7 @@ function renderInicioPlantel(){
   const rampa = ['var(--green)','var(--ok)','var(--brass)','var(--brass-light)','#B9A277','var(--line)'];
   const total = ativosArr.length || 1;
   const barra = catOrdenadas.map(([,n],i)=>`<div style="width:${(n/total)*100}%;background:${rampa[i%rampa.length]};"></div>`).join('');
-  const legenda = catOrdenadas.map(([cat,n],i)=>`<div class="dash-legenda-linha"><span class="dash-legenda-quad" style="background:${rampa[i%rampa.length]};"></span><span class="nome">${cat}</span><span class="num">${n}</span></div>`).join('');
+  const legenda = catOrdenadas.map(([cat,n],i)=>`<div class="dash-legenda-linha"><span class="dash-legenda-quad" style="background:${rampa[i%rampa.length]};"></span><span class="nome">${escHtml(cat)}</span><span class="num">${n}</span></div>`).join('');
 
   const pelCounts = {};
   ativosArr.forEach(h=>{ if(h.pelagem) pelCounts[h.pelagem]=(pelCounts[h.pelagem]||0)+1; });
@@ -7748,7 +7748,7 @@ function renderInicioPlantel(){
       <div style="position:absolute;left:12px;bottom:9px;color:#F4EFE0;font-size:11px;font-weight:600;text-shadow:0 1px 3px rgba(20,17,12,.5);">${ativosArr.length} animal(is) ativo(s)</div>
     </div>
     <div class="dash-barra" style="height:10px;border-radius:5px;">${barra}</div>
-    <div style="display:flex;flex-direction:column;gap:6px;">${escHtml(legenda)}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${legenda}</div>
     ${pelagemHtml}
     ${compradosHtml}
   `;
@@ -8087,7 +8087,7 @@ function renderCalWeekHtml(byDate, nDias){
     html += `<div class="cal-week-col ${isHoje?'cal-today':''}">
       <div class="cal-week-col-head" style="display:flex;justify-content:space-between;align-items:center;"><span>${dias[d.getDay()]}, ${fmtDate(iso)}${isHoje?' · Hoje':''}</span><button type="button" class="cal-day-add" data-caladd="${iso}" title="Adicionar registro nesse dia">+</button></div>
       ${tarefasDia.length===0 ? '<div class="hint-text">Nenhuma tarefa prevista.</div>' :
-        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${escHtml(t.tipo)}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${t.label||t.tipo}</strong> — ${escHtml(t.animalNome||'(sem animais definidos ainda)')}</div>`).join('')}
+        tarefasDia.map(t=>`<div class="cal-task-row ${t.situacao==='atrasado'?'cal-atrasado':''}" data-caltask="${iso}|${escHtml(t.tipo)}|${t.animalId}">${CAL_ICON[t.tipo] || (t.categoria==='atividade'?'🏇':'')} <strong>${escHtml(t.label||t.tipo)}</strong> — ${escHtml(t.animalNome||'(sem animais definidos ainda)')}</div>`).join('')}
     </div>`;
   }
   html += '</div>';
@@ -8613,7 +8613,7 @@ function renderProgramacao(){
   tbody.innerHTML = filtered.map(r=>{
     const [cls,label] = badge[r.situacao];
     const proxStr = r.proxima ? r.proxima.toLocaleDateString('pt-BR') : '—';
-    return `<tr><td><button type="button" class="eye-inline" data-eyeid="${r.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${r.animal}</strong></td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${proxStr}</td><td><span class="pill ${cls}">${label}</span></td></tr>`;
+    return `<tr><td><button type="button" class="eye-inline" data-eyeid="${r.animalId}" title="Abrir ficha em nova aba">👁</button> <strong>${escHtml(r.animal)}</strong></td><td>${escHtml(r.label||r.tipo)}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${proxStr}</td><td><span class="pill ${cls}">${label}</span></td></tr>`;
   }).join('');
 }
 let programacaoFiltradaAtual = [];
@@ -8626,7 +8626,7 @@ document.getElementById('btnRelProgramacao').addEventListener('click', ()=>{
   // deixada pro html2pdf quebrar sozinho, corta uma linha bem na divisa entre folhas. Fatiando aqui
   // em blocos que viram cada um a própria página (gerarPdfUmBlocoPorPagina), isso nunca acontece.
   const theadHtml = `<thead><tr><th>Animal</th><th>Tipo</th><th>Frequência</th><th>Última vez</th><th>Próxima prevista</th><th>Situação</th></tr></thead>`;
-  const linhaHtml = r=>`<tr><td>${r.animal}</td><td>${r.label||r.tipo}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
+  const linhaHtml = r=>`<tr><td>${escHtml(r.animal)}</td><td>${escHtml(r.label||r.tipo)}</td><td>${r.freq}</td><td>${r.ultima?fmtDate(r.ultima):'—'}</td><td>${r.proxima?r.proxima.toLocaleDateString('pt-BR'):'—'}</td><td>${badge[r.situacao]}</td></tr>`;
   // Baixa em retrato — mede com o HTML/CSS real quantas linhas cabem (essas são bem mais curtas que
   // as do Relatório 3, sem texto longo tipo "Casqueado completo" ou comentário, então cabe mais).
   const maxPorPagina = calcularLinhasPorPagina(theadHtml, programacaoFiltradaAtual.slice(0,40).map(linhaHtml), false);
@@ -22044,12 +22044,12 @@ function renderAnimalPerfil(id){
         ${(tarefas.length===0 && tarefasOutras.length===0) ? '<div class="hint-text">Nenhuma tarefa pendente pra esse animal.</div>' : ''}
         ${tarefas.map(t=>`
             <div class="tarefa-row">
-              <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
+              <div class="tarefa-label"><span class="nome">${escHtml(t.label||t.tipo)}</span>${tarefaBadge(t.situacao)}</div>
               <div class="tarefa-dates">${t.ultima?('Última: '+fmtDate(t.ultima)):'Nunca registrado'}${t.proxima?(' · Próxima: '+fmtDate(toISODate(t.proxima))):''}</div>
             </div>`).join('')}
         ${tarefasOutras.map(t=>`
             <div class="tarefa-row">
-              <div class="tarefa-label"><span class="nome">${t.label||t.tipo}</span>${tarefaBadge(t.situacao)}</div>
+              <div class="tarefa-label"><span class="nome">${escHtml(t.label||t.tipo)}</span>${tarefaBadge(t.situacao)}</div>
               <div class="tarefa-dates">${t.data?('Data: '+fmtDate(t.data)):''}</div>
             </div>`).join('')}
       </div>
