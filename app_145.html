@@ -3645,6 +3645,26 @@ try{
   }
 }catch(e){ console.error('Firebase não inicializou:', e); }
 const FIRESTORE_COLLECTION = 'harasData';
+/* ---- Multi-cliente (tenant) ----
+   Cada cliente guarda os dados na própria coleção ('tenants/<id>/dados'). Quem não tem cliente definido
+   (o haras original, do Gustavo) continua exatamente na coleção antiga 'harasData' — nada é movido nem
+   copiado. O id do cliente vem do login (claim 'tenantId' criado pelo servidor); sem claim = haras original. */
+let TENANT_ID = null;
+function colecaoDados(){ return TENANT_ID ? ('tenants/'+TENANT_ID+'/dados') : FIRESTORE_COLLECTION; }
+function tenantIdValido(t){ return typeof t==='string' && /^[a-z0-9_-]{3,40}$/i.test(t); }
+async function resolverTenantDoUsuario(authUser){
+  const chave = 'haras_tenant_'+authUser.uid;
+  let tenant = null, leu = false;
+  try{
+    const r = await comTimeout(authUser.getIdTokenResult(), 8000, 'tenant');
+    leu = true; tenant = (r && r.claims) ? r.claims.tenantId : null;
+  }catch(e){ console.warn('Não consegui ler o cliente (tenant) do login — usando o último conhecido neste aparelho:', e); }
+  try{
+    if(!leu) tenant = localStorage.getItem(chave) || null;
+    else if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
+  }catch(_){}
+  TENANT_ID = tenantIdValido(tenant) ? tenant : null;
+}
 
 // Este arquivo pode ser aberto de três formas: (1) como artifact dentro do claude.ai, onde existe
 // window.storage; (2) publicado normalmente (GitHub Pages), onde usamos o Firestore acima — o
@@ -3691,7 +3711,7 @@ async function storeGet(key){
     // Mesmas 3 tentativas do caminho abaixo: uma oscilação de rede na abertura não pode virar "lista vazia".
     for(let attempt=1; attempt<=3; attempt++){
       try{
-        const snap = await comTimeout(db.collection(FIRESTORE_COLLECTION).doc(key).get(), 15000, key);
+        const snap = await comTimeout(db.collection(colecaoDados()).doc(key).get(), 15000, key);
         chavesComFalhaDeLeitura.delete(key);
         return { ok:true, value: snap.exists ? snap.data().value : [] };
       }catch(e){
@@ -4081,10 +4101,10 @@ async function storeSet(key,val,userDeleted){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
       if(Array.isArray(val) && val.length===0 && !userDeleted){
-        const snap = await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+        const snap = await db.collection(colecaoDados()).doc(key).get();
         if(snap.exists){ const existing = snap.data().value; if(Array.isArray(existing)&&existing.length>0){ showAlert('Gravação bloqueada: isso apagaria dados existentes.'); return false; } }
       }
-      await db.collection(FIRESTORE_COLLECTION).doc(key).set({ value: val, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+      await db.collection(colecaoDados()).doc(key).set({ value: val, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
       return true;
     }catch(e){
       console.error('Firestore set failed for', key, e);
@@ -4145,11 +4165,11 @@ async function verificarBackupsAutomaticos(pares){
         continue;
       }
       if(bkpLS('haras_bkp_feito_'+key)===hoje) continue;
-      const ref = db.collection(FIRESTORE_COLLECTION).doc(bkpAutoDocId(key, hoje));
+      const ref = db.collection(colecaoDados()).doc(bkpAutoDocId(key, hoje));
       const ja = await ref.get();
       if(!ja.exists) await ref.set({ value: leitura.value, criadoEm: new Date().toISOString() });
       bkpLS('haras_bkp_feito_'+key, hoje);
-      for(let i=BKP_AUTO_DIAS+1;i<=BKP_AUTO_DIAS+3;i++){ db.collection(FIRESTORE_COLLECTION).doc(bkpAutoDocId(key, bkpAutoData(i))).delete().catch(()=>{}); }
+      for(let i=BKP_AUTO_DIAS+1;i<=BKP_AUTO_DIAS+3;i++){ db.collection(colecaoDados()).doc(bkpAutoDocId(key, bkpAutoData(i))).delete().catch(()=>{}); }
     }catch(e){ console.error('backup automático ('+key+'):', e); }
   }
 }
@@ -14904,7 +14924,7 @@ async function reivindicarConsumoAutoDeHoje(dietaId, hoje){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
       return await db.runTransaction(async (tx)=>{
-        const ref = db.collection(FIRESTORE_COLLECTION).doc('dietas_list');
+        const ref = db.collection(colecaoDados()).doc('dietas_list');
         const snap = await tx.get(ref);
         const lista = (snap.exists && Array.isArray(snap.data().value)) ? snap.data().value : dietas;
         const idx = lista.findIndex(x=>x.id===dietaId);
@@ -23055,7 +23075,7 @@ async function resolverUsuarioAtual(authEmail){
     // realmente não existe. Cache vazio/desatualizado também parece "sem usuários".
     if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
       try{
-        const snap = await db.collection(FIRESTORE_COLLECTION).doc('usuarios_list').get({ source:'server' });
+        const snap = await db.collection(colecaoDados()).doc('usuarios_list').get({ source:'server' });
         const doServidor = snap.exists ? snap.data().value : [];
         if(Array.isArray(doServidor) && doServidor.length>0){
           usuarios = doServidor; usuariosCarregados = true; auditTirarFoto('usuarios_list', usuarios);
@@ -23094,7 +23114,7 @@ function iniciarAppLogado(authUser){
     return;
   }
   _appJaIniciou = true;
-  loadAll().then(async ()=>{
+  Promise.resolve(HAS_FIRESTORE && authUser ? resolverTenantDoUsuario(authUser) : null).then(()=>loadAll()).then(async ()=>{
     if(!HAS_FIRESTORE || !authUser){
       // Sem Firebase disponível (ver storeGet/storeSet): cai pro modo antigo, sem checar e-mail —
       // não tem login de verdade nesse modo mesmo, então entra direto como Administrador local.
