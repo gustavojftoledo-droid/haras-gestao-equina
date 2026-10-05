@@ -52,10 +52,10 @@
   .brand-mark{font-family:'Fraunces',serif;font-size:21px;font-weight:600;}
   .brand-sub{font-size:10.5px;color:var(--brass-light);text-transform:uppercase;letter-spacing:.12em;margin-top:3px;}
   .nav{padding:14px 9px;flex:1;}
-  .nav-item{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:4px;cursor:pointer;font-size:13.5px;color:#D9D2BC;margin-bottom:2px;}
-  .nav-item:hover{background:var(--green-light);}
+  .nav-item,.nav-acao{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:4px;cursor:pointer;font-size:13.5px;color:#D9D2BC;margin-bottom:2px;}
+  .nav-item:hover,.nav-acao:hover{background:var(--green-light);}
   .nav-item.active{background:var(--green-light);color:#fff;font-weight:600;box-shadow:inset 4px 0 0 var(--brass);}
-  .nav-item .dot{width:6px;height:6px;border-radius:50%;background:var(--brass-light);opacity:0;}
+  .nav-item .dot,.nav-acao .dot{width:6px;height:6px;border-radius:50%;background:var(--brass-light);opacity:0;}
   .nav-item.active .dot{opacity:1;}
   .nav-soon{font-size:9.5px;color:var(--muted);margin-left:auto;text-transform:uppercase;}
 
@@ -653,6 +653,7 @@
           <div class="nav-item" data-view="manejos" title="Atalho: Alt+Shift+M"><span class="dot"></span>Manejos</div>
           <div class="nav-item" data-view="veterinaria" title="Atalho: Alt+Shift+V"><span class="dot"></span>Veterinária</div>
           <div class="nav-item" data-view="dietas" title="Atalho: Alt+Shift+D"><span class="dot"></span>Dietas</div>
+          <div class="nav-acao" id="navOrcamento" title="Banco de contatos: pedir orçamento por WhatsApp a ferrador, veterinário ou qualquer prestador"><span class="dot"></span>📱 Pedir orçamento</div>
         </div>
       </div>
 
@@ -9080,7 +9081,7 @@ function saudacaoPorHorario(){ return new Date().getHours()<12 ? 'Bom dia' : 'Bo
 // Lista gravada (aux.fornecedoresPedido, por id): cada um com nome, vários WhatsApps e vários e-mails. Na hora
 // de enviar você marca quem recebe. Contatos antigos (um WhatsApp/e-mail por Tipo de produto) viram
 // fornecedores sozinhos na primeira vez. Grátis: o app só ABRE o WhatsApp/e-mail já preenchido.
-let envForn = { mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null, ordem:{ col:'nome', dir:1 }, modo:'envio', filtroClasse:'__nao_ferrador', aoEscolher:null, escolherAoSalvar:false };
+let envForn = { orcamento:false, mensagem:'', assunto:'', comPdf:false, selecionados:new Set(), editando:null, ordem:{ col:'nome', dir:1 }, modo:'envio', filtroClasse:'__nao_ferrador', aoEscolher:null, escolherAoSalvar:false };
 function ehFerrador(x){ return (x.classificacao||'').trim().toLowerCase()==='ferrador'; }
 function nomeIgual(a,b){ return (a||'').trim().toLowerCase()===(b||'').trim().toLowerCase(); }
 // Telefone pra mostrar: (34) 99999-0001
@@ -9153,7 +9154,7 @@ function resolverFerradorDigitado(v){
   if(!aux.ferrador.some(x=>nomeIgual(x,nome))){ aux.ferrador.push(nome); storeSet('aux_lists', aux).catch(()=>{}); preencherDatalistFerradores(); }
   return nome;
 }
-function guardarSelecaoFornecedores(){ try{ localStorage.setItem('haras_envio_forn_sel', JSON.stringify([...envForn.selecionados])); }catch(_){} }
+function guardarSelecaoFornecedores(){ if(envForn.orcamento) return; try{ localStorage.setItem('haras_envio_forn_sel', JSON.stringify([...envForn.selecionados])); }catch(_){} }
 function modoJanelaContatos(modo){
   envForn.modo = modo;
   const agenda = modo==='agenda';
@@ -9170,14 +9171,22 @@ function abrirEnvioFornecedores(opts){
   const lista = listaFornecedoresPedido();
   modoJanelaContatos('envio');
   envForn.aoEscolher = null; envForn.escolherAoSalvar = false;
-  envForn.filtroClasse = '__nao_ferrador';
+  envForn.orcamento = !!opts.orcamento;
+  envForn.filtroClasse = envForn.orcamento ? '' : '__nao_ferrador';
   envForn.mensagem = opts.mensagem || '';
   envForn.assunto = opts.assunto || 'Pedido de compra';
   envForn.comPdf = !!opts.comPdf;
-  envForn.selecionados = lerSelecaoFornecedores(lista);
+  envForn.selecionados = envForn.orcamento ? new Set() : lerSelecaoFornecedores(lista);
   envForn.editando = null;
   document.getElementById('pce_mensagem').value = envForn.mensagem;
-  document.getElementById('envForn_hint').textContent = envForn.comPdf
+  if(envForn.orcamento){
+    document.getElementById('envForn_titulo').textContent = 'Pedir orçamento';
+    document.getElementById('envForn_rotulo').textContent = 'Para quem pedir';
+    document.getElementById('envForn_rotuloDica').textContent = '— marque ferradores, veterinários ou outros prestadores';
+  }
+  document.getElementById('envForn_hint').textContent = envForn.orcamento
+    ? 'Escreva o que você precisa na mensagem (ela já vem pronta, é só trocar o que quiser). O WhatsApp abre um de cada vez: clique no botão de cada contato. O e-mail sai num só, com todos em cópia oculta.'
+    : envForn.comPdf
     ? 'Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho). O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.'
     : 'O pedido já vai escrito na mensagem — é só conferir e enviar, sem PDF. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
   renderEnvioFornecedores();
@@ -9188,7 +9197,7 @@ function abrirEnvioFornecedores(opts){
 function abrirAgendaContatos(opts){
   opts = opts || {};
   listaFornecedoresPedido();
-  modoJanelaContatos('agenda');
+  modoJanelaContatos('agenda'); envForn.orcamento = false;
   envForn.filtroClasse = opts.classe || '';
   envForn.aoEscolher = opts.aoEscolher || null;
   envForn.escolherAoSalvar = !!(opts.novo && opts.aoEscolher);
@@ -9197,6 +9206,11 @@ function abrirAgendaContatos(opts){
   openModal('overlayPedidoCompraEnvio');
   if(opts.novo) abrirEditorFornecedor({ id:null, nome:'', cidade:'', classificacao:opts.classe||'', whats:[''], emails:[''] });
 }
+function abrirPedidoOrcamento(){
+  abrirEnvioFornecedores({ orcamento:true, comPdf:false, assunto:'Pedido de orçamento',
+    mensagem: `${saudacaoPorHorario()}, tudo bem?\nGostaria de pedir um orçamento para:\n\n(descreva aqui o serviço, o número de animais e a data desejada)\n\nPode me passar o valor e a disponibilidade?\nObrigado.` });
+}
+document.getElementById('navOrcamento').addEventListener('click', ()=>{ abrirPedidoOrcamento(); });
 function ordenarFornecedoresEnvio(lista){
   const { col, dir } = envForn.ordem;
   const chave = x => (x[col]||'').toString().trim();
@@ -9284,7 +9298,7 @@ function abrirEditorFornecedor(ed){
   const classesUsadas = [...new Set(['Ferrador','Farmácia veterinária','Distribuidora','Casa de ração','Clínica veterinária', ...Object.values(aux.fornecedoresPedido||{}).map(x=>x.classificacao).filter(Boolean)])];
   box.innerHTML = `<datalist id="envForn_dlClasses">${classesUsadas.map(c=>`<option value="${escHtml(c)}">`).join('')}</datalist>
     <div class="form-grid" style="margin-bottom:10px;">
-      <div class="field"><label>Nome da farmácia/fornecedor</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba"></div>
+      <div class="field"><label>Nome do contato</label><input type="text" id="envForn_nome" value="${escHtml(ed.nome)}" placeholder="Ex: Vet Cavalos Uberaba, João Ferrador"></div>
       <div class="field"><label>Cidade</label><input type="text" id="envForn_cidade" value="${escHtml(ed.cidade||'')}" placeholder="Ex: Uberaba"></div>
       <div class="field"><label>Classificação</label><input type="text" id="envForn_classe" list="envForn_dlClasses" value="${escHtml(ed.classificacao||'')}" placeholder="Ex: Farmácia veterinária"></div>
     </div>
@@ -9366,10 +9380,10 @@ document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', (
 });
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
-  if(marcados.length===0){ showAlert('Marque ao menos uma farmácia/fornecedor.'); return; }
+  if(marcados.length===0){ showAlert('Marque ao menos um contato.'); return; }
   const destinos = [];
   marcados.forEach(x=>(x.whats||[]).forEach(n=>{ const d = whatsComDDIBrasil(n); if(d && !destinos.some(y=>y.numero===d)) destinos.push({ nome:x.nome, numero:d }); }));
-  if(destinos.length===0){ showAlert('As farmácias marcadas não têm WhatsApp cadastrado.'); return; }
+  if(destinos.length===0){ showAlert('Os contatos marcados não têm WhatsApp cadastrado.'); return; }
   const mensagem = f('pce_mensagem');
   // Gera o PDF ANTES de abrir o WhatsApp — a captura do PDF precisa da aba em foco/visível, e abrir
   // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
@@ -9388,10 +9402,10 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
 });
 document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
-  if(marcados.length===0){ showAlert('Marque ao menos uma farmácia/fornecedor.'); return; }
+  if(marcados.length===0){ showAlert('Marque ao menos um contato.'); return; }
   const emails = [];
   marcados.forEach(x=>(x.emails||[]).forEach(e=>{ const t = String(e).trim(); if(t && !emails.includes(t)) emails.push(t); }));
-  if(emails.length===0){ showAlert('As farmácias marcadas não têm e-mail cadastrado.'); return; }
+  if(emails.length===0){ showAlert('Os contatos marcados não têm e-mail cadastrado.'); return; }
   const mensagem = f('pce_mensagem');
   if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`); }
   // Todos em cópia oculta (bcc): cada farmácia recebe o pedido sem ver as outras.
