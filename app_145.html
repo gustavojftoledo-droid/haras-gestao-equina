@@ -1396,6 +1396,7 @@
         <span class="chip active" data-etab="produtos" id="etab_produtos">Produtos</span>
         <span class="chip" data-etab="movimentos" id="etab_movimentos">Movimentações</span>
         <span class="chip" data-etab="relatorio" id="etab_relatorio">Relatório</span>
+        <span class="chip" id="btnFornecedoresEstoque" title="Cadastro de fornecedores e prestadores: inserir, editar e apagar">Fornecedores</span>
       </div>
 
       <div id="eview_produtos">
@@ -9196,6 +9197,7 @@ function abrirAgendaContatos(opts){
   opts = opts || {};
   listaFornecedoresPedido();
   modoJanelaContatos('agenda'); envForn.orcamento = false;
+  if(opts.titulo) document.getElementById('envForn_titulo').textContent = opts.titulo;
   envForn.filtroClasse = opts.classe || '';
   envForn.aoEscolher = opts.aoEscolher || null;
   envForn.escolherAoSalvar = !!(opts.novo && opts.aoEscolher);
@@ -9330,6 +9332,7 @@ document.getElementById('btnEnvFornNovo').addEventListener('click', ()=>{
 });
 // Campo Ferrador do Manejo: 📇 abre a lista de ferradores (com telefone) pra escolher; + cadastra um novo na hora.
 function escolherFerradorNoManejo(nome){ const el = document.getElementById('m_ferrador_sel'); el.value = nome; el.dispatchEvent(new Event('change')); }
+document.getElementById('btnFornecedoresEstoque').addEventListener('click', ()=> abrirAgendaContatos({ titulo:'Fornecedores' }));
 document.getElementById('btnFerradorLista').addEventListener('click', ()=> abrirAgendaContatos({ classe:'Ferrador', aoEscolher:escolherFerradorNoManejo }));
 // "+" é o cadastro rápido de sempre: só o nome, direto do Manejo. Fica na lista deste haras (campo Ferrador).
 // Quem quiser cadastrar o ferrador com telefone/cidade, como prestador de serviço, usa o banco de contatos (📇).
