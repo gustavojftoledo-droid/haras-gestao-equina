@@ -1396,7 +1396,6 @@
         <span class="chip active" data-etab="produtos" id="etab_produtos">Produtos</span>
         <span class="chip" data-etab="movimentos" id="etab_movimentos">Movimentações</span>
         <span class="chip" data-etab="relatorio" id="etab_relatorio">Relatório</span>
-        <span class="chip" id="btnPedirOrcamentoEstoque" style="margin-left:auto;" title="Marque os produtos na lista (caixinha), toque aqui, informe as quantidades e escolha os fornecedores">📱 Pedir orçamento</span>
       </div>
 
       <div id="eview_produtos">
@@ -1418,8 +1417,7 @@
           <span id="eEditLoteContagemBar"></span>
           <button type="button" class="btn btn-sm btn-ghost" id="btnRelatorioProdutosLote">📄 Relatório dos selecionados</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnGerarPedidoLote">📝 Gerar Pedido dos selecionados</button>
-          <button type="button" class="btn btn-sm btn-danger" id="btnExcluirProdutosLote">🗑 Excluir selecionados</button>
-          <button type="button" class="btn btn-sm btn-ghost" id="btnLimparSelecaoProdutos" style="margin-left:auto;">Limpar seleção</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="btnPedirOrcamentoEstoque" title="Informe as quantidades e escolha os fornecedores para pedir orçamento por WhatsApp/e-mail">📱 Pedir orçamento</button>
         </div>
         <div id="eProdutosHost"></div>
       </div>
@@ -13408,7 +13406,7 @@ function renderEstoque(){
       <div class="produto-group-title">${TIPO_PRODUTO_LABEL[tipo]||tipo} <span class="count">(${items.length})</span></div>
       <div class="grid-wrap compact"><table class="grid">
         <thead><tr>
-          <th style="width:26px;"><input type="checkbox" class="eGroupSelectAll" data-grupo="${tipo}" title="Selecionar todos deste grupo"></th>
+          <th style="width:26px;"><input type="checkbox" class="eGroupSelectAll" data-grupo="${tipo}" ${items.every(p=>selectedProdutoIds.has(p.id))?'checked':''} title="Selecionar todos deste grupo (toque de novo para desmarcar)"></th>
           <th class="sortable ${eSortColumn==='nome'?'sort-active':''}" data-esort="nome">Nome ${sortArrow('nome')}</th>
           ${cv.classe ? `<th class="sortable ${eSortColumn==='classe'?'sort-active':''}" data-esort="classe">Classe do Medicamento ${sortArrow('classe')}</th>` : ''}
           ${cv.unidade ? `<th class="sortable ${eSortColumn==='unidade'?'sort-active':''}" data-esort="unidade">Unidade ${sortArrow('unidade')}</th>` : ''}
@@ -13416,6 +13414,7 @@ function renderEstoque(){
           ${cv.valor ? `<th class="sortable ${eSortColumn==='valor'?'sort-active':''}" data-esort="valor">Valor ${sortArrow('valor')}</th>` : ''}
           ${cv.validade ? '<th>Validade</th>' : ''}
           ${cv.obs ? '<th>Observações</th>' : ''}
+          <th style="width:44px;"></th>
         </tr></thead>
         <tbody>${items.map(p=>{
           const sit = situacaoEstoque(p);
@@ -13448,6 +13447,7 @@ function renderEstoque(){
             ${cv.valor ? `<td${valorTitle}>${valorTxt}</td>` : ''}
             ${cv.validade ? `<td>${p.validade?fmtDate(p.validade):'—'}</td>` : ''}
             ${cv.obs ? `<td>${p.obs||''}</td>` : ''}
+            <td style="text-align:right;"><button type="button" class="btn btn-sm btn-danger eRowExcluir" data-id="${p.id}" title="Excluir este produto">🗑</button></td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -13468,6 +13468,7 @@ function renderEstoque(){
       renderEEditLoteBar();
     });
   });
+  host.querySelectorAll('.eRowExcluir').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); excluirProdutosEstoque([b.dataset.id]); }));
   host.querySelectorAll('.eGroupSelectAll').forEach(cb=>{
     cb.addEventListener('click', e=>e.stopPropagation());
     cb.addEventListener('change', ()=>{
@@ -13485,28 +13486,25 @@ function renderEEditLoteBar(){
   bar.style.display='flex';
   document.getElementById('eEditLoteContagemBar').textContent = n+' produto(s) selecionado(s)';
 }
-document.getElementById('btnLimparSelecaoProdutos').addEventListener('click', ()=>{
-  selectedProdutoIds.clear();
-  renderEstoque();
-});
-document.getElementById('btnExcluirProdutosLote').addEventListener('click', async ()=>{
-  const n = selectedProdutoIds.size;
+async function excluirProdutosEstoque(ids){
+  const n = ids.length;
   if(n===0) return;
-  const dependentes = [...new Set([...selectedProdutoIds].flatMap(id=>quemDependeDoProduto(id)))];
+  const nomeUnico = n===1 ? ((estoqueProdutos.find(x=>x.id===ids[0])||{}).nome||'') : '';
+  const dependentes = [...new Set(ids.flatMap(id=>quemDependeDoProduto(id)))];
   const aviso = dependentes.length===0
-    ? `Excluir ${n} produto(s) do estoque? Movimentações já registradas não serão apagadas, só o cadastro dos produtos.`
-    : `Excluir ${n} produto(s) do estoque? Alguns ainda estão em uso em:\n\n${dependentes.join('\n')}\n\nExcluindo, essas dietas/tratamentos travam até você corrigir o vínculo (Estoque → 🔗 Vínculos quebrados). Excluir mesmo assim?`;
+    ? `Excluir ${n===1?('"'+nomeUnico+'"'):(n+' produto(s)')} do estoque? Movimentações já registradas não serão apagadas, só o cadastro dos produtos.`
+    : `Excluir ${n===1?('"'+nomeUnico+'"'):(n+' produto(s)')} do estoque? Pelo menos um ainda está em uso em:\n\n${dependentes.join('\n')}\n\nExcluindo, essas dietas/tratamentos travam até você corrigir o vínculo (Estoque → 🔗 Vínculos quebrados). Excluir mesmo assim?`;
   if(!(await showConfirm(aviso))) return;
-  if(n>=5 || n>=Math.ceil(estoqueProdutos.length/2)){
+  if(n>1 && (n>=5 || n>=Math.ceil(estoqueProdutos.length/2))){
     const digitado = await showPrompt('Você está excluindo '+n+' de '+estoqueProdutos.length+' produtos de uma vez. Para confirmar, digite EXCLUIR:', 'EXCLUIR');
     if(String(digitado||'').trim().toUpperCase()!=='EXCLUIR'){ showAlert('Exclusão cancelada — nada foi apagado.'); return; }
   }
-  estoqueProdutos = estoqueProdutos.filter(p=>!selectedProdutoIds.has(p.id));
+  estoqueProdutos = estoqueProdutos.filter(p=>!ids.includes(p.id));
   await storeSet('estoque_produtos', estoqueProdutos, true);
-  selectedProdutoIds.clear();
+  ids.forEach(id=>selectedProdutoIds.delete(id));
   renderEstoque();
-  showAlert(`${n} produto(s) excluído(s).`);
-});
+  showAlert(n===1 ? 'Produto excluído.' : `${n} produto(s) excluído(s).`);
+}
 document.getElementById('eSoMinimo').addEventListener('input', renderEstoque);
 document.getElementById('eSearch').addEventListener('input', debounce(renderEstoque));
 
