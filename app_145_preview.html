@@ -22,6 +22,234 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
+<!-- Módulo de fotos no Firebase Storage (firebase/storage/fotos.js). Só é usado quando ligado no Diagnóstico deste aparelho. -->
+<script>
+/* =====================================================================
+   fotos.js - fotos dos animais no Firebase Storage (sem dependencias)
+   ---------------------------------------------------------------------
+   Pensado para ser COLADO dentro do app (arquivo unico). Tambem roda no
+   Node (module.exports no fim) para testar a logica pura.
+
+   Precisa, no app, do SDK de Storage na versao "compat" (a mesma 10.14.1
+   que o app ja usa):
+     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"><\/script>
+   e de:  const storage = firebase.storage();
+
+   "escopo" = de quem e a foto:
+     - null / '' / 'haras-original'  -> haras original (sem claim tenantId)
+     - 'cli-a' (string) ou {tenantId:'cli-a'} -> cliente (claim tenantId)
+   No app: escopo = TENANT_ID (que e null para o haras original).
+
+   No cadastro do animal ficam SO textos pequenos:
+     h.fotoUrl      -> endereco da foto (ou o 'data:image' antigo)
+     h.fotoMiniUrl  -> endereco da miniatura
+     h.fotoPath     -> caminho no Storage (usado para apagar)
+     h.fotoMiniPath -> caminho da miniatura
+   ===================================================================== */
+(function (raiz) {
+  'use strict';
+
+  var MAX_DIM = 900;          // lado maior da foto reduzida (px)
+  var QUALIDADE = 0.72;       // qualidade JPEG da foto
+  var MAX_DIM_MINI = 240;     // lado maior da miniatura (px)
+  var QUALIDADE_MINI = 0.7;   // qualidade JPEG da miniatura
+  var LIMITE_BYTES = 400 * 1024; // mesmo limite das regras do Storage
+  var CACHE = 'public,max-age=31536000'; // 1 ano: nome muda se a foto mudar
+
+  /* ---------------- LOGICA PURA (testada no Node) ---------------- */
+
+  // Calcula o tamanho novo mantendo a proporcao. Nunca aumenta a imagem.
+  function calcularDimensoes(largura, altura, maximo) {
+    maximo = maximo || MAX_DIM;
+    var w = Math.round(largura), h = Math.round(altura);
+    if (!(w > 0) || !(h > 0)) return { w: 0, h: 0 };
+    if (w >= h && w > maximo) { h = Math.round(h * maximo / w); w = maximo; }
+    else if (h > w && h > maximo) { w = Math.round(w * maximo / h); h = maximo; }
+    return { w: Math.max(1, w), h: Math.max(1, h) };
+  }
+
+  // Normaliza o escopo: devolve {tipo:'cliente', tenantId} ou {tipo:'original'}.
+  function normalizarEscopo(escopo) {
+    var t = (escopo && typeof escopo === 'object') ? escopo.tenantId : escopo;
+    if (t === null || t === undefined || t === '' || t === 'haras-original') return { tipo: 'original' };
+    if (typeof t !== 'string' || !/^[a-z0-9_-]{3,40}$/i.test(t)) throw new Error('escopo invalido');
+    return { tipo: 'cliente', tenantId: t };
+  }
+
+  // Deixa so letras, numeros, "_" e "-" (evita "/" e ".." em caminhos).
+  function limparId(texto) {
+    var s = String(texto === undefined || texto === null ? '' : texto).replace(/[^A-Za-z0-9_-]/g, '_');
+    if (!s) throw new Error('id do animal vazio');
+    return s.slice(0, 80);
+  }
+
+  // Caminho da pasta do animal conforme o escopo (igual ao storage.rules).
+  function pastaFotos(escopo, animalId) {
+    var e = normalizarEscopo(escopo);
+    var base = e.tipo === 'cliente' ? 'tenants/' + e.tenantId + '/fotos/' : 'haras-original/fotos/';
+    return base + limparId(animalId) + '/';
+  }
+
+  function caminhoFoto(escopo, animalId, arquivo) {
+    if (!/^[A-Za-z0-9_.-]+$/.test(arquivo) || arquivo.indexOf('..') >= 0) throw new Error('nome de arquivo invalido');
+    return pastaFotos(escopo, animalId) + arquivo;
+  }
+
+  // Resumo (hash) rapido FNV-1a de 32 bits sobre bytes. Serve so para dar nome unico.
+  function hashBytes(bytes) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+    return ('00000000' + h.toString(16)).slice(-8);
+  }
+
+  // Nomes: "<tempo>-<hash>.jpg" e "<tempo>-<hash>_min.jpg". Nome novo a cada foto
+  // => o cache de 1 ano nunca mostra foto velha.
+  function nomesArquivo(bytes, agora, ext) {
+    ext = ext || 'jpg';
+    var base = (agora === undefined ? Date.now() : agora).toString(36) + '-' + hashBytes(bytes);
+    return { foto: base + '.' + ext, miniatura: base + '_min.' + ext };
+  }
+
+  // Valores aceitos no campo da foto: base64 antigo OU endereco https.
+  function ehDataImage(v) { return typeof v === 'string' && /^data:image\/(jpeg|png|webp|gif);base64,/i.test(v); }
+  function ehFotoValida(v) { return ehDataImage(v) || (typeof v === 'string' && /^https:\/\//i.test(v)); }
+
+  // Converte 'data:image/...;base64,XXXX' em {tipo, bytes}. (usa atob: navegador e Node 16+)
+  function dataUrlParaBytes(dataUrl) {
+    var m = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/is.exec(dataUrl || '');
+    if (!m) throw new Error('nao e data:image');
+    var bin = atob(m[2]), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return { tipo: m[1].toLowerCase(), bytes: out };
+  }
+
+  // Extrai o caminho do Storage de uma URL de download (para apagar quando
+  // so temos a URL). Devolve '' se nao reconhecer.
+  function caminhoDeUrl(url) {
+    var m = /\/o\/([^?]+)/.exec(url || '');
+    if (!m) return '';
+    try { return decodeURIComponent(m[1]); } catch (e) { return ''; }
+  }
+
+  function extDoTipo(tipo) { return tipo === 'image/png' ? 'png' : tipo === 'image/webp' ? 'webp' : 'jpg'; }
+
+  /* ------------- PARTES QUE PRECISAM DE NAVEGADOR (canvas) -------------
+     SEM TESTE automatico: dependem de canvas/Image/Blob reais. */
+
+  function carregarImagem(arquivo) {
+    return new Promise(function (ok, erro) {
+      var url = URL.createObjectURL(arquivo);
+      var img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); ok(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); erro(new Error('nao consegui ler a imagem')); };
+      img.src = url;
+    });
+  }
+
+  // Reduz para no maximo "maximo" px e devolve um Blob JPEG.
+  function reduzirImagem(arquivo, maximo, qualidade) {
+    return carregarImagem(arquivo).then(function (img) {
+      var d = calcularDimensoes(img.naturalWidth || img.width, img.naturalHeight || img.height, maximo || MAX_DIM);
+      var c = document.createElement('canvas');
+      c.width = d.w; c.height = d.h;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, d.w, d.h); // PNG com fundo transparente vira branco
+      ctx.drawImage(img, 0, 0, d.w, d.h);
+      return new Promise(function (ok, erro) {
+        c.toBlob(function (b) { b ? ok(b) : erro(new Error('falha ao gerar JPEG')); }, 'image/jpeg', qualidade || QUALIDADE);
+      });
+    });
+  }
+
+  function gerarMiniatura(arquivo) { return reduzirImagem(arquivo, MAX_DIM_MINI, QUALIDADE_MINI); }
+
+  function blobParaBytes(blob) {
+    return blob.arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+
+  /* ---------------- ENVIO / REMOCAO (usam o Storage) ---------------- */
+
+  // Sobe um Blob ja pronto (precisa do Storage compat).
+  function subirBlob(storage, caminho, blob, tipo) {
+    var r = storage.ref(caminho);
+    return r.put(blob, { contentType: tipo || blob.type || 'image/jpeg', cacheControl: CACHE })
+      .then(function () { return r.getDownloadURL(); })
+      .then(function (url) { return { url: url, path: caminho }; });
+  }
+
+  // Reduz, gera miniatura, sobe as duas. Devolve {url, urlMiniatura, bytes, path, pathMiniatura}.
+  function enviarFoto(storage, escopo, animalId, arquivo) {
+    pastaFotos(escopo, animalId); // valida escopo/id antes de gastar tempo
+    return Promise.all([reduzirImagem(arquivo, MAX_DIM, QUALIDADE), gerarMiniatura(arquivo)]).then(function (par) {
+      var foto = par[0], mini = par[1];
+      if (foto.size > LIMITE_BYTES) throw new Error('foto reduzida ainda passa de 400 KB');
+      return blobParaBytes(foto).then(function (bytes) {
+        var n = nomesArquivo(bytes, Date.now());
+        return Promise.all([
+          subirBlob(storage, caminhoFoto(escopo, animalId, n.foto), foto, 'image/jpeg'),
+          subirBlob(storage, caminhoFoto(escopo, animalId, n.miniatura), mini, 'image/jpeg')
+        ]).then(function (r) {
+          return { url: r[0].url, urlMiniatura: r[1].url, bytes: foto.size, path: r[0].path, pathMiniatura: r[1].path };
+        });
+      });
+    });
+  }
+
+  // Apaga foto e miniatura. Aceita o animal (h) ou {fotoPath, fotoMiniPath}.
+  // Se nao existir mais no Storage, nao e erro.
+  function removerFoto(storage, h) {
+    var caminhos = [h && h.fotoPath || caminhoDeUrl(h && h.fotoUrl), h && h.fotoMiniPath || caminhoDeUrl(h && h.fotoMiniUrl)]
+      .filter(function (p) { return p; });
+    return Promise.all(caminhos.map(function (p) {
+      return storage.ref(p).delete().catch(function (e) {
+        if (e && e.code === 'storage/object-not-found') return;
+        throw e;
+      });
+    })).then(function () { return caminhos.length; });
+  }
+
+  // Converte a foto base64 antiga de UM animal em arquivo do Storage.
+  // Seguranca: o base64 so e trocado DEPOIS que o upload deu certo. Se der erro,
+  // "h" fica intacto. Depois de converter, o app precisa SALVAR a lista de animais.
+  // Devolve true se converteu, false se nao havia nada a converter.
+  function migrarBase64ParaStorage(storage, escopo, h) {
+    if (!h || !ehDataImage(h.fotoUrl)) return Promise.resolve(false);
+    var dados = dataUrlParaBytes(h.fotoUrl);
+    var blob = new Blob([dados.bytes], { type: dados.tipo });
+    var n = nomesArquivo(dados.bytes, Date.now(), extDoTipo(dados.tipo));
+    var pFoto = caminhoFoto(escopo, h.id, n.foto);
+    var pMini = caminhoFoto(escopo, h.id, n.miniatura);
+    // Se o base64 antigo passar de 400 KB, reduz antes (precisa de canvas).
+    var preparo = blob.size <= LIMITE_BYTES ? Promise.resolve(blob) : reduzirImagem(blob, MAX_DIM, QUALIDADE);
+    return preparo.then(function (b) {
+      var tipo = b.type || dados.tipo;
+      return subirBlob(storage, pFoto, b, tipo).then(function (f) {
+        // Miniatura e opcional na migracao: se falhar, segue so com a foto.
+        return gerarMiniatura(blob).then(function (m) { return subirBlob(storage, pMini, m, 'image/jpeg'); })
+          .catch(function () { return null; })
+          .then(function (m) { return { f: f, m: m }; });
+      });
+    }).then(function (r) {
+      // Upload confirmado: so agora troca o base64 pela URL.
+      h.fotoUrl = r.f.url; h.fotoPath = r.f.path;
+      if (r.m) { h.fotoMiniUrl = r.m.url; h.fotoMiniPath = r.m.path; }
+      return true;
+    });
+  }
+
+  var API = {
+    MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
+    calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
+    pastaFotos: pastaFotos, caminhoFoto: caminhoFoto, hashBytes: hashBytes, nomesArquivo: nomesArquivo,
+    ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
+    reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
+    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+
 <!-- PWA: permite "Adicionar à tela de início" e funcionar offline depois de instalado.
      Os arquivos manifest.json, sw.js, icon-192.png, icon-512.png e apple-touch-icon.png
      precisam estar na MESMA PASTA que este app.html pra isso funcionar. -->
@@ -3362,6 +3590,11 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayDiag">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title">Diagnóstico de Armazenamento</div><button class="modal-close" data-close="overlayDiag">✕</button></div>
+    <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;"><input type="checkbox" id="chkFotosStorage" style="width:auto;"> Guardar fotos NOVAS no Firebase Storage (experimental, só neste aparelho)</label>
+      <div class="hint-text" style="margin:6px 0 8px;">Precisa do Storage ativado no Firebase. Se não estiver, o app avisa e guarda a foto do jeito antigo. Desligado, tudo funciona como sempre.</div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnMigrarFotos">Mover fotos antigas para o Storage</button> <span id="migrarFotosStatus" style="font-size:12px;color:var(--muted);"></span>
+    </div>
     <div style="margin-bottom:14px;"><button type="button" class="btn btn-sm" id="btnRunDiag">Verificar agora</button> <button type="button" class="btn btn-sm btn-ghost" id="btnTestWrite">1) Gravar valor de teste</button> <button type="button" class="btn btn-sm btn-ghost" id="btnReadOnly">2) Ler valor de teste (sem gravar)</button></div>
     <div id="diagOutput" style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;max-height:420px;overflow-y:auto;"></div>
   </div>
@@ -3917,7 +4150,7 @@ const AUDIT_CAMPO_LABEL = {
   localizacao:'Localização', pai:'Pai', mae:'Mãe', avopat:'Avô paterno', avopatmat:'Avó paterna',
   avomatpat:'Avô materno', avomat:'Avó materna', proprietario:'Proprietário', associacao:'Associação', numeroRegistro:'Nº de Registro', valor:'Valor',
   comprador:'Comprador', dataVenda:'Data da venda', doador:'Doador', compra:'Comprado', compradoDe:'Comprado de', obs:'Observações',
-  fotoUrl:'Foto', freqcasco:'Freq. casco', freqdente:'Freq. dente', freqvacina:'Freq. vacina',
+  fotoUrl:'Foto', fotoMiniUrl:'Miniatura da foto', fotoPath:'Arquivo da foto', fotoMiniPath:'Arquivo da miniatura', freqcasco:'Freq. casco', freqdente:'Freq. dente', freqvacina:'Freq. vacina',
   freqvermifugo:'Freq. vermífugo', data:'Data', tipo:'Tipo', subtipo:'Procedimento', descricao:'Descrição',
   moeda:'Moeda', quantidade:'Quantidade', animais:'Animais', rateio:'Rateio por animal',
   medicamentoNome:'Medicamento', veterinario:'Veterinário', origem:'Origem', destino:'Destino',
@@ -5941,7 +6174,7 @@ function renderHorses(){
     if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:4px;">Vendido</span>');
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
-      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${urlSegura(h.fotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${escHtml(h.apelido)}</span> `:''}<strong>${escHtml(h.nome||'')}</strong>${tags.join('')}</td>
+      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${urlSegura(h.fotoMiniUrl||h.fotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${escHtml(h.apelido)}</span> `:''}<strong>${escHtml(h.nome||'')}</strong>${tags.join('')}</td>
       <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
       <td data-col="pai">${escHtml(h.pai||'')}</td><td data-col="mae">${escHtml(h.mae||'')}</td><td data-col="pelagem">${escHtml(h.pelagem||'')}</td><td data-col="raca">${escHtml(h.raca||'')}</td><td data-col="categoria">${escHtml(h.categoria||'')}</td>
@@ -6231,6 +6464,7 @@ function openHorseNew(){
   atualizarDoadorWrap();
   atualizarDataVendaWrap();
   atualizarCompradoDeWrap();
+  fotoMeta = null;
   atualizarFotoPreview();
   openModal('overlayHorse');
 }
@@ -6242,6 +6476,7 @@ function openHorseEdit(id){
   const map={codigo:'f_codigo',nome:'f_nome',apelido:'f_apelido',sexo:'f_sexo',situacao:'f_situacao',status:'f_status',nascimento:'f_nascimento',falecimento:'f_falecimento',peso:'f_peso',scoreCorporal:'f_scoreCorporal',pelagem:'f_pelagem',raca:'f_raca',categoria:'f_categoria',localizacao:'f_localizacao',pai:'f_pai',mae:'f_mae',avopat:'f_avopat',avopatmat:'f_avopatmat',avomatpat:'f_avomatpat',avomat:'f_avomat',freqcasco:'f_freqcasco',freqdente:'f_freqdente',freqvacina:'f_freqvacina',freqvermifugo:'f_freqvermifugo',proprietario:'f_proprietario',associacao:'f_associacao',numeroRegistro:'f_numeroRegistro',comprador:'f_comprador',dataVenda:'f_dataVenda',fotoUrl:'f_fotoUrl',obs:'f_obs'};
   populateAuxSelects();
   Object.entries(map).forEach(([k,id2])=>{ document.getElementById(id2).value=h[k]||''; });
+  fotoMeta = (h.fotoUrl && h.fotoPath) ? { url:h.fotoUrl, miniUrl:h.fotoMiniUrl||'', path:h.fotoPath, miniPath:h.fotoMiniPath||'' } : null;
   atualizarDataVendaWrap(); // só esconde/limpa quando NÃO vendido — o valor já veio certo do map acima
   // Valor: campo dividido em moeda (R$/US$) + número, pra não depender de digitar o prefixo certinho.
   // O texto salvo continua no mesmo formato de sempre ("R$ 1.000,00" / "US$ 1.000,00"), só a edição ficou guiada.
@@ -6269,20 +6504,59 @@ document.getElementById('btnNewHorse').addEventListener('click', openHorseNew);
    Depois de escolhida, a imagem é redimensionada e comprimida no próprio navegador (canvas) antes
    de virar o valor do campo "Link da foto" como uma imagem embutida — assim funciona sem precisar
    de link do Drive/Imgur e sem estourar o limite de armazenamento do programa. */
+/* ---- Fotos no Firebase Storage (experimental, só neste aparelho; desligado por padrão) ----
+   Ligado em Segurança dos dados → Diagnóstico. Com o Storage ligado a foto nova vai para o Storage e no cadastro
+   ficam só os endereços (resolve o limite de 1 MB do cadastro). Se o envio falhar, cai no modo antigo (base64). */
+let fotoMeta = null; // {url, miniUrl, path, miniPath} da foto escolhida/aberta no formulário
+function fotosNoStorageAtivo(){ try{ return !!HAS_FIRESTORE && localStorage.getItem('haras_fotos_storage')==='1' && !!window.Fotos; }catch(_){ return false; } }
+let _storageSdkPromise = null;
+function carregarStorage(){
+  if(_storageSdkPromise) return _storageSdkPromise;
+  _storageSdkPromise = new Promise((resolve, reject)=>{
+    const pronto = ()=>{ try{ resolve(firebase.storage()); }catch(e){ reject(e); } };
+    if(firebase.storage) return pronto();
+    const sc = document.createElement('script');
+    sc.src = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js';
+    sc.onload = pronto; sc.onerror = ()=>reject(new Error('não consegui carregar o Storage'));
+    document.head.appendChild(sc);
+  }).catch(e=>{ _storageSdkPromise = null; throw e; });
+  return _storageSdkPromise;
+}
+function metaFotoParaSalvar(urlAtual){
+  if(fotoMeta && fotoMeta.url===urlAtual) return { fotoMiniUrl:fotoMeta.miniUrl||'', fotoPath:fotoMeta.path||'', fotoMiniPath:fotoMeta.miniPath||'' };
+  return { fotoMiniUrl:'', fotoPath:'', fotoMiniPath:'' };
+}
 function atualizarFotoPreview(){
   const url = document.getElementById('f_fotoUrl').value;
   const wrap = document.getElementById('f_fotoPreviewWrap');
   const img = document.getElementById('f_fotoPreview');
-  if(url && url.startsWith('data:image')){ img.src = url; wrap.style.display='block'; }
+  if(url && (url.startsWith('data:image') || /^https:\/\//i.test(url))){ img.src = url; wrap.style.display='block'; }
   else { wrap.style.display='none'; img.src=''; }
 }
 document.getElementById('btnEscolherFoto').addEventListener('click', ()=>{
   document.getElementById('f_fotoFile').click();
 });
-document.getElementById('f_fotoFile').addEventListener('change', e=>{
+document.getElementById('f_fotoFile').addEventListener('change', async e=>{
   const file = e.target.files && e.target.files[0];
   e.target.value = ''; // permite escolher o mesmo arquivo de novo depois, se precisar
   if(!file) return;
+  if(fotosNoStorageAtivo()){
+    try{
+      const st = await carregarStorage();
+      const r = await Fotos.enviarFoto(st, TENANT_ID, editingHorseId || ('novo-'+Date.now()), file);
+      document.getElementById('f_fotoUrl').value = r.url;
+      fotoMeta = { url:r.url, miniUrl:r.urlMiniatura, path:r.path, miniPath:r.pathMiniatura };
+      atualizarFotoPreview();
+      return;
+    }catch(err){
+      console.error('Envio da foto ao Storage falhou:', err);
+      showAlert('Não consegui enviar a foto para o Storage ('+((err&&(err.code||err.message))||'erro')+'). Vou guardar no modo antigo, dentro do cadastro.');
+    }
+  }
+  fotoModoAntigo(file);
+});
+function fotoModoAntigo(file){
+  fotoMeta = null;
   const reader = new FileReader();
   reader.onload = ev=>{
     const img = new Image();
@@ -6305,8 +6579,11 @@ document.getElementById('f_fotoFile').addEventListener('change', e=>{
   };
   reader.onerror = ()=> showAlert('Não consegui ler esse arquivo.');
   reader.readAsDataURL(file);
+}
+document.getElementById('f_fotoUrl').addEventListener('input', ()=>{
+  if(fotoMeta && fotoMeta.url !== document.getElementById('f_fotoUrl').value) fotoMeta = null;
+  atualizarFotoPreview();
 });
-document.getElementById('f_fotoUrl').addEventListener('input', atualizarFotoPreview);
 function ensureExternalAnimal(nome, sexo, pais, comoInterno){
   if(!nome || !nome.trim()) return;
   const clean = titleCase(nome.trim());
@@ -6404,7 +6681,7 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
     // existe na tela, e o valor que já estava gravado é mantido exatamente como estava.
     proprietario:titleCase(f('f_proprietario')),associacao:titleCase(f('f_associacao')),numeroRegistro:f('f_numeroRegistro').trim(),valor: podeVerValoresAnimais() ? (f('f_valorNumero').trim() ? (f('f_valorMoeda')+' '+f('f_valorNumero').trim()) : '') : ((existenteAnimal&&existenteAnimal.valor)||''),comprador:titleCase(f('f_comprador')),
     dataVenda: f('f_situacao')==='V' ? f('f_dataVenda') : '',
-    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,compradoDe: document.getElementById('f_compra').checked ? titleCase(f('f_compradoDe')) : '',fotoUrl:f('f_fotoUrl').trim(),obs:f('f_obs') };
+    doador:(f('f_sexo')==='FEMININO' && document.getElementById('f_doador').checked),compra:document.getElementById('f_compra').checked,compradoDe: document.getElementById('f_compra').checked ? titleCase(f('f_compradoDe')) : '',fotoUrl:f('f_fotoUrl').trim(),...metaFotoParaSalvar(f('f_fotoUrl').trim()),obs:f('f_obs') };
   // Data em que o registro passou a existir aqui — usada só pelo rateio de custos gerais (Financeiro
   // → Custo por Animal) pra saber a partir de qual mês esse animal entra na divisão. Automática, gravada
   // uma vez só na criação (nunca muda depois); quem já estava cadastrado antes dessa atualização não
@@ -23196,7 +23473,30 @@ if(HAS_FIRESTORE){
 }
 
 /* ================= DIAGNÓSTICO ================= */
+document.getElementById('chkFotosStorage').addEventListener('change', e=>{
+  try{ if(e.target.checked) localStorage.setItem('haras_fotos_storage','1'); else localStorage.removeItem('haras_fotos_storage'); }catch(_){}
+});
+document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
+  const st = document.getElementById('migrarFotosStatus');
+  if(!fotosNoStorageAtivo()){ showAlert('Ligue primeiro a opção "Guardar fotos NOVAS no Firebase Storage" acima (e o Storage precisa estar ativado no Firebase).'); return; }
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode mover as fotos antigas.'); return; }
+  const alvo = horses.filter(h=>Fotos.ehDataImage(h.fotoUrl));
+  if(alvo.length===0){ st.textContent = 'Nenhuma foto antiga para mover.'; return; }
+  if(!(await showConfirm('Mover '+alvo.length+' foto(s) antiga(s) para o Storage? A foto antiga só é trocada depois que o envio dá certo.'))) return;
+  let ok = 0, falhou = 0;
+  try{
+    const sto = await carregarStorage();
+    for(const h of alvo){
+      st.textContent = 'Movendo '+(ok+falhou+1)+' de '+alvo.length+'...';
+      try{ if(await Fotos.migrarBase64ParaStorage(sto, TENANT_ID, h)) ok++; }catch(e){ console.error('Foto de '+h.nome+':', e); falhou++; }
+    }
+  }catch(e){ showAlert('Não consegui usar o Storage: '+((e&&(e.code||e.message))||'erro')); return; }
+  if(ok>0 && !(await storeSet('horses_list', horses))){ st.textContent = 'Fotos enviadas, mas não consegui salvar o cadastro. Tente de novo.'; return; }
+  st.textContent = ok+' movida(s)'+(falhou?(', '+falhou+' com erro'):'')+'.';
+  renderHorses();
+});
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
+  try{ document.getElementById('chkFotosStorage').checked = localStorage.getItem('haras_fotos_storage')==='1'; }catch(_){}
   document.getElementById('diagOutput').textContent = 'Clique em "Verificar agora" para consultar o armazenamento.';
   openModal('overlayDiag');
 });
