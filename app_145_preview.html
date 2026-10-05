@@ -3999,7 +3999,7 @@ const MSG_SEM_RELEITURA = 'Não consegui conferir os dados no servidor agora, en
 // Cada lista grande vive num documento só do banco, com teto de ~1 MB. Quando passa de ~80% avisa uma vez
 // (e de novo aos ~95%) — antes o teto estourava e as alterações simplesmente deixavam de salvar.
 const LIMITE_DOC_BYTES = 1048576;
-const NOME_DOC_GRANDE = { horses_list:'Animais (inclui as fotos)', exames_animais:'Exames dos animais', consultoria_fotos:'Fotos da consultoria', animal_registros_list:'Registros de peso/foto dos animais', estoque_movimentos:'Movimentações de estoque', financeiro_lancamentos:'Financeiro', auditoria_log:'Auditoria' };
+const NOME_DOC_GRANDE = { horses_list:'Animais (inclui as fotos)', treinos_list:'Treinos', manejos_list:'Manejos', exames_animais:'Exames dos animais', consultoria_fotos:'Fotos da consultoria', animal_registros_list:'Registros de peso/foto dos animais', estoque_movimentos:'Movimentações de estoque', financeiro_lancamentos:'Financeiro', auditoria_log:'Auditoria' };
 const _avisoEspacoDoc = {};
 function tamanhoDocBytes(val){ try{ return new Blob([JSON.stringify(val)]).size; }catch(_){ return 0; } }
 function avisarEspacoDoc(key, val){
