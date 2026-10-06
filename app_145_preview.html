@@ -2014,13 +2014,10 @@
 
     <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
     <div class="overlay" id="overlayExamesAviso">
-      <div class="modal" style="max-width:min(94vw,640px);">
-        <div class="modal-head"><div class="modal-title">🩺 Controle de exames (AIE · Mormo)</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
-        <div class="hint-text" style="margin:0 0 8px;">Para renovar = exame que falta, vence em até 5 dias ou já venceu. Controlando = animais que você segue controlando. Parados = sem avisos. Marque os animais e use o botão para parar (ou voltar) a controlar vários de uma vez. O aviso abre sozinho no máximo uma vez por dia.</div>
-        <div id="exAvisoAbas" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
-        <input type="text" id="exAvisoBusca" placeholder="Buscar animal..." style="width:100%;margin-bottom:8px;">
-        <div id="exAvisoAcoes" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"></div>
-        <div id="exAvisoLista" style="max-height:48vh;overflow-y:auto;"></div>
+      <div class="modal" style="max-width:min(94vw,600px);">
+        <div class="modal-head"><div class="modal-title">🩺 Exames para refazer (AIE · Mormo)</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
+        <div class="hint-text" style="margin:0 0 8px;">Faltam 5 dias ou menos, já venceu, ou ainda não tem exame. <strong>Marque</strong> os animais que você não vai mais controlar e toque em "Parar de controlar". Os que ficarem sem marca continuam sendo controlados. Este aviso abre no máximo uma vez por dia.</div>
+        <div id="exAvisoLista" style="max-height:55vh;overflow-y:auto;"></div>
         <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn" data-close="overlayExamesAviso">Fechar</button></div></div>
       </div>
     </div>
@@ -2385,6 +2382,13 @@
         <input type="date" id="el_mormoData" disabled style="flex:1;min-width:140px;">
         <input type="number" id="el_mormoDias" disabled style="width:110px;" value="60" min="1" placeholder="Dias de validade">
       </div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkControle"> Alterar Controle de exames (avisos de AIE/Mormo) para:</label>
+      <select id="el_controle" disabled style="margin-top:6px;width:100%;">
+        <option value="1">Seguir controlando (o app avisa quando faltar/vencer)</option>
+        <option value="0">Parar de controlar (some dos avisos)</option>
+      </select>
     </div>
     <div class="modal-actions">
       <div></div>
@@ -6643,6 +6647,8 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   document.getElementById('el_chkFreqManejo').checked = false;
   document.getElementById('el_chkAie').checked = false;
   document.getElementById('el_chkMormo').checked = false;
+  document.getElementById('el_chkControle').checked = false;
+  document.getElementById('el_controle').disabled = true;
   document.getElementById('el_localizacao').disabled = true;
   document.getElementById('el_categoria').disabled = true;
   document.getElementById('el_status').disabled = true;
@@ -6679,6 +6685,7 @@ document.getElementById('el_chkFreqManejo').addEventListener('change', e=>{
   document.getElementById('el_freqManejoTipo').disabled = !e.target.checked;
   document.getElementById('el_freqManejoValor').disabled = !e.target.checked;
 });
+document.getElementById('el_chkControle').addEventListener('change', e=>{ document.getElementById('el_controle').disabled = !e.target.checked; });
 document.getElementById('el_chkAie').addEventListener('change', e=>{
   document.getElementById('el_aieData').disabled = !e.target.checked;
   document.getElementById('el_aieDias').disabled = !e.target.checked;
@@ -6700,7 +6707,9 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const alterarFreqManejo = document.getElementById('el_chkFreqManejo').checked;
   const alterarAie = document.getElementById('el_chkAie').checked;
   const alterarMormo = document.getElementById('el_chkMormo').checked;
-  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarPeso && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
+  const alterarControle = document.getElementById('el_chkControle').checked;
+  const novoControle = document.getElementById('el_controle').value === '1';
+  if(!alterarLoc && !alterarControle && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarPeso && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
   const novaLoc = document.getElementById('el_localizacao').value;
   const novaCat = document.getElementById('el_categoria').value;
   const novoStatus = document.getElementById('el_status').value;
@@ -6754,10 +6763,17 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     if(alterarSituacao) nh.situacao = novaSituacao;
     if(alterarDoador && nh.sexo==='FEMININO') nh.doador = novoDoador;
     if(alterarFreqManejo) nh[freqCampo] = freqManejoValor;
+    if(alterarControle) nh.controleExames = novoControle;
     if(alterarAie || alterarMormo){
       nh.examesSaude = {...(h.examesSaude||{})};
-      if(alterarAie) nh.examesSaude.AIE = { data: aieData, dias: Math.max(1, Math.round(Number(aieDias))) };
-      if(alterarMormo) nh.examesSaude.Mormo = { data: mormoData, dias: Math.max(1, Math.round(Number(mormoDias))) };
+      // Exame novo substitui o anterior; arquivos (PDF) do exame anterior não se perdem: ficam em "exames anteriores".
+      const trocar = (tp, data, dias)=>{
+        const ant = nh.examesSaude[tp];
+        if(ant && ant.data && ant.data!==data && (ant.arquivos||[]).length) nh.examesSaudeAnteriores = [...(nh.examesSaudeAnteriores||h.examesSaudeAnteriores||[]), { tipo:tp, data:ant.data, arquivos:ant.arquivos }];
+        nh.examesSaude[tp] = (ant && ant.data===data) ? { ...ant, dias } : { data, dias, arquivos:[] };
+      };
+      if(alterarAie) trocar('AIE', aieData, Math.max(1, Math.round(Number(aieDias))));
+      if(alterarMormo) trocar('Mormo', mormoData, Math.max(1, Math.round(Number(mormoDias))));
     }
     return nh;
   });
@@ -8596,16 +8612,13 @@ function renderInicioSaude(host){
     .filter(x=> x.aie && x.mormo && x.aie>=hojeS && x.mormo>=hojeS)
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const aRenovar = examesSaudeParaRenovar();
+  const nRenovar = new Set(aRenovar.map(x=>x.h.id)).size;
   const secRenovar = aRenovar.length===0 ? '' : `<div style="margin-top:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Refazer exame (${aRenovar.length})</span><a href="#" data-exgerenciar style="font-size:11px;">Seguir / parar de controlar</a></div>
-    <div style="display:flex;flex-direction:column;gap:6px;">${aRenovar.map(x=>`
-      <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
-        <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
-        <div style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-size:11px;">${x.tp} ${textoStatusExameSaude(x)}${x.vencido && x.e && (x.e.arquivos||[]).length && !x.e.manterPdf ? ' · decidir sobre os PDFs':''}</div>
-      </div>`).join('')}</div>
+    <div style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${nRenovar})</div>
+    <div data-exlista></div>
   </div>`;
   const secExames = `<div style="margin-top:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</span><a href="#" data-exgerenciar style="font-size:11px;">Controle de exames</a></div>
+    <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
     ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
       : `<div style="display:flex;flex-direction:column;gap:6px;">
           ${comExamesOk.map(x=>`
@@ -8627,7 +8640,7 @@ function renderInicioSaude(host){
     ${secExames}
   `;
   host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
-  host.querySelectorAll('[data-exgerenciar]').forEach(a=> a.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); abrirControleExames('renovar'); }));
+  host.querySelectorAll('[data-exlista]').forEach(el=>{ el.addEventListener('click', ev=>ev.stopPropagation()); renderListaRenovar(el); });
 }
 
 // "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais ANTIGA primeiro, pra a estação
@@ -23524,101 +23537,73 @@ async function alternarControleExames(h, ligar, perguntarArquivos){
   await storeSet('horses_list', horses);
   if(descartar) await descartarArquivosExame(h, arqs);
 }
-let exAvisoAba = 'renovar', exAvisoBusca = '', exAvisoSel = new Set();
-function animaisAtivosParaControle(){ return horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento && h.nome); }
-function resumoExamesAnimal(h){
-  const part = tp=>{ const e=(h.examesSaude||{})[tp]; if(!e||!e.data) return tp+': sem exame'; const r=diasParaVencerExameSaude(e); return tp+': '+(r<0?'vencido há '+(-r)+' d':'vence em '+r+' d'); };
-  return part('AIE')+' · '+part('Mormo');
-}
-function renderExamesAviso(){
-  const hostL = document.getElementById('exAvisoLista'); if(!hostL) return 0;
-  const renovar = examesSaudeParaRenovar();
-  const ativos = animaisAtivosParaControle();
-  const emControle = ativos.filter(controleExamesAtivo).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  const fora = ativos.filter(h=>!controleExamesAtivo(h)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
-  const termo = (exAvisoBusca||'').trim().toLowerCase();
-  const passa = h=> !termo || (h.nome||'').toLowerCase().includes(termo);
-  const chip = (k,rot,n)=>`<span class="chip ${exAvisoAba===k?'active':''}" data-exavaba="${k}">${rot} (${n})</span>`;
-  document.getElementById('exAvisoAbas').innerHTML = chip('renovar','Para renovar',renovar.length)+chip('controle','Controlando',emControle.length)+chip('fora','Parados',fora.length);
-  document.getElementById('exAvisoAbas').querySelectorAll('[data-exavaba]').forEach(c=>c.addEventListener('click',()=>{ exAvisoAba=c.dataset.exavaba; exAvisoSel=new Set(); renderExamesAviso(); }));
-  const busca = document.getElementById('exAvisoBusca'); if(busca.value!==exAvisoBusca) busca.value = exAvisoBusca;
-  let linhas = '', visiveis = [];
-  if(exAvisoAba==='renovar'){
-    const lista = renovar.filter(x=>passa(x.h));
-    visiveis = [...new Set(lista.map(x=>x.h.id))];
-    linhas = lista.length===0 ? '<div class="hint-text">Nenhum exame para renovar agora.</div>' : lista.map(x=>`
-      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line-well);">
-        <input type="checkbox" data-exavsel="${x.h.id}" ${exAvisoSel.has(x.h.id)?'checked':''} style="margin-top:3px;flex:0 0 auto;">
-        <div style="flex:1 1 auto;min-width:0;">
-          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
-            <strong style="cursor:pointer;" data-exavabrir="${x.h.id}">${escHtml(x.h.nome||'—')}</strong>
-            <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.semExame ? 'sem exame registrado' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)'))}</span>
-          </div>
-          <div class="hint-text" style="margin:2px 0 0;">${x.semExame ? 'Fazer o exame de '+x.tp+'.' : (x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').')}</div>
-          ${x.vencido && x.e && (x.e.arquivos||[]).length && !x.e.manterPdf ? `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <span style="font-size:12px;">Descartar os ${(x.e.arquivos||[]).length} arquivo(s) desse exame vencido?</span>
-            <button type="button" class="btn btn-sm btn-danger" data-exavdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
-            <button type="button" class="btn btn-sm btn-ghost" data-exavmanter="${x.h.id}|${x.tp}">Manter</button>
-          </div>` : ''}
+// Lista "para refazer": UMA linha por animal, com caixa de seleção. Usada no aviso diário e no Início → Saúde (mesmo código).
+function renderListaRenovar(host){
+  if(!host) return 0;
+  const itens = examesSaudeParaRenovar();
+  const porAnimal = new Map();
+  itens.forEach(x=>{ if(!porAnimal.has(x.h.id)) porAnimal.set(x.h.id, { h:x.h, itens:[] }); porAnimal.get(x.h.id).itens.push(x); });
+  const grupos = [...porAnimal.values()];
+  const sel = host._exSel || (host._exSel = new Set());
+  [...sel].forEach(id=>{ if(!porAnimal.has(id)) sel.delete(id); });
+  if(!grupos.length){ host.innerHTML = '<div class="hint-text">Nenhum exame para refazer agora.</div>'; return 0; }
+  const cor = x=> x.vencido ? 'var(--burgundy)' : 'var(--warn)';
+  host.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" data-exall> Marcar todos</label>
+      <button type="button" class="btn btn-sm btn-danger" data-exparar disabled>🔕 Parar de controlar os marcados</button>
+    </div>` + grupos.map(g=>`
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line-well);">
+        <input type="checkbox" data-exsel="${g.h.id}" ${sel.has(g.h.id)?'checked':''} style="margin-top:3px;flex:0 0 auto;">
+        <div style="flex:1 1 auto;min-width:0;line-height:1.35;">
+          <strong style="cursor:pointer;font-size:12.5px;" data-exabrir="${g.h.id}">${escHtml(g.h.nome||'—')}</strong>
+          ${g.itens.map(x=>`<div style="color:${cor(x)};font-size:11.5px;">${x.tp} · ${textoStatusExameSaude(x)}${x.semExame?' — fazer o exame':' — refazer'}</div>
+            ${x.vencido && x.e && (x.e.arquivos||[]).length && !x.e.manterPdf ? `<div style="margin:2px 0 4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:11.5px;">
+              <span>Descartar os ${(x.e.arquivos||[]).length} arquivo(s) desse exame vencido?</span>
+              <button type="button" class="btn btn-sm btn-danger" data-exdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
+              <button type="button" class="btn btn-sm btn-ghost" data-exmanter="${x.h.id}|${x.tp}">Manter</button>
+            </div>` : ''}`).join('')}
         </div>
       </div>`).join('');
-  }else{
-    const base = (exAvisoAba==='controle' ? emControle : fora).filter(passa);
-    visiveis = base.map(h=>h.id);
-    linhas = base.length===0 ? '<div class="hint-text">Nenhum animal nesta lista.</div>' : base.map(h=>`
-      <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-well);">
-        <input type="checkbox" data-exavsel="${h.id}" ${exAvisoSel.has(h.id)?'checked':''} style="flex:0 0 auto;">
-        <strong style="cursor:pointer;flex:1 1 auto;min-width:0;" data-exavabrir="${h.id}">${escHtml(h.nome)}</strong>
-        <span class="hint-text" style="margin:0;text-align:right;">${resumoExamesAnimal(h)}</span>
-      </div>`).join('');
-  }
-  hostL.innerHTML = linhas;
-  const nSel = [...exAvisoSel].filter(id=>visiveis.includes(id)).length;
-  const acoes = document.getElementById('exAvisoAcoes');
-  const ligarBtn = exAvisoAba==='fora';
-  acoes.innerHTML = `<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="exAvisoTodos" ${visiveis.length && nSel===visiveis.length?'checked':''}> Selecionar todos${termo?' (da busca)':''}</label>
-    <span class="hint-text" style="margin:0;">${nSel} selecionado(s)</span>
-    <button type="button" class="btn btn-sm ${ligarBtn?'':'btn-danger'}" id="exAvisoAplicar" ${nSel?'':'disabled'}>${ligarBtn?'🔔 Voltar a controlar os selecionados':'🔕 Parar de controlar os selecionados'}</button>`;
-  document.getElementById('exAvisoTodos').addEventListener('change', e=>{ if(e.target.checked) visiveis.forEach(id=>exAvisoSel.add(id)); else visiveis.forEach(id=>exAvisoSel.delete(id)); renderExamesAviso(); });
-  hostL.querySelectorAll('[data-exavsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) exAvisoSel.add(cb.dataset.exavsel); else exAvisoSel.delete(cb.dataset.exavsel); renderExamesAviso(); }));
-  document.getElementById('exAvisoAplicar').addEventListener('click', async ()=>{
-    const ids = [...exAvisoSel].filter(id=>visiveis.includes(id)); const hs = ids.map(id=>horses.find(x=>x.id===id)).filter(Boolean); if(!hs.length) return;
-    if(ligarBtn){
-      if(!(await showConfirm('Voltar a controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles passam a aparecer nos avisos até terem os exames em dia.', {okLabel:'Voltar a controlar'}))) return;
-      hs.forEach(h=>{ h.controleExames = true; });
-      await storeSet('horses_list', horses);
-    }else{
-      const arqsPorAnimal = hs.map(h=>({h, arqs:[...(((h.examesSaude||{}).AIE||{}).arquivos||[]), ...(((h.examesSaude||{}).Mormo||{}).arquivos||[])]})).filter(x=>x.arqs.length);
-      const totalArqs = arqsPorAnimal.reduce((n,x)=>n+x.arqs.length,0);
-      if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles somem dos avisos (dá para voltar a controlar depois).', {okLabel:'Parar de controlar'}))) return;
-      let descartar = false;
-      if(totalArqs) descartar = !!(await showConfirm('Descartar também os '+totalArqs+' arquivo(s) de exame guardados desses animais? (Se escolher "Manter", eles continuam guardados.)', {danger:true, okLabel:'Descartar', cancelLabel:'Manter'}));
-      hs.forEach(h=>{ h.controleExames = false; });
-      if(descartar) arqsPorAnimal.forEach(x=>{ ['AIE','Mormo'].forEach(tp=>{ if((x.h.examesSaude||{})[tp]) x.h.examesSaude[tp].arquivos = []; }); });
-      await storeSet('horses_list', horses);
-      if(descartar) for(const x of arqsPorAnimal) await descartarArquivosExame(x.h, x.arqs);
-    }
-    exAvisoSel = new Set(); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
+  const btn = host.querySelector('[data-exparar]'), todos = host.querySelector('[data-exall]');
+  const atualizarBotao = ()=>{
+    btn.disabled = sel.size===0; btn.textContent = sel.size ? '🔕 Parar de controlar os marcados ('+sel.size+')' : '🔕 Parar de controlar os marcados';
+    todos.checked = sel.size>0 && sel.size===grupos.length;
+  };
+  atualizarBotao();
+  todos.addEventListener('change', ()=>{ if(todos.checked) grupos.forEach(g=>sel.add(g.h.id)); else sel.clear(); host.querySelectorAll('[data-exsel]').forEach(cb=>{ cb.checked = sel.has(cb.dataset.exsel); }); atualizarBotao(); });
+  host.querySelectorAll('[data-exsel]').forEach(cb=>cb.addEventListener('change', ()=>{ if(cb.checked) sel.add(cb.dataset.exsel); else sel.delete(cb.dataset.exsel); atualizarBotao(); }));
+  host.querySelectorAll('[data-exabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exabrir); }));
+  host.querySelectorAll('[data-exdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [id,tp] = b.dataset.exdescartar.split('|'); const h = horses.find(x=>x.id===id); if(!h) return;
+    await descartarPdfsExameVencido(h, tp); renderListaRenovar(host); atualizarTelasQueDependemDeAnimais();
+  }));
+  host.querySelectorAll('[data-exmanter]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [id,tp] = b.dataset.exmanter.split('|'); const h = horses.find(x=>x.id===id); if(!h || !(h.examesSaude||{})[tp]) return;
+    h.examesSaude[tp].manterPdf = true; await storeSet('horses_list', horses); renderListaRenovar(host);
+  }));
+  btn.addEventListener('click', async ()=>{
+    const hs = [...sel].map(id=>horses.find(x=>x.id===id)).filter(Boolean); if(!hs.length) return;
+    if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles somem dos avisos. Os que você não marcou continuam sendo controlados. (Para voltar a controlar: botão na ficha ou "Editar em lote" na lista de Animais.)', {okLabel:'Parar de controlar'}))) return;
+    const arqsPorAnimal = hs.map(h=>({h, arqs:[...(((h.examesSaude||{}).AIE||{}).arquivos||[]), ...(((h.examesSaude||{}).Mormo||{}).arquivos||[])]})).filter(x=>x.arqs.length);
+    const totalArqs = arqsPorAnimal.reduce((n,x)=>n+x.arqs.length,0);
+    let descartar = false;
+    if(totalArqs) descartar = !!(await showConfirm('Descartar também os '+totalArqs+' arquivo(s) de exame guardados desses animais? (Se escolher "Manter", eles continuam guardados.)', {danger:true, okLabel:'Descartar', cancelLabel:'Manter'}));
+    hs.forEach(h=>{ h.controleExames = false; });
+    if(descartar) arqsPorAnimal.forEach(x=>{ ['AIE','Mormo'].forEach(tp=>{ if((x.h.examesSaude||{})[tp]) x.h.examesSaude[tp].arquivos = []; }); });
+    await storeSet('horses_list', horses);
+    if(descartar) for(const x of arqsPorAnimal) await descartarArquivosExame(x.h, x.arqs);
+    sel.clear(); renderListaRenovar(host); atualizarTelasQueDependemDeAnimais();
   });
-  hostL.querySelectorAll('[data-exavabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exavabrir); }));
-  hostL.querySelectorAll('[data-exavdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
-    const [id,tp] = b.dataset.exavdescartar.split('|'); const h = horses.find(x=>x.id===id); if(!h) return;
-    await descartarPdfsExameVencido(h, tp); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
-  }));
-  hostL.querySelectorAll('[data-exavmanter]').forEach(b=>b.addEventListener('click', async ()=>{
-    const [id,tp] = b.dataset.exavmanter.split('|'); const h = horses.find(x=>x.id===id); if(!h || !(h.examesSaude||{})[tp]) return;
-    h.examesSaude[tp].manterPdf = true; await storeSet('horses_list', horses); renderExamesAviso();
-  }));
-  return renovar.length;
+  return grupos.length;
 }
-function abrirControleExames(aba){ exAvisoAba = aba || 'renovar'; exAvisoSel = new Set(); exAvisoBusca = ''; renderExamesAviso(); openModal('overlayExamesAviso'); }
-document.getElementById('exAvisoBusca').addEventListener('input', e=>{ exAvisoBusca = e.target.value; renderExamesAviso(); });
+function renderExamesAviso(){ return renderListaRenovar(document.getElementById('exAvisoLista')); }
+function abrirControleExames(){ renderExamesAviso(); openModal('overlayExamesAviso'); }
 function avisarExamesSaudeSePreciso(){
   try{
     const hoje = toISODate(new Date());
     const chave = 'haras_aviso_exames_'+((currentUser&&(currentUser.id||currentUser.email))||'u');
     if(localStorage.getItem(chave)===hoje) return;
-    if(examesSaudeParaRenovar().length>0){ localStorage.setItem(chave, hoje); abrirControleExames('renovar'); }
+    if(examesSaudeParaRenovar().length>0){ localStorage.setItem(chave, hoje); abrirControleExames(); }
   }catch(_){}
 }
 function renderAnimalTimeline(h){
