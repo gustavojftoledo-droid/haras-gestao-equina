@@ -15705,6 +15705,23 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
 function consultoriaAvaliacoesDaVisita(visitaId){
   return consultoriaAvaliacoes.filter(a=>a.visitaId===visitaId);
 }
+// Ao EXCLUIR avaliação(ões), as fotos delas NÃO se perdem: viram pontos datados na Linha do Tempo do animal
+// (data da visita) e os arquivos continuam no Storage. Devolve Promise<boolean> (false = não conseguiu guardar;
+// nesse caso quem chamou NÃO deve excluir nada).
+function preservarFotosDeAvaliacoes(avaliacoes){
+  const regs = [];
+  avaliacoes.forEach(a=>{
+    const fotos = Array.isArray(consultoriaFotos[a.id]) ? consultoriaFotos[a.id].slice().sort((x,y)=>(x.ordem||0)-(y.ordem||0)) : [];
+    if(!fotos.length) return;
+    const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
+    const data = (visita && visita.data) || a.data || toISODate(new Date());
+    fotos.forEach(f2=>{ if(!f2.dataUrl) return;
+      regs.push({ id:aregNovoId(), animalId:a.animalId, animalNome:a.animalNome||'', data, peso:'', scoreCorporal:'',
+        fotoDataUrl:f2.dataUrl, fotoMiniUrl:f2.miniUrl||'', obs:(f2.legenda ? f2.legenda+' — ' : '')+'Foto da avaliação (Consultoria)' }); });
+  });
+  if(!regs.length) return Promise.resolve(true);
+  return aregAdicionar(regs);
+}
 // Avaliação "órfã" = a visita dela não existe mais (foi excluída por outro caminho/versão ou aparelho antigo).
 // Não deve aparecer na ficha do animal nem alimentar sugestões de peso. Só vale quando a lista de visitas foi
 // LIDA com sucesso — se a leitura falhou, nada é tratado como órfão (evita esconder/apagar por engano).
@@ -15717,13 +15734,12 @@ async function limparAvaliacoesConsultoriaOrfas(){
   const orfas = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa);
   if(orfas.length===0) return { n:0 };
   const ids = new Set(orfas.map(a=>a.id));
-  const fotosDelas = orfas.flatMap(a=>Array.isArray(consultoriaFotos[a.id]) ? consultoriaFotos[a.id] : []);
+  if(!(await preservarFotosDeAvaliacoes(orfas))) return { erro:'Não consegui guardar as fotos na linha do tempo. Nada foi excluído.' };
   consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>!ids.has(a.id));
   if(!(await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes, true))) return { erro:'Não consegui salvar a limpeza. Tente de novo.' };
   let mexeuFotos = false;
   ids.forEach(id=>{ if(consultoriaFotos[id]){ delete consultoriaFotos[id]; mexeuFotos = true; } });
   if(mexeuFotos) await storeSet('consultoria_fotos', consultoriaFotos);
-  fotosDelas.forEach(f2=>limparArquivoSeOrfao(f2.dataUrl, f2.miniUrl));
   return { n: orfas.length };
 }
 
@@ -15964,8 +15980,9 @@ document.getElementById('btnSalvarEAvaliarProp').addEventListener('click', ()=>s
 // Sempre em cascata: apaga também as avaliações de animal daquela visita e as fotos delas.
 async function excluirVisitaConsultoria(id){
   const idsAvaliacoes = consultoriaAvaliacoesDaVisita(id).map(a=>a.id);
-  const msg = idsAvaliacoes.length>0 ? `Excluir esta visita? As ${idsAvaliacoes.length} avaliação(ões) de animal registradas nela (e as fotos delas) também serão excluídas.` : 'Excluir esta visita?';
+  const msg = idsAvaliacoes.length>0 ? `Excluir esta visita? As ${idsAvaliacoes.length} avaliação(ões) de animal registradas nela também serão excluídas. As fotos delas continuam na linha do tempo dos animais.` : 'Excluir esta visita?';
   if(!(await showConfirm(msg, {danger:true, okLabel:'Excluir'}))) return;
+  if(!(await preservarFotosDeAvaliacoes(consultoriaAvaliacoesDaVisita(id)))){ showAlert('Não consegui guardar as fotos na linha do tempo. Nada foi excluído.'); return; }
   consultoriaVisitas = consultoriaVisitas.filter(v=>v.id!==id);
   consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.visitaId!==id);
   await storeSet('consultoria_visitas_list', consultoriaVisitas, true);
@@ -16327,14 +16344,14 @@ document.getElementById('btnSaveAvaliacaoConsultoria').addEventListener('click',
   if(eraNova) showAlert(registros.length>1 ? `${registros.length} avaliações salvas. Pra adicionar fotos, clique em "Editar" em cada uma.` : 'Avaliação salva. Pra adicionar fotos, clique em "Editar" nesta avaliação.');
 });
 document.getElementById('btnDeleteAvaliacaoConsultoria').addEventListener('click', async ()=>{
-  if(!editingAvaliacaoConsultoriaId || !(await showConfirm('Excluir esta avaliação? As fotos dela também serão excluídas.', {danger:true, okLabel:'Excluir'}))) return;
+  if(!editingAvaliacaoConsultoriaId || !(await showConfirm('Excluir esta avaliação? As fotos dela continuam na linha do tempo do animal.', {danger:true, okLabel:'Excluir'}))) return;
   const id = editingAvaliacaoConsultoriaId;
+  const aval = consultoriaAvaliacoes.find(a=>a.id===id);
+  if(aval && !(await preservarFotosDeAvaliacoes([aval]))){ showAlert('Não consegui guardar as fotos na linha do tempo. Nada foi excluído.'); return; }
   consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.id!==id);
   await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
-  const fotosDaAvaliacao = Array.isArray(consultoriaFotos[id]) ? consultoriaFotos[id] : [];
   delete consultoriaFotos[id];
   await storeSet('consultoria_fotos', consultoriaFotos);
-  fotosDaAvaliacao.forEach(f2=>limparArquivoSeOrfao(f2.dataUrl, f2.miniUrl)); // arquivos no Storage saem junto (se ninguém mais os usa)
   closeModal('overlayConsultoriaAvaliacao');
   renderConsultoriaAvaliacoesVisita();
   atualizarListasVisitasAposAvaliacao();
@@ -23987,7 +24004,7 @@ document.getElementById('btnLimparAvalOrfas').addEventListener('click', async ()
   if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode limpar.'); return; }
   const n = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa).length;
   if(n===0){ st.textContent = 'Nenhuma avaliação sem visita.'; return; }
-  if(!(await showConfirm('Excluir '+n+' avaliação(ões) da consultoria cuja visita não existe mais (e as fotos delas)? Elas já não aparecem em nenhuma visita.', {danger:true, okLabel:'Excluir'}))) return;
+  if(!(await showConfirm('Excluir '+n+' avaliação(ões) da consultoria cuja visita não existe mais? Elas já não aparecem em nenhuma visita. As fotos delas continuam na linha do tempo do animal.', {danger:true, okLabel:'Excluir'}))) return;
   const r = await limparAvaliacoesConsultoriaOrfas();
   st.textContent = r.erro ? r.erro : (r.n+' avaliação(ões) excluída(s).');
   if(!r.erro) atualizarTelasQueDependemDeAnimais();
