@@ -9,8 +9,8 @@ const logger = require('firebase-functions/logger');
 const { sincronizarLista } = require('./papeis');
 const C = require('./clientes');
 
-// Região: precisa ser a mesma do Firestore. Troque criando functions/.env com REGIAO_FUNCOES=southamerica-east1 (por exemplo).
-setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'us-central1', maxInstances: 10 });
+// Região: precisa ser a mesma do Firestore (o banco do Gustavo está em São Paulo, southamerica-east1). Para outra região, crie functions/.env com REGIAO_FUNCOES=...
+setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'southamerica-east1', maxInstances: 10 });
 initializeApp();
 const auth = () => getAuth();
 const db = () => getFirestore();

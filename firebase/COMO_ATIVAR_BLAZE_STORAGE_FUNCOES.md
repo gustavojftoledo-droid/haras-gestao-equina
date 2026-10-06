@@ -4,8 +4,7 @@
 "Local padrão dos recursos do Google Cloud"). As funções precisam ficar na mesma região do Firestore.
 
 ## A. Ativar o Storage (console, uma vez)
-Firebase → **Storage** → **Começar** → modo de produção → escolher a **localização** (não muda depois; use a mesma do banco ou
-`southamerica-east1`/São Paulo) → Concluir.
+Firebase → **Storage** → **Começar** → modo de produção → escolher a **localização** `southamerica-east1` (São Paulo), a mesma do banco (não muda depois) → Concluir.
 
 ## B. Publicar as regras de fotos e as funções (Cloud Shell)
 ```
@@ -19,7 +18,7 @@ firebase deploy --only functions --project equinos-manager
 - `firebase login --no-localhost` mostra um endereço; abra no navegador, entre com a conta do Firebase e cole o código no terminal.
 - **Não** publicamos as regras do Firestore por aqui (já estão no ar pelo console, versão 2b).
 - Se o deploy pedir para habilitar APIs (Cloud Functions, Cloud Build, Artifact Registry), aceite.
-- Se o Firestore não estiver em `us-central1`, crie `functions/.env` com `REGIAO_FUNCOES=<região do banco>` antes do deploy.
+- O Firestore do Gustavo está em **São Paulo (`southamerica-east1`)**, e as funções já usam essa região por padrão. Nada a configurar.
 
 ## C. Dar a você o papel de "dono" (Cloud Shell)
 ```
