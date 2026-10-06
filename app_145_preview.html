@@ -3899,7 +3899,7 @@ const FIRESTORE_COLLECTION = 'harasData';
    copiado. O id do cliente vem do login (claim 'tenantId' criado pelo servidor); sem claim = haras original. */
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
-let MAX_FOTOS = 3;        // fotos por animal na ficha (principal + adicionais). Claim 'maxFotos' sobrescreve (plano do cliente)
+let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais). Claim 'maxFotos' sobrescreve (plano do cliente)
 function colecaoDados(){ return TENANT_ID ? ('tenants/'+TENANT_ID+'/dados') : FIRESTORE_COLLECTION; }
 function tenantIdValido(t){ return typeof t==='string' && /^[a-z0-9_-]{3,40}$/i.test(t); }
 async function resolverTenantDoUsuario(authUser){
@@ -3921,7 +3921,7 @@ async function resolverTenantDoUsuario(authUser){
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
   DONO = claims.dono === true;
   const mf = Number(claims.maxFotos);
-  MAX_FOTOS = (Number.isInteger(mf) && mf>=1 && mf<=50) ? mf : 3;
+  MAX_FOTOS = (Number.isInteger(mf) && mf>=1 && mf<=50) ? mf : 4;
   aplicarDiagnosticoVisivel();
 }
 // Diagnóstico some do menu de quem não é o dono do sistema. Para ensinar um cliente a usar, mande o endereço
@@ -6554,7 +6554,7 @@ let fotosExtrasApagar = [];  // adicionais removidas no formulário — só saem
 function totalFotosForm(){ return (document.getElementById('f_fotoUrl').value.trim() ? 1 : 0) + fotosExtras.length; }
 function renderFotosExtras(){
   const lista = document.getElementById('f_fotosExtrasLista'); if(!lista) return;
-  lista.innerHTML = fotosExtras.map((f,i)=>`<div style="position:relative;"><img src="${urlSegura(f.miniUrl||f.url)}" alt="Foto adicional" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;"><button type="button" data-rmfotoextra="${i}" title="Remover esta foto" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B85042;color:#fff;font-size:12px;line-height:20px;cursor:pointer;padding:0;">✕</button></div>`).join('');
+  lista.innerHTML = fotosExtras.map((f,i)=>`<div style="position:relative;"><img src="${urlSegura(f.miniUrl||f.url)}" alt="Foto adicional" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;"><button type="button" data-rmfotoextra="${i}" title="Tirar da ficha (a foto continua na linha do tempo)" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B85042;color:#fff;font-size:12px;line-height:20px;cursor:pointer;padding:0;">✕</button></div>`).join('');
   lista.querySelectorAll('[data-rmfotoextra]').forEach(b=> b.addEventListener('click', ()=>{
     const f = fotosExtras[Number(b.dataset.rmfotoextra)]; if(!f) return;
     fotosExtras = fotosExtras.filter(x=>x!==f); fotosExtrasApagar.push(f); renderFotosExtras();
@@ -6808,13 +6808,19 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
       fotoDataUrl: fotoMudou ? data.fotoUrl : '', fotoMiniUrl: fotoMudou ? (data.fotoMiniUrl||'') : '', obs:'' }];
     salvarEmSegundoPlano('animal_registros_list', animalRegistros);
   }
+  // Foto adicional NOVA no cadastro também vira um ponto datado (hoje) na Linha do Tempo — o arquivo
+  // fica no Storage mesmo se a foto for tirada da ficha depois, para o histórico não quebrar.
+  const urlsExtrasAntes = new Set(((existenteAnimal && existenteAnimal.fotosExtras) || []).map(x=>x.url));
+  const extrasNovas = fotosExtras.filter(x=>x.url && !urlsExtrasAntes.has(x.url));
+  if(extrasNovas.length){
+    animalRegistros = [...animalRegistros, ...extrasNovas.map(x=>({ id:'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      animalId: data.id, animalNome: data.nome, data: toISODate(new Date()), peso:'', scoreCorporal:'',
+      fotoDataUrl: x.url, fotoMiniUrl: x.miniUrl||'', obs:'' }))];
+    salvarEmSegundoPlano('animal_registros_list', animalRegistros);
+  }
   closeModal('overlayHorse'); refreshDatalists();
   atualizarTelasQueDependemDeAnimais();
   salvarEmSegundoPlano('horses_list', horses, ()=>{ atualizarTelasQueDependemDeAnimais(); });
-  if(fotosExtrasApagar.length && window.Fotos){
-    const apagar = fotosExtrasApagar; fotosExtrasApagar = [];
-    carregarStorage().then(st=> Promise.all(apagar.map(f=>Fotos.removerFoto(st, { fotoUrl:f.url, fotoMiniUrl:f.miniUrl })))).catch(e=>console.warn('Não consegui apagar fotos adicionais do Storage (ficam órfãs, sem prejuízo):', e));
-  }
   if(perfilAnimalId===data.id && document.getElementById('view-animalPerfil').classList.contains('active')) renderAnimalPerfil(data.id);
   // Virou "Vendido" agora (não estava antes)? A entrada no Financeiro é automática — lancamentosDerivadosVendas()
   // lê o cadastro do animal direto, então não tem nada pra criar nem pra confirmar aqui. Só avisa,
@@ -16051,7 +16057,7 @@ function renderFotosConsultoria(avaliacaoId){
   if(fotos.length===0){ host.innerHTML = '<div class="hint-text">Nenhuma foto ainda.</div>'; return; }
   host.innerHTML = fotos.map((foto,idx)=>`
     <div style="width:150px;border:1px solid var(--line);border-radius:8px;padding:6px;">
-      <img src="${urlSegura(foto.dataUrl)}" style="width:100%;height:110px;object-fit:cover;border-radius:5px;display:block;">
+      <img src="${urlSegura(foto.miniUrl||foto.dataUrl)}" style="width:100%;height:110px;object-fit:cover;border-radius:5px;display:block;">
       <input type="text" data-legendafoto="${foto.id}" value="${(foto.legenda||'').replace(/"/g,'&quot;')}" placeholder="Legenda (opcional)" style="width:100%;margin-top:6px;font-size:11.5px;padding:4px 6px;">
       <div style="display:flex;justify-content:space-between;margin-top:6px;">
         <span>
@@ -16077,7 +16083,11 @@ function renderFotosConsultoria(avaliacaoId){
   host.querySelectorAll('[data-fotodel]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Excluir esta foto?'))) return;
+      const removida = (consultoriaFotos[avaliacaoId]||[]).find(f2=>f2.id===btn.dataset.fotodel);
       consultoriaFotos[avaliacaoId] = (consultoriaFotos[avaliacaoId]||[]).filter(f2=>f2.id!==btn.dataset.fotodel);
+      if(removida && /^https:\/\//i.test(removida.dataUrl||'') && window.Fotos){
+        carregarStorage().then(st=>Fotos.removerFoto(st, { fotoUrl:removida.dataUrl, fotoMiniUrl:removida.miniUrl||'' })).catch(e=>console.warn('Não consegui apagar a foto do Storage (fica órfã, sem prejuízo):', e));
+      }
       await storeSet('consultoria_fotos', consultoriaFotos);
       renderFotosConsultoria(avaliacaoId);
       renderConsultoriaAvaliacoesVisita();
@@ -16099,39 +16109,63 @@ function moverFotoConsultoria(avaliacaoId, fotoId, delta){
 document.getElementById('btnAddFotoConsultoria').addEventListener('click', ()=>{
   document.getElementById('csa_fotoFile').click();
 });
-document.getElementById('csa_fotoFile').addEventListener('change', e=>{
+document.getElementById('csa_fotoFile').addEventListener('change', async e=>{
   const files = [...(e.target.files||[])];
   e.target.value = ''; // permite escolher os mesmos arquivos de novo depois, se precisar
   if(files.length===0 || !editingAvaliacaoConsultoriaId) return;
   const avaliacaoId = editingAvaliacaoConsultoriaId;
-  let processadas = 0;
-  files.forEach(file=>{
+  const av = consultoriaAvaliacoes.find(x=>x.id===avaliacaoId);
+  const animalId = (av && av.animalId) || 'consultoria';
+  // Com a opção do Storage ligada a foto vai para o Storage (com miniatura); se falhar, cai no modo antigo (dentro do cadastro).
+  let sto = null;
+  if(fotosNoStorageAtivo()){
+    try{ sto = await carregarStorage(); try{ sto.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); sto.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){} }
+    catch(err){ console.error('Consultoria: Storage indisponível:', err); showAlert('Não consegui usar o Storage ('+((err&&(err.code||err.message))||'erro')+'). Vou guardar as fotos no modo antigo, dentro do cadastro.'); }
+  }
+  const adicionar = campos=>{
+    const listaAtual = consultoriaFotos[avaliacaoId]||[];
+    consultoriaFotos[avaliacaoId] = [...listaAtual, { id:'fcf_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), legenda:'', ordem: listaAtual.length, ...campos }];
+    renderFotosConsultoria(avaliacaoId);
+    renderConsultoriaAvaliacoesVisita();
+  };
+  const modoAntigo = file=> new Promise(resolve=>{
     const reader = new FileReader();
     reader.onload = ev=>{
       const img = new Image();
       img.onload = ()=>{
-        const MAX_DIM = 900; // mesmo redimensionamento usado na foto do animal (5041-5082)
+        const MAX_DIM = 900; // mesmo redimensionamento usado na foto do animal
         let w = img.width, h = img.height;
         if(w>h && w>MAX_DIM){ h = Math.round(h*MAX_DIM/w); w = MAX_DIM; }
         else if(h>=w && h>MAX_DIM){ w = Math.round(w*MAX_DIM/h); h = MAX_DIM; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
-        const listaAtual = consultoriaFotos[avaliacaoId]||[];
-        const novaFoto = { id:'fcf_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), dataUrl, legenda:'', ordem: listaAtual.length };
-        consultoriaFotos[avaliacaoId] = [...listaAtual, novaFoto];
-        processadas++;
-        renderFotosConsultoria(avaliacaoId);
-        renderConsultoriaAvaliacoesVisita();
-        if(processadas===files.length) salvarEmSegundoPlano('consultoria_fotos', consultoriaFotos, ()=>renderFotosConsultoria(avaliacaoId));
+        adicionar({ dataUrl: canvas.toDataURL('image/jpeg', 0.72) });
+        resolve();
       };
-      img.onerror = ()=> showAlert('Não consegui ler uma dessas imagens.');
+      img.onerror = ()=>{ showAlert('Não consegui ler uma dessas imagens.'); resolve(); };
       img.src = ev.target.result;
     };
-    reader.onerror = ()=> showAlert('Não consegui ler um desses arquivos.');
+    reader.onerror = ()=>{ showAlert('Não consegui ler um desses arquivos.'); resolve(); };
     reader.readAsDataURL(file);
   });
+  let avisou = false;
+  for(const file of files){
+    if(sto){
+      try{
+        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+        const r = await Promise.race([Fotos.enviarFoto(sto, TENANT_ID, animalId, file), limite]);
+        adicionar({ dataUrl: r.url, miniUrl: r.urlMiniatura || '' });
+        continue;
+      }catch(err){
+        console.error('Consultoria: envio ao Storage falhou:', err);
+        if(!avisou){ avisou = true; showAlert('Não consegui enviar a foto para o Storage ('+((err&&(err.code||err.message))||'erro')+'). Vou guardar no modo antigo, dentro do cadastro.'); }
+        sto = null;
+      }
+    }
+    await modoAntigo(file);
+  }
+  salvarEmSegundoPlano('consultoria_fotos', consultoriaFotos, ()=>renderFotosConsultoria(avaliacaoId));
 });
 
 /* ---- Histórico de Propriedade: 2 níveis — Nível 1 lista as propriedades (chPropriedadeAtual===null),
@@ -22850,7 +22884,7 @@ function computeLinhaDoTempoVisualDados(h, de, ate){
     if(!dentro(data)) return;
     if(a.scoreCorporal) out.score.push({ data, titulo:'Score '+a.scoreCorporal, detalhe:'Avaliação Consultoria' });
     if(a.peso) out.peso.push({ data, titulo:a.peso+' kg', detalhe:'Avaliação Consultoria' });
-    (consultoriaFotos[a.id]||[]).forEach(f2=>out.foto.push({ data, titulo:'Foto', detalhe:'Avaliação Consultoria', fotoUrl:f2.dataUrl }));
+    (consultoriaFotos[a.id]||[]).forEach(f2=>out.foto.push({ data, titulo:'Foto', detalhe:'Avaliação Consultoria', fotoUrl:f2.dataUrl, fotoMini:f2.miniUrl||'' }));
   });
   animalRegistros.filter(r=>r.animalId===h.id).forEach(r=>{
     if(!dentro(r.data)) return;
@@ -23603,9 +23637,11 @@ document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
   if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode mover as fotos antigas.'); return; }
   const alvoH = horses.filter(h=>Fotos.ehDataImage(h.fotoUrl));
   const alvoR = animalRegistros.filter(r=>Fotos.ehDataImage(r.fotoDataUrl));
-  if(alvoH.length===0 && alvoR.length===0){ st.textContent = 'Nenhuma foto antiga para mover.'; return; }
-  if(!(await showConfirm('Mover para o Storage '+alvoH.length+' foto(s) de animal e '+alvoR.length+' foto(s) da linha do tempo? A foto antiga só é trocada depois que o envio dá certo.'))) return;
-  let okH = 0, okR = 0, falhou = 0, n = 0; const total = alvoH.length + alvoR.length;
+  const alvoC = [];
+  Object.keys(consultoriaFotos||{}).forEach(aid=>{ (Array.isArray(consultoriaFotos[aid])?consultoriaFotos[aid]:[]).forEach(f2=>{ if(Fotos.ehDataImage(f2.dataUrl)) alvoC.push({ aid, f:f2 }); }); });
+  if(alvoH.length===0 && alvoR.length===0 && alvoC.length===0){ st.textContent = 'Nenhuma foto antiga para mover.'; return; }
+  if(!(await showConfirm('Mover para o Storage '+alvoH.length+' foto(s) de animal, '+alvoR.length+' da linha do tempo e '+alvoC.length+' da consultoria? A foto antiga só é trocada depois que o envio dá certo.'))) return;
+  let okH = 0, okR = 0, okC = 0, falhou = 0, n = 0; const total = alvoH.length + alvoR.length + alvoC.length;
   try{
     const sto = await carregarStorage();
     for(const h of alvoH){
@@ -23620,10 +23656,19 @@ document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
         if(await Fotos.migrarBase64ParaStorage(sto, TENANT_ID, tmp)){ r.fotoDataUrl = tmp.fotoUrl; r.fotoMiniUrl = tmp.fotoMiniUrl || ''; okR++; }
       }catch(e){ console.error('Foto da linha do tempo ('+(r.animalNome||r.animalId)+'):', e); falhou++; }
     }
+    for(const c of alvoC){
+      st.textContent = 'Movendo '+(++n)+' de '+total+'...';
+      const av = consultoriaAvaliacoes.find(x=>x.id===c.aid);
+      const tmp = { id: (av && av.animalId) || 'consultoria', fotoUrl: c.f.dataUrl };
+      try{
+        if(await Fotos.migrarBase64ParaStorage(sto, TENANT_ID, tmp)){ c.f.dataUrl = tmp.fotoUrl; c.f.miniUrl = tmp.fotoMiniUrl || ''; okC++; }
+      }catch(e){ console.error('Foto da consultoria:', e); falhou++; }
+    }
   }catch(e){ showAlert('Não consegui usar o Storage: '+((e&&(e.code||e.message))||'erro')); return; }
+  if(okC>0 && !(await storeSet('consultoria_fotos', consultoriaFotos))){ st.textContent = 'Fotos enviadas, mas não consegui salvar as fotos da consultoria. Tente de novo.'; return; }
   if(okH>0 && !(await storeSet('horses_list', horses))){ st.textContent = 'Fotos enviadas, mas não consegui salvar o cadastro dos animais. Tente de novo.'; return; }
   if(okR>0 && !(await storeSet('animal_registros_list', animalRegistros))){ st.textContent = 'Fotos enviadas, mas não consegui salvar a linha do tempo. Tente de novo.'; return; }
-  st.textContent = okH+' de animal e '+okR+' da linha do tempo movida(s)'+(falhou?(', '+falhou+' com erro'):'')+'.';
+  st.textContent = okH+' de animal, '+okR+' da linha do tempo e '+okC+' da consultoria movida(s)'+(falhou?(', '+falhou+' com erro'):'')+'.';
   renderHorses();
 });
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
