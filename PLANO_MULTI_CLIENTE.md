@@ -33,3 +33,7 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 - Etapa 3 (fotos no Storage): **preparada na branch** — `firebase/storage/` (regras 43/43, módulo 40/40). Falta encaixar no app e ativar (Blaze).
 - Etapa 4 (funções no servidor): **preparada na branch** — `functions/` (26/26 + teste ponta a ponta nos emuladores): sincroniza papéis sozinho, cria/bloqueia cliente, mede uso. Falta Blaze e `firebase deploy`.
 - Etapa 5 (cobrança, termos, LGPD): a decidir.
+
+## Estado em 06/10/2026
+- Blaze ativo (período grátis); Storage ativo (São Paulo); regras do Storage e 5 funções publicadas (Node 22); claim `dono` dada ao Gustavo.
+- Foto nova no Storage testada no app de teste (rápida, sem alerta). Falta: mover fotos antigas, promover o código de fotos ao app em uso (só com 'pode subir'), divisão de listas (limite de 1 MiB), painel de clientes, cobrança.
