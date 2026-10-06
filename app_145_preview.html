@@ -2014,10 +2014,13 @@
 
     <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
     <div class="overlay" id="overlayExamesAviso">
-      <div class="modal" style="max-width:min(92vw,560px);">
-        <div class="modal-head"><div class="modal-title">🩺 Exames para renovar</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
-        <div class="hint-text" style="margin:0 0 6px;">AIE e Mormo que vencem em até 5 dias ou já venceram. Toque no nome para abrir a ficha. Este aviso aparece no máximo uma vez por dia; a lista fica sempre em Início → Saúde.</div>
-        <div id="exAvisoLista"></div>
+      <div class="modal" style="max-width:min(94vw,640px);">
+        <div class="modal-head"><div class="modal-title">🩺 Controle de exames (AIE · Mormo)</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
+        <div class="hint-text" style="margin:0 0 8px;">Para renovar = exame que falta, vence em até 5 dias ou já venceu. Marque os animais e use os botões para parar (ou voltar) a controlar vários de uma vez. O aviso abre sozinho no máximo uma vez por dia.</div>
+        <div id="exAvisoAbas" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <input type="text" id="exAvisoBusca" placeholder="Buscar animal..." style="width:100%;margin-bottom:8px;">
+        <div id="exAvisoAcoes" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"></div>
+        <div id="exAvisoLista" style="max-height:48vh;overflow-y:auto;"></div>
         <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn" data-close="overlayExamesAviso">Fechar</button></div></div>
       </div>
     </div>
@@ -8594,7 +8597,7 @@ function renderInicioSaude(host){
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const aRenovar = examesSaudeParaRenovar();
   const secRenovar = aRenovar.length===0 ? '' : `<div style="margin-top:16px;">
-    <div style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${aRenovar.length})</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Refazer exame (${aRenovar.length})</span><a href="#" data-exgerenciar style="font-size:11px;">Gerenciar / parar de controlar</a></div>
     <div style="display:flex;flex-direction:column;gap:6px;">${aRenovar.map(x=>`
       <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
         <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
@@ -8602,7 +8605,7 @@ function renderInicioSaude(host){
       </div>`).join('')}</div>
   </div>`;
   const secExames = `<div style="margin-top:16px;">
-    <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</span><a href="#" data-exgerenciar style="font-size:11px;">Controle de exames</a></div>
     ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
       : `<div style="display:flex;flex-direction:column;gap:6px;">
           ${comExamesOk.map(x=>`
@@ -8624,6 +8627,7 @@ function renderInicioSaude(host){
     ${secExames}
   `;
   host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
+  host.querySelectorAll('[data-exgerenciar]').forEach(a=> a.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); abrirControleExames('renovar'); }));
 }
 
 // "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais ANTIGA primeiro, pra a estação
@@ -23520,44 +23524,101 @@ async function alternarControleExames(h, ligar, perguntarArquivos){
   await storeSet('horses_list', horses);
   if(descartar) await descartarArquivosExame(h, arqs);
 }
+let exAvisoAba = 'renovar', exAvisoBusca = '', exAvisoSel = new Set();
+function animaisAtivosParaControle(){ return horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento && h.nome); }
+function resumoExamesAnimal(h){
+  const part = tp=>{ const e=(h.examesSaude||{})[tp]; if(!e||!e.data) return tp+': sem exame'; const r=diasParaVencerExameSaude(e); return tp+': '+(r<0?'vencido há '+(-r)+' d':'vence em '+r+' d'); };
+  return part('AIE')+' · '+part('Mormo');
+}
 function renderExamesAviso(){
-  const itens = examesSaudeParaRenovar();
-  const host = document.getElementById('exAvisoLista'); if(!host) return 0;
-  host.innerHTML = itens.length===0 ? '<div class="hint-text">Nenhum exame para renovar agora.</div>' : itens.map((x,i)=>`
-    <div style="padding:10px 0;border-bottom:1px solid var(--line-well);">
-      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
-        <strong style="cursor:pointer;" data-exavabrir="${x.h.id}">${escHtml(x.h.nome||'—')}</strong>
-        <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.semExame ? 'sem exame registrado' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)'))}</span>
-      </div>
-      <div class="hint-text" style="margin:2px 0 0;">${x.semExame ? 'Fazer o exame de '+x.tp+'.' : (x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').')} <a href="#" data-exavdesligar="${x.h.id}" style="margin-left:6px;">Parar de controlar este animal</a></div>
-      ${x.vencido && (x.e.arquivos||[]).length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:12px;">Descartar os ${(x.e.arquivos||[]).length} PDF(s)/arquivo(s) desse exame vencido?</span>
-        <button type="button" class="btn btn-sm btn-danger" data-exavdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
-        <button type="button" class="btn btn-sm btn-ghost" data-exavmanter="${x.h.id}|${x.tp}">Manter</button>
-      </div>` : ''}
-    </div>`).join('');
-  host.querySelectorAll('[data-exavdesligar]').forEach(a=>a.addEventListener('click', async ev=>{
-    ev.preventDefault(); const h = horses.find(x=>x.id===a.dataset.exavdesligar); if(!h) return;
-    if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+(h.nome||'este animal')+'? Ele some dos avisos (você pode ligar de novo na ficha).', {okLabel:'Parar de controlar'}))) return;
-    await alternarControleExames(h, false, false); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
-  }));
-  host.querySelectorAll('[data-exavabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exavabrir); }));
-  host.querySelectorAll('[data-exavdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
+  const hostL = document.getElementById('exAvisoLista'); if(!hostL) return 0;
+  const renovar = examesSaudeParaRenovar();
+  const ativos = animaisAtivosParaControle();
+  const emControle = ativos.filter(controleExamesAtivo).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const fora = ativos.filter(h=>!controleExamesAtivo(h)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  const termo = (exAvisoBusca||'').trim().toLowerCase();
+  const passa = h=> !termo || (h.nome||'').toLowerCase().includes(termo);
+  const chip = (k,rot,n)=>`<span class="chip ${exAvisoAba===k?'active':''}" data-exavaba="${k}">${rot} (${n})</span>`;
+  document.getElementById('exAvisoAbas').innerHTML = chip('renovar','Para renovar',renovar.length)+chip('controle','Em controle',emControle.length)+chip('fora','Fora do controle',fora.length);
+  document.getElementById('exAvisoAbas').querySelectorAll('[data-exavaba]').forEach(c=>c.addEventListener('click',()=>{ exAvisoAba=c.dataset.exavaba; exAvisoSel=new Set(); renderExamesAviso(); }));
+  const busca = document.getElementById('exAvisoBusca'); if(busca.value!==exAvisoBusca) busca.value = exAvisoBusca;
+  let linhas = '', visiveis = [];
+  if(exAvisoAba==='renovar'){
+    const lista = renovar.filter(x=>passa(x.h));
+    visiveis = [...new Set(lista.map(x=>x.h.id))];
+    linhas = lista.length===0 ? '<div class="hint-text">Nenhum exame para renovar agora.</div>' : lista.map(x=>`
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line-well);">
+        <input type="checkbox" data-exavsel="${x.h.id}" ${exAvisoSel.has(x.h.id)?'checked':''} style="margin-top:3px;flex:0 0 auto;">
+        <div style="flex:1 1 auto;min-width:0;">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
+            <strong style="cursor:pointer;" data-exavabrir="${x.h.id}">${escHtml(x.h.nome||'—')}</strong>
+            <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.semExame ? 'sem exame registrado' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)'))}</span>
+          </div>
+          <div class="hint-text" style="margin:2px 0 0;">${x.semExame ? 'Fazer o exame de '+x.tp+'.' : (x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').')}</div>
+          ${x.vencido && x.e && (x.e.arquivos||[]).length && !x.e.manterPdf ? `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <span style="font-size:12px;">Descartar os ${(x.e.arquivos||[]).length} arquivo(s) desse exame vencido?</span>
+            <button type="button" class="btn btn-sm btn-danger" data-exavdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
+            <button type="button" class="btn btn-sm btn-ghost" data-exavmanter="${x.h.id}|${x.tp}">Manter</button>
+          </div>` : ''}
+        </div>
+      </div>`).join('');
+  }else{
+    const base = (exAvisoAba==='controle' ? emControle : fora).filter(passa);
+    visiveis = base.map(h=>h.id);
+    linhas = base.length===0 ? '<div class="hint-text">Nenhum animal nesta lista.</div>' : base.map(h=>`
+      <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-well);">
+        <input type="checkbox" data-exavsel="${h.id}" ${exAvisoSel.has(h.id)?'checked':''} style="flex:0 0 auto;">
+        <strong style="cursor:pointer;flex:1 1 auto;min-width:0;" data-exavabrir="${h.id}">${escHtml(h.nome)}</strong>
+        <span class="hint-text" style="margin:0;text-align:right;">${resumoExamesAnimal(h)}</span>
+      </div>`).join('');
+  }
+  hostL.innerHTML = linhas;
+  const nSel = [...exAvisoSel].filter(id=>visiveis.includes(id)).length;
+  const acoes = document.getElementById('exAvisoAcoes');
+  const ligarBtn = exAvisoAba==='fora';
+  acoes.innerHTML = `<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="exAvisoTodos" ${visiveis.length && nSel===visiveis.length?'checked':''}> Selecionar todos${termo?' (da busca)':''}</label>
+    <span class="hint-text" style="margin:0;">${nSel} selecionado(s)</span>
+    <button type="button" class="btn btn-sm ${ligarBtn?'':'btn-danger'}" id="exAvisoAplicar" ${nSel?'':'disabled'}>${ligarBtn?'🔔 Controlar os selecionados':'🔕 Parar de controlar os selecionados'}</button>`;
+  document.getElementById('exAvisoTodos').addEventListener('change', e=>{ if(e.target.checked) visiveis.forEach(id=>exAvisoSel.add(id)); else visiveis.forEach(id=>exAvisoSel.delete(id)); renderExamesAviso(); });
+  hostL.querySelectorAll('[data-exavsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) exAvisoSel.add(cb.dataset.exavsel); else exAvisoSel.delete(cb.dataset.exavsel); renderExamesAviso(); }));
+  document.getElementById('exAvisoAplicar').addEventListener('click', async ()=>{
+    const ids = [...exAvisoSel].filter(id=>visiveis.includes(id)); const hs = ids.map(id=>horses.find(x=>x.id===id)).filter(Boolean); if(!hs.length) return;
+    if(ligarBtn){
+      if(!(await showConfirm('Controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles passam a aparecer nos avisos até terem os exames em dia.', {okLabel:'Controlar'}))) return;
+      hs.forEach(h=>{ h.controleExames = true; });
+      await storeSet('horses_list', horses);
+    }else{
+      const arqsPorAnimal = hs.map(h=>({h, arqs:[...(((h.examesSaude||{}).AIE||{}).arquivos||[]), ...(((h.examesSaude||{}).Mormo||{}).arquivos||[])]})).filter(x=>x.arqs.length);
+      const totalArqs = arqsPorAnimal.reduce((n,x)=>n+x.arqs.length,0);
+      if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles somem dos avisos (dá para ligar de novo).', {okLabel:'Parar de controlar'}))) return;
+      let descartar = false;
+      if(totalArqs) descartar = !!(await showConfirm('Descartar também os '+totalArqs+' arquivo(s) de exame guardados desses animais? (Se escolher "Manter", eles continuam guardados.)', {danger:true, okLabel:'Descartar', cancelLabel:'Manter'}));
+      hs.forEach(h=>{ h.controleExames = false; });
+      if(descartar) arqsPorAnimal.forEach(x=>{ ['AIE','Mormo'].forEach(tp=>{ if((x.h.examesSaude||{})[tp]) x.h.examesSaude[tp].arquivos = []; }); });
+      await storeSet('horses_list', horses);
+      if(descartar) for(const x of arqsPorAnimal) await descartarArquivosExame(x.h, x.arqs);
+    }
+    exAvisoSel = new Set(); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
+  });
+  hostL.querySelectorAll('[data-exavabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exavabrir); }));
+  hostL.querySelectorAll('[data-exavdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
     const [id,tp] = b.dataset.exavdescartar.split('|'); const h = horses.find(x=>x.id===id); if(!h) return;
     await descartarPdfsExameVencido(h, tp); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
   }));
-  host.querySelectorAll('[data-exavmanter]').forEach(b=>b.addEventListener('click', async ()=>{
+  hostL.querySelectorAll('[data-exavmanter]').forEach(b=>b.addEventListener('click', async ()=>{
     const [id,tp] = b.dataset.exavmanter.split('|'); const h = horses.find(x=>x.id===id); if(!h || !(h.examesSaude||{})[tp]) return;
     h.examesSaude[tp].manterPdf = true; await storeSet('horses_list', horses); renderExamesAviso();
   }));
-  return itens.length;
+  return renovar.length;
 }
+function abrirControleExames(aba){ exAvisoAba = aba || 'renovar'; exAvisoSel = new Set(); exAvisoBusca = ''; renderExamesAviso(); openModal('overlayExamesAviso'); }
+document.getElementById('exAvisoBusca').addEventListener('input', e=>{ exAvisoBusca = e.target.value; renderExamesAviso(); });
 function avisarExamesSaudeSePreciso(){
   try{
     const hoje = toISODate(new Date());
     const chave = 'haras_aviso_exames_'+((currentUser&&(currentUser.id||currentUser.email))||'u');
     if(localStorage.getItem(chave)===hoje) return;
-    if(renderExamesAviso()>0){ localStorage.setItem(chave, hoje); openModal('overlayExamesAviso'); }
+    if(examesSaudeParaRenovar().length>0){ localStorage.setItem(chave, hoje); abrirControleExames('renovar'); }
   }catch(_){}
 }
 function renderAnimalTimeline(h){
