@@ -2232,6 +2232,7 @@
             <button type="button" class="btn btn-sm btn-ghost" id="btnEscolherFoto">📷 Escolher foto do celular</button>
             <input type="file" id="f_fotoFile" accept="image/*" style="display:none;">
           </div>
+          <div id="f_fotoStatus" class="hint-text" style="display:none;margin-top:6px;"></div>
           <div id="f_fotoPreviewWrap" style="display:none;margin-top:8px;">
             <img id="f_fotoPreview" style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid var(--line);display:block;">
             <div class="hint-text" style="margin-top:4px;">Foto escolhida do celular — reduzida e salva direto no cadastro (sem precisar de link).</div>
@@ -6508,6 +6509,8 @@ document.getElementById('btnNewHorse').addEventListener('click', openHorseNew);
    Ligado em Segurança dos dados → Diagnóstico. Com o Storage ligado a foto nova vai para o Storage e no cadastro
    ficam só os endereços (resolve o limite de 1 MB do cadastro). Se o envio falhar, cai no modo antigo (base64). */
 let fotoMeta = null; // {url, miniUrl, path, miniPath} da foto escolhida/aberta no formulário
+let FOTO_TIMEOUT_MS = 20000; // se o Storage não responder em 20 s, desiste e usa o modo antigo
+function statusFoto(txt){ const el = document.getElementById('f_fotoStatus'); if(el){ el.textContent = txt||''; el.style.display = txt ? '' : 'none'; } }
 function fotosNoStorageAtivo(){ try{ return !!HAS_FIRESTORE && localStorage.getItem('haras_fotos_storage')==='1' && !!window.Fotos; }catch(_){ return false; } }
 let _storageSdkPromise = null;
 function carregarStorage(){
@@ -6542,13 +6545,18 @@ document.getElementById('f_fotoFile').addEventListener('change', async e=>{
   if(!file) return;
   if(fotosNoStorageAtivo()){
     try{
+      statusFoto('Enviando a foto para o Storage...');
       const st = await carregarStorage();
-      const r = await Fotos.enviarFoto(st, TENANT_ID, editingHorseId || ('novo-'+Date.now()), file);
+      try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+      const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+      const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, editingHorseId || ('novo-'+Date.now()), file), limite]);
       document.getElementById('f_fotoUrl').value = r.url;
       fotoMeta = { url:r.url, miniUrl:r.urlMiniatura, path:r.path, miniPath:r.pathMiniatura };
       atualizarFotoPreview();
+      statusFoto('');
       return;
     }catch(err){
+      statusFoto('');
       console.error('Envio da foto ao Storage falhou:', err);
       showAlert('Não consegui enviar a foto para o Storage ('+((err&&(err.code||err.message))||'erro')+'). Vou guardar no modo antigo, dentro do cadastro.');
     }
