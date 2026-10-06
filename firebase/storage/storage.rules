@@ -27,6 +27,13 @@ service firebase.storage {
         && request.resource.size <= 400 * 1024;
     }
 
+    // Arquivo de exame: PDF, zip ou imagem de ate 10 MB.
+    function exameValido() {
+      return request.resource != null
+        && request.resource.contentType.matches('application/pdf|application/zip|application/x-zip-compressed|image/(jpeg|png|webp)')
+        && request.resource.size <= 10 * 1024 * 1024;
+    }
+
     // Fotos de um cliente (multi-cliente)
     match /tenants/{tid}/fotos/{animalId}/{arquivo} {
       allow read: if ehDoCliente(tid);
@@ -34,10 +41,24 @@ service firebase.storage {
       allow delete: if ehDoCliente(tid);
     }
 
+    // Exames de um cliente
+    match /tenants/{tid}/exames/{animalId}/{arquivo} {
+      allow read: if ehDoCliente(tid);
+      allow create, update: if ehDoCliente(tid) && exameValido();
+      allow delete: if ehDoCliente(tid);
+    }
+
     // Fotos do haras original
     match /haras-original/fotos/{animalId}/{arquivo} {
       allow read: if ehHarasOriginal();
       allow create, update: if ehHarasOriginal() && fotoValida();
+      allow delete: if ehHarasOriginal();
+    }
+
+    // Exames do haras original
+    match /haras-original/exames/{animalId}/{arquivo} {
+      allow read: if ehHarasOriginal();
+      allow create, update: if ehHarasOriginal() && exameValido();
       allow delete: if ehHarasOriginal();
     }
 

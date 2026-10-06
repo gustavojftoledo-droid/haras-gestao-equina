@@ -74,5 +74,24 @@ await t('cliente A NÃO grava na raiz', up(a,'n.jpg'), false);
 await t('cliente A NÃO grava em tenants/cli-a/fotos/ direto (sem animal)', up(a,'tenants/cli-a/fotos/n.jpg'), false);
 await t('haras original NÃO grava fora de fotos/', up(orig,'haras-original/documentos/n.jpg'), false);
 await t('haras original NÃO lê pasta qualquer', rd(orig,'qualquer/coisa.jpg'), false);
+
+// ---- exames (PDF/zip/imagem até 10 MB) ----
+const PDF = {contentType:'application/pdf'}, ZIP = {contentType:'application/zip'};
+await t('cliente A GRAVA PDF 2 MB em exames', up(a,'tenants/cli-a/exames/cavalo1/h.pdf',2*1024*1024,PDF), true);
+await t('cliente A GRAVA zip 3 MB em exames', up(a,'tenants/cli-a/exames/cavalo1/h.zip',3*1024*1024,ZIP), true);
+await t('cliente A NÃO grava PDF de 11 MB', up(a,'tenants/cli-a/exames/cavalo1/g.pdf',11*1024*1024,PDF), false);
+await t('cliente A NÃO grava executável em exames', up(a,'tenants/cli-a/exames/cavalo1/x.exe',1000,{contentType:'application/x-msdownload'}), false);
+await t('cliente A NÃO grava html em exames', up(a,'tenants/cli-a/exames/cavalo1/x.html',1000,{contentType:'text/html'}), false);
+await t('cliente B NÃO grava exame na pasta do A', up(b,'tenants/cli-a/exames/cavalo1/b.pdf',1000,PDF), false);
+await t('cliente B NÃO lê exame do A', rd(b,'tenants/cli-a/exames/cavalo1/h.pdf'), false);
+await t('cliente A LÊ o próprio exame', rd(a,'tenants/cli-a/exames/cavalo1/h.pdf'), true);
+await t('anônimo NÃO lê exame', rd(anon,'tenants/cli-a/exames/cavalo1/h.pdf'), false);
+await t('cliente A APAGA o próprio exame', del(a,'tenants/cli-a/exames/cavalo1/h.pdf'), true);
+await t('haras original GRAVA PDF em exames', up(orig,'haras-original/exames/cavalo1/h.pdf',1*1024*1024,PDF), true);
+await t('haras original LÊ o próprio exame', rd(orig,'haras-original/exames/cavalo1/h.pdf'), true);
+await t('cliente A NÃO lê exame do haras original', rd(a,'haras-original/exames/cavalo1/h.pdf'), false);
+await t('haras original NÃO grava PDF de 11 MB', up(orig,'haras-original/exames/cavalo1/g.pdf',11*1024*1024,PDF), false);
+await t('PDF fora da pasta de exames continua bloqueado (fotos)', up(a,'tenants/cli-a/fotos/cavalo1/h.pdf',1000,PDF), false);
+
 console.log(`\n${ok} passaram, ${bad} falharam`);
 await env.cleanup(); process.exit(bad?1:0);

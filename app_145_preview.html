@@ -237,13 +237,36 @@
     });
   }
 
+
+  // ---------------- ARQUIVOS DE EXAME (PDF, zip, imagem) ----------------
+  var LIMITE_ARQUIVO_BYTES = 10 * 1024 * 1024; // mesmo limite das regras do Storage
+  function pastaExames(escopo, animalId) {
+    var e = normalizarEscopo(escopo);
+    var base = e.tipo === 'cliente' ? 'tenants/' + e.tenantId + '/exames/' : 'haras-original/exames/';
+    return base + limparId(animalId) + '/';
+  }
+  function nomeSeguro(nome) { return String(nome || 'arquivo').replace(/[^A-Za-z0-9._-]/g, '_').slice(-80) || 'arquivo'; }
+  // Sobe o arquivo ORIGINAL (sem reduzir) para a pasta de exames do animal. Devolve {url, path, tipo, bytes}.
+  function enviarArquivo(storage, escopo, animalId, arquivo) {
+    if (!arquivo) return Promise.reject(new Error('sem arquivo'));
+    if (arquivo.size > LIMITE_ARQUIVO_BYTES) return Promise.reject(new Error('arquivo passa de 10 MB'));
+    var tipo = arquivo.type || 'application/octet-stream';
+    var caminho = pastaExames(escopo, animalId) + Date.now().toString(36) + '-' + nomeSeguro(arquivo.name);
+    return subirBlob(storage, caminho, arquivo, tipo).then(function (r) { return { url: r.url, path: r.path, tipo: tipo, bytes: arquivo.size }; });
+  }
+  function removerArquivo(storage, caminho) {
+    if (!caminho) return Promise.resolve(false);
+    return storage.ref(caminho).delete().then(function () { return true; }, function (e) { if (e && e.code === 'storage/object-not-found') return false; throw e; });
+  }
+
   var API = {
     MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
     calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
     pastaFotos: pastaFotos, caminhoFoto: caminhoFoto, hashBytes: hashBytes, nomesArquivo: nomesArquivo,
     ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
     reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
-    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage
+    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage,
+    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
 })(typeof window !== 'undefined' ? window : this);
@@ -2235,8 +2258,8 @@
         <div class="field full"><label>Link da foto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cole um link do Google Drive, Imgur, etc — ou escolha uma foto do celular abaixo)</span></label>
           <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
             <input type="text" id="f_fotoUrl" placeholder="https://..." style="flex:1;min-width:220px;">
-            <button type="button" class="btn btn-sm btn-ghost" id="btnEscolherFoto">📷 Escolher foto do celular</button>
-            <input type="file" id="f_fotoFile" accept="image/*" style="display:none;">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnEscolherFoto">📷 Escolher foto(s) do celular</button>
+            <input type="file" id="f_fotoFile" accept="image/*" multiple style="display:none;">
           </div>
           <div id="f_fotoStatus" class="hint-text" style="display:none;margin-top:6px;"></div>
           <div id="f_fotoPreviewWrap" style="display:none;margin-top:8px;">
@@ -2246,8 +2269,8 @@
           <div id="f_fotosExtrasWrap" style="margin-top:12px;">
             <label style="margin-bottom:4px;">Fotos adicionais <span id="f_fotosExtrasInfo" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);"></span></label>
             <div id="f_fotosExtrasLista" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;"></div>
-            <button type="button" class="btn btn-sm btn-ghost" id="btnAddFotoExtra">+ Adicionar foto</button>
-            <input type="file" id="f_fotoExtraFile" accept="image/*" style="display:none;">
+            <button type="button" class="btn btn-sm btn-ghost" id="btnAddFotoExtra">+ Adicionar fotos</button>
+            <input type="file" id="f_fotoExtraFile" accept="image/*" multiple style="display:none;">
             <div id="f_fotoExtraStatus" class="hint-text" style="display:none;margin-top:6px;"></div>
           </div>
         </div>
@@ -6852,23 +6875,35 @@ document.getElementById('btnAddFotoExtra').addEventListener('click', ()=>{
   if(totalFotosForm() >= MAX_FOTOS){ showAlert('Limite de '+MAX_FOTOS+' fotos por animal no seu plano. Para guardar mais, fale com o suporte para liberar.'); return; }
   document.getElementById('f_fotoExtraFile').click();
 });
+// Envia várias fotos de uma vez como "adicionais" (até o limite do plano). Devolve quantas ficaram de fora por causa do limite.
+async function adicionarFotosExtras(files){
+  const vagas = Math.max(0, MAX_FOTOS - totalFotosForm());
+  const aEnviar = files.slice(0, vagas), sobraram = files.length - aEnviar.length;
+  if(aEnviar.length){
+    try{
+      const st = await carregarStorage();
+      try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+      for(let i=0;i<aEnviar.length;i++){
+        statusFotoExtra('Enviando foto '+(i+1)+' de '+aEnviar.length+'...');
+        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+        const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, editingHorseId || ('novo-'+Date.now()), aEnviar[i]), limite]);
+        fotosExtras = [...fotosExtras, { url:r.url, miniUrl:r.urlMiniatura }];
+        renderFotosExtras();
+      }
+    }catch(err){
+      console.error('Envio da foto adicional falhou:', err);
+      showAlert('Não consegui enviar uma das fotos ('+((err&&(err.code||err.message))||'erro')+'). As que já foram enviadas ficaram; as demais não.');
+    }finally{ statusFotoExtra(''); }
+  }
+  return sobraram;
+}
+function avisoLimiteFotos(sobraram){ if(sobraram>0) showAlert('Limite de '+MAX_FOTOS+' fotos por animal no seu plano: '+sobraram+' foto(s) não foi(foram) adicionada(s).'); }
 document.getElementById('f_fotoExtraFile').addEventListener('change', async e=>{
-  const file = e.target.files && e.target.files[0];
+  const files = [...(e.target.files||[])];
   e.target.value = '';
-  if(!file) return;
+  if(!files.length) return;
   if(totalFotosForm() >= MAX_FOTOS){ showAlert('Limite de '+MAX_FOTOS+' fotos por animal no seu plano.'); return; }
-  try{
-    statusFotoExtra('Enviando a foto para o Storage...');
-    const st = await carregarStorage();
-    try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
-    const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
-    const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, editingHorseId || ('novo-'+Date.now()), file), limite]);
-    fotosExtras = [...fotosExtras, { url:r.url, miniUrl:r.urlMiniatura }];
-    renderFotosExtras();
-  }catch(err){
-    console.error('Envio da foto adicional falhou:', err);
-    showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
-  }finally{ statusFotoExtra(''); }
+  avisoLimiteFotos(await adicionarFotosExtras(files));
 });
 let FOTO_TIMEOUT_MS = 20000; // se o Storage não responder em 20 s, desiste e usa o modo antigo
 function statusFoto(txt){ const el = document.getElementById('f_fotoStatus'); if(el){ el.textContent = txt||''; el.style.display = txt ? '' : 'none'; } }
@@ -6901,7 +6936,8 @@ document.getElementById('btnEscolherFoto').addEventListener('click', ()=>{
   document.getElementById('f_fotoFile').click();
 });
 document.getElementById('f_fotoFile').addEventListener('change', async e=>{
-  const file = e.target.files && e.target.files[0];
+  const files = [...(e.target.files||[])];
+  const file = files[0], resto = files.slice(1); // várias de uma vez: a 1ª vira a foto principal, as outras entram como adicionais
   e.target.value = ''; // permite escolher o mesmo arquivo de novo depois, se precisar
   if(!file) return;
   if(fotosNoStorageAtivo()){
@@ -6915,6 +6951,7 @@ document.getElementById('f_fotoFile').addEventListener('change', async e=>{
       fotoMeta = { url:r.url, miniUrl:r.urlMiniatura, path:r.path, miniPath:r.pathMiniatura };
       atualizarFotoPreview();
       statusFoto('');
+      if(resto.length) avisoLimiteFotos(await adicionarFotosExtras(resto));
       return;
     }catch(err){
       statusFoto('');
@@ -6923,6 +6960,7 @@ document.getElementById('f_fotoFile').addEventListener('change', async e=>{
     }
   }
   fotoModoAntigo(file);
+  if(resto.length) showAlert('Só a primeira foto foi usada (modo antigo). Para guardar várias fotos de uma vez, ligue a opção de fotos no Firebase Storage (Diagnóstico).');
 });
 function fotoModoAntigo(file){
   fotoMeta = null;
@@ -22855,8 +22893,8 @@ function renderAnimalPerfil(id){
           <button type="button" class="btn btn-sm" id="btnAddExameLinkPerfil">+ Link</button>
         </div>
         <div class="no-print" style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;">
-          <input type="file" id="perfilNovoExame" style="flex:1 1 100%;min-width:0;max-width:100%;font-size:12px;">
-          <button type="button" class="btn btn-sm btn-ghost" id="btnAddExamePerfil" style="white-space:nowrap;">+ Anexar arquivo</button>
+          <input type="file" id="perfilNovoExame" multiple style="flex:1 1 100%;min-width:0;max-width:100%;font-size:12px;">
+          <button type="button" class="btn btn-sm btn-ghost" id="btnAddExamePerfil" style="white-space:nowrap;">+ Anexar arquivo(s)</button>
         </div>
       </div>
     </div>` });
@@ -22955,55 +22993,77 @@ function renderAnimalPerfil(id){
   });
   document.getElementById('btnAddExamePerfil').addEventListener('click', async ()=>{
     const inp = document.getElementById('perfilNovoExame');
-    const file = inp.files[0];
-    if(!file){ showAlert('Escolha um arquivo primeiro.'); return; }
-    // FOTO (imagem): vai para o Storage (com miniatura), aparece na lista de Exames como link e vira ponto datado
-    // (hoje) na Linha do Tempo do animal. PDF e outros arquivos seguem o caminho de sempre, logo abaixo.
-    if(/^image\//i.test(file.type||'') && fotosNoStorageAtivo()){
-      try{
-        const st = await carregarStorage();
-        try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
-        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
-        const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, h.id, file), limite]);
-        const nomeFoto = (document.getElementById('perfilExameLinkNome').value||'').trim() || file.name;
-        const novoExame = { id:'ex_'+Date.now(), nome:nomeFoto, url:r.url, miniUrl:r.urlMiniatura||'', tipo:'link', foto:true, dataUpload: toISODate(new Date()) };
-        examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), novoExame] };
-        if(!(await storeSet('exames_animais', examesPorAnimal))) return;
-        aregAdicionar([{ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:r.url, fotoMiniUrl:r.urlMiniatura||'', obs:'Exame — '+nomeFoto }]);
-        inp.value = ''; document.getElementById('perfilExameLinkNome').value = '';
-        renderAnimalPerfil(h.id);
-      }catch(err){
-        console.error('Foto do exame: envio falhou:', err);
-        showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
+    const files = [...(inp.files||[])];
+    if(!files.length){ showAlert('Escolha um arquivo primeiro.'); return; }
+    // Vários arquivos de uma vez (ex.: hemograma, anemia infecciosa e laudo, cada um num PDF). O nome digitado só vale
+    // quando é UM arquivo; com vários, cada um entra com o próprio nome de arquivo.
+    // FOTO (imagem) com o Storage ligado: vai para o Storage (com miniatura), aparece na lista de Exames como link e vira
+    // ponto (hoje) na Linha do Tempo. PDF e outros arquivos seguem o caminho de sempre: ficam no documento
+    // compartilhado de exames (todos os animais juntos, teto de 1 MB), então têm limite de 400 KB cada.
+    const LIMITE_EXAME = 400*1024;
+    const nomeDigitado = (document.getElementById('perfilExameLinkNome').value||'').trim();
+    const novos = [], recusados = [], fotosNovas = [];
+    let bytesNovos = 0;
+    const lerComoDataUrl = f=> new Promise((res,rej)=>{ const rd = new FileReader(); rd.onload = ()=>res(rd.result); rd.onerror = ()=>rej(new Error('leitura')); rd.readAsDataURL(f); });
+    for(const file of files){
+      const nome = (files.length===1 && nomeDigitado) ? nomeDigitado : file.name;
+      if(/^image\//i.test(file.type||'') && fotosNoStorageAtivo()){
+        try{
+          const st = await carregarStorage();
+          try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+          const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+          const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, h.id, file), limite]);
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, miniUrl:r.urlMiniatura||'', tipo:'link', foto:true, dataUpload: toISODate(new Date()) });
+          fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:r.url, fotoMiniUrl:r.urlMiniatura||'', obs:'Exame — '+nome });
+        }catch(err){
+          console.error('Foto do exame: envio falhou:', err);
+          recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
+        }
+        continue;
       }
-      return;
+      // Com o Storage ligado, PDF/zip/qualquer exame vai ORIGINAL para o Storage (até 10 MB) e no cadastro fica só o endereço.
+      if(fotosNoStorageAtivo()){
+        if(file.size > Fotos.LIMITE_ARQUIVO_BYTES){ recusados.push(file.name+' (passa de 10 MB: '+(file.size/1024/1024).toFixed(1)+' MB — comprima o PDF e tente de novo)'); continue; }
+        try{
+          const st = await carregarStorage();
+          try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
+          const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
+          const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, dataUpload: toISODate(new Date()) });
+        }catch(err){
+          console.error('Exame: envio ao Storage falhou:', err);
+          recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
+        }
+        continue;
+      }
+      if(file.size > LIMITE_EXAME){ recusados.push(file.name+' (grande demais: '+(file.size/1024/1024).toFixed(2)+' MB; o limite sem o Storage é 400 KB — ligue a opção de fotos/arquivos no Storage no Diagnóstico, ou comprima o PDF)'); continue; }
+      if(JSON.stringify(examesPorAnimal).length + bytesNovos > 850*1024){ recusados.push(file.name+' (o espaço de exames está cheio; remova algum exame antigo)'); continue; }
+      try{
+        const dataUrl = await lerComoDataUrl(file);
+        bytesNovos += dataUrl.length;
+        novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome:file.name, tipo:file.type||'', tamanho:file.size, dataUpload: toISODate(new Date()), dataUrl });
+      }catch(_){ recusados.push(file.name+' (não consegui ler o arquivo)'); }
     }
-    // Todos os exames de TODOS os animais moram juntos num documento só (exames_animais, separado do
-    // cadastro do animal — ver comentário na declaração de examesPorAnimal), e esse documento tem um
-    // teto de 1 MB. O limite por arquivo é bem mais apertado que os 3 MB de antes (que fazia sentido só
-    // quando isso ficava dentro do cadastro de CADA animal) — precisa caber junto com os exames de
-    // todo mundo no mesmo espaço.
-    const LIMITE_EXAME = 400*1024; // 400 KB por arquivo (vira uns 550 KB depois de convertido)
-    if(file.size > LIMITE_EXAME){ showAlert('Arquivo muito grande ('+(file.size/1024/1024).toFixed(2)+' MB). Pra caber junto com os exames dos outros animais no mesmo espaço, anexe arquivos de até 400 KB — comprima o PDF/foto se precisar.'); return; }
-    if(JSON.stringify(examesPorAnimal).length > 850*1024){ showAlert('O espaço de exames está quase cheio (é compartilhado entre todos os animais). Antes de anexar mais, remova algum exame antigo que não precise mais.'); return; }
-    const reader = new FileReader();
-    reader.onload = async ()=>{
-      const novoExame = { id:'ex_'+Date.now(), nome:file.name, tipo:file.type||'', tamanho:file.size, dataUpload: toISODate(new Date()), dataUrl: reader.result };
-      examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), novoExame] };
-      const ok = await storeSet('exames_animais', examesPorAnimal);
-      if(!ok) return; // storeSet já mostra o aviso
-      inp.value = '';
-      renderAnimalPerfil(h.id);
-    };
-    reader.onerror = ()=> showAlert('Não consegui ler esse arquivo.');
-    reader.readAsDataURL(file);
+    if(novos.length){
+      examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), ...novos] };
+      if(!(await storeSet('exames_animais', examesPorAnimal))) return; // storeSet já mostra o aviso
+      if(fotosNovas.length) aregAdicionar(fotosNovas);
+    }
+    inp.value = ''; document.getElementById('perfilExameLinkNome').value = '';
+    renderAnimalPerfil(h.id);
+    if(recusados.length) showAlert((novos.length ? novos.length+' arquivo(s) anexado(s). ' : '')+'Não anexado(s): '+recusados.join('; ')+'.');
   });
   document.querySelectorAll('[data-delexame]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Remover esse exame? Não pode ser desfeito.'))) return;
+      const removido = (examesPorAnimal[h.id]||[])[Number(btn.dataset.delexame)];
       const listaSemEsse = (examesPorAnimal[h.id]||[]).filter((_,i)=> i!==Number(btn.dataset.delexame));
       examesPorAnimal = { ...examesPorAnimal, [h.id]: listaSemEsse };
       await storeSet('exames_animais', examesPorAnimal);
+      // Exame que é arquivo no Storage (PDF/zip) sai do Storage junto. Foto de exame NÃO: ela continua na linha do tempo.
+      if(removido && removido.tipo==='arquivo' && removido.path && window.Fotos){
+        carregarStorage().then(st=>Fotos.removerArquivo(st, removido.path)).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
+      }
       renderAnimalPerfil(h.id);
     });
   });

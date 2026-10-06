@@ -211,13 +211,36 @@
     });
   }
 
+
+  // ---------------- ARQUIVOS DE EXAME (PDF, zip, imagem) ----------------
+  var LIMITE_ARQUIVO_BYTES = 10 * 1024 * 1024; // mesmo limite das regras do Storage
+  function pastaExames(escopo, animalId) {
+    var e = normalizarEscopo(escopo);
+    var base = e.tipo === 'cliente' ? 'tenants/' + e.tenantId + '/exames/' : 'haras-original/exames/';
+    return base + limparId(animalId) + '/';
+  }
+  function nomeSeguro(nome) { return String(nome || 'arquivo').replace(/[^A-Za-z0-9._-]/g, '_').slice(-80) || 'arquivo'; }
+  // Sobe o arquivo ORIGINAL (sem reduzir) para a pasta de exames do animal. Devolve {url, path, tipo, bytes}.
+  function enviarArquivo(storage, escopo, animalId, arquivo) {
+    if (!arquivo) return Promise.reject(new Error('sem arquivo'));
+    if (arquivo.size > LIMITE_ARQUIVO_BYTES) return Promise.reject(new Error('arquivo passa de 10 MB'));
+    var tipo = arquivo.type || 'application/octet-stream';
+    var caminho = pastaExames(escopo, animalId) + Date.now().toString(36) + '-' + nomeSeguro(arquivo.name);
+    return subirBlob(storage, caminho, arquivo, tipo).then(function (r) { return { url: r.url, path: r.path, tipo: tipo, bytes: arquivo.size }; });
+  }
+  function removerArquivo(storage, caminho) {
+    if (!caminho) return Promise.resolve(false);
+    return storage.ref(caminho).delete().then(function () { return true; }, function (e) { if (e && e.code === 'storage/object-not-found') return false; throw e; });
+  }
+
   var API = {
     MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
     calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
     pastaFotos: pastaFotos, caminhoFoto: caminhoFoto, hashBytes: hashBytes, nomesArquivo: nomesArquivo,
     ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
     reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
-    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage
+    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage,
+    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
 })(typeof window !== 'undefined' ? window : this);
