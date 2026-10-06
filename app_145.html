@@ -801,6 +801,8 @@
     .mobile-tab .mt-ic{font-size:17px;line-height:1;}
     .mobile-tab.active{color:#fff;font-weight:600;}
     .main{padding-bottom:78px;}
+    /* menu lateral: deixa espaço no fim para a rolagem passar por cima da barra de abas (Diagnóstico ficava escondido) */
+    .sidebar{padding-bottom:calc(96px + env(safe-area-inset-bottom));}
   }
 
   /* ---------- Tela de login: confirmação e caixa "trabalhar offline" ---------- */
