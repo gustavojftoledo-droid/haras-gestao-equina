@@ -8598,7 +8598,7 @@ function renderInicioSaude(host){
     <div style="display:flex;flex-direction:column;gap:6px;">${aRenovar.map(x=>`
       <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
         <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
-        <div style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-size:11px;">${x.tp} ${x.vencido?'vencido há '+(-x.restante)+' dia(s)':(x.restante===0?'vence hoje':'vence em '+x.restante+' dia(s)')}${x.vencido && (x.e.arquivos||[]).length && !x.e.manterPdf ? ' · decidir sobre os PDFs':''}</div>
+        <div style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-size:11px;">${x.tp} ${textoStatusExameSaude(x)}${x.vencido && x.e && (x.e.arquivos||[]).length && !x.e.manterPdf ? ' · decidir sobre os PDFs':''}</div>
       </div>`).join('')}</div>
   </div>`;
   const secExames = `<div style="margin-top:16px;">
@@ -22833,18 +22833,22 @@ function renderAnimalPerfil(id){
 
   cardsDefs.push({ key:'examesValidade', defaultCol:'principal', html:`
     <div class="perfil-card">
-      <div class="perfil-card-head">🩺 Exames com validade — AIE · Mormo</div>
+      <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>🩺 Exames com validade — AIE · Mormo</span>
+        <button type="button" class="btn btn-sm ${controleExamesAtivo(h)?'':'btn-ghost'} no-print" id="btnControleExames" style="text-transform:none;letter-spacing:0;font-weight:600;" title="Ligado: o app avisa quando o exame faltar ou vencer. Desligado: este animal não gera avisos.">${controleExamesAtivo(h)?'🔔 Controle ligado':'🔕 Controle desligado'}</button>
+      </div>
       <div class="perfil-card-body">
+        ${controleExamesAtivo(h) ? '' : '<div class="hint-text" style="margin:0 0 10px;">Controle desligado: este animal não gera avisos de AIE/Mormo. Ligue o controle (botão acima) se for precisar do exame.</div>'}
         ${['AIE','Mormo'].map(tp=>{
           const e = (h.examesSaude||{})[tp];
-          if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span></div>`;
+          if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span>${controleExamesAtivo(h) ? ` <span style="color:var(--warn-ink,var(--warn));font-weight:700;">⚠ Fazer o exame de ${tp}</span>` : ''}</div>`;
           const dias = Number(e.dias)||60;
           const venc = toISODate(addToDate(e.data, dias, 'dias'));
           const restante = Math.round((new Date(venc+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
           const pct = Math.max(0, Math.min(100, restante/dias*100));
           const cor = restante<=0 ? 'var(--burgundy)' : restante <= dias*0.2 ? 'var(--warn)' : 'var(--ok)';
           const txt = restante<=0 ? `VENCIDO há ${-restante} dia(s)` : `faltam ${restante} dia(s)`;
-          const refazer = restante <= EXAME_SAUDE_AVISO_DIAS;
+          const refazer = restante <= EXAME_SAUDE_AVISO_DIAS && controleExamesAtivo(h);
           return `<div style="margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px;flex-wrap:wrap;">
               <span><strong>${tp}</strong> — feito ${fmtDate(e.data)}</span>
@@ -22855,7 +22859,7 @@ function renderAnimalPerfil(id){
             </div>
             ${refazer ? `<div style="margin-top:6px;font-size:12.5px;font-weight:700;color:${restante<0?'var(--burgundy)':'var(--warn-ink,var(--warn))'};">⚠ Refazer o exame de ${tp}${restante<0?' (vencido)':''}</div>` : ''}
             ${htmlArquivosExameSaude(h, tp, e)}
-            ${restante<0 && (e.arquivos||[]).length ? `<div class="no-print" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
+            ${restante<0 && (e.arquivos||[]).length && controleExamesAtivo(h) ? `<div class="no-print" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
               <span>${e.manterPdf?'Você escolheu manter os arquivos deste exame vencido.':'Exame vencido: descartar os arquivos para liberar espaço?'}</span>
               <button type="button" class="btn btn-sm btn-danger" data-exsdescartar="${tp}">🗑 Descartar arquivos</button>
               ${e.manterPdf?'':`<button type="button" class="btn btn-sm btn-ghost" data-exsmanter="${tp}">Manter</button>`}
@@ -23176,6 +23180,11 @@ function renderAnimalPerfil(id){
       renderAnimalPerfil(h.id);
     });
   });
+  document.getElementById('btnControleExames').addEventListener('click', async ()=>{
+    const ligar = !controleExamesAtivo(h);
+    await alternarControleExames(h, ligar, true);
+    renderAnimalPerfil(h.id); atualizarTelasQueDependemDeAnimais();
+  });
   document.querySelectorAll('[data-exsarq]').forEach(inp=> inp.addEventListener('change', async ()=>{
     const files = [...(inp.files||[])]; const tp = inp.dataset.exsarq; inp.value = '';
     if(!files.length) return;
@@ -23394,19 +23403,33 @@ function diasParaVencerExameSaude(e){
   const v = vencimentoExameSaude(e); if(!v) return null;
   return Math.round((new Date(v+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
 }
-// Animais ativos com exame para refazer: faltam <= 5 dias ou já vencido. Vencido com PDFs guardados pede decisão.
+// Controle de exames (AIE/Mormo) por animal: LIGADO = o app cobra o exame (avisa quando falta/vence); DESLIGADO = o animal
+// some dos avisos (ex.: animal solto, que não vai mais competir). Sem escolha feita: liga sozinho só se o animal já tem exame registrado.
+function controleExamesAtivo(h){
+  if(h.controleExames!==undefined && h.controleExames!==null) return !!h.controleExames;
+  const ex = h.examesSaude || {};
+  return !!((ex.AIE && ex.AIE.data) || (ex.Mormo && ex.Mormo.data));
+}
+// Animais ativos COM controle ligado: exame sem registro, faltando <= 5 dias ou vencido. Vencido com PDFs pede decisão.
 function examesSaudeParaRenovar(){
   const out = [];
   horses.forEach(h=>{
     if(h.situacao==='E' || h.situacao==='V' || h.falecimento) return;
+    if(!controleExamesAtivo(h)) return;
     ['AIE','Mormo'].forEach(tp=>{
-      const e = (h.examesSaude||{})[tp]; if(!e || !e.data) return;
+      const e = (h.examesSaude||{})[tp];
+      if(!e || !e.data){ out.push({ h, tp, e:null, semExame:true, restante:null, vencido:false, venc:null, temPdf:false }); return; }
       const restante = diasParaVencerExameSaude(e);
       if(restante===null || restante > EXAME_SAUDE_AVISO_DIAS) return;
-      out.push({ h, tp, e, restante, vencido: restante<0, venc: vencimentoExameSaude(e), temPdf: (e.arquivos||[]).length>0 && !e.manterPdf });
+      out.push({ h, tp, e, semExame:false, restante, vencido: restante<0, venc: vencimentoExameSaude(e), temPdf: (e.arquivos||[]).length>0 && !e.manterPdf });
     });
   });
-  return out.sort((a,b)=>a.restante-b.restante);
+  // vencidos primeiro, depois os que vencem logo, e por último os sem exame registrado
+  return out.sort((a,b)=> (a.semExame-b.semExame) || ((a.restante||0)-(b.restante||0)));
+}
+function textoStatusExameSaude(x){
+  if(x.semExame) return 'sem exame registrado';
+  return x.vencido ? 'vencido há '+(-x.restante)+' dia(s)' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)');
 }
 function arquivosDeExameParaApagar(lista){ return (lista||[]).map(a=>a); }
 // Apaga arquivos de exame (e miniaturas) do Storage e os pontos da Linha do Tempo que apontam para eles.
@@ -23484,6 +23507,19 @@ function htmlArquivosExameSaude(h, tp, e){
     </div>`; }).join('')+`</div>`;
 }
 /* Aviso de exames para renovar: abre uma vez por dia no máximo (e sempre aparece no Início → Saúde). */
+// Liga/desliga o controle de exames do animal. Ao desligar, pode (opcionalmente) descartar os arquivos já guardados.
+async function alternarControleExames(h, ligar, perguntarArquivos){
+  h.controleExames = !!ligar;
+  let descartar = false;
+  const ex = h.examesSaude || {};
+  const arqs = [...(ex.AIE&&ex.AIE.arquivos||[]), ...(ex.Mormo&&ex.Mormo.arquivos||[])];
+  if(!ligar && perguntarArquivos && arqs.length){
+    descartar = !!(await showConfirm('Controle desligado. Descartar também os '+arqs.length+' arquivo(s) de exame guardados deste animal? (Se escolher "Manter", eles continuam guardados.)', { danger:true, okLabel:'Descartar', cancelLabel:'Manter' }));
+    if(descartar){ ['AIE','Mormo'].forEach(tp=>{ if(ex[tp]) ex[tp].arquivos = []; }); }
+  }
+  await storeSet('horses_list', horses);
+  if(descartar) await descartarArquivosExame(h, arqs);
+}
 function renderExamesAviso(){
   const itens = examesSaudeParaRenovar();
   const host = document.getElementById('exAvisoLista'); if(!host) return 0;
@@ -23491,15 +23527,20 @@ function renderExamesAviso(){
     <div style="padding:10px 0;border-bottom:1px solid var(--line-well);">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
         <strong style="cursor:pointer;" data-exavabrir="${x.h.id}">${escHtml(x.h.nome||'—')}</strong>
-        <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)')}</span>
+        <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.semExame ? 'sem exame registrado' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)'))}</span>
       </div>
-      <div class="hint-text" style="margin:2px 0 0;">${x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').'}</div>
+      <div class="hint-text" style="margin:2px 0 0;">${x.semExame ? 'Fazer o exame de '+x.tp+'.' : (x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').')} <a href="#" data-exavdesligar="${x.h.id}" style="margin-left:6px;">Parar de controlar este animal</a></div>
       ${x.vencido && (x.e.arquivos||[]).length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <span style="font-size:12px;">Descartar os ${(x.e.arquivos||[]).length} PDF(s)/arquivo(s) desse exame vencido?</span>
         <button type="button" class="btn btn-sm btn-danger" data-exavdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
         <button type="button" class="btn btn-sm btn-ghost" data-exavmanter="${x.h.id}|${x.tp}">Manter</button>
       </div>` : ''}
     </div>`).join('');
+  host.querySelectorAll('[data-exavdesligar]').forEach(a=>a.addEventListener('click', async ev=>{
+    ev.preventDefault(); const h = horses.find(x=>x.id===a.dataset.exavdesligar); if(!h) return;
+    if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+(h.nome||'este animal')+'? Ele some dos avisos (você pode ligar de novo na ficha).', {okLabel:'Parar de controlar'}))) return;
+    await alternarControleExames(h, false, false); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
+  }));
   host.querySelectorAll('[data-exavabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exavabrir); }));
   host.querySelectorAll('[data-exavdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
     const [id,tp] = b.dataset.exavdescartar.split('|'); const h = horses.find(x=>x.id===id); if(!h) return;
