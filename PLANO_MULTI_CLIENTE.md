@@ -40,3 +40,4 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 
 - Limite de fotos por animal: claim `maxFotos` (padrão 3). A etapa 5 (cobrança) deve só ligar/desligar esse número (e a função criarCliente/painel precisa gravar a claim). Divisão das listas grandes (etapa 3b) deve vir antes de aumentar o limite para todos.
 - Diagnóstico escondido de quem não é dono; `?diag=1` libera na aba.
+- Divisão da Linha do Tempo por animal: projeto, protótipo e testes prontos em `projeto-linha-do-tempo/` (não publicado). Falta portar para a versão atual e testar com cópia dos dados.
