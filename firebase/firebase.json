@@ -1,6 +1,0 @@
-{
-  "functions": [
-    { "source": "../functions", "codebase": "default", "ignore": ["node_modules", ".git", "test", "*.log"] }
-  ],
-  "storage": { "rules": "storage/storage.rules" }
-}
