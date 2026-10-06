@@ -3608,6 +3608,8 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;"><input type="checkbox" id="chkFotosStorage" style="width:auto;"> Guardar fotos NOVAS no Firebase Storage (experimental, só neste aparelho)</label>
       <div class="hint-text" style="margin:6px 0 8px;">Precisa do Storage ativado no Firebase. Se não estiver, o app avisa e guarda a foto do jeito antigo. Desligado, tudo funciona como sempre.</div>
       <button type="button" class="btn btn-sm btn-ghost" id="btnMigrarFotos">Mover fotos antigas para o Storage</button> <span id="migrarFotosStatus" style="font-size:12px;color:var(--muted);"></span>
+    
+      <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnLimparAvalOrfas">Limpar avaliações da consultoria sem visita</button> <span id="limparAvalOrfasStatus" style="font-size:12px;color:var(--muted);"></span></div>
     </div>
     <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
       <div style="font-size:13px;font-weight:600;">Linha do Tempo por animal (fotos/peso/score)</div>
@@ -15703,6 +15705,27 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
 function consultoriaAvaliacoesDaVisita(visitaId){
   return consultoriaAvaliacoes.filter(a=>a.visitaId===visitaId);
 }
+// Avaliação "órfã" = a visita dela não existe mais (foi excluída por outro caminho/versão ou aparelho antigo).
+// Não deve aparecer na ficha do animal nem alimentar sugestões de peso. Só vale quando a lista de visitas foi
+// LIDA com sucesso — se a leitura falhou, nada é tratado como órfão (evita esconder/apagar por engano).
+function avaliacaoConsultoriaOrfa(a){
+  if(chavesComFalhaDeLeitura.has('consultoria_visitas_list')) return false;
+  return !consultoriaVisitas.some(v=>v.id===a.visitaId);
+}
+async function limparAvaliacoesConsultoriaOrfas(){
+  if(chavesComFalhaDeLeitura.has('consultoria_visitas_list') || chavesComFalhaDeLeitura.has('consultoria_avaliacoes_list')) return { erro:'Não consegui ler as visitas/avaliações agora. Nada foi alterado — recarregue e tente de novo.' };
+  const orfas = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa);
+  if(orfas.length===0) return { n:0 };
+  const ids = new Set(orfas.map(a=>a.id));
+  const fotosDelas = orfas.flatMap(a=>Array.isArray(consultoriaFotos[a.id]) ? consultoriaFotos[a.id] : []);
+  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>!ids.has(a.id));
+  if(!(await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes, true))) return { erro:'Não consegui salvar a limpeza. Tente de novo.' };
+  let mexeuFotos = false;
+  ids.forEach(id=>{ if(consultoriaFotos[id]){ delete consultoriaFotos[id]; mexeuFotos = true; } });
+  if(mexeuFotos) await storeSet('consultoria_fotos', consultoriaFotos);
+  fotosDelas.forEach(f2=>limparArquivoSeOrfao(f2.dataUrl, f2.miniUrl));
+  return { n: orfas.length };
+}
 
 /* ---- Lista de Visitas ---- */
 document.getElementById('cvSearch').addEventListener('input', renderConsultoriaVisitas);
@@ -17139,7 +17162,7 @@ document.addEventListener('click', e=>{
 
 /* ---- Integração com a Ficha do Animal (16096+): nova seção, sem tocar nas existentes ---- */
 function blocoConsultoriaAnimalFicha(h){
-  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===h.id).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===h.id && !avaliacaoConsultoriaOrfa(a)).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   const rows = avals.map(a=>{
     const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
     return `<tr>
@@ -17225,7 +17248,7 @@ const csfAnimalSelector = createAnimalSelector(document.getElementById('csfAnima
 function sugerirPesoConsultoriaFormulacao(animalId){
   const h = horses.find(x=>x.id===animalId);
   if(h && h.peso!=null && h.peso!=='') return h.peso;
-  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===animalId && a.peso!=='' && a.peso!=null)
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===animalId && !avaliacaoConsultoriaOrfa(a) && a.peso!=='' && a.peso!=null)
     .slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   return avals.length ? avals[0].peso : '';
 }
@@ -23959,6 +23982,16 @@ if(HAS_FIRESTORE){
 document.getElementById('chkFotosStorage').addEventListener('change', e=>{
   try{ if(e.target.checked) localStorage.setItem('haras_fotos_storage','1'); else localStorage.removeItem('haras_fotos_storage'); }catch(_){}
 });
+document.getElementById('btnLimparAvalOrfas').addEventListener('click', async ()=>{
+  const st = document.getElementById('limparAvalOrfasStatus');
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode limpar.'); return; }
+  const n = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa).length;
+  if(n===0){ st.textContent = 'Nenhuma avaliação sem visita.'; return; }
+  if(!(await showConfirm('Excluir '+n+' avaliação(ões) da consultoria cuja visita não existe mais (e as fotos delas)? Elas já não aparecem em nenhuma visita.', {danger:true, okLabel:'Excluir'}))) return;
+  const r = await limparAvaliacoesConsultoriaOrfas();
+  st.textContent = r.erro ? r.erro : (r.n+' avaliação(ões) excluída(s).');
+  if(!r.erro) atualizarTelasQueDependemDeAnimais();
+});
 document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
   const st = document.getElementById('migrarFotosStatus');
   if(!fotosNoStorageAtivo()){ showAlert('Ligue primeiro a opção "Guardar fotos NOVAS no Firebase Storage" acima (e o Storage precisa estar ativado no Firebase).'); return; }
@@ -24058,6 +24091,8 @@ document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','visitas_repro_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','funcionarios_list','config'];
   let lines = [];
   lines.push(...linhasTempoAbertura(), '');
+  { const nOrf = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa).length;
+    lines.push('Avaliações da consultoria sem visita (órfãs): '+nOrf+(nOrf?'  — use "Limpar avaliações da consultoria sem visita"':''), ''); }
   lines.push('Modo de armazenamento: ' + (HAS_CLOUD_STORAGE ? 'nuvem do Claude (window.storage)' : 'armazenamento local deste navegador (localStorage) — normal quando o arquivo é aberto baixado'));
   for(const key of keys){
     const r = await storeGet(key);
