@@ -2,7 +2,7 @@
    Rodar:  node firebase/pw_linha_do_tempo_por_animal.js [caminho-do-html]
    Usa o armazenamento local do navegador (mesmo caminho do app sem Firebase) e, onde precisa simular o
    Firestore (falha de leitura/offline), um "db" de mentira em memória. Nenhuma rede é usada. */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium } = require('playwright');
 const path = require('path');
 const ARQ = process.argv[2] || path.resolve(__dirname, '..', 'protótipo_app_preview.html');
 
