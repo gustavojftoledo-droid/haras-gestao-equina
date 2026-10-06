@@ -14,7 +14,7 @@ Funções que rodam no servidor do Firebase (projeto `equinos-manager`). Nada aq
 
 Proteções que acrescentei (além do pedido): uma lista de usuários nunca altera a conta do dono, nem a de outro cliente, nem (lista de cliente) a conta de quem é do haras original. `criarCliente` recusa um e-mail que já pertence a outro cliente, ao haras original ou ao dono.
 
-Observações: usuário bloqueado perde o acesso quando o token atual expira (até cerca de 1 hora), porque tokens já emitidos continuam valendo até lá. A região padrão é `us-central1`; ela precisa ser a mesma do Firestore. Se o seu Firestore for em outra, crie `functions/.env` com `REGIAO_FUNCOES=southamerica-east1` (por exemplo) antes do deploy.
+Observações: usuário bloqueado perde o acesso quando o token atual expira (até cerca de 1 hora), porque tokens já emitidos continuam valendo até lá. A região padrão é `southamerica-east1` (São Paulo), a mesma do Firestore do Gustavo. Para outra região, crie `functions/.env` com `REGIAO_FUNCOES=...` antes do deploy.
 
 ## Como testar sem publicar nada (emuladores)
 
