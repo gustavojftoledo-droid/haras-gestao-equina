@@ -2013,6 +2013,14 @@
     </div>
 
     <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
+    <div class="overlay" id="overlayExamesAviso">
+      <div class="modal" style="max-width:min(92vw,560px);">
+        <div class="modal-head"><div class="modal-title">🩺 Exames para renovar</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
+        <div class="hint-text" style="margin:0 0 6px;">AIE e Mormo que vencem em até 5 dias ou já venceram. Toque no nome para abrir a ficha. Este aviso aparece no máximo uma vez por dia; a lista fica sempre em Início → Saúde.</div>
+        <div id="exAvisoLista"></div>
+        <div class="modal-actions"><div></div><div class="modal-actions-right"><button type="button" class="btn" data-close="overlayExamesAviso">Fechar</button></div></div>
+      </div>
+    </div>
     <div class="overlay" id="overlayFotoTimeline">
       <div class="modal" style="max-width:min(90vw,640px);">
         <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
@@ -3742,6 +3750,7 @@ function showConfirm(msg, opts){
     const ok = document.getElementById('dialogOk');
     ok.textContent = opts.okLabel || 'OK';
     ok.classList.toggle('btn-danger', !!opts.danger);
+    const cancelBtn = document.getElementById('dialogCancel'); if(cancelBtn) cancelBtn.textContent = opts.cancelLabel || 'Cancelar';
     dialogResolve=resolve; openModal('overlayDialog');
   });
 }
@@ -3817,12 +3826,14 @@ document.getElementById('dialogOk').addEventListener('click', ()=>{
   closeModal('overlayDialog');
   document.getElementById('dialogOk').classList.remove('btn-danger');
   document.getElementById('dialogOk').textContent = 'OK';
+  document.getElementById('dialogCancel').textContent = 'Cancelar';
   if(dialogResolve){ dialogResolve(val); dialogResolve=null; }
 });
 document.getElementById('dialogCancel').addEventListener('click', ()=>{
   closeModal('overlayDialog');
   document.getElementById('dialogOk').classList.remove('btn-danger');
   document.getElementById('dialogOk').textContent = 'OK';
+  document.getElementById('dialogCancel').textContent = 'Cancelar';
   if(dialogResolve){ dialogResolve(null); dialogResolve=null; }
 });
 document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('dialogOk').click(); } });
@@ -8581,6 +8592,15 @@ function renderInicioSaude(host){
     .map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
     .filter(x=> x.aie && x.mormo && x.aie>=hojeS && x.mormo>=hojeS)
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
+  const aRenovar = examesSaudeParaRenovar();
+  const secRenovar = aRenovar.length===0 ? '' : `<div style="margin-top:16px;">
+    <div style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${aRenovar.length})</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${aRenovar.map(x=>`
+      <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
+        <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
+        <div style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-size:11px;">${x.tp} ${x.vencido?'vencido há '+(-x.restante)+' dia(s)':(x.restante===0?'vence hoje':'vence em '+x.restante+' dia(s)')}${x.vencido && (x.e.arquivos||[]).length && !x.e.manterPdf ? ' · decidir sobre os PDFs':''}</div>
+      </div>`).join('')}</div>
+  </div>`;
   const secExames = `<div style="margin-top:16px;">
     <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
     ${comExamesOk.length===0 ? '<div class="hint-text">Nenhum animal com os dois exames válidos.</div>'
@@ -8600,6 +8620,7 @@ function renderInicioSaude(host){
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
       <div style="max-height:200px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
+    ${secRenovar}
     ${secExames}
   `;
   host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
@@ -22245,6 +22266,7 @@ function entrarNoApp(){
   marcaAbertura('app aberto na tela');
   aplicarDiagnosticoVisivel();
   aplicarPermissoes();
+  setTimeout(avisarExamesSaudeSePreciso, 1500);
 }
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
   const eraOffline = localStorage.getItem('haras_modo_offline')==='1';
@@ -22822,6 +22844,7 @@ function renderAnimalPerfil(id){
           const pct = Math.max(0, Math.min(100, restante/dias*100));
           const cor = restante<=0 ? 'var(--burgundy)' : restante <= dias*0.2 ? 'var(--warn)' : 'var(--ok)';
           const txt = restante<=0 ? `VENCIDO há ${-restante} dia(s)` : `faltam ${restante} dia(s)`;
+          const refazer = restante <= EXAME_SAUDE_AVISO_DIAS;
           return `<div style="margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px;flex-wrap:wrap;">
               <span><strong>${tp}</strong> — feito ${fmtDate(e.data)}</span>
@@ -22830,8 +22853,19 @@ function renderAnimalPerfil(id){
             <div style="height:14px;background:var(--line);border-radius:7px;overflow:hidden;">
               <div style="height:100%;width:${pct}%;background:${cor};transition:width .2s;"></div>
             </div>
+            ${refazer ? `<div style="margin-top:6px;font-size:12.5px;font-weight:700;color:${restante<0?'var(--burgundy)':'var(--warn-ink,var(--warn))'};">⚠ Refazer o exame de ${tp}${restante<0?' (vencido)':''}</div>` : ''}
+            ${htmlArquivosExameSaude(h, tp, e)}
+            ${restante<0 && (e.arquivos||[]).length ? `<div class="no-print" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
+              <span>${e.manterPdf?'Você escolheu manter os arquivos deste exame vencido.':'Exame vencido: descartar os arquivos para liberar espaço?'}</span>
+              <button type="button" class="btn btn-sm btn-danger" data-exsdescartar="${tp}">🗑 Descartar arquivos</button>
+              ${e.manterPdf?'':`<button type="button" class="btn btn-sm btn-ghost" data-exsmanter="${tp}">Manter</button>`}
+            </div>` : ''}
+            <div class="no-print" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <label class="btn btn-sm btn-ghost" style="cursor:pointer;margin:0;">📎 Anexar PDF/foto do ${tp}<input type="file" data-exsarq="${tp}" multiple accept="application/pdf,image/*,.zip" style="display:none;"></label>
+            </div>
           </div>`;
         }).join('')}
+        ${(h.examesSaudeAnteriores||[]).length ? `<div style="margin:6px 0 10px;"><div class="hint-text" style="margin:0 0 4px;">Arquivos de exames anteriores (mantidos):</div>${(h.examesSaudeAnteriores||[]).map((an,ai)=>`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><span style="font-size:12px;"><strong>${an.tipo}</strong> de ${fmtDate(an.data)}</span>${htmlArquivosExameSaude({id:h.id}, 'ANT'+ai, {arquivos:an.arquivos})}<button type="button" class="btn btn-sm btn-danger no-print" data-exsantdescartar="${ai}">🗑 Descartar</button></div>`).join('')}</div>` : ''}
         <div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
           <select id="exs_tipo" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;"><option>AIE</option><option>Mormo</option></select>
           <input type="date" id="exs_data" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
@@ -23142,14 +23176,53 @@ function renderAnimalPerfil(id){
       renderAnimalPerfil(h.id);
     });
   });
+  document.querySelectorAll('[data-exsarq]').forEach(inp=> inp.addEventListener('change', async ()=>{
+    const files = [...(inp.files||[])]; const tp = inp.dataset.exsarq; inp.value = '';
+    if(!files.length) return;
+    await anexarArquivosExameSaude(h, tp, files); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    const [tp, idx] = b.dataset.exsdel.split('|'); const i = Number(idx);
+    if(tp.startsWith('ANT')){
+      const ai = Number(tp.slice(3)); const an = (h.examesSaudeAnteriores||[])[ai]; if(!an) return;
+      const a = (an.arquivos||[])[i]; if(!a || !(await showConfirm('Remover este arquivo?'))) return;
+      an.arquivos = an.arquivos.filter((_,k)=>k!==i);
+      if(!an.arquivos.length) h.examesSaudeAnteriores = h.examesSaudeAnteriores.filter((_,k)=>k!==ai);
+      await storeSet('horses_list', horses); await descartarArquivosExame(h, [a]); renderAnimalPerfil(h.id); return;
+    }
+    const e = (h.examesSaude||{})[tp]; const a = e && (e.arquivos||[])[i]; if(!a || !(await showConfirm('Remover este arquivo do exame?'))) return;
+    e.arquivos = e.arquivos.filter((_,k)=>k!==i);
+    await storeSet('horses_list', horses); await descartarArquivosExame(h, [a]); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsdescartar]').forEach(b=> b.addEventListener('click', async ()=>{
+    const tp = b.dataset.exsdescartar; if(!(await showConfirm('Descartar os arquivos do exame de '+tp+' vencido? Não pode ser desfeito.', {danger:true, okLabel:'Descartar'}))) return;
+    await descartarPdfsExameVencido(h, tp); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsmanter]').forEach(b=> b.addEventListener('click', async ()=>{
+    const e = (h.examesSaude||{})[b.dataset.exsmanter]; if(!e) return; e.manterPdf = true; await storeSet('horses_list', horses); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsantdescartar]').forEach(b=> b.addEventListener('click', async ()=>{
+    const ai = Number(b.dataset.exsantdescartar); const an = (h.examesSaudeAnteriores||[])[ai]; if(!an) return;
+    if(!(await showConfirm('Descartar os arquivos do exame anterior? Não pode ser desfeito.', {danger:true, okLabel:'Descartar'}))) return;
+    h.examesSaudeAnteriores = h.examesSaudeAnteriores.filter((_,k)=>k!==ai); await storeSet('horses_list', horses);
+    await descartarArquivosExame(h, an.arquivos||[]); renderAnimalPerfil(h.id);
+  }));
   document.getElementById('btnAddExameSaude').addEventListener('click', async ()=>{
     const tp = document.getElementById('exs_tipo').value;
     const data = document.getElementById('exs_data').value;
     if(!data){ showAlert('Informe a data do exame.'); return; }
     const dias = Math.max(1, Math.round(Number(document.getElementById('exs_dias').value)||60));
     if(!h.examesSaude) h.examesSaude = {};
-    h.examesSaude[tp] = { data, dias };
+    const anterior = h.examesSaude[tp];
+    const arqsAnt = (anterior && anterior.data && anterior.data!==data) ? (anterior.arquivos||[]) : [];
+    let descartar = false;
+    if(arqsAnt.length){
+      descartar = await showConfirm('Existem '+arqsAnt.length+' arquivo(s) do exame de '+tp+' anterior (feito em '+fmtDate(anterior.data)+'). Descartar esses arquivos agora que o exame foi renovado? (Se escolher "Manter", eles ficam guardados em "exames anteriores".)', { danger:true, okLabel:'Descartar', cancelLabel:'Manter' });
+    }
+    h.examesSaude[tp] = (anterior && anterior.data===data) ? { ...anterior, dias } : { data, dias, arquivos:[] };
+    if(arqsAnt.length && !descartar){ h.examesSaudeAnteriores = [...(h.examesSaudeAnteriores||[]), { tipo:tp, data:anterior.data, arquivos:arqsAnt }]; }
     await storeSet('horses_list', horses);
+    if(arqsAnt.length && descartar) await descartarArquivosExame(h, arqsAnt);
     renderAnimalPerfil(h.id);
   });
 }
@@ -23311,6 +23384,140 @@ async function miniaturaDePdf(file){
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
     return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', 0.7));
   }catch(e){ console.warn('Não consegui gerar a miniatura do PDF:', e); return null; }
+}
+/* ================= EXAMES COM VALIDADE (AIE / Mormo): PDFs, aviso 5 dias antes e descarte do vencido =================
+   h.examesSaude[tp] = { data, dias, arquivos:[{id,nome,url,path,miniUrl,mime,tamanho,tipo}], manterPdf }
+   h.examesSaudeAnteriores = [{ tipo, data, arquivos }]  (PDFs de exames já renovados que o usuário preferiu manter) */
+const EXAME_SAUDE_AVISO_DIAS = 5;
+function vencimentoExameSaude(e){ return (e && e.data) ? toISODate(addToDate(e.data, Number(e.dias)||60, 'dias')) : null; }
+function diasParaVencerExameSaude(e){
+  const v = vencimentoExameSaude(e); if(!v) return null;
+  return Math.round((new Date(v+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
+}
+// Animais ativos com exame para refazer: faltam <= 5 dias ou já vencido. Vencido com PDFs guardados pede decisão.
+function examesSaudeParaRenovar(){
+  const out = [];
+  horses.forEach(h=>{
+    if(h.situacao==='E' || h.situacao==='V' || h.falecimento) return;
+    ['AIE','Mormo'].forEach(tp=>{
+      const e = (h.examesSaude||{})[tp]; if(!e || !e.data) return;
+      const restante = diasParaVencerExameSaude(e);
+      if(restante===null || restante > EXAME_SAUDE_AVISO_DIAS) return;
+      out.push({ h, tp, e, restante, vencido: restante<0, venc: vencimentoExameSaude(e), temPdf: (e.arquivos||[]).length>0 && !e.manterPdf });
+    });
+  });
+  return out.sort((a,b)=>a.restante-b.restante);
+}
+function arquivosDeExameParaApagar(lista){ return (lista||[]).map(a=>a); }
+// Apaga arquivos de exame (e miniaturas) do Storage e os pontos da Linha do Tempo que apontam para eles.
+async function descartarArquivosExame(h, arquivos){
+  if(!arquivos || !arquivos.length) return;
+  const urls = new Set(); arquivos.forEach(a=>{ if(a.url) urls.add(a.url); });
+  const pontos = animalRegistros.filter(r=> urls.has(r.arquivoUrl) || urls.has(r.fotoDataUrl));
+  if(pontos.length){ const ids = new Set(pontos.map(r=>r.id)); animalRegistros = animalRegistros.filter(r=>!ids.has(r.id)); await aregGravarAnimais([h.id], true); }
+  if(window.Fotos){
+    try{
+      const st = await carregarStorage();
+      for(const a of arquivos){
+        try{
+          if(a.tipo==='foto'){ await Fotos.removerFoto(st, { fotoUrl:a.url, fotoMiniUrl:a.miniUrl||'' }); }
+          else { if(a.path) await Fotos.removerArquivo(st, a.path); if(a.miniUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.miniUrl }); }
+        }catch(e){ console.warn('Não consegui apagar um arquivo do exame (fica órfão, sem prejuízo):', e); }
+      }
+    }catch(e){ console.warn('Storage indisponível para apagar arquivos de exame:', e); }
+  }
+}
+async function descartarPdfsExameVencido(h, tp){
+  const e = (h.examesSaude||{})[tp]; if(!e) return;
+  const arqs = e.arquivos || [];
+  e.arquivos = []; e.manterPdf = false;
+  await storeSet('horses_list', horses);
+  await descartarArquivosExame(h, arqs);
+}
+// Anexa PDFs/fotos a um exame com validade (AIE/Mormo). Exige o Storage ligado.
+async function anexarArquivosExameSaude(h, tp, files){
+  const e = (h.examesSaude||{})[tp];
+  if(!e || !e.data){ showAlert('Registre primeiro a data do exame de '+tp+' e depois anexe os arquivos.'); return; }
+  if(!fotosNoStorageAtivo()){ showAlert('Para anexar PDF/foto aos exames com validade, ligue a opção do Storage (Diagnóstico).'); return; }
+  const novos = [], recusados = [], pontos = [];
+  try{
+    const st = await carregarStorage();
+    try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
+    for(const file of files){
+      try{
+        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
+        if(/^image\//i.test(file.type||'')){
+          const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, h.id, file), limite]);
+          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, miniUrl:r.urlMiniatura||'', tipo:'foto', mime:'image/jpeg' });
+          pontos.push({ fotoDataUrl:r.url, fotoMiniUrl:r.urlMiniatura||'', arquivoUrl:'', nome:file.name });
+        }else{
+          if(file.size > Fotos.LIMITE_ARQUIVO_BYTES){ recusados.push(file.name+' (passa de 10 MB — comprima o PDF)'); continue; }
+          const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
+          let miniUrl = '';
+          if(file.type==='application/pdf'){ const mini = await miniaturaDePdf(file); if(mini){ try{ miniUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, h.id, mini)).url; }catch(_){} } }
+          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, path:r.path, miniUrl, tipo:'arquivo', mime:r.tipo, tamanho:file.size });
+          if(miniUrl) pontos.push({ fotoDataUrl:miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, nome:file.name });
+        }
+      }catch(err){ recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')'); }
+    }
+  }catch(err){ showAlert('Não consegui usar o Storage ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.'); return; }
+  if(novos.length){
+    e.arquivos = [...(e.arquivos||[]), ...novos]; e.manterPdf = false;
+    if(!(await storeSet('horses_list', horses))) return;
+    if(pontos.length) aregAdicionar(pontos.map(pt=>({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data:e.data, peso:'', scoreCorporal:'',
+      fotoDataUrl:pt.fotoDataUrl, fotoMiniUrl:pt.fotoMiniUrl, arquivoUrl:pt.arquivoUrl||'', obs:'Exame '+tp+' — '+pt.nome })));
+  }
+  if(recusados.length) showAlert((novos.length ? novos.length+' arquivo(s) anexado(s). ' : '')+'Não anexado(s): '+recusados.join('; ')+'.');
+}
+// Linhas de arquivo (miniatura + nome) de um exame com validade.
+function htmlArquivosExameSaude(h, tp, e){
+  const arqs = e.arquivos || [];
+  if(!arqs.length) return '';
+  return `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">`+arqs.map((a,i)=>{
+    const thumb = a.miniUrl || (a.tipo==='foto' ? a.url : '');
+    const caixa = thumb ? `<img src="${urlSegura(thumb)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;">`
+                        : `<div style="width:56px;height:56px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--card);">📄</div>`;
+    return `<div style="width:64px;text-align:center;position:relative;">
+      <a href="${urlSegura(a.url)}" target="_blank" rel="noopener" title="${escHtml(a.nome)}" style="display:block;">${caixa}</a>
+      <div class="hint-text" style="margin:2px 0 0;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(a.nome)}">${escHtml(a.nome)}</div>
+      <button type="button" class="btn btn-sm btn-ghost no-print" data-exsdel="${tp}|${i}" title="Remover este arquivo" style="position:absolute;top:-8px;right:-4px;padding:0 5px;line-height:18px;">✕</button>
+    </div>`; }).join('')+`</div>`;
+}
+/* Aviso de exames para renovar: abre uma vez por dia no máximo (e sempre aparece no Início → Saúde). */
+function renderExamesAviso(){
+  const itens = examesSaudeParaRenovar();
+  const host = document.getElementById('exAvisoLista'); if(!host) return 0;
+  host.innerHTML = itens.length===0 ? '<div class="hint-text">Nenhum exame para renovar agora.</div>' : itens.map((x,i)=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--line-well);">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;">
+        <strong style="cursor:pointer;" data-exavabrir="${x.h.id}">${escHtml(x.h.nome||'—')}</strong>
+        <span style="color:${x.vencido?'var(--burgundy)':'var(--warn)'};font-weight:600;font-size:12.5px;">${x.tp} · ${x.vencido ? 'VENCIDO há '+(-x.restante)+' dia(s)' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)')}</span>
+      </div>
+      <div class="hint-text" style="margin:2px 0 0;">${x.vencido ? 'Refazer o exame de '+x.tp+'.' : 'Refazer o exame de '+x.tp+' (vence '+fmtDate(x.venc)+').'}</div>
+      ${x.vencido && (x.e.arquivos||[]).length ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;">Descartar os ${(x.e.arquivos||[]).length} PDF(s)/arquivo(s) desse exame vencido?</span>
+        <button type="button" class="btn btn-sm btn-danger" data-exavdescartar="${x.h.id}|${x.tp}">🗑 Descartar</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-exavmanter="${x.h.id}|${x.tp}">Manter</button>
+      </div>` : ''}
+    </div>`).join('');
+  host.querySelectorAll('[data-exavabrir]').forEach(el=>el.addEventListener('click', ()=>{ closeModal('overlayExamesAviso'); abrirPerfilAnimal(el.dataset.exavabrir); }));
+  host.querySelectorAll('[data-exavdescartar]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [id,tp] = b.dataset.exavdescartar.split('|'); const h = horses.find(x=>x.id===id); if(!h) return;
+    await descartarPdfsExameVencido(h, tp); renderExamesAviso(); atualizarTelasQueDependemDeAnimais();
+  }));
+  host.querySelectorAll('[data-exavmanter]').forEach(b=>b.addEventListener('click', async ()=>{
+    const [id,tp] = b.dataset.exavmanter.split('|'); const h = horses.find(x=>x.id===id); if(!h || !(h.examesSaude||{})[tp]) return;
+    h.examesSaude[tp].manterPdf = true; await storeSet('horses_list', horses); renderExamesAviso();
+  }));
+  return itens.length;
+}
+function avisarExamesSaudeSePreciso(){
+  try{
+    const hoje = toISODate(new Date());
+    const chave = 'haras_aviso_exames_'+((currentUser&&(currentUser.id||currentUser.email))||'u');
+    if(localStorage.getItem(chave)===hoje) return;
+    if(renderExamesAviso()>0){ localStorage.setItem(chave, hoje); openModal('overlayExamesAviso'); }
+  }catch(_){}
 }
 function renderAnimalTimeline(h){
   const { de, ate } = timelineCalcularRange();
