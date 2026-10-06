@@ -259,6 +259,16 @@
     return storage.ref(caminho).delete().then(function () { return true; }, function (e) { if (e && e.code === 'storage/object-not-found') return false; throw e; });
   }
 
+
+  // Sobe um Blob JPEG ja pronto como miniatura (ex.: 1a pagina de um PDF). Devolve {url, path}.
+  function enviarMiniaturaBlob(storage, escopo, animalId, blob) {
+    pastaFotos(escopo, animalId);
+    return blobParaBytes(blob).then(function (bytes) {
+      var n = nomesArquivo(bytes, Date.now());
+      return subirBlob(storage, caminhoFoto(escopo, animalId, n.miniatura), blob, 'image/jpeg');
+    });
+  }
+
   var API = {
     MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
     calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
@@ -266,7 +276,7 @@
     ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
     reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
     enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage,
-    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
+    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, enviarMiniaturaBlob: enviarMiniaturaBlob, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
 })(typeof window !== 'undefined' ? window : this);
@@ -2008,6 +2018,7 @@
         <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
         <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
         <div id="ftAcoes" style="display:none;gap:8px;margin-top:12px;justify-content:space-between;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame (PDF)</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnFtEditar">✏️ Editar data / anotação</button>
           <button type="button" class="btn btn-danger btn-sm" id="btnFtExcluir">🗑 Excluir esta foto</button>
         </div>
@@ -22774,7 +22785,7 @@ function renderAnimalPerfil(id){
       <div class="perfil-card-body">${buildPedigreeTree(h)}${blocoEndogamia(h)}</div>
     </div>` });
 
-  cardsDefs.push({ key:'premiacoes', defaultCol:'principal', html:`
+  cardsDefs.push({ key:'premiacoes', defaultCol:'lateral', html:`
     <div class="perfil-card">
       <div class="perfil-card-head">🏆 Premiações</div>
       <div class="perfil-card-body">
@@ -22878,15 +22889,27 @@ function renderAnimalPerfil(id){
       </div>
     </div>` });
 
-  cardsDefs.push({ key:'exames', defaultCol:'lateral', html:`
+  cardsDefs.push({ key:'exames', defaultCol:'principal', html:`
     <div class="perfil-card" id="perfilExamesCard">
       <div class="perfil-card-head">📎 Exames</div>
       <div class="perfil-card-body">
-        <div id="perfilExamesLista">${(examesPorAnimal[h.id]||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (examesPorAnimal[h.id]||[]).map((e,i)=>`
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;">
-            <a href="${urlSegura(e.url || e.dataUrl)}" target="_blank" rel="noopener"${e.url?'':` download="${escHtml(e.nome)}"`} style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(e.nome)} — ${fmtDate(e.dataUpload)}">${e.url?'🔗':'📄'} ${escHtml(e.nome)}</a>
+        <div id="perfilExamesLista">${(examesPorAnimal[h.id]||[]).length===0 ? '<div class="hint-text">Nenhum exame anexado ainda.</div>' : (examesPorAnimal[h.id]||[]).map((e,i)=>({e,i})).sort((x,y)=>(y.e.dataUpload||'').localeCompare(x.e.dataUpload||'')).map(({e,i})=>{
+          const ehImgDataUrl = /^data:image\//i.test(e.dataUrl||'');
+          const thumb = e.miniUrl || (e.foto ? e.url : '') || (ehImgDataUrl ? e.dataUrl : '');
+          const ehImagem = !!(e.foto || ehImgDataUrl);
+          const alvo = e.url || e.dataUrl;
+          return `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line-well);">
+            <a ${ehImagem?`data-exfoto="${i}" href="#"`:`href="${urlSegura(alvo)}" target="_blank" rel="noopener"${e.url?'':` download="${escHtml(e.nome)}"`}`} style="flex:0 0 auto;display:block;" title="Abrir">
+              ${thumb ? `<img src="${urlSegura(thumb)}" alt="Exame" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;">`
+                      : `<div style="width:64px;height:64px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:26px;background:var(--card);">${/zip/i.test(e.mime||e.tipo||'')?'🗜️':'📄'}</div>`}
+            </a>
+            <div style="flex:1 1 auto;min-width:0;">
+              <a ${ehImagem?`data-exfoto="${i}" href="#"`:`href="${urlSegura(alvo)}" target="_blank" rel="noopener"${e.url?'':` download="${escHtml(e.nome)}"`}`} style="font-size:12.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(e.nome)}">${escHtml(e.nome)}</a>
+              <div class="hint-text" style="margin:2px 0 0;">${fmtDate(e.dataUpload)||''}</div>
+            </div>
             <button type="button" class="btn btn-sm btn-ghost" data-delexame="${i}" title="Remover">✕</button>
-          </div>`).join('')}</div>
+          </div>`; }).join('')}</div>
         <div class="no-print" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="perfilExameLinkNome" placeholder="Nome (ex: Ultrassom 14d)" style="flex:1 1 110px;font-size:12px;">
           <input type="url" id="perfilExameLinkUrl" placeholder="Link do Drive / foto na nuvem" style="flex:2 1 150px;font-size:12px;">
@@ -23029,7 +23052,13 @@ function renderAnimalPerfil(id){
           try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
           const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
           const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
-          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, dataUpload: toISODate(new Date()) });
+          let miniUrl = '';
+          if(file.type==='application/pdf'){
+            const mini = await miniaturaDePdf(file);
+            if(mini){ try{ const m = await Fotos.enviarMiniaturaBlob(st, TENANT_ID, h.id, mini); miniUrl = m.url; }catch(e){ console.warn('Miniatura do PDF não enviada:', e); } }
+          }
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, miniUrl, dataUpload: toISODate(new Date()) });
+          if(miniUrl) fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, obs:'Exame — '+nome });
         }catch(err){
           console.error('Exame: envio ao Storage falhou:', err);
           recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
@@ -23053,6 +23082,13 @@ function renderAnimalPerfil(id){
     renderAnimalPerfil(h.id);
     if(recusados.length) showAlert((novos.length ? novos.length+' arquivo(s) anexado(s). ' : '')+'Não anexado(s): '+recusados.join('; ')+'.');
   });
+  document.querySelectorAll('[data-exfoto]').forEach(a=>{
+    a.addEventListener('click', ev=>{
+      ev.preventDefault();
+      const ex = (examesPorAnimal[h.id]||[])[Number(a.dataset.exfoto)]; if(!ex) return;
+      abrirFotoGrande(ex.url || ex.dataUrl, 'Exame — '+(ex.nome||''), null);
+    });
+  });
   document.querySelectorAll('[data-delexame]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Remover esse exame? Não pode ser desfeito.'))) return;
@@ -23061,8 +23097,12 @@ function renderAnimalPerfil(id){
       examesPorAnimal = { ...examesPorAnimal, [h.id]: listaSemEsse };
       await storeSet('exames_animais', examesPorAnimal);
       // Exame que é arquivo no Storage (PDF/zip) sai do Storage junto. Foto de exame NÃO: ela continua na linha do tempo.
+      if(removido && removido.tipo==='arquivo' && removido.url){
+        const pontos = animalRegistros.filter(r=>r.arquivoUrl===removido.url);
+        if(pontos.length){ const ids = new Set(pontos.map(r=>r.id)); animalRegistros = animalRegistros.filter(r=>!ids.has(r.id)); await aregGravarAnimais([h.id], true); }
+      }
       if(removido && removido.tipo==='arquivo' && removido.path && window.Fotos){
-        carregarStorage().then(st=>Fotos.removerArquivo(st, removido.path)).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
+        carregarStorage().then(async st=>{ await Fotos.removerArquivo(st, removido.path); if(removido.miniUrl && !fotoAindaReferenciada(removido.miniUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.miniUrl }); }).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
       }
       renderAnimalPerfil(h.id);
     });
@@ -23218,8 +23258,11 @@ function computeTimelineAnimal(h){
 }
 /* ---- Foto ampliada. Se veio da Linha do Tempo (tem registroId) mostra Editar/Excluir. ---- */
 let ftRegistroId = null;
-function abrirFotoGrande(url, titulo, registroId){
+let ftArquivoUrl = '';
+function abrirFotoGrande(url, titulo, registroId, arquivoUrl){
   ftRegistroId = registroId || null;
+  ftArquivoUrl = /^https:\/\//i.test(arquivoUrl||'') ? arquivoUrl : '';
+  const bAbrir = document.getElementById('btnFtAbrirArquivo'); if(bAbrir) bAbrir.style.display = ftArquivoUrl ? '' : 'none';
   document.getElementById('ftFotoGrande').src = url;
   document.getElementById('ftModalTitulo').textContent = titulo;
   document.getElementById('ftAcoes').style.display = ftRegistroId ? 'flex' : 'none';
@@ -23252,6 +23295,22 @@ function abrirAnimalRegistroEditar(id){
   const prev = document.getElementById('ar_fotoPreview');
   if(r.fotoDataUrl){ prev.src = r.fotoDataUrl; prev.dataset.dataurl = r.fotoDataUrl; prev.dataset.mini = r.fotoMiniUrl || ''; prev.style.display = 'block'; }
   document.getElementById('btnArExcluir').style.display = 'inline-block';
+}
+/* ---- Miniatura da 1ª página de um PDF (usa o leitor de PDF que o app já carrega). Devolve Blob JPEG ou null. ---- */
+async function miniaturaDePdf(file){
+  try{
+    if(typeof pdfjsLib === 'undefined') return null;
+    if(!pdfjsLib.GlobalWorkerOptions.workerSrc){ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const page = await pdf.getPage(1);
+    const v0 = page.getViewport({ scale:1 });
+    const escala = 240 / Math.max(v0.width, v0.height);
+    const vp = page.getViewport({ scale: escala });
+    const cv = document.createElement('canvas'); cv.width = Math.max(1,Math.round(vp.width)); cv.height = Math.max(1,Math.round(vp.height));
+    const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', 0.7));
+  }catch(e){ console.warn('Não consegui gerar a miniatura do PDF:', e); return null; }
 }
 function renderAnimalTimeline(h){
   const { de, ate } = timelineCalcularRange();
@@ -23405,7 +23464,7 @@ function computeLinhaDoTempoVisualDados(h, de, ate){
     if(!dentro(r.data)) return;
     if(r.scoreCorporal) out.score.push({ data:r.data, titulo:'Score '+r.scoreCorporal, detalhe:r.obs||'', registroId:r.id });
     if(r.peso) out.peso.push({ data:r.data, titulo:r.peso+' kg', detalhe:r.obs||'', registroId:r.id });
-    if(r.fotoDataUrl) out.foto.push({ data:r.data, titulo:'Foto', detalhe:r.obs||'', fotoUrl:r.fotoDataUrl, fotoMini:r.fotoMiniUrl||'', registroId:r.id });
+    if(r.fotoDataUrl) out.foto.push({ data:r.data, titulo:'Foto', detalhe:r.obs||'', fotoUrl:r.fotoDataUrl, fotoMini:r.fotoMiniUrl||'', registroId:r.id, arquivoUrl:r.arquivoUrl||'' });
   });
   // Peso/Foto do cadastro do animal existem desde sempre, mas só passaram a virar ponto datado na
   // linha do tempo a partir de agora (ver storeSet horses_list) — sem isso, animal cadastrado antes
@@ -23475,7 +23534,7 @@ function renderLinhaDoTempoVisual(){
         ${eventos.map(ev=>{
           const left = pct(ev.data);
           if(c.key==='foto' && ev.fotoUrl){
-            return `<img src="${urlSegura(ev.fotoMini||ev.fotoUrl)}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvreg="${escHtml(ev.registroId||'')}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
+            return `<img src="${urlSegura(ev.fotoMini||ev.fotoUrl)}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvreg="${escHtml(ev.registroId||'')}" data-ltvarq="${escHtml(ev.arquivoUrl||'')}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
           }
           const info = encodeURIComponent(`${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}`);
           return `<div data-ltvponto="${info}" title="${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+escHtml(ev.detalhe)):''}" style="position:absolute;left:${left}%;top:12px;width:14px;height:14px;border-radius:50%;background:${c.cor};cursor:pointer;transform:translateX(-50%);border:2px solid var(--card,#fff);"></div>`;
@@ -23489,7 +23548,7 @@ function renderLinhaDoTempoVisual(){
   corpo.innerHTML = `<div style="min-width:640px;">${linhasHtml}${eixoHtml}</div>`;
   corpo.querySelectorAll('[data-ltvfoto]').forEach(img=>{
     img.addEventListener('click', ()=>{
-      abrirFotoGrande(decodeURIComponent(img.dataset.ltvfoto), 'Foto — '+fmtDate(img.dataset.ltvfotodata), img.dataset.ltvreg || null);
+      abrirFotoGrande(decodeURIComponent(img.dataset.ltvfoto), (img.dataset.ltvarq ? 'Exame — ' : 'Foto — ')+fmtDate(img.dataset.ltvfotodata), img.dataset.ltvreg || null, img.dataset.ltvarq || '');
     });
   });
   corpo.querySelectorAll('[data-ltvponto]').forEach(pt=>{
@@ -23582,6 +23641,7 @@ document.getElementById('btnArSalvar').addEventListener('click', ()=>{
   aregSalvarEmSegundoPlano([registro.animalId], ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
   closeModal('overlayAnimalRegistro');
 });
+document.getElementById('btnFtAbrirArquivo').addEventListener('click', ()=>{ if(ftArquivoUrl) window.open(ftArquivoUrl, '_blank', 'noopener'); });
 document.getElementById('btnFtEditar').addEventListener('click', ()=>{
   const id = ftRegistroId; if(!id) return;
   closeModal('overlayFotoTimeline');

@@ -233,6 +233,16 @@
     return storage.ref(caminho).delete().then(function () { return true; }, function (e) { if (e && e.code === 'storage/object-not-found') return false; throw e; });
   }
 
+
+  // Sobe um Blob JPEG ja pronto como miniatura (ex.: 1a pagina de um PDF). Devolve {url, path}.
+  function enviarMiniaturaBlob(storage, escopo, animalId, blob) {
+    pastaFotos(escopo, animalId);
+    return blobParaBytes(blob).then(function (bytes) {
+      var n = nomesArquivo(bytes, Date.now());
+      return subirBlob(storage, caminhoFoto(escopo, animalId, n.miniatura), blob, 'image/jpeg');
+    });
+  }
+
   var API = {
     MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
     calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
@@ -240,7 +250,7 @@
     ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
     reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
     enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage,
-    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
+    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, enviarMiniaturaBlob: enviarMiniaturaBlob, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
 })(typeof window !== 'undefined' ? window : this);
