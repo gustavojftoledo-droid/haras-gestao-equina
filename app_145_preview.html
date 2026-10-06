@@ -2804,6 +2804,10 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="section-label" style="border-top:none;padding-top:0;margin-top:16px;">Documentos / Exames <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— links (Drive, foto na nuvem...), não arquivos anexados</span></div>
     <div id="visitaDocsHost" style="margin:8px 0;"></div>
     <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaDoc">+ Adicionar documento</button>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaFoto">📷 Adicionar foto do animal</button>
+    <input type="file" id="vs_fotoFile" accept="image/*" multiple style="display:none;">
+    <div id="vs_fotoStatus" class="hint-text" style="display:none;margin-top:6px;"></div>
+    <div class="hint-text" style="margin-top:4px;">Foto do animal avaliado (ex.: um machucado): fica no histórico e entra na Linha do Tempo do animal, na data da visita. Fica guardada mesmo se você excluir a visita.</div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisita" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVisita">Cancelar</button><button type="button" class="btn" id="btnSaveVisita">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -18666,7 +18670,12 @@ function renderVisitaDocs(){
   host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
       <div>Animal</div><div>Nome</div><div>Link</div><div></div>
     </div>` +
-    visitaDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+    visitaDocsState.map((it,idx)=> it.tipo==='foto' ? `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+      <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
+      <input type="text" data-vdfield="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Legenda (ex: machucado no boleto direito)">
+      <div style="display:flex;align-items:center;gap:8px;"><img src="${urlSegura(it.miniUrl||it.url)}" alt="Foto" style="height:44px;width:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"><span class="hint-text" style="margin:0;">📷 Foto</span></div>
+      <button type="button" class="btn btn-sm btn-danger" data-vdremove="${idx}" title="Remover da visita (se já estiver na linha do tempo, ela continua lá)">✕</button>
+    </div>` : `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
       <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
       <input type="text" data-vdfield="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Ex: Raio-X do casco">
       <input type="text" data-vdfield="url" data-idx="${idx}" value="${it.url||''}" placeholder="Link (Drive, foto na nuvem...)">
@@ -18683,6 +18692,33 @@ document.getElementById('btnAddVisitaDoc').addEventListener('click', ()=>{
   const animaisOpts = opcoesAnimaisVisita();
   visitaDocsState.push({ animalId: animaisOpts.length===1?animaisOpts[0].id:'', nome:'', url:'' });
   renderVisitaDocs();
+});
+
+function statusFotoVisita(txt){ const el = document.getElementById('vs_fotoStatus'); if(el){ el.textContent = txt||''; el.style.display = txt ? '' : 'none'; } }
+document.getElementById('btnAddVisitaFoto').addEventListener('click', ()=>{
+  if(!fotosNoStorageAtivo()){ showAlert('Para anexar fotos na visita, ligue a opção de fotos no Firebase Storage (Diagnóstico).'); return; }
+  if(visitaSelector.getSelected().length===0){ showAlert('Selecione primeiro o(s) animal(is) revisado(s) da visita.'); return; }
+  document.getElementById('vs_fotoFile').click();
+});
+document.getElementById('vs_fotoFile').addEventListener('change', async e=>{
+  const files = [...(e.target.files||[])];
+  e.target.value = '';
+  if(!files.length) return;
+  const animais = opcoesAnimaisVisita(); if(!animais.length) return;
+  try{
+    const st = await carregarStorage();
+    try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+    for(let i=0;i<files.length;i++){
+      statusFotoVisita('Enviando foto '+(i+1)+' de '+files.length+'...');
+      const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+      const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, animais[0].id, files[i]), limite]);
+      visitaDocsState.push({ tipo:'foto', animalId: animais.length===1 ? animais[0].id : '', nome:'', url:r.url, miniUrl:r.urlMiniatura||'' });
+      renderVisitaDocs();
+    }
+  }catch(err){
+    console.error('Foto da visita: envio falhou:', err);
+    showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
+  }finally{ statusFotoVisita(''); }
 });
 
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
@@ -18729,7 +18765,10 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
       custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'servico', nome:c.nome, animalId:c.animalId, valor:Number(c.valor), obs:(c.obs||'').trim() });
     }
   }
-  const docsValidos = visitaDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
+  const docsValidos = visitaDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||(d.tipo==='foto'?'':'Documento'), url:d.url.trim(),
+    ...(d.tipo==='foto' ? { tipo:'foto', miniUrl:d.miniUrl||'', registroId:d.registroId||'' } : {}) }));
+  const fotosDaVisita = docsValidos.filter(d=>d.tipo==='foto');
+  if(fotosDaVisita.some(d=>!d.animalId || !animaisSel.some(a=>a.id===d.animalId))){ showAlert('Escolha, para cada foto, o animal dela (um dos animais revisados nesta visita).'); return; }
   const record = {
     id: editingVisitaId || ('vs_'+Date.now()),
     data, veterinario: f('vs_veterinario_sel'), obsGeral: f('vs_obsGeral'),
@@ -18758,6 +18797,24 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
         renderEstoque();
       }
     }
+  }
+  // Fotos da visita viram pontos datados na Linha do Tempo do animal (data da visita). Ficam lá mesmo se a foto for
+  // tirada da visita ou a visita for excluída. Ao reabrir/salvar, só atualiza data e legenda (sem duplicar).
+  if(fotosDaVisita.length){
+    const novos = [], alterados = new Set();
+    for(const d of fotosDaVisita){
+      const nomeAn = (animaisSel.find(a=>a.id===d.animalId)||{}).nome || '';
+      const obs = 'Visita veterinária'+(d.nome ? ' — '+d.nome : '');
+      if(d.registroId){
+        await garantirRegistrosDoAnimal(d.animalId);
+        const reg = animalRegistros.find(r=>r.id===d.registroId);
+        if(reg){ if(reg.data!==data || reg.obs!==obs){ reg.data = data; reg.obs = obs; alterados.add(reg.animalId); } continue; }
+      }
+      d.registroId = aregNovoId();
+      novos.push({ id:d.registroId, animalId:d.animalId, animalNome:nomeAn, data, peso:'', scoreCorporal:'', fotoDataUrl:d.url, fotoMiniUrl:d.miniUrl||'', obs });
+    }
+    if(novos.length) aregAdicionar(novos);
+    if(alterados.size) aregSalvarEmSegundoPlano([...alterados]);
   }
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
   closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
