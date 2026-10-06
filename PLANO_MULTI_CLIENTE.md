@@ -37,3 +37,6 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 ## Estado em 06/10/2026
 - Blaze ativo (período grátis); Storage ativo (São Paulo); regras do Storage e 5 funções publicadas (Node 22); claim `dono` dada ao Gustavo.
 - Foto nova no Storage testada no app de teste (rápida, sem alerta). Falta: mover fotos antigas, promover o código de fotos ao app em uso (só com 'pode subir'), divisão de listas (limite de 1 MiB), painel de clientes, cobrança.
+
+- Limite de fotos por animal: claim `maxFotos` (padrão 3). A etapa 5 (cobrança) deve só ligar/desligar esse número (e a função criarCliente/painel precisa gravar a claim). Divisão das listas grandes (etapa 3b) deve vir antes de aumentar o limite para todos.
+- Diagnóstico escondido de quem não é dono; `?diag=1` libera na aba.
