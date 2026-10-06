@@ -3608,6 +3608,15 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;"><input type="checkbox" id="chkFotosStorage" style="width:auto;"> Guardar fotos NOVAS no Firebase Storage (experimental, só neste aparelho)</label>
       <div class="hint-text" style="margin:6px 0 8px;">Precisa do Storage ativado no Firebase. Se não estiver, o app avisa e guarda a foto do jeito antigo. Desligado, tudo funciona como sempre.</div>
       <button type="button" class="btn btn-sm btn-ghost" id="btnMigrarFotos">Mover fotos antigas para o Storage</button> <span id="migrarFotosStatus" style="font-size:12px;color:var(--muted);"></span>
+    
+      <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnLimparAvalOrfas">Limpar avaliações da consultoria sem visita</button> <span id="limparAvalOrfasStatus" style="font-size:12px;color:var(--muted);"></span></div>
+    </div>
+    <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
+      <div style="font-size:13px;font-weight:600;">Linha do Tempo por animal (fotos/peso/score)</div>
+      <div class="hint-text" id="aregStatus" style="margin:6px 0 8px;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAregMigrar">Dividir por animal agora</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAregRessinc">Conferir registros do app antigo</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnAregReverter">Voltar para o documento único</button>
     </div>
     <div style="margin-bottom:14px;"><button type="button" class="btn btn-sm" id="btnRunDiag">Verificar agora</button> <button type="button" class="btn btn-sm btn-ghost" id="btnTestWrite">1) Gravar valor de teste</button> <button type="button" class="btn btn-sm btn-ghost" id="btnReadOnly">2) Ler valor de teste (sem gravar)</button></div>
     <div id="diagOutput" style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;max-height:420px;overflow-y:auto;"></div>
@@ -3824,7 +3833,10 @@ let editingVisitaConsultoriaId = null, editingAvaliacaoConsultoriaId = null, edi
 let consultoriaFotosSnapshot = null; // clone da última leitura/gravação — usado pela fusão por chave (igual examesSnapshot)
 // Registro avulso de Peso/Score corporal/Foto por animal, com data — pra alimentar a Linha do Tempo
 // Visual mesmo em animal que nunca passou por visita de Consultoria. 100% aditivo, chave própria.
-let animalRegistros = []; // Firestore key: 'animal_registros_list' — {id, animalId, data, peso, scoreCorporal, fotoDataUrl, obs}
+let animalRegistros = []; // Registros carregados nesta sessão — {id, animalId, data, peso, scoreCorporal, fotoDataUrl, obs}.
+// DIVISÃO POR ANIMAL: no formato novo cada animal tem o próprio documento 'areg_<animalId>' (lido só quando
+// a ficha/Linha do Tempo dele abre) e esta lista é só o CACHE dos animais já lidos. No formato antigo
+// ('animal_registros_list', um documento só) ela tem tudo. Ver bloco "LINHA DO TEMPO POR ANIMAL" abaixo.
 let editingAnimalRegistroId = null;
 // Piquetes: cadastro próprio (Operação > Piquetes) — nome + quem são os animais usuários dele.
 // A "Saída pro Piquete" (Estoque) usa essa lista pra saber quem divide o custo, em vez da Localização.
@@ -3888,9 +3900,18 @@ try{
   if(typeof firebase !== 'undefined'){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    // EXPERIMENTOS DE CONEXÃO (só para diagnóstico, escolhidos pelo endereço; sem nenhum deles nada muda):
+    //   ?lp=1       força o modo "long polling" do Firestore (mais lento, mas passa por redes que travam o modo normal)
+    //   ?semsync=1  desliga a sincronização entre abas (evita esperar outra aba/app aberto no mesmo aparelho)
+    const _qDiag = new URLSearchParams(location.search);
+    _abertura.modo = [];
+    try{ if(_qDiag.get('lp')==='1'){ db.settings({ experimentalForceLongPolling:true }); _abertura.modo.push('long polling forçado'); } }catch(e){ console.warn('lp:', e); }
+    const _sincAbas = _qDiag.get('semsync')!=='1';
+    if(!_sincAbas) _abertura.modo.push('sem sincronizar abas');
     // Cache offline: guarda os dados no próprio aparelho e sincroniza sozinho quando o sinal
     // voltar — é o que permite continuar usando o app sem internet no meio do haras.
-    db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+    db.enablePersistence({synchronizeTabs:_sincAbas}).then(()=>marcaAbertura('cache offline pronto')).catch(err=>{
+      marcaAbertura('cache offline NÃO ativado ('+(err&&err.code)+')');
       console.warn('Persistência offline do Firestore não ativada:', err.code);
     });
     HAS_FIRESTORE = true;
@@ -4297,14 +4318,23 @@ const NOME_DOC_GRANDE = { horses_list:'Animais (inclui as fotos)', treinos_list:
 const _avisoEspacoDoc = {};
 function tamanhoDocBytes(val){ try{ return new Blob([JSON.stringify(val)]).size; }catch(_){ return 0; } }
 function avisarEspacoDoc(key, val){
-  if(!NOME_DOC_GRANDE[key] || key==='auditoria_log') return;
+  const nomeDoc = NOME_DOC_GRANDE[key] || (ehChaveAreg(key) ? 'Linha do Tempo deste animal' : '');
+  if(!nomeDoc || key==='auditoria_log') return;
   const pct = Math.round(tamanhoDocBytes(val)/LIMITE_DOC_BYTES*100);
   const nivel = pct>=95 ? 95 : (pct>=80 ? 80 : 0);
   if(!nivel || (_avisoEspacoDoc[key]||0)>=nivel) return;
   _avisoEspacoDoc[key] = nivel;
-  showAlert('Atenção: o cadastro "'+NOME_DOC_GRANDE[key]+'" já ocupa '+pct+'% do espaço máximo do banco. '+(nivel>=95 ? 'Ao chegar em 100% NENHUMA alteração nesse cadastro será salva. ' : '')+'Evite colocar mais fotos grandes e fale comigo antes de continuar.');
+  showAlert('Atenção: o cadastro "'+nomeDoc+'" já ocupa '+pct+'% do espaço máximo do banco. '+(nivel>=95 ? 'Ao chegar em 100% NENHUMA alteração nesse cadastro será salva. ' : '')+'Evite colocar mais fotos grandes e fale comigo antes de continuar.');
 }
+// storeSet = storeSetCore + confirmação do cache da Linha do Tempo por animal (só depois que a gravação
+// DEU CERTO a "foto" usada pela fusão e o cache em memória avançam — gravação que falha não perde a diferença).
+const aregFusoes = {};
 async function storeSet(key,val,userDeleted){
+  const ok = await storeSetCore(key,val,userDeleted);
+  if(ehChaveAreg(key)){ const f = aregFusoes[key]; delete aregFusoes[key]; if(ok && f) aregConfirmarGravacao(key, f); }
+  return ok;
+}
+async function storeSetCore(key,val,userDeleted){
   avisarEspacoDoc(key, val);
   // Esta aba só pode gravar numa chave se conseguir ler o banco agora — a cópia que ela tem na memória
   // pode estar vazia/desatualizada por uma leitura que falhou na abertura. Chave que não é fundida
@@ -4312,7 +4342,7 @@ async function storeSet(key,val,userDeleted){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE && chavesComFalhaDeLeitura.has(key)){
     const rr = await storeGet(key);
     if(!rr.ok){ showAlert(MSG_SEM_RELEITURA); return false; }
-    const fundivel = key==='auditoria_log' || !!AUDIT_KEYS[key] || UNION_SET_KEYS.has(key) || OBJETO_POR_CHAVE_KEYS.has(key);
+    const fundivel = key==='auditoria_log' || !!AUDIT_KEYS[key] || UNION_SET_KEYS.has(key) || OBJETO_POR_CHAVE_KEYS.has(key) || ehChaveAreg(key);
     if(!fundivel){ showAlert('A leitura de "'+key+'" falhou na abertura do app. Recarregue a página antes de salvar, para não apagar o que já está no servidor.'); return false; }
   }
   if(key==='auditoria_log'){
@@ -4348,6 +4378,20 @@ async function storeSet(key,val,userDeleted){
       // usuário ainda vai. Nunca o contrário.
       storeSet('auditoria_log', auditoria).catch(e=>console.error('auditoria:', e));
       if(document.getElementById('view-auditoria') && document.getElementById('view-auditoria').classList.contains('active')) setTimeout(renderAuditoria, 0);
+    }
+  } else if(ehChaveAreg(key)){
+    // Registros de UM animal (documento 'areg_<animalId>'): mesma fusão por id das listas auditadas — só
+    // aplica o que ESTA aba criou/editou/excluiu, em cima do que está no banco agora.
+    const base = aregSnapshots[key];
+    const entradas = aregAuditDiff(key, val);
+    const releitura = await storeGet(key);
+    if(!releitura.ok && !HAS_CLOUD_STORAGE && HAS_FIRESTORE){ showAlert(MSG_SEM_RELEITURA); return false; }
+    const doBanco = releitura.ok ? releitura.value : val;
+    val = fundirListaDeEntidades(base, val, doBanco);
+    aregFusoes[key] = val;
+    if(entradas.length>0){
+      auditRegistrar(entradas);
+      storeSet('auditoria_log', auditoria).catch(e=>console.error('auditoria:', e));
     }
   } else if(UNION_SET_KEYS.has(key)){
     const releitura = await storeGet(key);
@@ -4404,6 +4448,234 @@ async function storeSet(key,val,userDeleted){
     try{ const existing = await window.storage.get(key,false); if(existing && existing.value){ const parsed=JSON.parse(existing.value); if(Array.isArray(parsed)&&parsed.length>0){ showAlert('Gravação bloqueada: isso apagaria dados existentes. Recarregue a página e tente de novo.'); return false; } } }catch(e){ /* key doesn't exist yet, safe to proceed */ }
   }
   try{ await window.storage.set(key,JSON.stringify(val),false); return true; }catch(e){ console.error('storage.set failed for', key, e); showAlert('Aviso: não consegui salvar agora. Verifique sua conexão e tente de novo.'); return false; }
+}
+
+/* ================= LINHA DO TEMPO POR ANIMAL (registros de peso/score/foto) =================
+   ANTES: todos os registros de todos os animais moravam num documento só ('animal_registros_list'),
+   baixado inteiro na abertura do app — e o documento tem teto de 1 MiB (~1.700 fotos), travando a gravação.
+   AGORA: cada animal tem o PRÓPRIO documento 'areg_<animalId>' (chave plana — as regras do Firestore
+   já liberam qualquer nome de documento em harasData/ e tenants/<id>/dados/; barra "/" na chave NÃO
+   funcionaria). O documento só é lido quando a ficha/Linha do Tempo daquele animal abre, e fica em cache.
+   Há um documento-recibo 'areg_indice' que diz "a migração já foi feita e conferida".
+   Modos: 'legado'    = ainda no documento único (comportamento antigo, usado também enquanto migra);
+          'porAnimal' = formato novo;
+          'indefinido'= a leitura falhou na abertura: NADA de registros é gravado (não arrisca apagar). */
+const AREG_PREFIXO = 'areg_';
+const AREG_INDICE = 'areg_indice';
+const AREG_MIGRACAO_AUTOMATICA = false; // false = só migra pelo botão do Diagnóstico
+let aregModo = 'legado';
+let aregIndice = null;                 // conteúdo do 'areg_indice' (quando migrado)
+let aregRevertido = false;             // recibo marcado como "revertido": não migra sozinho de novo
+const aregCarregados = new Set();      // chaves 'areg_<id>' já lidas nesta sessão
+const aregSnapshots = {};              // chave -> Map(id -> JSON) = o que o banco tinha na última leitura/gravação
+const aregLeituras = {};               // chave -> Promise da leitura em andamento
+function aregChave(animalId){ return AREG_PREFIXO + String(animalId).replace(/[^A-Za-z0-9_-]/g,'_'); }
+function ehChaveAreg(k){ return typeof k==='string' && k.length>AREG_PREFIXO.length && k.startsWith(AREG_PREFIXO) && k!==AREG_INDICE; }
+function aregIndiceValido(v){ return !!v && typeof v==='object' && !Array.isArray(v) && Number(v.versao)>=1; }
+function aregNovoId(){ return 'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+function aregTsDoId(id){ const m = /^areg_(\d{10,})_/.exec(String(id)); return m ? Number(m[1]) : 0; }
+function aregLimparCache(){ aregCarregados.clear(); Object.keys(aregSnapshots).forEach(k=>delete aregSnapshots[k]); }
+function registrosDoAnimal(animalId){ return animalRegistros.filter(r=>r.animalId===animalId); }
+// Aplica na memória o que foi LIDO do banco para uma chave (mantém o que só existe na memória = ainda não gravado).
+function aregAplicarLeitura(key, lista){
+  const doAnimal = (Array.isArray(lista)?lista:[]).filter(r=>r && r.id!=null && aregChave(r.animalId)===key);
+  const m = new Map(); doAnimal.forEach(r=>m.set(r.id, JSON.stringify(r)));
+  aregSnapshots[key] = m;
+  const ids = new Set(doAnimal.map(r=>r.id));
+  const pendentes = animalRegistros.filter(r=>aregChave(r.animalId)===key && !ids.has(r.id));
+  animalRegistros = animalRegistros.filter(r=>aregChave(r.animalId)!==key).concat(doAnimal, pendentes);
+  aregCarregados.add(key);
+}
+// Depois de uma gravação OK: o banco passa a ter `merged`. Concilia com a memória sem desfazer o que o usuário
+// fez enquanto a gravação rodava (edição/exclusão/inclusão pendente), e adota o que veio de outro aparelho.
+function aregConfirmarGravacao(key, merged){
+  const base = aregSnapshots[key] || new Map();
+  const mem = new Map(animalRegistros.filter(r=>aregChave(r.animalId)===key).map(r=>[r.id,r]));
+  const out = new Map();
+  merged.forEach(r=>{
+    const baseJ = base.get(r.id);
+    if(mem.has(r.id)) out.set(r.id, (baseJ!==undefined && JSON.stringify(mem.get(r.id))===baseJ) ? r : mem.get(r.id));
+    else if(baseJ===undefined) out.set(r.id, r); // veio de outro aparelho
+    // else: eu excluí agora — não volta
+  });
+  mem.forEach((r,id)=>{ if(!out.has(id) && !base.has(id)) out.set(id, r); }); // novo local ainda não gravado
+  const m = new Map(); merged.forEach(r=>{ if(r && r.id!=null) m.set(r.id, JSON.stringify(r)); });
+  aregSnapshots[key] = m;
+  animalRegistros = animalRegistros.filter(r=>aregChave(r.animalId)!==key).concat([...out.values()]);
+  aregCarregados.add(key);
+}
+// Auditoria do documento por animal: reaproveita o auditDiff das listas (módulo "Animais"), com a foto deste animal.
+function aregAuditDiff(key, val){
+  const ant = auditSnapshots.animal_registros_list;
+  auditSnapshots.animal_registros_list = aregSnapshots[key] || new Map();
+  try{ return auditDiff('animal_registros_list', val); } finally{ auditSnapshots.animal_registros_list = ant; }
+}
+async function aregGarantirChave(key){
+  if(aregModo==='legado') return true;
+  if(aregModo!=='porAnimal') return false;
+  if(aregCarregados.has(key)) return true;
+  if(!aregLeituras[key]){
+    aregLeituras[key] = (async()=>{
+      const r = await storeGet(key);
+      if(!r.ok || !Array.isArray(r.value)) return false; // falha de leitura: NÃO marca como carregado, NÃO mexe nos dados
+      aregAplicarLeitura(key, r.value); return true;
+    })().finally(()=>{ delete aregLeituras[key]; });
+  }
+  return aregLeituras[key];
+}
+function garantirRegistrosDoAnimal(animalId){ return aregGarantirChave(aregChave(animalId)); }
+// Carrega os registros de TODOS os animais (só para backup/migrar fotos — ações explícitas). false = algum falhou.
+async function aregCarregarTodos(){
+  if(aregModo==='legado') return true;
+  if(aregModo!=='porAnimal') return false;
+  const chaves = new Set(horses.map(h=>aregChave(h.id)));
+  if(aregIndice && aregIndice.animais) Object.keys(aregIndice.animais).forEach(k=>chaves.add(k));
+  const lista = [...chaves].filter(k=>!aregCarregados.has(k));
+  let ok = true;
+  for(let i=0;i<lista.length;i+=6){ const rs = await Promise.all(lista.slice(i,i+6).map(aregGarantirChave)); if(rs.includes(false)) ok = false; }
+  return ok;
+}
+const AREG_MSG_NAO_LIDO = 'Os registros da Linha do Tempo não foram lidos na abertura do app. Recarregue a página antes de salvar, para não apagar o que já está no servidor.';
+// Grava os registros de um ou mais animais (aguarda). false = alguma gravação falhou.
+async function aregGravarAnimais(animalIds, userDeleted){
+  if(aregModo==='legado') return storeSet('animal_registros_list', animalRegistros, !!userDeleted);
+  if(aregModo!=='porAnimal'){ showAlert(AREG_MSG_NAO_LIDO); return false; }
+  let ok = true;
+  for(const id of new Set(animalIds)){
+    await garantirRegistrosDoAnimal(id); // melhor esforço: se falhar, a fusão do storeSet exige reler o banco antes de gravar
+    if(!(await storeSet(aregChave(id), registrosDoAnimal(id), !!userDeleted))) ok = false;
+  }
+  return ok;
+}
+// Grava em segundo plano (bolinha de sincronização) os registros dos animais; aoTerminar(ok) no fim.
+function aregSalvarEmSegundoPlano(animalIds, aoTerminar){
+  const fim = ok=>{ if(aoTerminar) try{ aoTerminar(ok); }catch(e){ console.error(e); } return ok; };
+  if(aregModo==='legado') return new Promise(res=>salvarEmSegundoPlano('animal_registros_list', animalRegistros, ok=>res(fim(!!ok))));
+  if(aregModo!=='porAnimal'){ showAlert(AREG_MSG_NAO_LIDO); return Promise.resolve(fim(false)); }
+  return Promise.all([...new Set(animalIds)].map(async id=>{
+    await garantirRegistrosDoAnimal(id);
+    return new Promise(res=>salvarEmSegundoPlano(aregChave(id), registrosDoAnimal(id), ok=>res(!!ok)));
+  })).then(rs=>fim(rs.every(Boolean)));
+}
+// Inclui registros novos (já entram na memória na hora) e grava em segundo plano. Devolve Promise<boolean>.
+function aregAdicionar(regs){
+  animalRegistros = [...animalRegistros, ...regs];
+  return aregSalvarEmSegundoPlano(regs.map(r=>r.animalId));
+}
+// ---- gravação "crua" (sem fusão/auditoria) usada só pela migração/reversão, que sabem o que estão fazendo ----
+async function aregGravarBruto(key, valor){
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){ await db.collection(colecaoDados()).doc(key).set({ value: valor, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); return; }
+  if(!HAS_CLOUD_STORAGE){ localStorage.setItem(LS_PREFIX+key, JSON.stringify(valor)); return; }
+  await window.storage.set(key, JSON.stringify(valor), false);
+}
+// Abertura do app: decide o modo a partir do recibo 'areg_indice' (leitura já feita pelo loadAll).
+async function aregDecidirModo(rIdx){
+  aregIndice = null; aregRevertido = false; aregLimparCache();
+  if(!rIdx || !rIdx.ok){ aregModo = 'indefinido'; animalRegistros = []; return aregModo; }
+  if(aregIndiceValido(rIdx.value)){ aregModo = 'porAnimal'; aregIndice = rIdx.value; animalRegistros = []; return aregModo; }
+  aregRevertido = !!(rIdx.value && !Array.isArray(rIdx.value) && rIdx.value.revertidoEm);
+  const leg = await storeGet('animal_registros_list'); // ainda não migrado: lê o documento único como sempre
+  if(!leg.ok){ aregModo = 'indefinido'; animalRegistros = []; return aregModo; }
+  aregModo = 'legado'; animalRegistros = Array.isArray(leg.value) ? leg.value : [];
+  return aregModo;
+}
+// MIGRAÇÃO: copia 'animal_registros_list' -> 'areg_<animalId>' (um por animal), CONFERE lendo de volta e só então
+// grava o recibo 'areg_indice'. O documento original NÃO é alterado nem apagado em nenhum momento.
+// Idempotente: pode rodar de novo (ou em 2 aparelhos ao mesmo tempo) — sempre soma por id, nunca remove.
+async function aregMigrar(opcoes){
+  const inicioMs = Date.now();
+  try{
+    const idx = await storeGet(AREG_INDICE);
+    if(!idx.ok) return { ok:false, motivo:'não consegui ler o recibo da migração' };
+    if(aregIndiceValido(idx.value)) return { ok:true, jaMigrado:true };
+    if(idx.value && !Array.isArray(idx.value) && idx.value.revertidoEm && !(opcoes && opcoes.forcar)) return { ok:false, motivo:'a migração foi revertida de propósito (use o botão do Diagnóstico para migrar de novo)', revertida:true };
+    const leg = await storeGet('animal_registros_list');
+    if(!leg.ok || !Array.isArray(leg.value)) return { ok:false, motivo:'não consegui ler os registros antigos' };
+    const grupos = new Map(); let seq = 0;
+    leg.value.forEach(r=>{
+      if(!r || typeof r!=='object') return;
+      const reg = (r.id==null) ? { ...r, id:'areg_mig_'+(++seq) } : r;
+      const k = aregChave(reg.animalId==null ? '__sem_animal__' : reg.animalId);
+      if(!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(reg);
+    });
+    const animais = {}; let total = 0;
+    for(const [k, lista] of grupos){
+      const ex = await storeGet(k);
+      if(!ex.ok) return { ok:false, motivo:'não consegui ler '+k };
+      const mapa = new Map((Array.isArray(ex.value)?ex.value:[]).filter(x=>x && x.id!=null).map(x=>[x.id,x]));
+      lista.forEach(r=>{ if(!mapa.has(r.id)) mapa.set(r.id, r); }); // o que já está no documento do animal vale
+      const final = [...mapa.values()];
+      if(tamanhoDocBytes(final) > LIMITE_DOC_BYTES*0.95) return { ok:false, motivo:'o documento de '+k+' ficaria grande demais' };
+      await aregGravarBruto(k, final);
+      const conf = await storeGet(k); // conferência: lê de volta e compara os ids
+      const idsConf = new Set((conf.ok && Array.isArray(conf.value) ? conf.value : []).map(x=>x && x.id));
+      if(!conf.ok || !lista.every(r=>idsConf.has(r.id))) return { ok:false, motivo:'a conferência de '+k+' não bateu' };
+      animais[k] = final.length; total += lista.length;
+    }
+    const recibo = { versao:1, migradoEm:new Date().toISOString(), inicioMs, total, animais, origem:'animal_registros_list' };
+    await aregGravarBruto(AREG_INDICE, recibo);
+    const conf2 = await storeGet(AREG_INDICE);
+    if(!conf2.ok || !aregIndiceValido(conf2.value)) return { ok:false, motivo:'não consegui gravar o recibo da migração' };
+    // Registros que o app ANTIGO (ou esta aba, durante a migração) gravou no documento único depois do início:
+    const rs = await aregRessincronizar(recibo);
+    aregIndice = rs.indice || recibo;
+    aregLimparCache();
+    animalRegistros = []; aregModo = 'porAnimal';
+    return { ok:true, total, animais:Object.keys(animais).length, adicionados:rs.adicionados||0 };
+  }catch(e){ console.error('migração dos registros:', e); return { ok:false, motivo:(e && (e.code||e.message)) || 'erro' }; }
+}
+// Pega do documento único só o que foi CRIADO depois do início da migração (id com data posterior) e ainda não
+// está no documento do animal. O que foi excluído no formato novo nunca "ressuscita" (id antigo).
+async function aregRessincronizar(recibo){
+  const idx = recibo || (aregIndice) || (await storeGet(AREG_INDICE)).value;
+  if(!aregIndiceValido(idx)) return { ok:false, adicionados:0 };
+  const leg = await storeGet('animal_registros_list');
+  if(!leg.ok || !Array.isArray(leg.value)) return { ok:false, adicionados:0 };
+  const novos = leg.value.filter(r=>r && r.id!=null && r.animalId!=null && aregTsDoId(r.id) > (idx.inicioMs||0));
+  const porChave = new Map();
+  novos.forEach(r=>{ const k = aregChave(r.animalId); if(!porChave.has(k)) porChave.set(k, []); porChave.get(k).push(r); });
+  let adicionados = 0; const novoIdx = { ...idx, animais:{ ...(idx.animais||{}) }, ressincEm:new Date().toISOString() };
+  for(const [k, lista] of porChave){
+    const ex = await storeGet(k); if(!ex.ok) return { ok:false, adicionados };
+    const mapa = new Map((Array.isArray(ex.value)?ex.value:[]).filter(x=>x && x.id!=null).map(x=>[x.id,x]));
+    const antes = mapa.size;
+    lista.forEach(r=>{ if(!mapa.has(r.id)) mapa.set(r.id, r); });
+    if(mapa.size>antes){ await aregGravarBruto(k, [...mapa.values()]); adicionados += mapa.size-antes; novoIdx.animais[k] = mapa.size; }
+  }
+  if(adicionados>0 || !idx.ressincEm) await aregGravarBruto(AREG_INDICE, novoIdx);
+  if(adicionados>0 && aregModo==='porAnimal'){ aregIndice = novoIdx; aregLimparCache(); animalRegistros = []; }
+  return { ok:true, adicionados, indice:novoIdx };
+}
+// REVERSÃO: junta os documentos por animal de volta no documento único e volta ao modo antigo. Não apaga os
+// documentos por animal (ficam como cópia); troca o recibo por um marcador "revertido" (versao 0), para o app
+// voltar a usar o documento único e NÃO migrar sozinho de novo.
+async function aregReverter(){
+  try{
+    if(aregModo!=='porAnimal') return { ok:false, motivo:'o app não está no formato novo' };
+    if(!(await aregCarregarTodos())) return { ok:false, motivo:'não consegui ler todos os registros por animal' };
+    const leg = await storeGet('animal_registros_list');
+    if(!leg.ok || !Array.isArray(leg.value)) return { ok:false, motivo:'não consegui ler o documento único' };
+    const ini = (aregIndice && aregIndice.inicioMs) || 0;
+    const mapa = new Map();
+    leg.value.forEach(r=>{ if(r && r.id!=null && aregTsDoId(r.id) > ini) mapa.set(r.id, r); }); // criados pelo app antigo depois
+    animalRegistros.forEach(r=>{ if(r && r.id!=null) mapa.set(r.id, r); });                     // a verdade atual
+    const final = [...mapa.values()];
+    if(tamanhoDocBytes(final) > LIMITE_DOC_BYTES*0.95) return { ok:false, motivo:'o documento único ficaria grande demais ('+Math.round(tamanhoDocBytes(final)/1024)+' KB)' };
+    await aregGravarBruto('animal_registros_list', final);
+    const conf = await storeGet('animal_registros_list');
+    const idsConf = new Set((conf.ok && Array.isArray(conf.value) ? conf.value : []).map(x=>x && x.id));
+    if(!conf.ok || !final.every(r=>idsConf.has(r.id))) return { ok:false, motivo:'a conferência do documento único não bateu (o recibo foi mantido)' };
+    await aregGravarBruto(AREG_INDICE, { versao:0, revertidoEm:new Date().toISOString() }); // marca: não migrar sozinho de novo
+    aregModo = 'legado'; aregIndice = null; aregRevertido = true; aregLimparCache();
+    animalRegistros = final;
+    return { ok:true, total:final.length };
+  }catch(e){ console.error('reversão dos registros:', e); return { ok:false, motivo:(e && (e.code||e.message)) || 'erro' }; }
+}
+function aregMigrarEmSegundoPlano(){
+  if(!AREG_MIGRACAO_AUTOMATICA || aregModo!=='legado' || aregRevertido) return;
+  try{ if(localStorage.getItem('haras_areg_migracao_off')==='1') return; }catch(_){}
+  aregMigrar().then(r=>{ if(!r.ok) console.warn('Migração da Linha do Tempo adiada:', r.motivo); else console.info('Linha do Tempo dividida por animal:', r); });
 }
 
 /* ================= BACKUP AUTOMÁTICO DIÁRIO (dentro do próprio Firestore) =================
@@ -4467,12 +4739,12 @@ async function loadAll(){
     storeGet('financeiro_lancamentos'), storeGet('funcionarios_list'),
     storeGet('exames_animais'), storeGet('semen_lotes'),
     storeGet('consultoria_visitas_list'), storeGet('consultoria_avaliacoes_list'), storeGet('consultoria_fotos'),
-    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet('animal_registros_list'),
+    storeGet('consultoria_formulacoes_list'), storeGet('consultoria_propriedades_list'), storeGet(AREG_INDICE),
     storeGet('piquetes_list'), storeGet('vendas_cobertura'), storeGet('consultoria_aval_propriedade'),
     storeGet('simulacoes_cruzamento')
   ]);
   consultoriaVisitas = rCV.value||[]; consultoriaAvaliacoes = rCA.value||[];
-  animalRegistros = rARz.value||[];
+  await aregDecidirModo(rARz); // formato novo: não baixa registro nenhum aqui (cada animal é lido ao abrir a ficha)
   piquetes = rPq.value||[];
   consultoriaFotos = (rCF.value && typeof rCF.value==='object' && !Array.isArray(rCF.value)) ? rCF.value : {};
   consultoriaFormulacoes = rCFm.value||[];
@@ -4833,6 +5105,7 @@ async function loadAll(){
   // rodam acima são do próprio sistema, não de uma pessoa — encheriam o log de "alterou 725 animais"
   // toda vez que alguém abrisse o app.
   auditPronto = true;
+  aregMigrarEmSegundoPlano(); // ainda no documento único? divide por animal em segundo plano (seguro, confere, reversível)
 }
 document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
   document.getElementById('loadWarning').style.display='none';
@@ -6435,7 +6708,7 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   await storeSet('horses_list', horses);
   if(novosRegistrosPeso.length>0){
     animalRegistros = [...animalRegistros, ...novosRegistrosPeso];
-    await storeSet('animal_registros_list', animalRegistros);
+    await aregGravarAnimais(novosRegistrosPeso.map(r=>r.animalId));
   }
   closeModal('overlayEditLote');
   renderHorses();
@@ -6806,21 +7079,19 @@ document.getElementById('horseForm').addEventListener('submit', async e=>{
   const scoreMudou = (existenteAnimal?existenteAnimal.scoreCorporal:'') !== data.scoreCorporal && data.scoreCorporal!=='';
   const fotoMudou = (existenteAnimal?existenteAnimal.fotoUrl:'') !== data.fotoUrl && data.fotoUrl!=='';
   if(pesoMudou || scoreMudou || fotoMudou){
-    animalRegistros = [...animalRegistros, { id:'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    aregAdicionar([{ id:aregNovoId(),
       animalId: data.id, animalNome: data.nome, data: toISODate(new Date()),
       peso: pesoMudou ? data.peso : '', scoreCorporal: scoreMudou ? data.scoreCorporal : '',
-      fotoDataUrl: fotoMudou ? data.fotoUrl : '', fotoMiniUrl: fotoMudou ? (data.fotoMiniUrl||'') : '', obs:'' }];
-    salvarEmSegundoPlano('animal_registros_list', animalRegistros);
+      fotoDataUrl: fotoMudou ? data.fotoUrl : '', fotoMiniUrl: fotoMudou ? (data.fotoMiniUrl||'') : '', obs:'' }]);
   }
   // Foto adicional NOVA no cadastro também vira um ponto datado (hoje) na Linha do Tempo — o arquivo
   // fica no Storage mesmo se a foto for tirada da ficha depois, para o histórico não quebrar.
   const urlsExtrasAntes = new Set(((existenteAnimal && existenteAnimal.fotosExtras) || []).map(x=>x.url));
   const extrasNovas = fotosExtras.filter(x=>x.url && !urlsExtrasAntes.has(x.url));
   if(extrasNovas.length){
-    animalRegistros = [...animalRegistros, ...extrasNovas.map(x=>({ id:'areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    aregAdicionar(extrasNovas.map(x=>({ id:aregNovoId(),
       animalId: data.id, animalNome: data.nome, data: toISODate(new Date()), peso:'', scoreCorporal:'',
-      fotoDataUrl: x.url, fotoMiniUrl: x.miniUrl||'', obs:'' }))];
-    salvarEmSegundoPlano('animal_registros_list', animalRegistros);
+      fotoDataUrl: x.url, fotoMiniUrl: x.miniUrl||'', obs:'' })));
   }
   closeModal('overlayHorse'); refreshDatalists();
   atualizarTelasQueDependemDeAnimais();
@@ -15434,6 +15705,27 @@ document.querySelectorAll('#view-consultoria [data-cstab]').forEach(tab=>{
 function consultoriaAvaliacoesDaVisita(visitaId){
   return consultoriaAvaliacoes.filter(a=>a.visitaId===visitaId);
 }
+// Avaliação "órfã" = a visita dela não existe mais (foi excluída por outro caminho/versão ou aparelho antigo).
+// Não deve aparecer na ficha do animal nem alimentar sugestões de peso. Só vale quando a lista de visitas foi
+// LIDA com sucesso — se a leitura falhou, nada é tratado como órfão (evita esconder/apagar por engano).
+function avaliacaoConsultoriaOrfa(a){
+  if(chavesComFalhaDeLeitura.has('consultoria_visitas_list')) return false;
+  return !consultoriaVisitas.some(v=>v.id===a.visitaId);
+}
+async function limparAvaliacoesConsultoriaOrfas(){
+  if(chavesComFalhaDeLeitura.has('consultoria_visitas_list') || chavesComFalhaDeLeitura.has('consultoria_avaliacoes_list')) return { erro:'Não consegui ler as visitas/avaliações agora. Nada foi alterado — recarregue e tente de novo.' };
+  const orfas = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa);
+  if(orfas.length===0) return { n:0 };
+  const ids = new Set(orfas.map(a=>a.id));
+  const fotosDelas = orfas.flatMap(a=>Array.isArray(consultoriaFotos[a.id]) ? consultoriaFotos[a.id] : []);
+  consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>!ids.has(a.id));
+  if(!(await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes, true))) return { erro:'Não consegui salvar a limpeza. Tente de novo.' };
+  let mexeuFotos = false;
+  ids.forEach(id=>{ if(consultoriaFotos[id]){ delete consultoriaFotos[id]; mexeuFotos = true; } });
+  if(mexeuFotos) await storeSet('consultoria_fotos', consultoriaFotos);
+  fotosDelas.forEach(f2=>limparArquivoSeOrfao(f2.dataUrl, f2.miniUrl));
+  return { n: orfas.length };
+}
 
 /* ---- Lista de Visitas ---- */
 document.getElementById('cvSearch').addEventListener('input', renderConsultoriaVisitas);
@@ -16039,8 +16331,10 @@ document.getElementById('btnDeleteAvaliacaoConsultoria').addEventListener('click
   const id = editingAvaliacaoConsultoriaId;
   consultoriaAvaliacoes = consultoriaAvaliacoes.filter(a=>a.id!==id);
   await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
+  const fotosDaAvaliacao = Array.isArray(consultoriaFotos[id]) ? consultoriaFotos[id] : [];
   delete consultoriaFotos[id];
   await storeSet('consultoria_fotos', consultoriaFotos);
+  fotosDaAvaliacao.forEach(f2=>limparArquivoSeOrfao(f2.dataUrl, f2.miniUrl)); // arquivos no Storage saem junto (se ninguém mais os usa)
   closeModal('overlayConsultoriaAvaliacao');
   renderConsultoriaAvaliacoesVisita();
   atualizarListasVisitasAposAvaliacao();
@@ -16868,7 +17162,7 @@ document.addEventListener('click', e=>{
 
 /* ---- Integração com a Ficha do Animal (16096+): nova seção, sem tocar nas existentes ---- */
 function blocoConsultoriaAnimalFicha(h){
-  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===h.id).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===h.id && !avaliacaoConsultoriaOrfa(a)).slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   const rows = avals.map(a=>{
     const visita = consultoriaVisitas.find(v=>v.id===a.visitaId);
     return `<tr>
@@ -16954,7 +17248,7 @@ const csfAnimalSelector = createAnimalSelector(document.getElementById('csfAnima
 function sugerirPesoConsultoriaFormulacao(animalId){
   const h = horses.find(x=>x.id===animalId);
   if(h && h.peso!=null && h.peso!=='') return h.peso;
-  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===animalId && a.peso!=='' && a.peso!=null)
+  const avals = consultoriaAvaliacoes.filter(a=>a.animalId===animalId && !avaliacaoConsultoriaOrfa(a) && a.peso!=='' && a.peso!=null)
     .slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''));
   return avals.length ? avals[0].peso : '';
 }
@@ -22938,11 +23232,15 @@ function computeLinhaDoTempoVisualDados(h, de, ate){
   Object.keys(out).forEach(k=>out[k].sort((a,b)=>(a.data||'').localeCompare(b.data||'')));
   return out;
 }
-function abrirLinhaDoTempoVisual(h){
+async function abrirLinhaDoTempoVisual(h){
   ltvAnimalAtual = h;
   document.getElementById('ltvNomeAnimal').textContent = h.nome||'';
+  // Formato novo: os registros deste animal só são lidos agora (e ficam em cache até recarregar a página).
+  const carregado = await garantirRegistrosDoAnimal(h.id);
+  if(ltvAnimalAtual !== h) return; // abriu outro animal enquanto lia
   renderLinhaDoTempoVisual();
   openModal('overlayLinhaDoTempoVisual');
+  if(!carregado) showAlert('Não consegui ler os registros de peso/foto deste animal agora (conexão?). A linha do tempo abaixo pode estar incompleta — nada foi apagado. Feche e abra de novo para tentar outra vez.');
 }
 function renderLinhaDoTempoVisual(){
   const h = ltvAnimalAtual; if(!h) return;
@@ -23095,7 +23393,7 @@ document.getElementById('btnArSalvar').addEventListener('click', ()=>{
   const anterior = editingAnimalRegistroId ? animalRegistros.find(r=>r.id===editingAnimalRegistroId) : null;
   animalRegistros = editingAnimalRegistroId ? animalRegistros.map(r=>r.id===editingAnimalRegistroId?registro:r) : [...animalRegistros, registro];
   if(anterior && anterior.fotoDataUrl && anterior.fotoDataUrl !== registro.fotoDataUrl) limparArquivoSeOrfao(anterior.fotoDataUrl, anterior.fotoMiniUrl);
-  salvarEmSegundoPlano('animal_registros_list', animalRegistros, ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
+  aregSalvarEmSegundoPlano([registro.animalId], ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
   closeModal('overlayAnimalRegistro');
 });
 document.getElementById('btnFtEditar').addEventListener('click', ()=>{
@@ -23109,17 +23407,17 @@ document.getElementById('btnFtExcluir').addEventListener('click', async ()=>{
   const url = r.fotoDataUrl, mini = r.fotoMiniUrl;
   if(r.peso || r.scoreCorporal) animalRegistros = animalRegistros.map(x=>x.id===r.id ? { ...x, fotoDataUrl:'', fotoMiniUrl:'' } : x); // mantém o peso/score do dia
   else animalRegistros = animalRegistros.filter(x=>x.id!==r.id);
-  await storeSet('animal_registros_list', animalRegistros, true);
+  await aregGravarAnimais([r.animalId], true);
   closeModal('overlayFotoTimeline');
   if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual();
   limparArquivoSeOrfao(url, mini);
 });
 document.getElementById('btnArExcluir').addEventListener('click', async ()=>{
   if(!editingAnimalRegistroId || !(await showConfirm('Excluir esse registro?'))) return;
-  const apagado = animalRegistros.find(r=>r.id===editingAnimalRegistroId);
+  const regExcluido = animalRegistros.find(r=>r.id===editingAnimalRegistroId);
   animalRegistros = animalRegistros.filter(r=>r.id!==editingAnimalRegistroId);
-  await storeSet('animal_registros_list', animalRegistros, true);
-  if(apagado) limparArquivoSeOrfao(apagado.fotoDataUrl, apagado.fotoMiniUrl);
+  await aregGravarAnimais([regExcluido ? regExcluido.animalId : (ltvAnimalAtual && ltvAnimalAtual.id)], true);
+  if(regExcluido) limparArquivoSeOrfao(regExcluido.fotoDataUrl, regExcluido.fotoMiniUrl);
   closeModal('overlayAnimalRegistro');
   if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual();
 });
@@ -23684,11 +23982,22 @@ if(HAS_FIRESTORE){
 document.getElementById('chkFotosStorage').addEventListener('change', e=>{
   try{ if(e.target.checked) localStorage.setItem('haras_fotos_storage','1'); else localStorage.removeItem('haras_fotos_storage'); }catch(_){}
 });
+document.getElementById('btnLimparAvalOrfas').addEventListener('click', async ()=>{
+  const st = document.getElementById('limparAvalOrfasStatus');
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode limpar.'); return; }
+  const n = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa).length;
+  if(n===0){ st.textContent = 'Nenhuma avaliação sem visita.'; return; }
+  if(!(await showConfirm('Excluir '+n+' avaliação(ões) da consultoria cuja visita não existe mais (e as fotos delas)? Elas já não aparecem em nenhuma visita.', {danger:true, okLabel:'Excluir'}))) return;
+  const r = await limparAvaliacoesConsultoriaOrfas();
+  st.textContent = r.erro ? r.erro : (r.n+' avaliação(ões) excluída(s).');
+  if(!r.erro) atualizarTelasQueDependemDeAnimais();
+});
 document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
   const st = document.getElementById('migrarFotosStatus');
   if(!fotosNoStorageAtivo()){ showAlert('Ligue primeiro a opção "Guardar fotos NOVAS no Firebase Storage" acima (e o Storage precisa estar ativado no Firebase).'); return; }
   if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode mover as fotos antigas.'); return; }
   const alvoH = horses.filter(h=>Fotos.ehDataImage(h.fotoUrl));
+  if(!(await aregCarregarTodos())){ showAlert('Não consegui ler todos os registros da Linha do Tempo agora. Nada foi alterado — tente de novo.'); return; }
   const alvoR = animalRegistros.filter(r=>Fotos.ehDataImage(r.fotoDataUrl));
   const alvoC = [];
   Object.keys(consultoriaFotos||{}).forEach(aid=>{ (Array.isArray(consultoriaFotos[aid])?consultoriaFotos[aid]:[]).forEach(f2=>{ if(Fotos.ehDataImage(f2.dataUrl)) alvoC.push({ aid, f:f2 }); }); });
@@ -23720,11 +24029,41 @@ document.getElementById('btnMigrarFotos').addEventListener('click', async ()=>{
   }catch(e){ showAlert('Não consegui usar o Storage: '+((e&&(e.code||e.message))||'erro')); return; }
   if(okC>0 && !(await storeSet('consultoria_fotos', consultoriaFotos))){ st.textContent = 'Fotos enviadas, mas não consegui salvar as fotos da consultoria. Tente de novo.'; return; }
   if(okH>0 && !(await storeSet('horses_list', horses))){ st.textContent = 'Fotos enviadas, mas não consegui salvar o cadastro dos animais. Tente de novo.'; return; }
-  if(okR>0 && !(await storeSet('animal_registros_list', animalRegistros))){ st.textContent = 'Fotos enviadas, mas não consegui salvar a linha do tempo. Tente de novo.'; return; }
+  if(okR>0 && !(await aregGravarAnimais(alvoR.map(r=>r.animalId)))){ st.textContent = 'Fotos enviadas, mas não consegui salvar a linha do tempo. Tente de novo.'; return; }
   st.textContent = okH+' de animal, '+okR+' da linha do tempo e '+okC+' da consultoria movida(s)'+(falhou?(', '+falhou+' com erro'):'')+'.';
   renderHorses();
 });
+function aregAtualizarStatusDiag(msg){
+  const el = document.getElementById('aregStatus'); if(!el) return;
+  const base = aregModo==='porAnimal' ? ('Formato novo: cada animal tem o próprio documento'+(aregIndice&&aregIndice.migradoEm?(' (dividido em '+fmtDate(String(aregIndice.migradoEm).slice(0,10))+', '+(aregIndice.total||0)+' registros)'):'')+'. O documento antigo foi mantido como cópia.')
+    : aregModo==='legado' ? 'Formato antigo: todos os registros num documento só'+(aregRevertido?' (revertido de propósito: não divide sozinho).':'.')
+    : 'Os registros não foram lidos na abertura — recarregue a página.';
+  el.textContent = base + (msg?(' — '+msg):'');
+}
+document.getElementById('btnAregMigrar').addEventListener('click', async ()=>{
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+  if(aregModo==='porAnimal'){ aregAtualizarStatusDiag('já está dividido.'); return; }
+  if(aregModo!=='legado'){ showAlert('Recarregue a página antes (os registros não foram lidos na abertura).'); return; }
+  aregAtualizarStatusDiag('dividindo...');
+  const r = await aregMigrar({ forcar:true });
+  aregAtualizarStatusDiag(r.ok ? ('pronto: '+(r.animais||0)+' animal(is), '+(r.total||0)+' registro(s). O documento antigo não foi apagado.') : ('não foi possível agora: '+r.motivo+'. Nada foi alterado.'));
+});
+document.getElementById('btnAregRessinc').addEventListener('click', async ()=>{
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+  if(aregModo!=='porAnimal'){ aregAtualizarStatusDiag('só vale no formato novo.'); return; }
+  const r = await aregRessincronizar();
+  aregAtualizarStatusDiag(r.ok ? (r.adicionados+' registro(s) do app antigo trazido(s).') : 'não consegui ler agora. Nada foi alterado.');
+});
+document.getElementById('btnAregReverter').addEventListener('click', async ()=>{
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+  if(aregModo!=='porAnimal'){ aregAtualizarStatusDiag('já está no formato antigo.'); return; }
+  if(!(await showConfirm('Juntar de novo todos os registros no documento único antigo? Os documentos por animal ficam guardados como cópia.'))) return;
+  aregAtualizarStatusDiag('revertendo...');
+  const r = await aregReverter();
+  aregAtualizarStatusDiag(r.ok ? ('revertido: '+r.total+' registro(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
+});
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
+  aregAtualizarStatusDiag();
   try{ document.getElementById('chkFotosStorage').checked = localStorage.getItem('haras_fotos_storage')==='1'; }catch(_){}
   document.getElementById('diagOutput').textContent = 'Clique em "Verificar agora" para consultar o armazenamento.';
   openModal('overlayDiag');
@@ -23732,6 +24071,7 @@ document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
 function linhasTempoAbertura(){
   const seg = ms => (ms/1000).toFixed(1).replace('.',',')+' s';
   const L = ['TEMPO DA ÚLTIMA ABERTURA (desde que a página começou a carregar):'];
+  if(_abertura.modo && _abertura.modo.length) L.push('  modo de teste: '+_abertura.modo.join(' + '));
   try{
     const nav = performance.getEntriesByType('navigation')[0];
     if(nav) L.push('  página baixada: '+seg(nav.responseEnd)+(nav.transferSize===0?' (veio do cache do aparelho)':''));
@@ -23751,6 +24091,8 @@ document.getElementById('btnRunDiag').addEventListener('click', async ()=>{
   const keys = ['horses_list','manejos_list','treinos_list','nascimentos_list','visitas_repro_list','aux_lists','estoque_produtos','estoque_movimentos','dietas_list','grupos_list','financeiro_lancamentos','tratamentos_list','visitas_list','funcionarios_list','config'];
   let lines = [];
   lines.push(...linhasTempoAbertura(), '');
+  { const nOrf = consultoriaAvaliacoes.filter(avaliacaoConsultoriaOrfa).length;
+    lines.push('Avaliações da consultoria sem visita (órfãs): '+nOrf+(nOrf?'  — use "Limpar avaliações da consultoria sem visita"':''), ''); }
   lines.push('Modo de armazenamento: ' + (HAS_CLOUD_STORAGE ? 'nuvem do Claude (window.storage)' : 'armazenamento local deste navegador (localStorage) — normal quando o arquivo é aberto baixado'));
   for(const key of keys){
     const r = await storeGet(key);
@@ -23858,6 +24200,9 @@ document.getElementById('btnEscolherPastaBackup').addEventListener('click', asyn
 });
 document.getElementById('btnExportBackup').addEventListener('click', async ()=>{
   await garantirAuditoriaCarregada(); // o log não é carregado na abertura; o backup precisa dele inteiro
+  // Formato novo: os registros dos animais não ficam todos em memória — lê o que falta. Se algum documento
+  // não puder ser lido, NÃO gera um backup incompleto (ele pareceria bom e não seria).
+  if(!(await aregCarregarTodos())){ showAlert('Não consegui ler todos os registros da Linha do Tempo agora, então o backup NÃO foi gerado (sairia incompleto). Verifique a conexão e tente de novo.'); return; }
   const backup = { exportedAt: new Date().toISOString(), horses, manejos, treinos, nascimentos, visitasRepro, estoqueProdutos, estoqueMovimentos, dietas, grupos, lancamentos, tratamentos, visitas, funcionarios, transportes, semenLotes, vendasCobertura, auditoria, aux, config, examesPorAnimal, consultoriaVisitas, consultoriaAvaliacoes, consultoriaFotos, consultoriaFormulacoes, consultoriaPropriedades, consultoriaAvalPropriedade, animalRegistros, piquetes };
   const conteudo = JSON.stringify(backup, null, 2);
   const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
@@ -23907,6 +24252,10 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
 
     const msg = `Este arquivo tem ${(backup.horses||[]).length} animais.\n\n${newHorses.length} serão ADICIONADOS aos ${horses.length} que você já tem.${skipped>0?'\n'+skipped+' já eram exatamente o mesmo registro e foram ignorados.':''}\n\nManejos, treinos, nascimentos e movimentações de estoque do arquivo também são adicionados só se ainda não existirem por aqui (mesmo registro, mesmo ID, não duplica). Se algum nome de animal coincidir com um que você já tem, ele entra mesmo assim — depois confira em "Possíveis Duplicados" pra decidir se deve unificar. Continuar?`;
     if(!(await showConfirm(msg))) return;
+    // Registros da Linha do Tempo do backup: no formato novo, lê antes os documentos dos animais afetados
+    // (senão a soma por id poderia regravar por cima do que já existe). Falhou? Aborta ANTES de mexer em qualquer lista.
+    const aregAnimaisImport = [...new Set((Array.isArray(backup.animalRegistros)?backup.animalRegistros:[]).filter(r=>r && r.animalId!=null).map(r=>r.animalId))];
+    for(const aid of aregAnimaisImport){ if(!(await garantirRegistrosDoAnimal(aid))){ showAlert('Não consegui ler os registros da Linha do Tempo no servidor agora, então a importação foi cancelada sem alterar nada. Tente de novo.'); e.target.value=''; return; } }
     horses = [...horses, ...newHorses];
     const existingManejoIds = new Set(manejos.map(m=>m.id));
     manejos = [...manejos, ...((backup.manejos||[]).filter(m=>!existingManejoIds.has(m.id)))];
@@ -23973,7 +24322,7 @@ document.getElementById('importBackupFile').addEventListener('change', async (e)
       await storeSet('tratamentos_list', tratamentos); await storeSet('visitas_list', visitas); await storeSet('funcionarios_list', funcionarios);
       await storeSet('transportes_list', transportes); await storeSet('visitas_repro_list', visitasRepro);
       await storeSet('semen_lotes', semenLotes); await storeSet('vendas_cobertura', vendasCobertura);
-      if(backup.animalRegistros) await storeSet('animal_registros_list', animalRegistros);
+      if(backup.animalRegistros) await aregGravarAnimais(aregAnimaisImport);
       if(backup.piquetes) await storeSet('piquetes_list', piquetes);
       if(backup.consultoriaVisitas) await storeSet('consultoria_visitas_list', consultoriaVisitas);
       if(backup.consultoriaAvaliacoes) await storeSet('consultoria_avaliacoes_list', consultoriaAvaliacoes);
