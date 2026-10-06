@@ -2832,6 +2832,10 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="section-label" style="border-top:none;padding-top:0;margin-top:16px;">Documentos / Ultrassom <span style="font-family:'Inter';font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— links (Drive, foto na nuvem...), não arquivos anexados</span></div>
     <div id="visitaReproDocsHost" style="margin:8px 0;"></div>
     <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaReproDoc">+ Adicionar documento</button>
+    <button type="button" class="btn btn-sm btn-ghost" id="btnAddVisitaReproFoto">📷 Adicionar foto da égua</button>
+    <input type="file" id="vr_fotoFile" accept="image/*" multiple style="display:none;">
+    <div id="vr_fotoStatus" class="hint-text" style="display:none;margin-top:6px;"></div>
+    <div class="hint-text" style="margin-top:4px;">Foto da égua examinada: entra na Linha do Tempo dela, na data da visita, e fica guardada mesmo se você excluir a visita.</div>
     <div class="modal-actions">
       <div><button type="button" class="btn btn-danger" id="btnDeleteVisitaRepro" style="display:none;">Excluir</button></div>
       <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayVisitaRepro">Cancelar</button><button type="button" class="btn" id="btnSaveVisitaRepro">Salvar Visita <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
@@ -18660,6 +18664,52 @@ document.getElementById('btnAddServico').addEventListener('click', adicionarNovo
   document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); adicionarNovoServico(); } });
 });
 
+/* ---- Fotos de visitas (Veterinária e Reprodutiva): envio ao Storage e ponto na Linha do Tempo ---- */
+// Envia arquivos de imagem ao Storage e empilha linhas {tipo:'foto'} em "estado" (lista de documentos da visita).
+async function enviarFotosParaVisita(files, animais, estado, redesenhar, statusFn){
+  try{
+    const st = await carregarStorage();
+    try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+    for(let i=0;i<files.length;i++){
+      statusFn('Enviando foto '+(i+1)+' de '+files.length+'...');
+      const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+      const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, animais[0].id, files[i]), limite]);
+      estado.push({ tipo:'foto', animalId: animais.length===1 ? animais[0].id : '', nome:'', url:r.url, miniUrl:r.urlMiniatura||'' });
+      redesenhar();
+    }
+  }catch(err){
+    console.error('Foto da visita: envio falhou:', err);
+    showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
+  }finally{ statusFn(''); }
+}
+// Cada foto da visita vira ponto datado (data da visita) na Linha do Tempo do animal. Reabrir/salvar de novo só
+// atualiza data e legenda (não duplica). Tirar a foto da visita ou excluir a visita NÃO apaga o ponto.
+async function sincronizarFotosDeVisitaComLinhaDoTempo(docs, animaisSel, data, rotuloVisita){
+  const fotos = docs.filter(d=>d.tipo==='foto'); if(!fotos.length) return;
+  const novos = [], alterados = new Set();
+  for(const d of fotos){
+    const nomeAn = (animaisSel.find(a=>a.id===d.animalId)||{}).nome || '';
+    const obs = rotuloVisita+(d.nome ? ' — '+d.nome : '');
+    if(d.registroId){
+      await garantirRegistrosDoAnimal(d.animalId);
+      const reg = animalRegistros.find(r=>r.id===d.registroId);
+      if(reg){ if(reg.data!==data || reg.obs!==obs){ reg.data = data; reg.obs = obs; alterados.add(reg.animalId); } continue; }
+    }
+    d.registroId = aregNovoId();
+    novos.push({ id:d.registroId, animalId:d.animalId, animalNome:nomeAn, data, peso:'', scoreCorporal:'', fotoDataUrl:d.url, fotoMiniUrl:d.miniUrl||'', obs });
+  }
+  if(novos.length) aregAdicionar(novos);
+  if(alterados.size) aregSalvarEmSegundoPlano([...alterados]);
+}
+// Linhas do formulário de documentos que são foto (miniatura + legenda) — usado pelas duas visitas.
+function linhaDeFotoDaVisita(it, idx, animaisOpts, campoAttr, removeAttr, cols){
+  return `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+      <select ${campoAttr}="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
+      <input type="text" ${campoAttr}="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Legenda (ex: machucado no boleto direito)">
+      <div style="display:flex;align-items:center;gap:8px;"><img src="${urlSegura(it.miniUrl||it.url)}" alt="Foto" style="height:44px;width:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"><span class="hint-text" style="margin:0;">📷 Foto</span></div>
+      <button type="button" class="btn btn-sm btn-danger" ${removeAttr}="${idx}" title="Remover da visita (se já estiver na linha do tempo, ela continua lá)">✕</button>
+    </div>`;
+}
 /* ---- Documentos / Exames da visita (links, não arquivos — ver nota no código de exportação) ---- */
 let visitaDocsState = [];
 function renderVisitaDocs(){
@@ -18670,12 +18720,7 @@ function renderVisitaDocs(){
   host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
       <div>Animal</div><div>Nome</div><div>Link</div><div></div>
     </div>` +
-    visitaDocsState.map((it,idx)=> it.tipo==='foto' ? `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
-      <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
-      <input type="text" data-vdfield="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Legenda (ex: machucado no boleto direito)">
-      <div style="display:flex;align-items:center;gap:8px;"><img src="${urlSegura(it.miniUrl||it.url)}" alt="Foto" style="height:44px;width:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);"><span class="hint-text" style="margin:0;">📷 Foto</span></div>
-      <button type="button" class="btn btn-sm btn-danger" data-vdremove="${idx}" title="Remover da visita (se já estiver na linha do tempo, ela continua lá)">✕</button>
-    </div>` : `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+    visitaDocsState.map((it,idx)=> it.tipo==='foto' ? linhaDeFotoDaVisita(it, idx, animaisOpts, 'data-vdfield', 'data-vdremove', cols) : `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
       <select data-vdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
       <input type="text" data-vdfield="nome" data-idx="${idx}" value="${escHtml(it.nome||'')}" placeholder="Ex: Raio-X do casco">
       <input type="text" data-vdfield="url" data-idx="${idx}" value="${it.url||''}" placeholder="Link (Drive, foto na nuvem...)">
@@ -18705,20 +18750,7 @@ document.getElementById('vs_fotoFile').addEventListener('change', async e=>{
   e.target.value = '';
   if(!files.length) return;
   const animais = opcoesAnimaisVisita(); if(!animais.length) return;
-  try{
-    const st = await carregarStorage();
-    try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
-    for(let i=0;i<files.length;i++){
-      statusFotoVisita('Enviando foto '+(i+1)+' de '+files.length+'...');
-      const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
-      const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, animais[0].id, files[i]), limite]);
-      visitaDocsState.push({ tipo:'foto', animalId: animais.length===1 ? animais[0].id : '', nome:'', url:r.url, miniUrl:r.urlMiniatura||'' });
-      renderVisitaDocs();
-    }
-  }catch(err){
-    console.error('Foto da visita: envio falhou:', err);
-    showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
-  }finally{ statusFotoVisita(''); }
+  await enviarFotosParaVisita(files, animais, visitaDocsState, renderVisitaDocs, statusFotoVisita);
 });
 
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
@@ -18798,24 +18830,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
       }
     }
   }
-  // Fotos da visita viram pontos datados na Linha do Tempo do animal (data da visita). Ficam lá mesmo se a foto for
-  // tirada da visita ou a visita for excluída. Ao reabrir/salvar, só atualiza data e legenda (sem duplicar).
-  if(fotosDaVisita.length){
-    const novos = [], alterados = new Set();
-    for(const d of fotosDaVisita){
-      const nomeAn = (animaisSel.find(a=>a.id===d.animalId)||{}).nome || '';
-      const obs = 'Visita veterinária'+(d.nome ? ' — '+d.nome : '');
-      if(d.registroId){
-        await garantirRegistrosDoAnimal(d.animalId);
-        const reg = animalRegistros.find(r=>r.id===d.registroId);
-        if(reg){ if(reg.data!==data || reg.obs!==obs){ reg.data = data; reg.obs = obs; alterados.add(reg.animalId); } continue; }
-      }
-      d.registroId = aregNovoId();
-      novos.push({ id:d.registroId, animalId:d.animalId, animalNome:nomeAn, data, peso:'', scoreCorporal:'', fotoDataUrl:d.url, fotoMiniUrl:d.miniUrl||'', obs });
-    }
-    if(novos.length) aregAdicionar(novos);
-    if(alterados.size) aregSalvarEmSegundoPlano([...alterados]);
-  }
+  await sincronizarFotosDeVisitaComLinhaDoTempo(docsValidos, animaisSel, data, 'Visita veterinária');
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
   closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
   salvarEmSegundoPlano('visitas_list', visitas, ()=>{ renderVisitas(); renderFinanceiro(); });
@@ -19054,7 +19069,7 @@ function renderVisitaReproDocs(){
   host.innerHTML = `<div style="display:grid;grid-template-columns:${cols};gap:6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:0 0 4px;">
       <div>Égua</div><div>Nome</div><div>Link</div><div></div>
     </div>` +
-    visitaReproDocsState.map((it,idx)=>`<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
+    visitaReproDocsState.map((it,idx)=> it.tipo==='foto' ? linhaDeFotoDaVisita(it, idx, animaisOpts, 'data-vrdfield', 'data-vrdremove', cols) : `<div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:8px;">
       <select data-vrdfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>
       <input type="text" data-vrdfield="nome" data-idx="${idx}" value="${(it.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex: Ultrassom 14d">
       <input type="text" data-vrdfield="url" data-idx="${idx}" value="${(it.url||'').replace(/"/g,'&quot;')}" placeholder="Link (Drive, foto na nuvem...)">
@@ -19067,6 +19082,19 @@ function renderVisitaReproDocs(){
     btn.addEventListener('click', ()=>{ visitaReproDocsState.splice(Number(btn.dataset.vrdremove),1); renderVisitaReproDocs(); });
   });
 }
+function statusFotoVisitaRepro(txt){ const el = document.getElementById('vr_fotoStatus'); if(el){ el.textContent = txt||''; el.style.display = txt ? '' : 'none'; } }
+document.getElementById('btnAddVisitaReproFoto').addEventListener('click', ()=>{
+  if(!fotosNoStorageAtivo()){ showAlert('Para anexar fotos na visita, ligue a opção de fotos no Firebase Storage (Diagnóstico).'); return; }
+  if(visitaReproSelector.getSelected().length===0){ showAlert('Selecione primeiro a(s) égua(s) examinada(s).'); return; }
+  document.getElementById('vr_fotoFile').click();
+});
+document.getElementById('vr_fotoFile').addEventListener('change', async e=>{
+  const files = [...(e.target.files||[])];
+  e.target.value = '';
+  if(!files.length) return;
+  const animais = opcoesAnimaisVisitaRepro(); if(!animais.length) return;
+  await enviarFotosParaVisita(files, animais, visitaReproDocsState, renderVisitaReproDocs, statusFotoVisitaRepro);
+});
 document.getElementById('btnAddVisitaReproDoc').addEventListener('click', ()=>{
   const animaisOpts = opcoesAnimaisVisitaRepro();
   visitaReproDocsState.push({ animalId: animaisOpts.length===1?animaisOpts[0].id:'', nome:'', url:'' });
@@ -19120,6 +19148,7 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
   if(!data){ showAlert('Informe a data da visita.'); return; }
   const eguasSel = visitaReproSelector.getSelected();
   if(eguasSel.length===0){ showAlert('Selecione ao menos uma égua examinada.'); return; }
+  if(visitaReproDocsState.some(d=>d.tipo==='foto' && d.url && (!d.animalId || !eguasSel.some(a=>a.id===d.animalId)))){ showAlert('Escolha, para cada foto, a égua dela (uma das examinadas nesta visita).'); return; }
   sincronizarReproEguas();
   const eguas = reproEguasState.map(e=>({
     animalId:e.animalId, nome:e.nome,
@@ -19152,7 +19181,8 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
       await registrarMovimento(med.id, 'saida', qtd, 'veterinaria', 'Visita reprodutiva — '+txt+' — '+e.nome, data, undefined, [{id:e.animalId, nome:e.nome}]);
     }
   }
-  const docsValidos = visitaReproDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vrd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||'Documento', url:d.url.trim() }));
+  const docsValidos = visitaReproDocsState.filter(d=>d.url && d.url.trim()).map(d=>({ id:d.id||('vrd_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), animalId:d.animalId||'', nome:(d.nome||'').trim()||(d.tipo==='foto'?'':'Documento'), url:d.url.trim(),
+    ...(d.tipo==='foto' ? { tipo:'foto', miniUrl:d.miniUrl||'', registroId:d.registroId||'' } : {}) }));
   const record = { id: editingVisitaReproId || ('vr_'+Date.now()), data, veterinario:f('vr_veterinario_sel'), local:f('vr_local').trim(), obsGeral:f('vr_obsGeral').trim(), eguas, documentos:docsValidos };
   // Integração com a prenhez: toda égua marcada como prenhe liga na cobertura aberta dela e dispara o
   // protocolo de vacinas de gestação (mesmo efeito do botão 🤰 da aba Coberturas).
@@ -19224,6 +19254,7 @@ document.getElementById('btnSaveVisitaRepro').addEventListener('click', async ()
       retornosAgendados.push(e.nome + ' → ' + fmtDate(retorno));
     }
   }
+  await sincronizarFotosDeVisitaComLinhaDoTempo(docsValidos, eguasSel, data, 'Visita reprodutiva');
   visitasRepro = editingVisitaReproId ? visitasRepro.map(v=>v.id===editingVisitaReproId?record:v) : [...visitasRepro, record];
   // Reativa o retorno reprodutivo dessas éguas no Calendário: se alguém já tinha excluído (🗑) um
   // retorno anterior dela por lá, essa exclusão fica "presa" na data antiga e o retorno novo/editado
@@ -22926,6 +22957,27 @@ function renderAnimalPerfil(id){
     const inp = document.getElementById('perfilNovoExame');
     const file = inp.files[0];
     if(!file){ showAlert('Escolha um arquivo primeiro.'); return; }
+    // FOTO (imagem): vai para o Storage (com miniatura), aparece na lista de Exames como link e vira ponto datado
+    // (hoje) na Linha do Tempo do animal. PDF e outros arquivos seguem o caminho de sempre, logo abaixo.
+    if(/^image\//i.test(file.type||'') && fotosNoStorageAtivo()){
+      try{
+        const st = await carregarStorage();
+        try{ st.setMaxUploadRetryTime(FOTO_TIMEOUT_MS); st.setMaxOperationRetryTime(FOTO_TIMEOUT_MS); }catch(_){}
+        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em '+Math.round(FOTO_TIMEOUT_MS/1000)+' s')), FOTO_TIMEOUT_MS));
+        const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, h.id, file), limite]);
+        const nomeFoto = (document.getElementById('perfilExameLinkNome').value||'').trim() || file.name;
+        const novoExame = { id:'ex_'+Date.now(), nome:nomeFoto, url:r.url, miniUrl:r.urlMiniatura||'', tipo:'link', foto:true, dataUpload: toISODate(new Date()) };
+        examesPorAnimal = { ...examesPorAnimal, [h.id]: [...(examesPorAnimal[h.id]||[]), novoExame] };
+        if(!(await storeSet('exames_animais', examesPorAnimal))) return;
+        aregAdicionar([{ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:r.url, fotoMiniUrl:r.urlMiniatura||'', obs:'Exame — '+nomeFoto }]);
+        inp.value = ''; document.getElementById('perfilExameLinkNome').value = '';
+        renderAnimalPerfil(h.id);
+      }catch(err){
+        console.error('Foto do exame: envio falhou:', err);
+        showAlert('Não consegui enviar a foto ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.');
+      }
+      return;
+    }
     // Todos os exames de TODOS os animais moram juntos num documento só (exames_animais, separado do
     // cadastro do animal — ver comentário na declaração de examesPorAnimal), e esse documento tem um
     // teto de 1 MB. O limite por arquivo é bem mais apertado que os 3 MB de antes (que fazia sentido só
