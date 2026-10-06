@@ -3888,9 +3888,18 @@ try{
   if(typeof firebase !== 'undefined'){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    // EXPERIMENTOS DE CONEXÃO (só para diagnóstico, escolhidos pelo endereço; sem nenhum deles nada muda):
+    //   ?lp=1       força o modo "long polling" do Firestore (mais lento, mas passa por redes que travam o modo normal)
+    //   ?semsync=1  desliga a sincronização entre abas (evita esperar outra aba/app aberto no mesmo aparelho)
+    const _qDiag = new URLSearchParams(location.search);
+    _abertura.modo = [];
+    try{ if(_qDiag.get('lp')==='1'){ db.settings({ experimentalForceLongPolling:true }); _abertura.modo.push('long polling forçado'); } }catch(e){ console.warn('lp:', e); }
+    const _sincAbas = _qDiag.get('semsync')!=='1';
+    if(!_sincAbas) _abertura.modo.push('sem sincronizar abas');
     // Cache offline: guarda os dados no próprio aparelho e sincroniza sozinho quando o sinal
     // voltar — é o que permite continuar usando o app sem internet no meio do haras.
-    db.enablePersistence({synchronizeTabs:true}).catch(err=>{
+    db.enablePersistence({synchronizeTabs:_sincAbas}).then(()=>marcaAbertura('cache offline pronto')).catch(err=>{
+      marcaAbertura('cache offline NÃO ativado ('+(err&&err.code)+')');
       console.warn('Persistência offline do Firestore não ativada:', err.code);
     });
     HAS_FIRESTORE = true;
@@ -23732,6 +23741,7 @@ document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
 function linhasTempoAbertura(){
   const seg = ms => (ms/1000).toFixed(1).replace('.',',')+' s';
   const L = ['TEMPO DA ÚLTIMA ABERTURA (desde que a página começou a carregar):'];
+  if(_abertura.modo && _abertura.modo.length) L.push('  modo de teste: '+_abertura.modo.join(' + '));
   try{
     const nav = performance.getEntriesByType('navigation')[0];
     if(nav) L.push('  página baixada: '+seg(nav.responseEnd)+(nav.transferSize===0?' (veio do cache do aparelho)':''));
