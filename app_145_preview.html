@@ -1984,6 +1984,10 @@
       <div class="modal" style="max-width:min(90vw,640px);">
         <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
         <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
+        <div id="ftAcoes" style="display:none;gap:8px;margin-top:12px;justify-content:space-between;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm btn-ghost" id="btnFtEditar">✏️ Editar data / anotação</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btnFtExcluir">🗑 Excluir esta foto</button>
+        </div>
       </div>
     </div>
 
@@ -16085,9 +16089,7 @@ function renderFotosConsultoria(avaliacaoId){
       if(!(await showConfirm('Excluir esta foto?'))) return;
       const removida = (consultoriaFotos[avaliacaoId]||[]).find(f2=>f2.id===btn.dataset.fotodel);
       consultoriaFotos[avaliacaoId] = (consultoriaFotos[avaliacaoId]||[]).filter(f2=>f2.id!==btn.dataset.fotodel);
-      if(removida && /^https:\/\//i.test(removida.dataUrl||'') && window.Fotos){
-        carregarStorage().then(st=>Fotos.removerFoto(st, { fotoUrl:removida.dataUrl, fotoMiniUrl:removida.miniUrl||'' })).catch(e=>console.warn('Não consegui apagar a foto do Storage (fica órfã, sem prejuízo):', e));
-      }
+      if(removida) limparArquivoSeOrfao(removida.dataUrl, removida.miniUrl);
       await storeSet('consultoria_fotos', consultoriaFotos);
       renderFotosConsultoria(avaliacaoId);
       renderConsultoriaAvaliacoesVisita();
@@ -22498,17 +22500,13 @@ function renderAnimalPerfil(id){
   renderAnimalTimeline(h);
   const fotoPrincipalEl = document.getElementById('perfilFotoPrincipal');
   if(fotoPrincipalEl) fotoPrincipalEl.addEventListener('click', ()=>{
-    document.getElementById('ftFotoGrande').src = h.fotoUrl;
-    document.getElementById('ftModalTitulo').textContent = 'Foto de '+(h.nome||'');
-    openModal('overlayFotoTimeline');
+    abrirFotoGrande(h.fotoUrl, 'Foto de '+(h.nome||''), null);
   });
 
   document.querySelectorAll('[data-fotoextra]').forEach(img=>{
     img.addEventListener('click', ()=>{
       const f = (h.fotosExtras||[])[Number(img.dataset.fotoextra)]; if(!f) return;
-      document.getElementById('ftFotoGrande').src = f.url;
-      document.getElementById('ftModalTitulo').textContent = 'Foto de '+(h.nome||'');
-      openModal('overlayFotoTimeline');
+      abrirFotoGrande(f.url, 'Foto de '+(h.nome||''), null);
     });
   });
   document.querySelectorAll('[data-abrircob]').forEach(el=>{
@@ -22738,6 +22736,43 @@ function computeTimelineAnimal(h){
   }
   return eventos.filter(e=>e.data).sort((a,b)=> b.data.localeCompare(a.data));
 }
+/* ---- Foto ampliada. Se veio da Linha do Tempo (tem registroId) mostra Editar/Excluir. ---- */
+let ftRegistroId = null;
+function abrirFotoGrande(url, titulo, registroId){
+  ftRegistroId = registroId || null;
+  document.getElementById('ftFotoGrande').src = url;
+  document.getElementById('ftModalTitulo').textContent = titulo;
+  document.getElementById('ftAcoes').style.display = ftRegistroId ? 'flex' : 'none';
+  openModal('overlayFotoTimeline');
+}
+// A foto (arquivo no Storage) ainda é usada por alguém? Cadastro (principal/adicionais), outro registro ou consultoria.
+function fotoAindaReferenciada(url){
+  if(!url) return false;
+  if(horses.some(h=>h.fotoUrl===url || (Array.isArray(h.fotosExtras) && h.fotosExtras.some(f=>f.url===url)))) return true;
+  if(animalRegistros.some(r=>r.fotoDataUrl===url)) return true;
+  return Object.values(consultoriaFotos||{}).some(l=>Array.isArray(l) && l.some(f=>f.dataUrl===url));
+}
+// Só apaga o ARQUIVO do Storage quando ninguém mais usa a foto (se for a principal do cadastro, por exemplo, ele fica).
+function limparArquivoSeOrfao(url, mini){
+  if(!url || !/^https:\/\//i.test(url) || !window.Fotos || !Fotos.caminhoDeUrl(url)) return;
+  if(fotoAindaReferenciada(url)) return;
+  carregarStorage().then(st=>Fotos.removerFoto(st, { fotoUrl:url, fotoMiniUrl:mini||'' })).catch(e=>console.warn('Não consegui apagar a foto do Storage (fica órfã, sem prejuízo):', e));
+}
+function abrirAnimalRegistroEditar(id){
+  const r = animalRegistros.find(x=>x.id===id); if(!r) return;
+  const animal = horses.find(x=>x.id===r.animalId) || ltvAnimalAtual; if(!animal) return;
+  ltvAnimalAtual = animal;
+  abrirAnimalRegistroForm();
+  editingAnimalRegistroId = r.id;
+  document.getElementById('arModalTitle').textContent = 'Editar registro — '+(r.animalNome||animal.nome||'');
+  document.getElementById('ar_data').value = r.data || '';
+  document.getElementById('ar_peso').value = r.peso || '';
+  document.getElementById('ar_score').value = r.scoreCorporal || '';
+  document.getElementById('ar_obs').value = r.obs || '';
+  const prev = document.getElementById('ar_fotoPreview');
+  if(r.fotoDataUrl){ prev.src = r.fotoDataUrl; prev.dataset.dataurl = r.fotoDataUrl; prev.dataset.mini = r.fotoMiniUrl || ''; prev.style.display = 'block'; }
+  document.getElementById('btnArExcluir').style.display = 'inline-block';
+}
 function renderAnimalTimeline(h){
   const { de, ate } = timelineCalcularRange();
   const todosSemPeriodo = computeTimelineAnimal(h);
@@ -22956,7 +22991,7 @@ function renderLinhaDoTempoVisual(){
         ${eventos.map(ev=>{
           const left = pct(ev.data);
           if(c.key==='foto' && ev.fotoUrl){
-            return `<img src="${urlSegura(ev.fotoMini||ev.fotoUrl)}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
+            return `<img src="${urlSegura(ev.fotoMini||ev.fotoUrl)}" data-ltvfoto="${encodeURIComponent(ev.fotoUrl)}" data-ltvreg="${escHtml(ev.registroId||'')}" data-ltvfotodata="${ev.data}" title="${fmtDate(ev.data)}" style="position:absolute;left:${left}%;top:4px;width:36px;height:36px;object-fit:cover;border-radius:6px;border:2px solid ${c.cor};cursor:pointer;transform:translateX(-50%);">`;
           }
           const info = encodeURIComponent(`${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+ev.detalhe):''}`);
           return `<div data-ltvponto="${info}" title="${fmtDate(ev.data)} — ${ev.titulo}${ev.detalhe?(' — '+escHtml(ev.detalhe)):''}" style="position:absolute;left:${left}%;top:12px;width:14px;height:14px;border-radius:50%;background:${c.cor};cursor:pointer;transform:translateX(-50%);border:2px solid var(--card,#fff);"></div>`;
@@ -22970,9 +23005,7 @@ function renderLinhaDoTempoVisual(){
   corpo.innerHTML = `<div style="min-width:640px;">${linhasHtml}${eixoHtml}</div>`;
   corpo.querySelectorAll('[data-ltvfoto]').forEach(img=>{
     img.addEventListener('click', ()=>{
-      document.getElementById('ftFotoGrande').src = decodeURIComponent(img.dataset.ltvfoto);
-      document.getElementById('ftModalTitulo').textContent = 'Foto — '+fmtDate(img.dataset.ltvfotodata);
-      openModal('overlayFotoTimeline');
+      abrirFotoGrande(decodeURIComponent(img.dataset.ltvfoto), 'Foto — '+fmtDate(img.dataset.ltvfotodata), img.dataset.ltvreg || null);
     });
   });
   corpo.querySelectorAll('[data-ltvponto]').forEach(pt=>{
@@ -23059,14 +23092,34 @@ document.getElementById('btnArSalvar').addEventListener('click', ()=>{
   const registro = { id: editingAnimalRegistroId || ('areg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
     animalId: ltvAnimalAtual.id, animalNome: ltvAnimalAtual.nome, data, peso, scoreCorporal:score, fotoDataUrl,
     fotoMiniUrl: fotoDataUrl ? (document.getElementById('ar_fotoPreview').dataset.mini || '') : '', obs };
+  const anterior = editingAnimalRegistroId ? animalRegistros.find(r=>r.id===editingAnimalRegistroId) : null;
   animalRegistros = editingAnimalRegistroId ? animalRegistros.map(r=>r.id===editingAnimalRegistroId?registro:r) : [...animalRegistros, registro];
+  if(anterior && anterior.fotoDataUrl && anterior.fotoDataUrl !== registro.fotoDataUrl) limparArquivoSeOrfao(anterior.fotoDataUrl, anterior.fotoMiniUrl);
   salvarEmSegundoPlano('animal_registros_list', animalRegistros, ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
   closeModal('overlayAnimalRegistro');
 });
+document.getElementById('btnFtEditar').addEventListener('click', ()=>{
+  const id = ftRegistroId; if(!id) return;
+  closeModal('overlayFotoTimeline');
+  abrirAnimalRegistroEditar(id);
+});
+document.getElementById('btnFtExcluir').addEventListener('click', async ()=>{
+  const r = animalRegistros.find(x=>x.id===ftRegistroId); if(!r) return;
+  if(!(await showConfirm('Excluir esta foto da linha do tempo? Se for também a foto principal do cadastro, ela continua na ficha do animal.'))) return;
+  const url = r.fotoDataUrl, mini = r.fotoMiniUrl;
+  if(r.peso || r.scoreCorporal) animalRegistros = animalRegistros.map(x=>x.id===r.id ? { ...x, fotoDataUrl:'', fotoMiniUrl:'' } : x); // mantém o peso/score do dia
+  else animalRegistros = animalRegistros.filter(x=>x.id!==r.id);
+  await storeSet('animal_registros_list', animalRegistros, true);
+  closeModal('overlayFotoTimeline');
+  if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual();
+  limparArquivoSeOrfao(url, mini);
+});
 document.getElementById('btnArExcluir').addEventListener('click', async ()=>{
   if(!editingAnimalRegistroId || !(await showConfirm('Excluir esse registro?'))) return;
+  const apagado = animalRegistros.find(r=>r.id===editingAnimalRegistroId);
   animalRegistros = animalRegistros.filter(r=>r.id!==editingAnimalRegistroId);
   await storeSet('animal_registros_list', animalRegistros, true);
+  if(apagado) limparArquivoSeOrfao(apagado.fotoDataUrl, apagado.fotoMiniUrl);
   closeModal('overlayAnimalRegistro');
   if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual();
 });
