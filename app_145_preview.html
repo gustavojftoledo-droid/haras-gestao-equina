@@ -2016,7 +2016,7 @@
     <div class="overlay" id="overlayExamesAviso">
       <div class="modal" style="max-width:min(94vw,640px);">
         <div class="modal-head"><div class="modal-title">🩺 Controle de exames (AIE · Mormo)</div><button class="modal-close" data-close="overlayExamesAviso">✕</button></div>
-        <div class="hint-text" style="margin:0 0 8px;">Para renovar = exame que falta, vence em até 5 dias ou já venceu. Marque os animais e use os botões para parar (ou voltar) a controlar vários de uma vez. O aviso abre sozinho no máximo uma vez por dia.</div>
+        <div class="hint-text" style="margin:0 0 8px;">Para renovar = exame que falta, vence em até 5 dias ou já venceu. Controlando = animais que você segue controlando. Parados = sem avisos. Marque os animais e use o botão para parar (ou voltar) a controlar vários de uma vez. O aviso abre sozinho no máximo uma vez por dia.</div>
         <div id="exAvisoAbas" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
         <input type="text" id="exAvisoBusca" placeholder="Buscar animal..." style="width:100%;margin-bottom:8px;">
         <div id="exAvisoAcoes" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"></div>
@@ -8597,7 +8597,7 @@ function renderInicioSaude(host){
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const aRenovar = examesSaudeParaRenovar();
   const secRenovar = aRenovar.length===0 ? '' : `<div style="margin-top:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Refazer exame (${aRenovar.length})</span><a href="#" data-exgerenciar style="font-size:11px;">Gerenciar / parar de controlar</a></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;"><span style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Refazer exame (${aRenovar.length})</span><a href="#" data-exgerenciar style="font-size:11px;">Seguir / parar de controlar</a></div>
     <div style="display:flex;flex-direction:column;gap:6px;">${aRenovar.map(x=>`
       <div data-verperfilexame="${x.h.id}" style="cursor:pointer;line-height:1.35;">
         <div style="font-weight:600;font-size:12.5px;">${escHtml(x.h.nome||'—')}</div>
@@ -22839,10 +22839,10 @@ function renderAnimalPerfil(id){
     <div class="perfil-card">
       <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <span>🩺 Exames com validade — AIE · Mormo</span>
-        <button type="button" class="btn btn-sm ${controleExamesAtivo(h)?'':'btn-ghost'} no-print" id="btnControleExames" style="text-transform:none;letter-spacing:0;font-weight:600;" title="Ligado: o app avisa quando o exame faltar ou vencer. Desligado: este animal não gera avisos.">${controleExamesAtivo(h)?'🔔 Controle ligado':'🔕 Controle desligado'}</button>
+        <button type="button" class="btn btn-sm ${controleExamesAtivo(h)?'':'btn-ghost'} no-print" id="btnControleExames" style="text-transform:none;letter-spacing:0;font-weight:600;" title="${controleExamesAtivo(h)?'Seguindo o controle: o app avisa quando o exame faltar ou vencer. Toque para PARAR de controlar este animal.':'Controle parado: este animal não gera avisos. Toque para VOLTAR a controlar.'}">${controleExamesAtivo(h)?'🔔 Seguir controlando':'🔕 Controle parado'}</button>
       </div>
       <div class="perfil-card-body">
-        ${controleExamesAtivo(h) ? '' : '<div class="hint-text" style="margin:0 0 10px;">Controle desligado: este animal não gera avisos de AIE/Mormo. Ligue o controle (botão acima) se for precisar do exame.</div>'}
+        ${controleExamesAtivo(h) ? '' : '<div class="hint-text" style="margin:0 0 10px;">Controle parado: este animal não gera avisos de AIE/Mormo. Toque no botão acima para voltar a controlar se for precisar do exame.</div>'}
         ${['AIE','Mormo'].map(tp=>{
           const e = (h.examesSaude||{})[tp];
           if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span>${controleExamesAtivo(h) ? ` <span style="color:var(--warn-ink,var(--warn));font-weight:700;">⚠ Fazer o exame de ${tp}</span>` : ''}</div>`;
@@ -23539,7 +23539,7 @@ function renderExamesAviso(){
   const termo = (exAvisoBusca||'').trim().toLowerCase();
   const passa = h=> !termo || (h.nome||'').toLowerCase().includes(termo);
   const chip = (k,rot,n)=>`<span class="chip ${exAvisoAba===k?'active':''}" data-exavaba="${k}">${rot} (${n})</span>`;
-  document.getElementById('exAvisoAbas').innerHTML = chip('renovar','Para renovar',renovar.length)+chip('controle','Em controle',emControle.length)+chip('fora','Fora do controle',fora.length);
+  document.getElementById('exAvisoAbas').innerHTML = chip('renovar','Para renovar',renovar.length)+chip('controle','Controlando',emControle.length)+chip('fora','Parados',fora.length);
   document.getElementById('exAvisoAbas').querySelectorAll('[data-exavaba]').forEach(c=>c.addEventListener('click',()=>{ exAvisoAba=c.dataset.exavaba; exAvisoSel=new Set(); renderExamesAviso(); }));
   const busca = document.getElementById('exAvisoBusca'); if(busca.value!==exAvisoBusca) busca.value = exAvisoBusca;
   let linhas = '', visiveis = [];
@@ -23578,19 +23578,19 @@ function renderExamesAviso(){
   const ligarBtn = exAvisoAba==='fora';
   acoes.innerHTML = `<label style="display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="exAvisoTodos" ${visiveis.length && nSel===visiveis.length?'checked':''}> Selecionar todos${termo?' (da busca)':''}</label>
     <span class="hint-text" style="margin:0;">${nSel} selecionado(s)</span>
-    <button type="button" class="btn btn-sm ${ligarBtn?'':'btn-danger'}" id="exAvisoAplicar" ${nSel?'':'disabled'}>${ligarBtn?'🔔 Controlar os selecionados':'🔕 Parar de controlar os selecionados'}</button>`;
+    <button type="button" class="btn btn-sm ${ligarBtn?'':'btn-danger'}" id="exAvisoAplicar" ${nSel?'':'disabled'}>${ligarBtn?'🔔 Voltar a controlar os selecionados':'🔕 Parar de controlar os selecionados'}</button>`;
   document.getElementById('exAvisoTodos').addEventListener('change', e=>{ if(e.target.checked) visiveis.forEach(id=>exAvisoSel.add(id)); else visiveis.forEach(id=>exAvisoSel.delete(id)); renderExamesAviso(); });
   hostL.querySelectorAll('[data-exavsel]').forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked) exAvisoSel.add(cb.dataset.exavsel); else exAvisoSel.delete(cb.dataset.exavsel); renderExamesAviso(); }));
   document.getElementById('exAvisoAplicar').addEventListener('click', async ()=>{
     const ids = [...exAvisoSel].filter(id=>visiveis.includes(id)); const hs = ids.map(id=>horses.find(x=>x.id===id)).filter(Boolean); if(!hs.length) return;
     if(ligarBtn){
-      if(!(await showConfirm('Controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles passam a aparecer nos avisos até terem os exames em dia.', {okLabel:'Controlar'}))) return;
+      if(!(await showConfirm('Voltar a controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles passam a aparecer nos avisos até terem os exames em dia.', {okLabel:'Voltar a controlar'}))) return;
       hs.forEach(h=>{ h.controleExames = true; });
       await storeSet('horses_list', horses);
     }else{
       const arqsPorAnimal = hs.map(h=>({h, arqs:[...(((h.examesSaude||{}).AIE||{}).arquivos||[]), ...(((h.examesSaude||{}).Mormo||{}).arquivos||[])]})).filter(x=>x.arqs.length);
       const totalArqs = arqsPorAnimal.reduce((n,x)=>n+x.arqs.length,0);
-      if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles somem dos avisos (dá para ligar de novo).', {okLabel:'Parar de controlar'}))) return;
+      if(!(await showConfirm('Parar de controlar os exames de AIE/Mormo de '+hs.length+' animal(is)? Eles somem dos avisos (dá para voltar a controlar depois).', {okLabel:'Parar de controlar'}))) return;
       let descartar = false;
       if(totalArqs) descartar = !!(await showConfirm('Descartar também os '+totalArqs+' arquivo(s) de exame guardados desses animais? (Se escolher "Manter", eles continuam guardados.)', {danger:true, okLabel:'Descartar', cancelLabel:'Manter'}));
       hs.forEach(h=>{ h.controleExames = false; });
