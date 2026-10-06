@@ -237,13 +237,36 @@
     });
   }
 
+
+  // ---------------- ARQUIVOS DE EXAME (PDF, zip, imagem) ----------------
+  var LIMITE_ARQUIVO_BYTES = 10 * 1024 * 1024; // mesmo limite das regras do Storage
+  function pastaExames(escopo, animalId) {
+    var e = normalizarEscopo(escopo);
+    var base = e.tipo === 'cliente' ? 'tenants/' + e.tenantId + '/exames/' : 'haras-original/exames/';
+    return base + limparId(animalId) + '/';
+  }
+  function nomeSeguro(nome) { return String(nome || 'arquivo').replace(/[^A-Za-z0-9._-]/g, '_').slice(-80) || 'arquivo'; }
+  // Sobe o arquivo ORIGINAL (sem reduzir) para a pasta de exames do animal. Devolve {url, path, tipo, bytes}.
+  function enviarArquivo(storage, escopo, animalId, arquivo) {
+    if (!arquivo) return Promise.reject(new Error('sem arquivo'));
+    if (arquivo.size > LIMITE_ARQUIVO_BYTES) return Promise.reject(new Error('arquivo passa de 10 MB'));
+    var tipo = arquivo.type || 'application/octet-stream';
+    var caminho = pastaExames(escopo, animalId) + Date.now().toString(36) + '-' + nomeSeguro(arquivo.name);
+    return subirBlob(storage, caminho, arquivo, tipo).then(function (r) { return { url: r.url, path: r.path, tipo: tipo, bytes: arquivo.size }; });
+  }
+  function removerArquivo(storage, caminho) {
+    if (!caminho) return Promise.resolve(false);
+    return storage.ref(caminho).delete().then(function () { return true; }, function (e) { if (e && e.code === 'storage/object-not-found') return false; throw e; });
+  }
+
   var API = {
     MAX_DIM: MAX_DIM, QUALIDADE: QUALIDADE, MAX_DIM_MINI: MAX_DIM_MINI, LIMITE_BYTES: LIMITE_BYTES, CACHE: CACHE,
     calcularDimensoes: calcularDimensoes, normalizarEscopo: normalizarEscopo, limparId: limparId,
     pastaFotos: pastaFotos, caminhoFoto: caminhoFoto, hashBytes: hashBytes, nomesArquivo: nomesArquivo,
     ehDataImage: ehDataImage, ehFotoValida: ehFotoValida, dataUrlParaBytes: dataUrlParaBytes, caminhoDeUrl: caminhoDeUrl,
     reduzirImagem: reduzirImagem, gerarMiniatura: gerarMiniatura,
-    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage
+    enviarFoto: enviarFoto, removerFoto: removerFoto, migrarBase64ParaStorage: migrarBase64ParaStorage,
+    enviarArquivo: enviarArquivo, removerArquivo: removerArquivo, pastaExames: pastaExames, LIMITE_ARQUIVO_BYTES: LIMITE_ARQUIVO_BYTES
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else raiz.Fotos = API;
 })(typeof window !== 'undefined' ? window : this);
@@ -22998,7 +23021,22 @@ function renderAnimalPerfil(id){
         }
         continue;
       }
-      if(file.size > LIMITE_EXAME){ recusados.push(file.name+' (grande demais: '+(file.size/1024/1024).toFixed(2)+' MB; o limite é 400 KB — comprima o PDF ou anexe fotos separadas)'); continue; }
+      // Com o Storage ligado, PDF/zip/qualquer exame vai ORIGINAL para o Storage (até 10 MB) e no cadastro fica só o endereço.
+      if(fotosNoStorageAtivo()){
+        if(file.size > Fotos.LIMITE_ARQUIVO_BYTES){ recusados.push(file.name+' (passa de 10 MB: '+(file.size/1024/1024).toFixed(1)+' MB — comprima o PDF e tente de novo)'); continue; }
+        try{
+          const st = await carregarStorage();
+          try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
+          const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
+          const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, dataUpload: toISODate(new Date()) });
+        }catch(err){
+          console.error('Exame: envio ao Storage falhou:', err);
+          recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
+        }
+        continue;
+      }
+      if(file.size > LIMITE_EXAME){ recusados.push(file.name+' (grande demais: '+(file.size/1024/1024).toFixed(2)+' MB; o limite sem o Storage é 400 KB — ligue a opção de fotos/arquivos no Storage no Diagnóstico, ou comprima o PDF)'); continue; }
       if(JSON.stringify(examesPorAnimal).length + bytesNovos > 850*1024){ recusados.push(file.name+' (o espaço de exames está cheio; remova algum exame antigo)'); continue; }
       try{
         const dataUrl = await lerComoDataUrl(file);
@@ -23018,9 +23056,14 @@ function renderAnimalPerfil(id){
   document.querySelectorAll('[data-delexame]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       if(!(await showConfirm('Remover esse exame? Não pode ser desfeito.'))) return;
+      const removido = (examesPorAnimal[h.id]||[])[Number(btn.dataset.delexame)];
       const listaSemEsse = (examesPorAnimal[h.id]||[]).filter((_,i)=> i!==Number(btn.dataset.delexame));
       examesPorAnimal = { ...examesPorAnimal, [h.id]: listaSemEsse };
       await storeSet('exames_animais', examesPorAnimal);
+      // Exame que é arquivo no Storage (PDF/zip) sai do Storage junto. Foto de exame NÃO: ela continua na linha do tempo.
+      if(removido && removido.tipo==='arquivo' && removido.path && window.Fotos){
+        carregarStorage().then(st=>Fotos.removerArquivo(st, removido.path)).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
+      }
       renderAnimalPerfil(h.id);
     });
   });
