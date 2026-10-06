@@ -37,3 +37,5 @@ Etapa 2b em 05/10/2026: `definir_papeis.js` rodado no Cloud Shell (simulação e
 | Fotos no Storage → app em uso | (PR desta promoção) | O código de fotos no Storage (opção em Diagnóstico, desligada por padrão em cada aparelho; plano reserva com aviso e limite de 20 s) passa para app_145.html. Autorizado pelo Gustavo em 06/10/2026 ("pode subir"), após teste real no app de teste. Sem a opção ligada nada muda. | Diagnóstico → ligar "Guardar fotos NOVAS no Firebase Storage" → trocar a foto de um animal → deve ser rápido |
 
 | Menu do celular: Diagnóstico acessível (só versão de teste) | — | No celular a barra de abas do rodapé cobria o fim do menu lateral e o botão Diagnóstico não podia ser tocado. Agora o menu tem espaço no fim e rola até ele. Só CSS, nada de dados. | No celular: Mais → rolar o menu até o fim → tocar em Diagnóstico |
+
+| Menu do celular: Diagnóstico acessível → app em uso | (PR desta promoção) | Mesma correção de CSS do teste, promovida ao app em uso por pedido do Gustavo (sem teste prévio) em 06/10/2026. | No celular: Mais → rolar até o fim → Diagnóstico |
