@@ -23,7 +23,7 @@ async function preparar(page){
     window.ids = k => (val(k) || []).map(r => r.id).sort();
     window.espera = ms => new Promise(r => setTimeout(r, ms));
     window.tr = (id, data, extra) => Object.assign({ id, data, tipo: 'Treino', animais: [{ id: 'h_1' }] }, extra);
-    window.semear = () => { banco.clear(); ctl.escritas.length = 0; alerts.length = 0; partEstado.treinos_list = undefined;
+    window.semear = () => { localStorage.setItem('haras_part_migracao_off', '1'); banco.clear(); ctl.escritas.length = 0; alerts.length = 0; partEstado.treinos_list = undefined;
       put('horses_list', [{ id: 'h_1', nome: 'Alfa' }]);
       put('treinos_list', [tr('tr_1', '2025-03-01'), tr('tr_2', '2025-12-31'), tr('tr_3', '2026-01-01'), tr('tr_4', '2026-05-05'), tr('tr_5', ''), tr('tr_6', '2024-07-07')]); };
   });
@@ -149,6 +149,18 @@ async function preparar(page){
     const r2 = await histMensalGarantir(); o.r2criados = r2.criados; o.igual = JSON.stringify(banco.get('hist_estoque_' + mesAnt)) === antes; o.escritasHist = ctl.escritas.filter(k => /hist_/.test(k)).length; return o; });
   ok('11) cópia mensal: cria um documento por mês fechado (sem o mês atual), com produtos/dietas só no último, e nunca regrava', o.r1.ok && o.r1.criados === 2 && o.ant2.movimentos.length === 1 && !o.ant2.produtosNaEpoca
     && o.ant.movimentos.length === 2 && o.ant.produtosNaEpoca.length === 1 && o.ant.dietasNaEpoca.length === 1 && o.atual === null && o.r2criados === 0 && o.igual && o.escritasHist === 0, o);
+
+  // 12) com a chave ligada, a divisão é automática ao abrir (treinos e estoque); desligável por aparelho
+  o = await page.evaluate(async () => {
+    if (!PART_MIGRACAO_AUTOMATICA) return { pulado: true };
+    semear(); localStorage.removeItem('haras_part_migracao_off');
+    const mv = (id, data) => ({ id, data, produtoId: 'p1', produtoNome: 'Ração', tipoMov: 'saida', quantidade: 1 });
+    put('aux_lists', aux); put('estoque_movimentos', [mv('m1', '2026-09-30'), mv('m2', '2026-10-01')]);
+    partEstado.treinos_list = undefined; partEstado.estoque_movimentos = undefined;
+    await loadAll(); await espera(1200);
+    const o = { tr: val('treinos_indice') && val('treinos_indice').versao, est: val('emov_indice') && val('emov_indice').versao, legadoTr: ids('treinos_list').length, legadoEst: ids('estoque_movimentos').length };
+    treinos = []; estoqueMovimentos = []; await loadAll(); await espera(300); o.memTr = treinos.length; o.memEst = estoqueMovimentos.length; return o; });
+  ok('12) chave ligada: abrir o app divide treinos e estoque sozinho e mantém os documentos antigos', o.pulado || (o.tr === 1 && o.est === 1 && o.legadoTr === 6 && o.legadoEst === 2 && o.memTr === 6 && o.memEst === 2), o);
 
   console.log('\nErros de JavaScript na página:', JSON.stringify(errs));
   console.log(`\n${total - falhas} passaram, ${falhas} falharam`);
