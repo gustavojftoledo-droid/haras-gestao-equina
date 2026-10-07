@@ -8616,6 +8616,18 @@ function renderInicioSaude(host){
         </div>`}
   </div>`;
 
+  // "Refazer exame": só aparece quando há animal com controle ligado faltando 5 dias ou menos, vencido ou sem exame.
+  // Tocar abre Animais com todos marcados (mesma ação do alerta vermelho 🩺 do topo).
+  const paraRefazer = []; const jaVisto = new Set();
+  examesSaudeParaRenovar().forEach(x=>{ if(!jaVisto.has(x.h.id)){ jaVisto.add(x.h.id); paraRefazer.push(x.h); } });
+  const secRefazer = paraRefazer.length===0 ? '' : `<div style="margin-top:16px;">
+    <div style="font-size:10.5px;color:#C0392B;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${paraRefazer.length})</div>
+    <div data-abrirrefazer="1" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;">
+      ${paraRefazer.map(h=>`<div style="line-height:1.35;"><div style="font-weight:600;font-size:12.5px;">${escHtml(h.nome||'—')}</div>
+        <div style="color:#C0392B;font-size:11px;">${escHtml(resumoExamesAnimal(h))}</div></div>`).join('')}
+    </div>
+  </div>`;
+
   host.innerHTML = `
     ${dashCardHead('coracao','Saúde','Veterinária')}
     ${pocoVisita}
@@ -8623,8 +8635,10 @@ function renderInicioSaude(host){
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
       <div style="max-height:200px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
+    ${secRefazer}
     ${secExames}
   `;
+  host.querySelectorAll('[data-abrirrefazer]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); alertaExameIds = paraRefazer.map(h=>h.id); abrirAnimaisComExameParaRefazer(); }));
   host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
 
 }
