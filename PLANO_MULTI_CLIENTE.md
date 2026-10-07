@@ -53,3 +53,16 @@ Decisões / pendências (nada abaixo foi implementado ainda, exceto o item 1; o 
 4. **Consentimento**: campo por cliente (tenant) `consentimentoDados` (data, versão do termo, quem aceitou), exigido no cadastro do plano gratuito. Só os dados de clientes com consentimento entram em análises/ofertas a parceiros.
 5. **Privacidade (LGPD)**: dados oferecidos a parceiros devem ser **agregados e anonimizados** (sem nome do haras/pessoa); os termos de uso/contrato precisam de revisão jurídica antes de qualquer venda de dados.
 6. Etapa 4 (painel de clientes) deve incluir: lista de quem consentiu e relatório agregado de consumo por produto/período.
+
+## Planos (aplicados em 07/10/2026) e excedente do Pro
+| | Gratuito | Básico | Pro |
+|---|---|---|---|
+| Módulos | Animais, Manejos, Treinos, Estoque (+ Usuários) | + Nascimentos, Veterinária, Transporte, Grupos | Todos |
+| Fotos por animal | 1 | 4 | 8 |
+| Usuários | 2 | 5 | sem limite |
+| Espaço de dados | 200 MB | 1 GB | 5 GB |
+
+- O plano vale de verdade: o servidor grava nas contas do cliente as claims `modulos` (já cortados pelo plano), `maxFotos`, `maxUsuarios`, `plano`; o app esconde o que está fora do plano e limita novos usuários. Mudar o plano na tela Clientes atualiza todas as contas do cliente na hora.
+- **Regra do dono:** no **Pro**, espaço usado **acima do limite** é **cobrado do cliente**. Texto e valor: ver `TERMOS_E_LGPD_RASCUNHO.md` (§5.2, a revisar com advogado). A cobrança em si fica na etapa 5; hoje o app só **mede** o uso (Ver uso) e **não bloqueia**.
+- **LGPD:** `TERMOS_E_LGPD_RASCUNHO.md` tem o rascunho dos Termos, da Política de Privacidade, da licença de dados agregados e o checklist técnico. **Nada disso protege sem a revisão de um advogado.** Não entregar dados a parceiros antes disso.
+- **Honestidade sobre os limites do plano:** o corte de módulos, fotos e usuários vale no app e nas claims; as regras do Firestore **não** conferem módulo (só cliente e administrador). Para virar barreira de segurança, seria preciso uma etapa de regras por módulo (opcional, depois). O espaço (`limiteBytes`) hoje só é medido, não bloqueado.

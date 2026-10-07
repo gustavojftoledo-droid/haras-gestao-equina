@@ -10,7 +10,9 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 const fft = require('firebase-functions-test')({ projectId: 'demo-haras' });
 const F = require('../index');
-const { MODULOS } = require('../comum');
+const { MODULOS, PLANOS, limitesDoPlano } = require('../comum');
+const modsDoPlano = (plano) => MODULOS.filter(m => limitesDoPlano(plano).modulos.includes(m)); // na ordem de MODULOS
+const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFotos: l.maxFotos, maxUsuarios: l.maxUsuarios, plano: l.plano }; };
 
 const auth = getAuth(), db = getFirestore();
 const trigHaras = fft.wrap(F.sincronizarPapeis);
@@ -126,12 +128,12 @@ describe('sincronizarPapeis (cliente)', () => {
     await conta('a@acme.com');
     await trigCliente(evento(null, [user('a@acme.com', true)], P, { tid: 'acme' }));
     const c = await claimsDe('a@acme.com');
-    assert.deepEqual(c, { papel: 'admin', modulos: MODULOS, tenantId: 'acme' });
+    assert.deepEqual(c, { papel: 'admin', modulos: modsDoPlano('basico'), tenantId: 'acme', ...claimsPlano('basico') }); // cliente sem plano gravado = básico
   });
   test('tenantId preservado ao rebaixar', async () => {
     await conta('p@acme.com', { tenantId: 'acme', papel: 'admin', modulos: MODULOS });
     await trigCliente(evento([user('p@acme.com', true)], [user('p@acme.com', false, ['animais'])], P, { tid: 'acme' }));
-    assert.deepEqual(await claimsDe('p@acme.com'), { tenantId: 'acme', papel: 'funcionario', modulos: ['animais'] });
+    assert.deepEqual(await claimsDe('p@acme.com'), { tenantId: 'acme', papel: 'funcionario', modulos: ['animais'], ...claimsPlano('basico') });
   });
   test('removido do cliente perde papel/modulos mas mantém tenantId', async () => {
     await conta('r@acme.com', { tenantId: 'acme', papel: 'funcionario', modulos: ['animais'] });
@@ -162,7 +164,7 @@ describe('criarCliente', () => {
     const r = await wCriar({ data: { nome: 'Haras Boa Vista Ltda.', emailAdmin: 'Admin@BoaVista.com', senhaProvisoria: 'provisoria1' }, auth: dono });
     assert.equal(r.tenantId, 'haras-boa-vista-ltda');
     assert.equal(r.senhaGerada, undefined);
-    assert.deepEqual(await claimsDe('admin@boavista.com'), { tenantId: r.tenantId, papel: 'admin', modulos: MODULOS });
+    assert.deepEqual(await claimsDe('admin@boavista.com'), { tenantId: r.tenantId, papel: 'admin', modulos: modsDoPlano('basico'), ...claimsPlano('basico') });
     const lista = (await db.doc(`tenants/${r.tenantId}/dados/usuarios_list`).get()).data().value;
     assert.equal(lista.length, 1); assert.equal(lista[0].admin, true); assert.equal(lista[0].email, 'admin@boavista.com');
     for (const m of MODULOS) assert.deepEqual(lista[0].permissoes[m], { ver: true, inserir: true, editar: true, excluir: true });
@@ -198,13 +200,110 @@ describe('criarCliente', () => {
     const u = await conta('livre@x.com', { outra: 'mantida' });
     const r = await wCriar({ data: { nome: 'Reuso', emailAdmin: 'livre@x.com' }, auth: dono });
     assert.equal((await auth.getUserByEmail('livre@x.com')).uid, u.uid);
-    assert.deepEqual(await claimsDe('livre@x.com'), { outra: 'mantida', tenantId: r.tenantId, papel: 'admin', modulos: MODULOS });
+    assert.deepEqual(await claimsDe('livre@x.com'), { outra: 'mantida', tenantId: r.tenantId, papel: 'admin', modulos: modsDoPlano('basico'), ...claimsPlano('basico') });
     await conta('ocupado@x.com', { tenantId: 'beta', papel: 'admin' });
     await conta('haras@x.com', { papel: 'admin' });
     await conta('dono@x.com', { dono: true });
     for (const e of ['ocupado@x.com', 'haras@x.com', 'dono@x.com'])
       await rejeita(wCriar({ data: { nome: 'Invasor', emailAdmin: e }, auth: dono }), 'already-exists');
     assert.equal((await db.doc('clientes/invasor').get()).exists, false);
+  });
+});
+
+describe('planos: o plano vale de verdade', () => {
+  const P = 'tenants/acme/dados/usuarios_list';
+  const criarComPlano = async (plano, email = 'adm@plano.com') =>
+    (await wCriar({ data: { nome: 'Cliente ' + plano, emailAdmin: email, senhaProvisoria: 'provisoria1', plano }, auth: dono })).tenantId;
+  test('tabela: módulos crescem de gratuito para pro; usuarios em todos; limites combinados', () => {
+    const g = new Set(PLANOS.gratuito.modulos), b = new Set(PLANOS.basico.modulos), p = new Set(PLANOS.pro.modulos);
+    for (const m of g) assert.ok(b.has(m)); for (const m of b) assert.ok(p.has(m));
+    for (const n of ['gratuito', 'basico', 'pro']) assert.ok(PLANOS[n].modulos.includes('usuarios'));
+    assert.deepEqual(MODULOS.slice().sort(), PLANOS.pro.modulos.slice().sort());
+    assert.ok(!g.has('financeiro') && !g.has('consultoria') && !b.has('financeiro') && p.has('financeiro'));
+    assert.deepEqual([PLANOS.gratuito.maxFotos, PLANOS.basico.maxFotos, PLANOS.pro.maxFotos], [1, 4, 8]);
+    assert.deepEqual([PLANOS.gratuito.maxUsuarios, PLANOS.basico.maxUsuarios, PLANOS.pro.maxUsuarios], [2, 5, 0]);
+    assert.deepEqual([PLANOS.gratuito.limiteBytes, PLANOS.basico.limiteBytes, PLANOS.pro.limiteBytes], [200 * 1048576, 1073741824, 5 * 1073741824]);
+    assert.equal(limitesDoPlano('inexistente').plano, 'basico'); assert.equal(limitesDoPlano(undefined).plano, 'basico');
+  });
+  test('criarCliente com cada plano grava as claims e o limite do plano', async () => {
+    for (const [plano, email] of [['gratuito', 'g@p.com'], ['basico', 'b@p.com'], ['pro', 'p@p.com']]) {
+      const id = await criarComPlano(plano, email);
+      assert.deepEqual(await claimsDe(email), { tenantId: id, papel: 'admin', modulos: modsDoPlano(plano), ...claimsPlano(plano) });
+      const c = (await db.doc(`clientes/${id}`).get()).data();
+      assert.equal(c.plano, plano); assert.equal(c.limiteBytes, PLANOS[plano].limiteBytes);
+    }
+    await rejeita(wCriar({ data: { nome: 'Ruim', emailAdmin: 'r@p.com', plano: 'diamante' }, auth: dono }), 'invalid-argument');
+  });
+  test('módulo fora do plano some até para o admin (gratuito não tem financeiro)', async () => {
+    await db.doc('clientes/acme').set({ nome: 'Acme', ativo: true, plano: 'gratuito' });
+    await conta('a@acme.com');
+    await trigCliente(evento(null, [user('a@acme.com', true)], P, { tid: 'acme' }));
+    const c = await claimsDe('a@acme.com');
+    assert.deepEqual(c.modulos, modsDoPlano('gratuito'));
+    assert.ok(!c.modulos.includes('financeiro') && !c.modulos.includes('consultoria') && c.modulos.includes('estoque'));
+    // funcionário com permissão em módulo que o plano não tem: só entra o que o plano libera
+    await conta('f@acme.com');
+    await trigCliente(evento([user('a@acme.com', true)], [user('a@acme.com', true), user('f@acme.com', false, ['animais', 'financeiro'])], P, { tid: 'acme' }));
+    assert.deepEqual((await claimsDe('f@acme.com')).modulos, ['animais']);
+  });
+  test('limite de usuários: admins primeiro, o resto sem acesso (gratuito = 2)', async () => {
+    await db.doc('clientes/acme').set({ nome: 'Acme', ativo: true, plano: 'gratuito' });
+    for (const e of ['f1@acme.com', 'f2@acme.com', 'adm@acme.com']) await conta(e);
+    const lista = [user('f1@acme.com', false, ['animais']), user('f2@acme.com', false, ['animais']), user('adm@acme.com', true)];
+    await trigCliente(evento(null, lista, P, { tid: 'acme' }));
+    assert.equal((await claimsDe('adm@acme.com')).papel, 'admin');          // admin entra primeiro
+    assert.equal((await claimsDe('f1@acme.com')).papel, 'funcionario');     // 2º lugar
+    assert.equal((await claimsDe('f2@acme.com')).papel, undefined);         // passou do limite: sem papel
+    assert.equal((await claimsDe('f2@acme.com')).modulos, undefined);
+  });
+  test('pro: sem limite de usuários', async () => {
+    await db.doc('clientes/acme').set({ nome: 'Acme', ativo: true, plano: 'pro' });
+    const emails = Array.from({ length: 9 }, (_, i) => `u${i}@acme.com`);
+    for (const e of emails) await conta(e);
+    await trigCliente(evento(null, emails.map(e => user(e, false, ['animais'])), P, { tid: 'acme' }));
+    for (const e of emails) assert.equal((await claimsDe(e)).papel, 'funcionario');
+  });
+  test('mudar o plano reaplica TODAS as contas do cliente (rebaixa, derruba sessão e libera de novo)', async () => {
+    const id = await criarComPlano('pro', 'adm@troca.com');
+    await conta('f1@troca.com'); await conta('f2@troca.com');
+    const lista = [user('adm@troca.com', true), user('f1@troca.com', false, ['animais', 'financeiro']), user('f2@troca.com', false, ['animais'])];
+    await db.doc(`tenants/${id}/dados/usuarios_list`).set({ value: lista });
+    await trigCliente(evento(null, lista, `tenants/${id}/dados/usuarios_list`, { tid: id }));
+    assert.ok((await claimsDe('f1@troca.com')).modulos.includes('financeiro'));
+    const r = await wAtual({ data: { tenantId: id, plano: 'gratuito' }, auth: dono });
+    assert.deepEqual(r.atualizado, ['plano', 'limiteBytes', 'claims']);
+    const adm = await claimsDe('adm@troca.com'), f1 = await claimsDe('f1@troca.com'), f2 = await claimsDe('f2@troca.com');
+    assert.deepEqual(adm.modulos, modsDoPlano('gratuito')); assert.equal(adm.plano, 'gratuito'); assert.equal(adm.maxFotos, 1);
+    assert.deepEqual(f1.modulos, ['animais']);                    // perdeu financeiro
+    assert.equal(f2.papel, undefined);                              // 3º usuário passou do limite de 2
+    assert.equal((await db.doc(`clientes/${id}`).get()).data().limiteBytes, PLANOS.gratuito.limiteBytes);
+    // volta ao pro: todos de volta
+    await wAtual({ data: { tenantId: id, plano: 'pro' }, auth: dono });
+    assert.ok((await claimsDe('f1@troca.com')).modulos.includes('financeiro'));
+    assert.equal((await claimsDe('f2@troca.com')).papel, 'funcionario');
+    assert.equal((await claimsDe('adm@troca.com')).maxUsuarios, 0);
+  });
+  test('mandar o mesmo plano de novo não mexe no limite nem nas contas; limite enviado junto vale', async () => {
+    const id = await criarComPlano('basico', 'adm@mesmo.com');
+    await db.doc(`clientes/${id}`).update({ limiteBytes: 3 * 1048576 });
+    const r = await wAtual({ data: { tenantId: id, plano: 'basico' }, auth: dono });
+    assert.deepEqual(r.atualizado, ['plano']);
+    assert.equal((await db.doc(`clientes/${id}`).get()).data().limiteBytes, 3 * 1048576);
+    const r2 = await wAtual({ data: { tenantId: id, plano: 'pro', limiteBytes: 7 * 1048576 }, auth: dono });
+    assert.deepEqual(r2.atualizado, ['plano', 'limiteBytes', 'claims']);
+    assert.equal((await db.doc(`clientes/${id}`).get()).data().limiteBytes, 7 * 1048576);
+  });
+  test('listarClientes devolve os limites do plano e quantos usuários há na lista', async () => {
+    const id = await criarComPlano('gratuito', 'adm@lista.com');
+    const r = await wListar({ data: {}, auth: dono });
+    const c = r.clientes.find(x => x.id === id);
+    assert.deepEqual(c.limites, { modulos: modsDoPlano('gratuito').length ? PLANOS.gratuito.modulos : [], maxFotos: 1, maxUsuarios: 2, limiteBytes: PLANOS.gratuito.limiteBytes });
+    assert.equal(c.usuariosNaLista, 1);
+  });
+  test('o haras original (sem cliente) não é afetado pelo plano', async () => {
+    await conta('h@orig.com');
+    await trigHaras(evento(null, [user('h@orig.com', true)], 'harasData/usuarios_list'));
+    assert.deepEqual(await claimsDe('h@orig.com'), { papel: 'admin', modulos: MODULOS });
   });
 });
 
@@ -289,7 +388,7 @@ describe('listarClientes', () => {
     const r = await wListar({ data: {}, auth: dono });
     assert.deepEqual(r.clientes.map(c => c.id), ['alfa', 'beta', 'zeta']); // Álamo, beta, zeta (sem diferenciar maiúsculas)
     const [alfa, beta, zeta] = r.clientes;
-    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'nome', 'plano', 'ultimoAcesso']);
+    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'ultimoAcesso', 'usuariosNaLista']);
     assert.equal(zeta.ativo, false); assert.equal(zeta.plano, 'pro'); assert.equal(zeta.limiteBytes, 5000000);
     assert.equal(zeta.criadoEm, '2026-01-02T03:04:05.000Z');
     assert.deepEqual(zeta.consentimentoDados, { aceito: true, data: '2026-02-03T00:00:00.000Z', versao: 'v1', por: 'a@b.com' });
@@ -334,7 +433,7 @@ describe('atualizarCliente', () => {
     const antes = Date.now();
     const r = await wAtual({ data: { tenantId: 'acme', nome: '  Acme Novo  ', plano: 'pro', limiteBytes: 2097152,
       consentimentoDados: { aceito: true, versao: 'v2' } }, auth: donoEmail });
-    assert.deepEqual(r, { tenantId: 'acme', atualizado: ['nome', 'plano', 'limiteBytes', 'consentimentoDados'] });
+    assert.deepEqual(r, { tenantId: 'acme', atualizado: ['nome', 'plano', 'limiteBytes', 'consentimentoDados', 'claims'] });
     const c = await lerCli();
     assert.equal(c.nome, 'Acme Novo'); assert.equal(c.plano, 'pro'); assert.equal(c.limiteBytes, 2097152);
     assert.equal(c.ativo, true);
@@ -344,7 +443,7 @@ describe('atualizarCliente', () => {
   });
   test('atualização parcial e consentimento sem e-mail no token grava por vazio', async () => {
     await base();
-    assert.deepEqual(await wAtual({ data: { tenantId: 'acme', plano: 'gratuito' }, auth: dono }), { tenantId: 'acme', atualizado: ['plano'] });
+    assert.deepEqual(await wAtual({ data: { tenantId: 'acme', plano: 'gratuito' }, auth: dono }), { tenantId: 'acme', atualizado: ['plano', 'limiteBytes', 'claims'] });
     assert.equal((await lerCli()).plano, 'gratuito'); assert.equal((await lerCli()).nome, 'Acme');
     await wAtual({ data: { tenantId: 'acme', consentimentoDados: { aceito: false, versao: 'v1' } }, auth: dono });
     assert.equal((await lerCli()).consentimentoDados.por, '');

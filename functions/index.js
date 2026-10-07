@@ -20,7 +20,9 @@ const valorDaLista = (snap) => (snap && snap.exists && snap.data() && Array.isAr
 async function tratar(event, tenantId){
   const antes = valorDaLista(event.data && event.data.before);
   const depois = valorDaLista(event.data && event.data.after);
-  const resumo = await sincronizarLista(auth(), { tenantId, antes, depois });
+  // cliente: aplica o plano dele (módulos, fotos, usuários); haras original: sem plano
+  const plano = tenantId ? await C.planoDoCliente(db(), tenantId) : undefined;
+  const resumo = await sincronizarLista(auth(), { tenantId, antes, depois, plano });
   logger.info('sincronizarPapeis', { tenantId: tenantId || 'haras-original', ...resumo });
   return null;
 }
@@ -53,5 +55,5 @@ exports.listarClientes = onCall(async (request) => {
 // 6) Painel de clientes: editar nome/plano/limite/consentimento (só dono; nunca mexe em "ativo")
 exports.atualizarCliente = onCall(async (request) => {
   C.exigirDono(request);
-  return C.atualizarCliente({ db: db(), emailDono: request.auth.token.email }, request.data || {});
+  return C.atualizarCliente({ auth: auth(), db: db(), emailDono: request.auth.token.email }, request.data || {});
 });
