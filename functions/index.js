@@ -87,3 +87,7 @@ exports.listarVinculos = onCall(async (request) => { I.exigirAdminComRecurso(req
 exports.responderConvite = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.responderConvite({ db: db(), token: request.auth.token }, request.data || {}); });
 exports.atualizarAnimaisDoVinculo = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.atualizarAnimaisDoVinculo({ db: db(), token: request.auth.token }, request.data || {}); });
 exports.revogarVinculo = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.revogarVinculo({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.animaisAutorizados = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.animaisAutorizados({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.enviarSolicitacao = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.enviarSolicitacao({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.listarSolicitacoes = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.listarSolicitacoes({ db: db(), token: request.auth.token }); });
+exports.cancelarSolicitacao = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.cancelarSolicitacao({ db: db(), token: request.auth.token }, request.data || {}); });
