@@ -60,3 +60,6 @@ O plano do cliente (`clientes/{id}.plano`: gratuito | basico | pro; ausente = ba
 - `listarClientes` devolve também `limites` e `usuariosNaLista`.
 - **Honestidade sobre o que é trava:** as regras do Firestore (`firebase/firestore.rules*`) só conferem o cliente (`tenantId`) e se a conta é administradora; **não conferem módulo**. O corte por plano vale no app (menu/telas, limite de usuários e de fotos) e nas claims; **não é uma barreira de segurança** contra quem acessa o banco por fora do app. O isolamento entre clientes e o bloqueio (`ativo`) são travas reais.
 - O limite de espaço (`limiteBytes`) é medido por `usoDoCliente`; **não bloqueia** gravações. No plano Pro o excedente é cobrado do cliente (ver `TERMOS_E_LGPD_RASCUNHO.md`).
+
+## Novidades por cliente ("interruptor")
+`clientes/{id}.recursos` = lista de chaves curtas (`^[a-z][a-z0-9_]{1,29}$`, até 12). Vai para a claim `recursos` de todas as contas do cliente (criarCliente aceita `recursos`; `atualizarCliente` com `recursos` diferente reaplica as claims e devolve `'claims'`; o gatilho de usuários mantém). `listarClientes` devolve `recursos`. No app: `RECURSOS_APP` (registro) + `recursoAtivo('chave')`; o haras original (sem cliente) sempre vê tudo.

@@ -15,6 +15,23 @@ const PLANOS = {
 };
 Object.values(PLANOS).forEach(pl => { pl.modulos = MODULOS.filter(m => pl.modulos.includes(m)); }); // sempre na ordem de MODULOS
 const PLANO_PADRAO = 'basico';
+
+/* Novidades liberadas só para alguns clientes ("interruptor por cliente"): lista de chaves curtas guardada em
+   clientes/{id}.recursos e copiada para a claim `recursos` das contas do cliente. Chave: letras minúsculas, números e _. */
+const RE_RECURSO = /^[a-z][a-z0-9_]{1,29}$/;
+const MAX_RECURSOS = 12;
+/* Devolve a lista limpa (sem repetidos, só chaves válidas, em ordem). Lança Error se algo for inválido. */
+function normalizarRecursos(v){
+  if (!Array.isArray(v)) throw new Error('recursos deve ser uma lista');
+  const vistos = new Set();
+  for (const r of v) {
+    if (typeof r !== 'string' || !RE_RECURSO.test(r)) throw new Error('chave de recurso inválida');
+    vistos.add(r);
+  }
+  if (vistos.size > MAX_RECURSOS) throw new Error('recursos demais');
+  return [...vistos].sort();
+}
+function recursosValidos(v){ try { return normalizarRecursos(v); } catch (e) { return []; } } // para ler do banco sem quebrar
 function ehPlano(p){ return typeof p === 'string' && Object.prototype.hasOwnProperty.call(PLANOS, p); }
 /* Plano desconhecido ou ausente cai no básico. */
 function limitesDoPlano(plano){
@@ -32,4 +49,4 @@ function papelEModulos(u){
 }
 function normalizarEmail(e){ return typeof e === 'string' ? e.trim().toLowerCase() : ''; }
 function mesmaLista(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
-module.exports = { MODULOS, LIMITE_PADRAO_BYTES, DONO_EMAIL, PLANOS, PLANO_PADRAO, ehPlano, limitesDoPlano, papelEModulos, normalizarEmail, mesmaLista };
+module.exports = { MODULOS, LIMITE_PADRAO_BYTES, DONO_EMAIL, PLANOS, PLANO_PADRAO, ehPlano, limitesDoPlano, RE_RECURSO, MAX_RECURSOS, normalizarRecursos, recursosValidos, papelEModulos, normalizarEmail, mesmaLista };
