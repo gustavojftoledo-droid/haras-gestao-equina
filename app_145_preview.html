@@ -936,6 +936,7 @@
           <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
           <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
           <div class="nav-item" data-view="auditoria"><span class="dot"></span>Auditoria</div>
+          <div class="nav-item" data-view="prestadores" style="display:none;"><span class="dot"></span>Prestadores</div>
           <div class="nav-item" data-view="clientes" style="display:none;"><span class="dot"></span>Clientes</div>
           <div class="nav-item" data-view="filtrosanimais"><span class="dot"></span>Filtros Sistema</div>
         </div>
@@ -1045,6 +1046,19 @@
     </div>
 
     <!-- AUDITORIA -->
+    <div class="view" id="view-prestadores">
+      <div class="topbar">
+        <div><div class="title">Prestadores de serviço</div><div class="subtitle">Autorize veterinárias, ferradores etc. (que têm assinatura própria) a enviar registros dos seus animais para você aprovar</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="btnPrestAtualizar">Atualizar</button><button type="button" class="btn" id="btnPrestConvidar">+ Convidar prestador</button></div>
+      </div>
+      <div class="hint-text" id="prestMsg" style="margin:6px 0 10px;"></div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:6px 0;">Prestadores que eu autorizei</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Prestador</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestMeusTbody"></tbody></table></div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Eu presto serviço para</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Proprietário</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestComoTbody"></tbody></table></div>
+      <div class="hint-text" style="margin-top:12px;">Nesta primeira etapa você só cria e gerencia a autorização. O envio e a aprovação dos registros vêm nas próximas etapas.</div>
+    </div>
+
     <div class="view" id="view-clientes">
       <div class="topbar">
         <div><div class="title">Clientes</div><div class="subtitle">Painel do dono — quem usa o sistema, plano, uso de espaço e consentimento de dados</div></div>
@@ -4016,6 +4030,7 @@ let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais).
    liberacao: 'todos' = todos veem (sem interruptor); 'selecionados' = só quem estiver marcado; 'desligado' = ninguém (em teste).
    O haras original (sem cliente) sempre vê tudo. As chaves marcadas ficam na claim 'recursos' da conta (gravada pelo servidor). */
 const RECURSOS_APP = {
+  integracao_prestadores: { nome:'Integração com prestadores de serviço (veterinária, ferrador...)', liberacao:'selecionados' },
   // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
 };
 function recursoAtivo(chave){
@@ -4972,6 +4987,97 @@ async function salvarClienteEditado(){
   try{ await chamarFuncao('atualizarCliente', dados); closeModal('overlayClienteEditar'); renderClientes(); }
   catch(e){ msg.textContent = 'Não consegui salvar: '+msgErroFuncao(e); }
 }
+
+/* ================= PRESTADORES DE SERVIÇO (integração entre assinaturas — etapa 1: vínculo) =================
+   Ver INTEGRACAO_ENTRE_ASSINATURAS.md. Tudo passa por funções do servidor; o app não lê dados de outra assinatura. */
+let vinculosPrest = { comoProprietario:[], comoPrestador:[] };
+const STATUS_VINCULO = { pendente:'Aguardando aceite', ativo:'Ativo', recusado:'Recusado', revogado:'Encerrado' };
+async function renderPrestadores(){
+  const msg = document.getElementById('prestMsg'); msg.textContent = 'Carregando...';
+  try{ vinculosPrest = await chamarFuncao('listarVinculos'); msg.textContent = ''; }
+  catch(e){ msg.textContent = 'Não consegui carregar: '+msgErroFuncao(e); vinculosPrest = { comoProprietario:[], comoPrestador:[] }; }
+  desenharPrestadores();
+}
+function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
+function desenharPrestadores(){
+  const meus = vinculosPrest.comoProprietario||[], como = vinculosPrest.comoPrestador||[];
+  document.getElementById('prestMeusTbody').innerHTML = meus.length===0 ? '<tr><td colspan="4" class="empty">Nenhum prestador autorizado ainda. Use "+ Convidar prestador".</td></tr>'
+    : meus.map(v=>`<tr><td><strong>${escHtml(v.prestadorNome||v.prestadorTenantId)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(v.prestadorEmail||'')}</div></td>
+      <td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td><td>${escHtml(textoAnimaisVinculo(v))}</td>
+      <td style="white-space:nowrap;">${['pendente','ativo'].includes(v.status)?`<button type="button" class="btn btn-sm btn-ghost" data-prestanim="${escHtml(v.id)}">Animais</button> <button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:''}</td></tr>`).join('');
+  document.getElementById('prestComoTbody').innerHTML = como.length===0 ? '<tr><td colspan="4" class="empty">Ninguém autorizou você ainda.</td></tr>'
+    : como.map(v=>`<tr><td><strong>${escHtml(v.donoNome||v.donoTenantId)}</strong></td><td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td>
+      <td>${v.status==='ativo'?escHtml(textoAnimaisVinculo(v)):'—'}</td>
+      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`<button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
+  document.querySelectorAll('[data-prestanim]').forEach(b=>b.addEventListener('click', ()=>abrirModalPrestador(meus.find(v=>v.id===b.dataset.prestanim))));
+  document.querySelectorAll('[data-prestrevogar]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(!(await showConfirm('Encerrar essa autorização? O prestador deixa de poder enviar registros dos seus animais. O que já foi aprovado continua na ficha.'))) return;
+    try{ await chamarFuncao('revogarVinculo', { vinculoId:b.dataset.prestrevogar }); renderPrestadores(); }catch(e){ showAlert('Não consegui encerrar: '+msgErroFuncao(e)); }
+  }));
+  const responder = (attr, aceitar)=>document.querySelectorAll('['+attr+']').forEach(b=>b.addEventListener('click', async ()=>{
+    if(!(await showConfirm(aceitar ? 'Aceitar esse convite? O proprietário poderá receber os registros que você enviar sobre os animais liberados.' : 'Recusar esse convite?'))) return;
+    try{ await chamarFuncao('responderConvite', { vinculoId:b.getAttribute(attr), aceitar }); renderPrestadores(); }catch(e){ showAlert('Não consegui responder: '+msgErroFuncao(e)); }
+  }));
+  responder('data-prestaceitar', true); responder('data-prestrecusar', false);
+}
+let _vinculoEditando = null;
+function garantirModalPrestador(){
+  if(document.getElementById('overlayPrestador')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayPrestador"><div class="modal" style="max-width:min(96vw,560px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="pr_titulo">Convidar prestador</div><button class="modal-close" data-close="overlayPrestador">✕</button></div>
+    <div class="field" id="pr_emailBox"><label>E-mail do administrador da assinatura do prestador</label><input type="email" id="pr_email" maxlength="200" placeholder="ex.: veterinaria@clinica.com"></div>
+    <div class="field" style="margin-top:8px;"><label>Animais que ele poderá ver</label>
+      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="todos" id="pr_todos"> Todos os meus animais</label>
+      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="alguns" id="pr_alguns" checked> Só os que eu escolher</label>
+    </div>
+    <div id="pr_listaBox"><input type="text" id="pr_busca" placeholder="Buscar animal..." style="width:100%;margin:6px 0;"><div id="pr_lista" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px;"></div>
+      <div class="hint-text" id="pr_cont" style="margin-top:4px;"></div></div>
+    <div class="hint-text" id="pr_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayPrestador">Cancelar</button><button type="button" class="btn" id="pr_salvar">Salvar</button></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayPrestador [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayPrestador')));
+  document.getElementById('overlayPrestador').addEventListener('click', e=>{ if(e.target.id==='overlayPrestador') closeModal('overlayPrestador'); });
+  document.querySelectorAll('input[name=pr_modo]').forEach(r=>r.addEventListener('change', atualizarModoPrestador));
+  document.getElementById('pr_busca').addEventListener('input', desenharListaAnimaisPrestador);
+  document.getElementById('pr_salvar').addEventListener('click', salvarModalPrestador);
+}
+let _prSel = new Set();
+function atualizarModoPrestador(){ document.getElementById('pr_listaBox').style.display = document.getElementById('pr_todos').checked ? 'none' : ''; }
+function desenharListaAnimaisPrestador(){
+  const termo = normNomeProduto(document.getElementById('pr_busca').value||'');
+  const lista = horses.filter(h=>h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).filter(h=>!termo || normNomeProduto(h.nome||'').includes(termo));
+  document.getElementById('pr_lista').innerHTML = lista.length===0 ? '<div class="hint-text">Nenhum animal encontrado.</div>'
+    : lista.map(h=>`<label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:2px 0;"><input type="checkbox" data-prid="${escHtml(h.id)}" ${_prSel.has(h.id)?'checked':''}> ${escHtml(h.nome||'—')}</label>`).join('');
+  document.querySelectorAll('#pr_lista [data-prid]').forEach(c=>c.addEventListener('change', ()=>{ if(c.checked) _prSel.add(c.dataset.prid); else _prSel.delete(c.dataset.prid); document.getElementById('pr_cont').textContent = _prSel.size+' animal(is) escolhido(s)'; }));
+  document.getElementById('pr_cont').textContent = _prSel.size+' animal(is) escolhido(s)';
+}
+function abrirModalPrestador(vinculo){
+  garantirModalPrestador(); _vinculoEditando = vinculo || null;
+  document.getElementById('pr_titulo').textContent = vinculo ? ('Animais liberados — '+(vinculo.prestadorNome||'')) : 'Convidar prestador';
+  document.getElementById('pr_emailBox').style.display = vinculo ? 'none' : '';
+  document.getElementById('pr_email').value = ''; document.getElementById('pr_busca').value = ''; document.getElementById('pr_msg').textContent = '';
+  _prSel = new Set(vinculo && !vinculo.animaisTodos ? (vinculo.animaisIds||[]) : []);
+  document.getElementById('pr_todos').checked = !!(vinculo && vinculo.animaisTodos); document.getElementById('pr_alguns').checked = !(vinculo && vinculo.animaisTodos);
+  atualizarModoPrestador(); desenharListaAnimaisPrestador(); openModal('overlayPrestador');
+}
+async function salvarModalPrestador(){
+  const msg = document.getElementById('pr_msg'), todos = document.getElementById('pr_todos').checked;
+  const dados = todos ? { animaisTodos:true } : { animais:[..._prSel] };
+  if(!todos && _prSel.size===0){ msg.textContent = 'Escolha ao menos um animal, ou marque "Todos".'; return; }
+  let fn = 'atualizarAnimaisDoVinculo';
+  if(_vinculoEditando){ dados.vinculoId = _vinculoEditando.id; }
+  else {
+    const email = document.getElementById('pr_email').value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg.textContent = 'Informe o e-mail do prestador.'; return; }
+    dados.email = email; fn = 'convidarPrestador';
+  }
+  msg.textContent = 'Salvando...';
+  try{ await chamarFuncao(fn, dados); closeModal('overlayPrestador'); if(fn==='convidarPrestador') showAlert('Convite enviado. O prestador precisa aceitar na tela Prestadores dele.'); renderPrestadores(); }
+  catch(e){ msg.textContent = msgErroFuncao(e); }
+}
+document.getElementById('btnPrestConvidar').addEventListener('click', ()=>abrirModalPrestador(null));
+document.getElementById('btnPrestAtualizar').addEventListener('click', renderPrestadores);
 
 /* ---- Cobrança manual (dono): mensalidade, vencimento e pagamentos registrados à mão ---- */
 function fmtCentavos(v){ return (Number(v||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
@@ -6189,7 +6295,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','clientes','filtrosanimais','consultoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','clientes','prestadores','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -6205,6 +6311,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='usuarios'){ renderUsuarios(); recarregarUsuarios().then(ok=>{ if(ok) renderUsuarios(); }); }
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
       if(view==='clientes') renderClientes();
+      if(view==='prestadores') renderPrestadores();
       if(view==='filtrosanimais') renderFiltrosAdmin();
       if(view==='consultoria') renderConsultoria();
     }else{
@@ -22701,7 +22808,7 @@ function viewsPermitidasBruto(user){
   if(!user) return [];
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : [])];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : []), ...(recursoAtivo('integracao_prestadores') ? ['prestadores'] : [])];
   const base = ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
   if(permissaoDe(user,'estoque').ver){ base.push('dietas'); base.push('piquetes'); }
   return base;
