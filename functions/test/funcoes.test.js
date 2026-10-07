@@ -16,6 +16,8 @@ const auth = getAuth(), db = getFirestore();
 const trigHaras = fft.wrap(F.sincronizarPapeis);
 const trigCliente = fft.wrap(F.sincronizarPapeisCliente);
 const wCriar = fft.wrap(F.criarCliente), wBloq = fft.wrap(F.bloquearCliente), wUso = fft.wrap(F.usoDoCliente);
+const wListar = fft.wrap(F.listarClientes), wAtual = fft.wrap(F.atualizarCliente);
+const CL = require('../clientes');
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
 const user = (email, admin, mods = []) => ({ id: email, nome: email, email, admin, permissoes: perm(...mods) });
@@ -262,5 +264,120 @@ describe('usoDoCliente', () => {
     assert.equal(r.documentos, 1); assert.ok(r.percentualDoLimite > 40 && r.percentualDoLimite < 60, String(r.percentualDoLimite));
     await rejeita(wUso({ data: { tenantId: 'zzz-nao' }, auth: dono }), 'not-found');
     await rejeita(wUso({ data: {}, auth: dono }), 'invalid-argument');
+  });
+});
+
+describe('listarClientes', () => {
+  test('negado a não-dono e a anônimo', async () => {
+    await rejeita(wListar({ data: {}, auth: { uid: 'u', token: { papel: 'admin' } } }), 'permission-denied');
+    await rejeita(wListar({ data: {} }), 'unauthenticated');
+  });
+  test('lista vazia', async () => {
+    assert.deepEqual(await wListar({ data: {}, auth: dono }), { clientes: [] });
+  });
+  test('formato, defaults, contas por tenant, admin, último acesso e ordenação pt-BR', async () => {
+    await db.doc('clientes/zeta').set({ nome: 'zeta Haras', ativo: false, plano: 'pro', limiteBytes: 5000000,
+      criadoEm: new Date('2026-01-02T03:04:05.000Z'),
+      consentimentoDados: { aceito: true, data: new Date('2026-02-03T00:00:00.000Z'), versao: 'v1', por: 'a@b.com' } });
+    await db.doc('clientes/alfa').set({ nome: 'Álamo' }); // só nome: usa defaults
+    await db.doc('clientes/beta').set({ nome: 'beta' });
+    await conta('adm@zeta.com', { tenantId: 'zeta', papel: 'admin', modulos: [] });
+    await conta('f1@zeta.com', { tenantId: 'zeta', papel: 'funcionario', modulos: [] });
+    await conta('f2@alfa.com', { tenantId: 'alfa', papel: 'funcionario', modulos: [] });
+    await conta('dono@x.com', { dono: true });
+    await conta('livre@x.com');
+    const r = await wListar({ data: {}, auth: dono });
+    assert.deepEqual(r.clientes.map(c => c.id), ['alfa', 'beta', 'zeta']); // Álamo, beta, zeta (sem diferenciar maiúsculas)
+    const [alfa, beta, zeta] = r.clientes;
+    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'nome', 'plano', 'ultimoAcesso']);
+    assert.equal(zeta.ativo, false); assert.equal(zeta.plano, 'pro'); assert.equal(zeta.limiteBytes, 5000000);
+    assert.equal(zeta.criadoEm, '2026-01-02T03:04:05.000Z');
+    assert.deepEqual(zeta.consentimentoDados, { aceito: true, data: '2026-02-03T00:00:00.000Z', versao: 'v1', por: 'a@b.com' });
+    assert.equal(zeta.contas, 2); assert.equal(zeta.emailAdmin, 'adm@zeta.com');
+    assert.equal(alfa.ativo, true); assert.equal(alfa.plano, 'basico'); assert.equal(alfa.limiteBytes, 1073741824);
+    assert.equal(alfa.criadoEm, null); assert.equal(alfa.consentimentoDados, null);
+    assert.equal(alfa.contas, 1); assert.equal(alfa.emailAdmin, '');
+    assert.equal(beta.contas, 0); assert.equal(beta.ultimoAcesso, null);
+  });
+  test('unitário: lista o Auth uma única vez (paginado), agrupa por tenant e usa o último acesso mais recente', async () => {
+    const mk = (email, tenantId, papel, last) => ({ uid: email, email, customClaims: tenantId ? { tenantId, papel } : {}, metadata: { lastSignInTime: last } });
+    const paginas = [
+      { users: [mk('a@a', 'a', 'funcionario', 'Mon, 01 Jun 2026 10:00:00 GMT'), mk('b@b', 'b', 'admin', 'Tue, 02 Jun 2026 10:00:00 GMT')], pageToken: 't1' },
+      { users: [mk('a2@a', 'a', 'admin', 'Wed, 03 Jun 2026 10:00:00 GMT'), mk('s@s', null, null, undefined)], pageToken: undefined },
+    ];
+    const chamadas = [];
+    const fakeAuth = { listUsers: async (n, tok) => { chamadas.push([n, tok]); return tok ? paginas[1] : paginas[0]; } };
+    const docs = [['a', { nome: 'A' }], ['b', { nome: 'B' }], ['c', { nome: 'C' }]].map(([id, d]) => ({ id, data: () => d }));
+    const fakeDb = { collection: (n) => { assert.equal(n, 'clientes'); return { get: async () => ({ docs }) }; } };
+    const r = await CL.listarClientes({ auth: fakeAuth, db: fakeDb });
+    assert.deepEqual(chamadas, [[1000, undefined], [1000, 't1']]);
+    const por = Object.fromEntries(r.clientes.map(c => [c.id, c]));
+    assert.equal(por.a.contas, 2); assert.equal(por.a.emailAdmin, 'a2@a');
+    assert.equal(por.a.ultimoAcesso, '2026-06-03T10:00:00.000Z');
+    assert.equal(por.b.contas, 1); assert.equal(por.b.emailAdmin, 'b@b');
+    assert.equal(por.c.contas, 0); assert.equal(por.c.ultimoAcesso, null);
+  });
+});
+
+describe('atualizarCliente', () => {
+  const donoEmail = { uid: 'd1', token: { dono: true, email: 'dono@haras.com' } };
+  const base = () => db.doc('clientes/acme').set({ nome: 'Acme', ativo: true, plano: 'basico', limiteBytes: 1073741824 });
+  const lerCli = async () => (await db.doc('clientes/acme').get()).data();
+  test('negado a não-dono e a anônimo', async () => {
+    await base();
+    await rejeita(wAtual({ data: { tenantId: 'acme', nome: 'Hack' }, auth: { uid: 'u', token: { papel: 'admin', tenantId: 'acme' } } }), 'permission-denied');
+    await rejeita(wAtual({ data: { tenantId: 'acme', nome: 'Hack' } }), 'unauthenticated');
+    assert.equal((await lerCli()).nome, 'Acme');
+  });
+  test('atualiza nome (trim), plano, limite e consentimento; devolve os campos alterados', async () => {
+    await base();
+    const antes = Date.now();
+    const r = await wAtual({ data: { tenantId: 'acme', nome: '  Acme Novo  ', plano: 'pro', limiteBytes: 2097152,
+      consentimentoDados: { aceito: true, versao: 'v2' } }, auth: donoEmail });
+    assert.deepEqual(r, { tenantId: 'acme', atualizado: ['nome', 'plano', 'limiteBytes', 'consentimentoDados'] });
+    const c = await lerCli();
+    assert.equal(c.nome, 'Acme Novo'); assert.equal(c.plano, 'pro'); assert.equal(c.limiteBytes, 2097152);
+    assert.equal(c.ativo, true);
+    assert.equal(c.consentimentoDados.aceito, true); assert.equal(c.consentimentoDados.versao, 'v2');
+    assert.equal(c.consentimentoDados.por, 'dono@haras.com');
+    assert.ok(new Date(c.consentimentoDados.data).getTime() >= antes - 1000);
+  });
+  test('atualização parcial e consentimento sem e-mail no token grava por vazio', async () => {
+    await base();
+    assert.deepEqual(await wAtual({ data: { tenantId: 'acme', plano: 'gratuito' }, auth: dono }), { tenantId: 'acme', atualizado: ['plano'] });
+    assert.equal((await lerCli()).plano, 'gratuito'); assert.equal((await lerCli()).nome, 'Acme');
+    await wAtual({ data: { tenantId: 'acme', consentimentoDados: { aceito: false, versao: 'v1' } }, auth: dono });
+    assert.equal((await lerCli()).consentimentoDados.por, '');
+  });
+  test('nunca altera ativo nem campos desconhecidos', async () => {
+    await base();
+    const r = await wAtual({ data: { tenantId: 'acme', nome: 'Ok', ativo: false, criadoEm: 'x', foo: 1 }, auth: dono });
+    assert.deepEqual(r.atualizado, ['nome']);
+    const c = await lerCli(); assert.equal(c.ativo, true); assert.equal(c.foo, undefined); assert.equal(c.criadoEm, undefined);
+    await rejeita(wAtual({ data: { tenantId: 'acme', ativo: false }, auth: dono }), 'invalid-argument');
+    assert.equal((await lerCli()).ativo, true);
+  });
+  test('entradas inválidas e atualização vazia', async () => {
+    await base();
+    const t = (d) => rejeita(wAtual({ data: { tenantId: 'acme', ...d }, auth: dono }), 'invalid-argument');
+    await t({}); await t({ foo: 1 });
+    await t({ nome: 'a' }); await t({ nome: '   ' }); await t({ nome: 'x'.repeat(101) }); await t({ nome: 5 });
+    await t({ plano: 'premium' }); await t({ plano: 1 });
+    await t({ limiteBytes: 1048575 }); await t({ limiteBytes: 107374182401 }); await t({ limiteBytes: 1.5e6 + 0.5 }); await t({ limiteBytes: '2097152' });
+    await t({ consentimentoDados: { aceito: 'sim', versao: 'v1' } });
+    await t({ consentimentoDados: { aceito: true, versao: '' } });
+    await t({ consentimentoDados: { aceito: true, versao: 'v'.repeat(41) } });
+    await t({ consentimentoDados: { aceito: true } }); await t({ consentimentoDados: null });
+    await rejeita(wAtual({ data: { tenantId: 'Inválido!', nome: 'Ok' }, auth: dono }), 'invalid-argument');
+    await rejeita(wAtual({ data: { nome: 'Ok' }, auth: dono }), 'invalid-argument');
+    assert.deepEqual(await lerCli(), { nome: 'Acme', ativo: true, plano: 'basico', limiteBytes: 1073741824 });
+  });
+  test('limites aceitos (mínimo e máximo) e cliente inexistente', async () => {
+    await base();
+    await wAtual({ data: { tenantId: 'acme', limiteBytes: 1048576 }, auth: dono });
+    await wAtual({ data: { tenantId: 'acme', limiteBytes: 107374182400 }, auth: dono });
+    assert.equal((await lerCli()).limiteBytes, 107374182400);
+    await rejeita(wAtual({ data: { tenantId: 'nao-existe', nome: 'Ok' }, auth: dono }), 'not-found');
+    assert.equal((await db.doc('clientes/nao-existe').get()).exists, false);
   });
 });

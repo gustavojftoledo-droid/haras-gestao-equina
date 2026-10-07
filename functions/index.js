@@ -45,3 +45,13 @@ exports.usoDoCliente = onCall(async (request) => {
   C.exigirDono(request);
   return C.usoDoCliente({ db: db() }, request.data || {});
 });
+// 5) Painel de clientes: listar (só dono)
+exports.listarClientes = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.listarClientes({ auth: auth(), db: db() });
+});
+// 6) Painel de clientes: editar nome/plano/limite/consentimento (só dono; nunca mexe em "ativo")
+exports.atualizarCliente = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.atualizarCliente({ db: db(), emailDono: request.auth.token.email }, request.data || {});
+});
