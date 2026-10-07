@@ -64,6 +64,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
       throw new HttpsError('already-exists', 'Esse e-mail já pertence a outro haras ou cliente.');
   }
 
+  let criouConta = false;
   const tenantId = await reservarTenantId(db, nome, {
     nome, ativo: true, criadoEm: FieldValue.serverTimestamp(), plano: lim.plano, limiteBytes: lim.limiteBytes, recursos,
   });
@@ -72,6 +73,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
     if (!conta) {
       const pw = senha || (senhaGerada = senhaAleatoria());
       conta = await auth.createUser({ email: emailAdmin, password: pw, displayName: nomeAdmin || nome });
+      criouConta = true;
     } else if (senha) {
       await auth.updateUser(conta.uid, { password: senha });
     }
@@ -87,6 +89,8 @@ async function criarCliente({ auth, db, FieldValue }, data){
     return out;
   } catch (e) {
     await db.collection('clientes').doc(tenantId).delete().catch(() => {}); // desfaz a reserva
+    // conta criada agora e sem acesso configurado = sem claim de cliente = valeria como "haras original": apaga
+    if (criouConta && conta) await auth.deleteUser(conta.uid).catch(() => {});
     throw e;
   }
 }

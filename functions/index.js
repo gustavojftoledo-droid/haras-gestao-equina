@@ -8,6 +8,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const logger = require('firebase-functions/logger');
 const { sincronizarLista } = require('./papeis');
 const C = require('./clientes');
+const U = require('./usuarios');
 
 // Região: precisa ser a mesma do Firestore (o banco do Gustavo está em São Paulo, southamerica-east1). Para outra região, crie functions/.env com REGIAO_FUNCOES=...
 setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'southamerica-east1', maxInstances: 10 });
@@ -56,4 +57,10 @@ exports.listarClientes = onCall(async (request) => {
 exports.atualizarCliente = onCall(async (request) => {
   C.exigirDono(request);
   return C.atualizarCliente({ auth: auth(), db: db(), emailDono: request.auth.token.email }, request.data || {});
+});
+
+// 7) O administrador do cliente cria/redefine o login de alguém da própria equipe (precisa estar na lista de usuários)
+exports.criarLoginDoUsuario = onCall(async (request) => {
+  U.exigirAdmin(request);
+  return U.criarLoginDoUsuario({ auth: auth(), db: db(), claims: request.auth.token }, request.data || {});
 });
