@@ -113,8 +113,24 @@ async function preparar(page){
     const orig = partGravarBruto; let jaMexeu = false;
     window.partGravarBruto = async (d, v) => { await orig(d, v); if (!jaMexeu && d === 'treinos_indice') { jaMexeu = true; const x = val('treinos_list'); x.push(tr('tr_tarde', '2026-04-04')); put('treinos_list', x); } };
     const r = await partMigrar('treinos_list'); window.partGravarBruto = orig;
-    return { r, a2026: ids('treinos_2026'), semId: (val('treinos_2026') || []).some(x => /^trn_mig_/.test(x.id)) }; });
+    return { r, a2026: ids('treinos_2026'), semId: (val('treinos_2026') || []).some(x => /_mig_/.test(x.id)) }; });
   ok('9) treino sem id ganha id e o que o app antigo gravou no meio da migração é recuperado', o.r.ok && o.a2026.includes('tr_tarde') && o.semId, o);
+
+  // 10) estoque_movimentos: um documento por MÊS (mesmo módulo)
+  o = await page.evaluate(async () => {
+    semear(); const mv = (id, data) => ({ id, data, produtoId: 'p1', produtoNome: 'Ração', tipoMov: 'saida', quantidade: 1 });
+    put('estoque_movimentos', [mv('m1', '2026-09-30'), mv('m2', '2026-10-01'), mv('m3', '2026-10-15'), mv('m4', '')]);
+    put('aux_lists', aux); partEstado.estoque_movimentos = undefined; await loadAll();
+    const r = await partMigrar('estoque_movimentos');
+    const o = { r, set: ids('emov_2026-09').join(), out: ids('emov_2026-10').join(), sem: ids('emov_sem_data').join(), indice: val('emov_indice').docs.join() };
+    estoqueMovimentos = []; await loadAll(); await espera(100); o.mem = estoqueMovimentos.length;
+    ctl.escritas.length = 0; estoqueMovimentos.push(mv('m5', '2026-10-20')); await storeSet('estoque_movimentos', estoqueMovimentos);
+    o.escritas = ctl.escritas.filter(k => /emov_/.test(k));
+    const m3 = estoqueMovimentos.find(x => x.id === 'm3'); m3.data = '2026-11-02'; await storeSet('estoque_movimentos', estoqueMovimentos);
+    o.nov = ids('emov_2026-11').join(); o.out2 = ids('emov_2026-10').join();
+    o.treinosIntactos = ids('treinos_list').length === 6 && val('treinos_indice') === null; return o; });
+  ok('10) estoque dividido por mês: migra, grava só o mês certo e muda de mês ao editar a data', o.r.ok && o.set === 'm1' && o.out === 'm2,m3' && o.sem === 'm4' && o.mem === 4 && o.escritas.join() === 'emov_2026-10'
+    && o.nov === 'm3' && o.out2 === 'm2,m5' && o.treinosIntactos, o);
 
   console.log('\nErros de JavaScript na página:', JSON.stringify(errs));
   console.log(`\n${total - falhas} passaram, ${falhas} falharam`);
