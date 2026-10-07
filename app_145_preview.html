@@ -1052,10 +1052,10 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="btnPrestAtualizar">Atualizar</button><button type="button" class="btn" id="btnPrestConvidar">+ Convidar prestador</button></div>
       </div>
       <div class="hint-text" id="prestMsg" style="margin:6px 0 10px;"></div>
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:6px 0;">Prestadores que eu autorizei</div>
-      <div class="grid-wrap"><table class="grid"><thead><tr><th>Prestador</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestMeusTbody"></tbody></table></div>
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Eu presto serviço para</div>
-      <div class="grid-wrap"><table class="grid"><thead><tr><th>Proprietário</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestComoTbody"></tbody></table></div>
+      <div id="prestSecMeus"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:6px 0;">Prestadores que eu autorizei</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Prestador</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestMeusTbody"></tbody></table></div></div>
+      <div id="prestSecComo"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Eu presto serviço para</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Proprietário</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestComoTbody"></tbody></table></div></div>
       <div class="hint-text" style="margin-top:12px;">Nesta primeira etapa você só cria e gerencia a autorização. O envio e a aprovação dos registros vêm nas próximas etapas.</div>
     </div>
 
@@ -4019,6 +4019,7 @@ const FIRESTORE_COLLECTION = 'harasData';
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
 let CLAIM_MODULOS = null;  // módulos liberados pelo PLANO do cliente (claim 'modulos'); null = sem limite de plano (haras original)
+let CLAIM_TIPO = 'proprietario'; // tipo da assinatura (claim 'tipoAssinatura', definido só pelo dono): proprietario | prestador | ambos
 let CLAIM_RECURSOS = [];   // novidades liberadas só para este cliente (claim 'recursos'); veja RECURSOS_APP / recursoAtivo()
 let MAX_USUARIOS = 0;     // usuários permitidos pelo plano (claim 'maxUsuarios'); 0 = sem limite
 let PLANO_ATUAL = '';     // claim 'plano' (só informativo)
@@ -4033,6 +4034,9 @@ const RECURSOS_APP = {
   integracao_prestadores: { nome:'Integração com prestadores de serviço (veterinária, ferrador...)', liberacao:'selecionados' },
   // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
 };
+// Lados da integração entre assinaturas. O haras original (sem cliente) é só proprietário.
+const ladoProprietario = ()=> CLAIM_TIPO!=='prestador';
+const ladoPrestador = ()=> !!TENANT_ID && CLAIM_TIPO!=='proprietario';
 function recursoAtivo(chave){
   if(!TENANT_ID) return true;
   const def = RECURSOS_APP[chave];
@@ -4057,7 +4061,7 @@ async function resolverTenantDoUsuario(authUser){
       claims = JSON.parse(localStorage.getItem(chaveCl) || '{}') || {};
     }else{
       if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
-      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos }));
+      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos, tipoAssinatura: claims.tipoAssinatura }));
     }
   }catch(_){}
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
@@ -4065,6 +4069,7 @@ async function resolverTenantDoUsuario(authUser){
   CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
   MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
   PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
+  CLAIM_TIPO = (TENANT_ID && ['proprietario','prestador','ambos'].includes(claims.tipoAssinatura)) ? claims.tipoAssinatura : 'proprietario';
   CLAIM_RECURSOS = (TENANT_ID && Array.isArray(claims.recursos)) ? claims.recursos.filter(r=>typeof r==='string') : [];
   try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
@@ -4862,7 +4867,7 @@ function desenharClientes(){
     const ativo = c.ativo!==false, cons = c.consentimentoDados;
     return `<tr data-cid="${escHtml(c.id)}">
       <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
-      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}${c.tipoAssinatura&&c.tipoAssinatura!=='proprietario'?` <span style="font-size:11px;font-weight:700;color:var(--brass);">· ${c.tipoAssinatura==='prestador'?'Prestador':'Proprietário + Prestador'}</span>`:''}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
       <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
       <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
       <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
@@ -4896,6 +4901,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome do cliente (haras/empresa)</label><input type="text" id="cn_nome" maxlength="100"></div>
     <div class="field"><label>E-mail do administrador</label><input type="email" id="cn_email" maxlength="200"></div>
     <div class="field"><label>Nome do administrador (opcional)</label><input type="text" id="cn_nomeAdmin" maxlength="100"></div>
+    <div class="field"><label>Tipo de assinatura</label><select id="cn_tipo"><option value="proprietario" selected>Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
     <div class="field"><label>Plano</label><select id="cn_plano"><option value="gratuito">Gratuito</option><option value="basico" selected>Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">Pro: espaço acima do limite é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Senha provisória (opcional — se vazio, o sistema cria uma)</label><input type="text" id="cn_senha" maxlength="100" autocomplete="off"></div>
@@ -4907,6 +4913,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome</label><input type="text" id="ce_nome" maxlength="100"></div>
     <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
+    <div class="field"><label>Tipo de assinatura</label><select id="ce_tipo"><option value="proprietario">Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
     <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
     <div class="field"><label>Novidades liberadas só para este cliente</label><div id="ce_recursos" style="display:flex;flex-direction:column;gap:6px;"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
@@ -4921,13 +4928,13 @@ function garantirModaisClientes(){
 function abrirNovoCliente(){
   garantirModaisClientes();
   ['cn_nome','cn_email','cn_nomeAdmin','cn_senha'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_msg').textContent = '';
+  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_tipo').value = 'proprietario'; document.getElementById('cn_msg').textContent = '';
   openModal('overlayClienteNovo');
 }
 async function salvarClienteNovo(){
   const dados = { nome:document.getElementById('cn_nome').value.trim(), emailAdmin:document.getElementById('cn_email').value.trim(), nomeAdmin:document.getElementById('cn_nomeAdmin').value.trim() };
   const senha = document.getElementById('cn_senha').value; if(senha) dados.senhaProvisoria = senha;
-  dados.plano = document.getElementById('cn_plano').value;
+  dados.plano = document.getElementById('cn_plano').value; dados.tipoAssinatura = document.getElementById('cn_tipo').value;
   const msg = document.getElementById('cn_msg');
   if(dados.nome.length<2){ msg.textContent = 'Informe o nome do cliente.'; return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.emailAdmin)){ msg.textContent = 'E-mail do administrador inválido.'; return; }
@@ -4946,6 +4953,7 @@ function abrirEditarCliente(id){
   document.getElementById('ce_titulo').textContent = 'Editar — '+(c.nome||c.id);
   document.getElementById('ce_nome').value = c.nome||'';
   document.getElementById('ce_plano').value = ['gratuito','basico','pro'].includes(c.plano) ? c.plano : 'basico';
+  document.getElementById('ce_tipo').value = ['proprietario','prestador','ambos'].includes(c.tipoAssinatura) ? c.tipoAssinatura : 'proprietario';
   document.getElementById('ce_limite').value = ((Number(c.limiteBytes)||1073741824)/1073741824).toFixed(3).replace(/\.?0+$/,'');
   const seletivos = Object.entries(RECURSOS_APP).filter(([,d])=>d.liberacao==='selecionados');
   const marcados = new Set(Array.isArray(c.recursos) ? c.recursos : []);
@@ -4964,6 +4972,7 @@ async function salvarClienteEditado(){
   const dados = { tenantId:c.id }; const nome = document.getElementById('ce_nome').value.trim();
   if(nome && nome!==c.nome) dados.nome = nome;
   const plano = document.getElementById('ce_plano').value; if(plano!==c.plano) dados.plano = plano;
+  const tipoNovo = document.getElementById('ce_tipo').value; if(tipoNovo!==(c.tipoAssinatura||'proprietario')) dados.tipoAssinatura = tipoNovo;
   const gb = Number(String(document.getElementById('ce_limite').value).replace(',','.'));
   const bytes = Math.round(gb*1073741824);
   if(!(gb>0)){ msg.textContent = 'Informe o limite em GB.'; return; }
@@ -5000,6 +5009,10 @@ async function renderPrestadores(){
 }
 function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
 function desenharPrestadores(){
+  // cada assinatura só vê o lado que é dela (tipo definido pelo dono): proprietário autoriza; prestador recebe convites
+  document.getElementById('prestSecMeus').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecComo').style.display = ladoPrestador() ? '' : 'none';
+  document.getElementById('btnPrestConvidar').style.display = ladoProprietario() ? '' : 'none';
   const meus = vinculosPrest.comoProprietario||[], como = vinculosPrest.comoPrestador||[];
   document.getElementById('prestMeusTbody').innerHTML = meus.length===0 ? '<tr><td colspan="4" class="empty">Nenhum prestador autorizado ainda. Use "+ Convidar prestador".</td></tr>'
     : meus.map(v=>`<tr><td><strong>${escHtml(v.prestadorNome||v.prestadorTenantId)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(v.prestadorEmail||'')}</div></td>

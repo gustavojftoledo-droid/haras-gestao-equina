@@ -35,10 +35,10 @@ async function criarLoginDoUsuario({ auth, db, claims }, data){
     throw new HttpsError('failed-precondition', 'Cadastre a pessoa em Usuários e salve antes de criar o login.');
 
   // plano: e-mail precisa caber nos lugares do plano (admins primeiro)
-  let plano, recursos;
+  let plano, recursos, tipoAssinatura;
   if (tenantId) {
     const d = await dadosDoCliente(db, tenantId);
-    plano = d.plano; recursos = d.recursos;
+    plano = d.plano; recursos = d.recursos; tipoAssinatura = d.tipoAssinatura;
     if (!mapaDaLista(lista, limitesDoPlano(plano)).has(email))
       throw new HttpsError('failed-precondition', 'Limite de usuários do plano atingido: essa pessoa ficaria sem lugar. Fale com o suporte para mudar de plano.');
   }
@@ -67,7 +67,7 @@ async function criarLoginDoUsuario({ auth, db, claims }, data){
   }
   // aplica papel/módulos/plano na conta (a conta nova ainda não tem claims; o gatilho de usuários já tinha passado)
   try {
-    await ressincronizarCliente(auth, { tenantId, lista, plano, recursos });
+    await ressincronizarCliente(auth, { tenantId, lista, plano, recursos, tipoAssinatura });
     if (criado) {
       const c = (await auth.getUser(conta.uid)).customClaims || {};
       if (!c.papel || (tenantId && c.tenantId !== tenantId)) throw new HttpsError('internal', 'Não consegui aplicar o acesso da conta nova.');

@@ -2,7 +2,7 @@
    Coleção de servidor `vinculos/{donoTenantId}__{prestadorTenantId}` (o haras original do dono é '_original').
    Só funções (Admin SDK) leem/gravam; as regras do app continuam fechadas entre clientes. A assinatura do CHAMADOR vem da claim do login. */
 const { HttpsError } = require('firebase-functions/v2/https');
-const { normalizarEmail } = require('./comum');
+const { normalizarEmail, tipoValido, fazLadoProprietario, fazLadoPrestador } = require('./comum');
 
 const ORIGINAL = '_original';
 const RECURSO = 'integracao_prestadores';
@@ -20,6 +20,13 @@ function exigirAdminComRecurso(request){
     throw new HttpsError('permission-denied', 'Esse recurso ainda não foi liberado para a sua assinatura.');
 }
 const assinaturaDoChamador = (token) => token.tenantId || ORIGINAL;
+/* O haras original (sem tenantId) é proprietário. Cliente: o tipo vem da claim gravada pelo servidor. */
+const tipoDoChamador = (token) => token.tenantId ? tipoValido(token.tipoAssinatura) : 'proprietario';
+function exigirLado(token, lado){
+  const t = tipoDoChamador(token);
+  if (lado === 'proprietario' && !fazLadoProprietario(t)) throw new HttpsError('permission-denied', 'Esta assinatura é de prestador de serviço: ela não autoriza prestadores.');
+  if (lado === 'prestador' && !fazLadoPrestador(t)) throw new HttpsError('permission-denied', 'Esta assinatura não é de prestador de serviço.');
+}
 const agora = () => new Date().toISOString();
 
 async function nomeDaAssinatura(db, tid){
@@ -54,6 +61,7 @@ const publico = (id, v) => ({ id, donoTenantId: v.donoTenantId, donoNome: v.dono
   criadoEm: v.criadoEm || null, criadoPor: v.criadoPor || '', atualizadoEm: v.atualizadoEm || null });
 
 async function convidarPrestador({ auth, db, token }, data){
+  exigirLado(token, 'proprietario');
   const dono = assinaturaDoChamador(token);
   const email = normalizarEmail(data.email);
   if (!RE_EMAIL.test(email) || email.length > 200) throw new HttpsError('invalid-argument', 'E-mail do prestador inválido.');
@@ -61,7 +69,7 @@ async function convidarPrestador({ auth, db, token }, data){
   try { conta = await auth.getUserByEmail(email); }
   catch (e) { if (!(e && e.code === 'auth/user-not-found')) throw e; }
   const c = (conta && conta.customClaims) || {};
-  if (!conta || !c.tenantId || c.papel !== 'admin' || conta.disabled)
+  if (!conta || !c.tenantId || c.papel !== 'admin' || conta.disabled || !fazLadoPrestador(c.tipoAssinatura))
     throw new HttpsError('not-found', 'Não encontramos uma assinatura de prestador com esse e-mail. Peça para o prestador ter uma assinatura e informar o e-mail do administrador dela.');
   const prestador = c.tenantId;
   if (prestador === dono) throw new HttpsError('invalid-argument', 'Você não pode se convidar.');
@@ -104,6 +112,7 @@ async function carregarVinculo(db, vid){
 }
 
 async function responderConvite({ db, token }, data){
+  exigirLado(token, 'prestador');
   const eu = assinaturaDoChamador(token);
   const { ref, v } = await carregarVinculo(db, data.vinculoId);
   if (v.prestadorTenantId !== eu) throw new HttpsError('permission-denied', 'Esse convite não é para a sua assinatura.');
@@ -117,6 +126,7 @@ async function responderConvite({ db, token }, data){
 }
 
 async function atualizarAnimaisDoVinculo({ db, token }, data){
+  exigirLado(token, 'proprietario');
   const eu = assinaturaDoChamador(token);
   const { ref, v } = await carregarVinculo(db, data.vinculoId);
   if (v.donoTenantId !== eu) throw new HttpsError('permission-denied', 'Só o proprietário muda os animais liberados.');

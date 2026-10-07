@@ -25,6 +25,9 @@ Cada item de **material/medicamento** do envio tem, **individualmente**, um bot�
 - Servidor: item marcado exige valor cobrado; item não marcado **não leva preço** (rejeitado/ignorado). O preço de **compra** e o estoque do prestador nunca saem da assinatura dele; sai só o que ele **cobra** do proprietário.
 - A baixa no estoque do próprio prestador (se ele controlar estoque) segue as regras da assinatura dele.
 
+## Tipo de assinatura (decisão do dono, 07/10/2026)
+Para não poluir o programa de um cliente comum, cada assinatura tem um **tipo**, definido **só pelo dono** (Clientes → Editar, e ao criar): **proprietário** (padrão: haras/cliente comum — autoriza prestadores e aprova o que chega), **prestador** (veterinária, ferrador... — aceita convites e envia registros; é aqui que existe o botão "este produto é meu") ou **ambos**. O tipo vai para a claim `tipoAssinatura`; o servidor confere o lado em cada ação (prestador não convida nem muda animais; proprietário não aceita convite; só quem faz o lado de prestador pode ser convidado); a tela só mostra o lado de cada tipo. O haras original do dono é proprietário. Conta antiga sem a claim vale como proprietário. O interruptor `integracao_prestadores` continua dizendo **para quem** a integração foi liberada; o tipo diz **o que cada um vê**.
+
 ## Segurança (decisão de arquitetura)
 As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa por funções do servidor (callable), com a assinatura do chamador vindo da **claim** do login (nunca do pedido). Coleções de servidor (`vinculos`, `solicitacoes`) não são legíveis pelo app direto.
 
