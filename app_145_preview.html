@@ -2014,9 +2014,10 @@
 
     <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
     <div class="overlay" id="overlayFotoTimeline">
-      <div class="modal" style="max-width:min(90vw,640px);">
+      <div class="modal" style="max-width:min(94vw,900px);">
         <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
         <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
+        <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnFtTamanhoMaximo">🔍 Abrir em tamanho máximo (nova aba, dá para dar zoom)</button></div>
         <div id="ftAcoes" style="display:none;gap:8px;margin-top:12px;justify-content:space-between;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame (PDF)</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnFtEditar">✏️ Editar data / anotação</button>
@@ -23903,6 +23904,7 @@ document.getElementById('btnArSalvar').addEventListener('click', ()=>{
   aregSalvarEmSegundoPlano([registro.animalId], ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
   closeModal('overlayAnimalRegistro');
 });
+document.getElementById('btnFtTamanhoMaximo').addEventListener('click', ()=>{ const u=document.getElementById('ftFotoGrande').src; if(/^https:\/\//i.test(u)) window.open(u, '_blank', 'noopener'); else { const w=window.open('', '_blank'); if(w){ w.document.write('<title>Foto</title><body style="margin:0;background:#111"><img src="'+u+'" style="max-width:100%;display:block;margin:auto">'); w.document.close(); } } });
 document.getElementById('btnFtAbrirArquivo').addEventListener('click', ()=>{ if(ftArquivoUrl) window.open(ftArquivoUrl, '_blank', 'noopener'); });
 document.getElementById('btnFtEditar').addEventListener('click', ()=>{
   const id = ftRegistroId; if(!id) return;
