@@ -41,3 +41,15 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 - Limite de fotos por animal: claim `maxFotos` (padrão 3). A etapa 5 (cobrança) deve só ligar/desligar esse número (e a função criarCliente/painel precisa gravar a claim). Divisão das listas grandes (etapa 3b) deve vir antes de aumentar o limite para todos.
 - Diagnóstico escondido de quem não é dono; `?diag=1` libera na aba.
 - Divisão da Linha do Tempo por animal: projeto, protótipo e testes prontos em `projeto-linha-do-tempo/` (não publicado). Falta portar para a versão atual e testar com cópia dos dados.
+
+## Dados como ativo: histórico de estoque e consumo (regra do dono, 07/10/2026)
+
+Pedido do Gustavo: o histórico de **estoque, medicamentos e consumo de ração por dieta** é valioso para farmácias parceiras e empresas de ração (sazonalidade, consumo, histórico completo) e é parte da força do programa. **Nunca pode ser perdido nem apagado.** Vale principalmente para clientes que derem permissão, em especial no plano gratuito.
+
+Decisões / pendências (nada abaixo foi implementado ainda, exceto o item 1):
+1. **Dividir os documentos que enchem** (estoque por mês, treinos por ano): evita o teto de 1 MiB, que hoje é o único risco de "parar de gravar". Os documentos divididos nunca são apagados. (Feito no teste; ligar só com "pode ligar".)
+2. **Excluir não pode apagar a história**: hoje `excluirMovimento` remove o movimento do banco. Proposta: "exclusão suave" (o movimento fica marcado como excluído e some das telas, mas continua guardado) e o mesmo para dieta/consumo. Aguardando o OK do dono.
+3. **Cópia permanente por cliente**: além do backup diário de 10 dias, guardar um arquivo mensal imutável (`hist_estoque_AAAA-MM`) que o app nunca altera nem apaga.
+4. **Consentimento**: campo por cliente (tenant) `consentimentoDados` (data, versão do termo, quem aceitou), exigido no cadastro do plano gratuito. Só os dados de clientes com consentimento entram em análises/ofertas a parceiros.
+5. **Privacidade (LGPD)**: dados oferecidos a parceiros devem ser **agregados e anonimizados** (sem nome do haras/pessoa); os termos de uso/contrato precisam de revisão jurídica antes de qualquer venda de dados.
+6. Etapa 4 (painel de clientes) deve incluir: lista de quem consentiu e relatório agregado de consumo por produto/período.

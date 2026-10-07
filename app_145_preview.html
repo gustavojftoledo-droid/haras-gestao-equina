@@ -3670,9 +3670,15 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     </div>
     <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
       <div style="font-size:13px;font-weight:600;">Treinos divididos por ano</div>
-      <div class="hint-text" id="partTreinosStatus" style="margin:6px 0 8px;"></div>
-      <button type="button" class="btn btn-sm btn-ghost" id="btnPartTreinosMigrar">Dividir treinos por ano agora</button>
-      <button type="button" class="btn btn-sm btn-ghost" id="btnPartTreinosReverter">Voltar treinos para o documento único</button>
+      <div class="hint-text" id="partStatus_treinos_list" style="margin:6px 0 8px;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartMigrar_treinos_list">Dividir treinos por ano agora</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartReverter_treinos_list">Voltar treinos para o documento único</button>
+    </div>
+    <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
+      <div style="font-size:13px;font-weight:600;">Movimentos de estoque divididos por mês</div>
+      <div class="hint-text" id="partStatus_estoque_movimentos" style="margin:6px 0 8px;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartMigrar_estoque_movimentos">Dividir estoque por mês agora</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartReverter_estoque_movimentos">Voltar estoque para o documento único</button>
     </div>
     <div style="margin-bottom:14px;"><button type="button" class="btn btn-sm" id="btnRunDiag">Verificar agora</button> <button type="button" class="btn btn-sm btn-ghost" id="btnTestWrite">1) Gravar valor de teste</button> <button type="button" class="btn btn-sm btn-ghost" id="btnReadOnly">2) Ler valor de teste (sem gravar)</button></div>
     <div id="diagOutput" style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;max-height:420px;overflow-y:auto;"></div>
@@ -4753,13 +4759,16 @@ function aregMigrarEmSegundoPlano(){
    'treinos_sem_data') e um recibo 'treinos_indice' que lista os documentos. Para o resto do app NADA muda: storeGet('treinos_list')
    devolve a lista inteira (junta os anos) e storeSet('treinos_list', ...) grava só os anos que mudaram — a variável `treinos`
    continua sendo a lista completa. Cada ano ocupa uma fração do teto, então o limite deixa de ser problema.
+   (Também usado em 'estoque_movimentos': um documento por MÊS — 'emov_2026-10' — e recibo 'emov_indice'.)
    Segurança: se algum ano não puder ser lido, a leitura inteira é tratada como FALHA (nada é gravado por cima); a migração confere
    lendo de volta e só então grava o recibo; o documento antigo NUNCA é alterado/apagado; dá para reverter (botão no Diagnóstico).
    Modos (partEstado[key].modo): 'legado' = documento único (comportamento antigo); 'particionado' = formato novo.
    Chave plana: as regras do Firestore já liberam qualquer nome de documento sem barra. */
 const PART_CFG = {
   treinos_list: { prefixo:'treinos_', indice:'treinos_indice', semData:'treinos_sem_data', nome:'treinos', auto:false,
-    doc(r){ const m = /^(\d{4})-/.exec((r && r.data) || ''); return m ? ('treinos_'+m[1]) : 'treinos_sem_data'; } }
+    doc(r){ const m = /^(\d{4})-/.exec((r && r.data) || ''); return m ? ('treinos_'+m[1]) : 'treinos_sem_data'; } },
+  estoque_movimentos: { prefixo:'emov_', indice:'emov_indice', semData:'emov_sem_data', nome:'movimentos de estoque', auto:false,
+    doc(r){ const m = /^(\d{4}-\d{2})-/.exec((r && r.data) || ''); return m ? ('emov_'+m[1]) : 'emov_sem_data'; } }
 };
 const PART_MIGRACAO_AUTOMATICA = false; // false = só migra pelo botão do Diagnóstico (ligar junto com o app em uso)
 const partEstado = {};
@@ -4825,11 +4834,11 @@ async function partGravar(key, val, userDeleted){
 // MIGRAÇÃO: copia o documento único para um documento por período, CONFERE lendo de volta e só então grava o recibo.
 // Idempotente (soma por id; o que já está no documento do período vale). O documento original não é alterado.
 async function partCopiar(key, lista){
-  const grupos = partAgrupar(key, lista); const final = new Map(); let sem = 0;
+  const cfg = PART_CFG[key]; const grupos = partAgrupar(key, lista); const final = new Map(); let sem = 0;
   for(const [d, regs] of grupos){
     const ex = await storeGetBruto(d); if(!ex.ok) return { ok:false, motivo:'não consegui ler '+d };
     const mapa = new Map(); (Array.isArray(ex.value)?ex.value:[]).forEach(r=>{ if(r && r.id!=null) mapa.set(r.id, r); });
-    regs.forEach(r=>{ if(!r) return; const id = r.id!=null ? r.id : ('trn_mig_'+(sem++)); if(!mapa.has(id)) mapa.set(id, r.id!=null ? r : { ...r, id }); });
+    regs.forEach(r=>{ if(!r) return; const id = r.id!=null ? r.id : (cfg.prefixo+'mig_'+(sem++)); if(!mapa.has(id)) mapa.set(id, r.id!=null ? r : { ...r, id }); });
     const lst = [...mapa.values()];
     if(tamanhoDocBytes(lst) > LIMITE_DOC_BYTES*0.95) return { ok:false, motivo:d+' passaria de 95% do limite' };
     await partGravarBruto(d, lst);
@@ -24749,33 +24758,35 @@ document.getElementById('btnAregReverter').addEventListener('click', async ()=>{
   const r = await aregReverter();
   aregAtualizarStatusDiag(r.ok ? ('revertido: '+r.total+' registro(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
 });
-function partTreinosStatusDiag(msg){
-  const el = document.getElementById('partTreinosStatus'); if(!el) return;
-  const st = partSt('treinos_list');
-  const base = st.modo==='particionado' ? ('Formato novo: um documento por ano ('+(st.indice&&st.indice.docs?st.indice.docs.length:0)+' documento(s)). O documento antigo foi mantido como cópia.')
-    : st.modo==='legado' ? ('Formato antigo: todos os treinos num documento só'+(st.revertido?' (revertido de propósito: não divide sozinho).':'.'))
-    : 'Os treinos não foram lidos na abertura — recarregue a página.';
+function partStatusDiag(key, msg){
+  const el = document.getElementById('partStatus_'+key); if(!el) return;
+  const st = partSt(key), cfg = PART_CFG[key], periodo = key==='treinos_list' ? 'ano' : 'mês';
+  const base = st.modo==='particionado' ? ('Formato novo: um documento por '+periodo+' ('+(st.indice&&st.indice.docs?st.indice.docs.length:0)+' documento(s)). O documento antigo foi mantido como cópia.')
+    : st.modo==='legado' ? ('Formato antigo: tudo num documento só'+(st.revertido?' (revertido de propósito: não divide sozinho).':'.'))
+    : 'Esta lista não foi lida na abertura — recarregue a página.';
   el.textContent = base + (msg?(' — '+msg):'');
 }
-document.getElementById('btnPartTreinosMigrar').addEventListener('click', async ()=>{
-  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
-  const st = partSt('treinos_list');
-  if(st.modo==='particionado'){ partTreinosStatusDiag('já está dividido.'); return; }
-  if(st.modo!=='legado'){ showAlert('Recarregue a página antes (os treinos não foram lidos na abertura).'); return; }
-  partTreinosStatusDiag('dividindo...');
-  const r = await partMigrar('treinos_list');
-  partTreinosStatusDiag(r.ok ? ('pronto: '+(r.docs||0)+' documento(s), '+(r.total||0)+' treino(s). O documento antigo não foi apagado.') : ('não foi possível agora: '+r.motivo+'. Nada foi alterado.'));
-});
-document.getElementById('btnPartTreinosReverter').addEventListener('click', async ()=>{
-  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
-  if(partSt('treinos_list').modo!=='particionado'){ partTreinosStatusDiag('já está no formato antigo.'); return; }
-  if(!(await showConfirm('Juntar de novo todos os treinos no documento único antigo? Os documentos por ano ficam guardados como cópia.'))) return;
-  partTreinosStatusDiag('revertendo...');
-  const r = await partReverter('treinos_list');
-  partTreinosStatusDiag(r.ok ? ('revertido: '+r.total+' treino(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
+Object.keys(PART_CFG).forEach(key=>{
+  document.getElementById('btnPartMigrar_'+key).addEventListener('click', async ()=>{
+    if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+    const st = partSt(key);
+    if(st.modo==='particionado'){ partStatusDiag(key, 'já está dividido.'); return; }
+    if(st.modo!=='legado'){ showAlert('Recarregue a página antes (a lista não foi lida na abertura).'); return; }
+    partStatusDiag(key, 'dividindo...');
+    const r = await partMigrar(key);
+    partStatusDiag(key, r.ok ? ('pronto: '+(r.docs||0)+' documento(s), '+(r.total||0)+' registro(s). O documento antigo não foi apagado.') : ('não foi possível agora: '+r.motivo+'. Nada foi alterado.'));
+  });
+  document.getElementById('btnPartReverter_'+key).addEventListener('click', async ()=>{
+    if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+    if(partSt(key).modo!=='particionado'){ partStatusDiag(key, 'já está no formato antigo.'); return; }
+    if(!(await showConfirm('Juntar de novo tudo no documento único antigo? Os documentos divididos ficam guardados como cópia.'))) return;
+    partStatusDiag(key, 'revertendo...');
+    const r = await partReverter(key);
+    partStatusDiag(key, r.ok ? ('revertido: '+r.total+' registro(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
+  });
 });
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
-  partTreinosStatusDiag();
+  Object.keys(PART_CFG).forEach(k=>partStatusDiag(k));
   aregAtualizarStatusDiag();
   try{ document.getElementById('chkFotosStorage').checked = localStorage.getItem('haras_fotos_storage')==='1'; }catch(_){}
   document.getElementById('diagOutput').textContent = 'Clique em "Verificar agora" para consultar o armazenamento.';
