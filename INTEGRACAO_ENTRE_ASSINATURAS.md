@@ -17,6 +17,17 @@ Cada item enviado é de um de dois tipos:
 - O que o prestador pagou/cobra pelos **materiais dele** (preço de compra, estoque dele) **nunca sai da assinatura dele**.
 - Para o prestador, o envio de um item de serviço tem campo de valor; o de material tem só nome/quantidade.
 
+### Botão "este produto é meu" (decisão do dono, 07/10/2026)
+Cada item de **material/medicamento** do envio tem, **individualmente**, um botão **"este produto é meu"** (o prestador só clica se o produto foi realmente dele):
+- **Não marcado** → produto do **proprietário**: estoque e preço do proprietário, com baixa; se o proprietário não tem o item, **sem baixa, sem custo, marcado como pendência**.
+- **Marcado ("é meu")** → produto do **prestador**: **não baixa o estoque do proprietário**; o prestador informa o **valor cobrado** (quantidade × valor) e isso chega ao proprietário como **custo**, identificado como "produto do prestador".
+- O proprietário vê esses itens destacados na solicitação e no PDF, pode **revisar o valor** ou **recusar** antes de aprovar (é a proteção dele contra cobrança indevida).
+- Servidor: item marcado exige valor cobrado; item não marcado **não leva preço** (rejeitado/ignorado). O preço de **compra** e o estoque do prestador nunca saem da assinatura dele; sai só o que ele **cobra** do proprietário.
+- A baixa no estoque do próprio prestador (se ele controlar estoque) segue as regras da assinatura dele.
+
+## Tipo de assinatura (decisão do dono, 07/10/2026)
+Para não poluir o programa de um cliente comum, cada assinatura tem um **tipo**, definido **só pelo dono** (Clientes → Editar, e ao criar): **proprietário** (padrão: haras/cliente comum — autoriza prestadores e aprova o que chega), **prestador** (veterinária, ferrador... — aceita convites e envia registros; é aqui que existe o botão "este produto é meu") ou **ambos**. O tipo vai para a claim `tipoAssinatura`; o servidor confere o lado em cada ação (prestador não convida nem muda animais; proprietário não aceita convite; só quem faz o lado de prestador pode ser convidado); a tela só mostra o lado de cada tipo. O haras original do dono é proprietário. Conta antiga sem a claim vale como proprietário. O interruptor `integracao_prestadores` continua dizendo **para quem** a integração foi liberada; o tipo diz **o que cada um vê**.
+
 ## Segurança (decisão de arquitetura)
 As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa por funções do servidor (callable), com a assinatura do chamador vindo da **claim** do login (nunca do pedido). Coleções de servidor (`vinculos`, `solicitacoes`) não são legíveis pelo app direto.
 

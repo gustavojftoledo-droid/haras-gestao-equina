@@ -1,5 +1,5 @@
 /* Lógica da sincronização de papéis (separada do trigger para poder ser testada direto). */
-const { MODULOS, papelEModulos, normalizarEmail, mesmaLista, limitesDoPlano } = require('./comum');
+const { MODULOS, papelEModulos, normalizarEmail, mesmaLista, limitesDoPlano, tipoValido } = require('./comum');
 
 /* Transforma a lista em { email -> {papel, modulos} }. E-mails vazios e repetidos são ignorados (vale o primeiro). */
 function mapaDaLista(lista, limites){
@@ -40,7 +40,7 @@ function podeMexer(claims, tenantId){
 }
 
 /* Aplica as claims. Retorna um resumo (útil para log e testes). */
-async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos }){
+async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos, tipoAssinatura }){
   const resumo = { atualizados: [], iguais: [], semConta: [], removidos: [], ignorados: [], revogados: [] };
   const limites = tenantId && plano ? limitesDoPlano(plano) : null; // só clientes têm plano; o haras original não
   const novoMapa = mapaDaLista(depois, limites);
@@ -54,8 +54,9 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos
     const novas = { ...atuais, papel, modulos };
     if (tenantId) novas.tenantId = tenantId;
     const recs = recursos || [];
-    if (limites) { novas.maxFotos = limites.maxFotos; novas.maxUsuarios = limites.maxUsuarios; novas.plano = limites.plano; novas.recursos = recs; }
-    const planoIgual = !limites || (atuais.maxFotos === limites.maxFotos && atuais.maxUsuarios === limites.maxUsuarios && atuais.plano === limites.plano && mesmaLista(atuais.recursos || [], recs));
+    const tipo = tipoValido(tipoAssinatura);
+    if (limites) { novas.maxFotos = limites.maxFotos; novas.maxUsuarios = limites.maxUsuarios; novas.plano = limites.plano; novas.recursos = recs; novas.tipoAssinatura = tipo; }
+    const planoIgual = !limites || (atuais.maxFotos === limites.maxFotos && atuais.maxUsuarios === limites.maxUsuarios && atuais.plano === limites.plano && mesmaLista(atuais.recursos || [], recs) && atuais.tipoAssinatura === tipo);
     if (mesmaLista(atuais.modulos, modulos) && atuais.papel === papel && (!tenantId || atuais.tenantId === tenantId) && planoIgual) {
       resumo.iguais.push(email); continue;
     }
@@ -80,7 +81,7 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos
     if (!('papel' in atuais) && !('modulos' in atuais)) continue; // já estava limpo (idempotente)
     const novas = { ...atuais };
     delete novas.papel; delete novas.modulos;
-    if (tenantId) { delete novas.maxFotos; delete novas.maxUsuarios; delete novas.plano; delete novas.recursos; }
+    if (tenantId) { delete novas.maxFotos; delete novas.maxUsuarios; delete novas.plano; delete novas.recursos; delete novas.tipoAssinatura; }
     await auth.setCustomUserClaims(conta.uid, novas);
     await auth.revokeRefreshTokens(conta.uid);
     resumo.removidos.push(email); resumo.revogados.push(email);
@@ -90,8 +91,8 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos
 
 /* Reaplica o plano a todas as contas de um cliente (usado quando o plano muda): lista atual + plano novo.
    Quem passou do limite de usuários ou perdeu módulos é rebaixado (e tem as sessões derrubadas pela mesma regra de sempre). */
-async function ressincronizarCliente(auth, { tenantId, lista, plano, recursos }){
-  return sincronizarLista(auth, { tenantId, antes: lista, depois: lista, plano, recursos });
+async function ressincronizarCliente(auth, { tenantId, lista, plano, recursos, tipoAssinatura }){
+  return sincronizarLista(auth, { tenantId, antes: lista, depois: lista, plano, recursos, tipoAssinatura });
 }
 
 module.exports = { sincronizarLista, ressincronizarCliente, mapaDaLista, podeMexer, MODULOS };

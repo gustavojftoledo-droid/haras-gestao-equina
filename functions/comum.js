@@ -16,6 +16,16 @@ const PLANOS = {
 Object.values(PLANOS).forEach(pl => { pl.modulos = MODULOS.filter(m => pl.modulos.includes(m)); }); // sempre na ordem de MODULOS
 const PLANO_PADRAO = 'basico';
 
+/* Tipo de assinatura (definido SÓ pelo dono, em Clientes → Editar): decide qual lado da integração entre assinaturas o cliente vê.
+   proprietario (padrão) = dono de haras/cliente comum: autoriza prestadores e aprova o que chega;
+   prestador = veterinária, ferrador etc.: aceita convites e envia registros; ambos = faz as duas coisas. */
+const TIPOS_ASSINATURA = ['proprietario', 'prestador', 'ambos'];
+const TIPO_PADRAO = 'proprietario';
+const ehTipoAssinatura = (t) => typeof t === 'string' && TIPOS_ASSINATURA.includes(t);
+const tipoValido = (t) => ehTipoAssinatura(t) ? t : TIPO_PADRAO;
+const fazLadoProprietario = (t) => tipoValido(t) !== 'prestador';
+const fazLadoPrestador = (t) => tipoValido(t) !== 'proprietario';
+
 /* Novidades liberadas só para alguns clientes ("interruptor por cliente"): lista de chaves curtas guardada em
    clientes/{id}.recursos e copiada para a claim `recursos` das contas do cliente. Chave: letras minúsculas, números e _. */
 const RE_RECURSO = /^[a-z][a-z0-9_]{1,29}$/;
@@ -49,4 +59,4 @@ function papelEModulos(u){
 }
 function normalizarEmail(e){ return typeof e === 'string' ? e.trim().toLowerCase() : ''; }
 function mesmaLista(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
-module.exports = { MODULOS, LIMITE_PADRAO_BYTES, DONO_EMAIL, PLANOS, PLANO_PADRAO, ehPlano, limitesDoPlano, RE_RECURSO, MAX_RECURSOS, normalizarRecursos, recursosValidos, papelEModulos, normalizarEmail, mesmaLista };
+module.exports = { MODULOS, LIMITE_PADRAO_BYTES, DONO_EMAIL, PLANOS, PLANO_PADRAO, ehPlano, limitesDoPlano, TIPOS_ASSINATURA, TIPO_PADRAO, ehTipoAssinatura, tipoValido, fazLadoProprietario, fazLadoPrestador, RE_RECURSO, MAX_RECURSOS, normalizarRecursos, recursosValidos, papelEModulos, normalizarEmail, mesmaLista };

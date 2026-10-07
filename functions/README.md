@@ -72,3 +72,6 @@ Dono cobra fora do sistema (Pix/boleto/transferência) e **registra** no painel.
 
 ## Integração entre assinaturas — etapa 1 (vínculo)
 Ver `INTEGRACAO_ENTRE_ASSINATURAS.md`. Coleção de servidor `vinculos/{dono}__{prestador}` (haras original = `_original`), fechada às regras do app. Callables (admin da assinatura do chamador; clientes precisam do recurso `integracao_prestadores` marcado no painel; o haras original não precisa): `convidarPrestador {email, animaisTodos | animais:[ids]}`, `listarVinculos`, `responderConvite {vinculoId, aceitar}`, `atualizarAnimaisDoVinculo {vinculoId, animaisTodos | animais}`, `revogarVinculo {vinculoId}` (qualquer um dos lados). A assinatura do chamador vem da claim `tenantId`, nunca do pedido. Depois do deploy, abrir as chamadas: `convidarprestador listarvinculos responderconvite atualizaranimaisdovinculo revogarvinculo`.
+
+### Tipo de assinatura
+`clientes/{id}.tipoAssinatura` (`proprietario` padrão | `prestador` | `ambos`), definido só pelo dono (`criarCliente` e `atualizarCliente`; mudar reaplica as claims e devolve `'claims'`). Vai para a claim `tipoAssinatura`. `convidarPrestador`/`atualizarAnimaisDoVinculo` exigem o lado proprietário; `responderConvite` exige o lado prestador; só conta com lado prestador pode ser convidada. `listarClientes` devolve `tipoAssinatura`.

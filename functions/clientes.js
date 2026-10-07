@@ -1,7 +1,7 @@
 /* Lógica de criar/bloquear cliente e medir uso (separada para poder ser testada). */
 const { HttpsError } = require('firebase-functions/v2/https');
 const crypto = require('crypto');
-const { MODULOS, LIMITE_PADRAO_BYTES, normalizarEmail, PLANOS: TABELA_PLANOS, ehPlano, limitesDoPlano, normalizarRecursos, recursosValidos } = require('./comum');
+const { MODULOS, LIMITE_PADRAO_BYTES, normalizarEmail, PLANOS: TABELA_PLANOS, ehPlano, limitesDoPlano, normalizarRecursos, recursosValidos, ehTipoAssinatura, tipoValido } = require('./comum');
 const { ressincronizarCliente } = require('./papeis');
 const B = require('./cobranca');
 
@@ -52,6 +52,8 @@ async function criarCliente({ auth, db, FieldValue }, data){
     throw new HttpsError('invalid-argument', 'A senha provisória precisa ter de 8 a 100 caracteres.');
   if (data.plano !== undefined && !ehPlano(data.plano)) throw new HttpsError('invalid-argument', 'Plano inválido (gratuito, basico ou pro).');
   const lim = limitesDoPlano(data.plano); // sem plano informado = básico
+  if (data.tipoAssinatura !== undefined && !ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador ou ambos).');
+  const tipo = tipoValido(data.tipoAssinatura);
   let recursos = [];
   if (data.recursos !== undefined) { try { recursos = normalizarRecursos(data.recursos); } catch (e) { throw new HttpsError('invalid-argument', 'Lista de novidades inválida.'); } }
 
@@ -67,7 +69,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
 
   let criouConta = false;
   const tenantId = await reservarTenantId(db, nome, {
-    nome, ativo: true, criadoEm: FieldValue.serverTimestamp(), plano: lim.plano, limiteBytes: lim.limiteBytes, recursos,
+    nome, ativo: true, criadoEm: FieldValue.serverTimestamp(), plano: lim.plano, limiteBytes: lim.limiteBytes, recursos, tipoAssinatura: tipo,
   });
   try {
     let senhaGerada;
@@ -79,7 +81,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
       await auth.updateUser(conta.uid, { password: senha });
     }
     const claimsAntigas = conta.customClaims || {};
-    await auth.setCustomUserClaims(conta.uid, { ...claimsAntigas, tenantId, papel: 'admin', modulos: lim.modulos.slice(), maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, plano: lim.plano, recursos });
+    await auth.setCustomUserClaims(conta.uid, { ...claimsAntigas, tenantId, papel: 'admin', modulos: lim.modulos.slice(), maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, plano: lim.plano, recursos, tipoAssinatura: tipo });
     const permissoes = {};
     MODULOS.forEach(m => { permissoes[m] = { ver: true, inserir: true, editar: true, excluir: true }; });
     await db.doc(`tenants/${tenantId}/dados/usuarios_list`).set({
@@ -174,7 +176,7 @@ async function planoDoCliente(db, tenantId){
 async function dadosDoCliente(db, tenantId){
   const s = await db.collection('clientes').doc(tenantId).get();
   const d = s.exists && s.data() ? s.data() : {};
-  return { plano: ehPlano(d.plano) ? d.plano : 'basico', recursos: recursosValidos(d.recursos) };
+  return { plano: ehPlano(d.plano) ? d.plano : 'basico', recursos: recursosValidos(d.recursos), tipoAssinatura: tipoValido(d.tipoAssinatura) };
 }
 async function listaUsuariosDoCliente(db, tenantId){
   try {
@@ -208,6 +210,7 @@ async function listarClientes({ auth, db }){
       limites: { modulos: lim.modulos, maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, limiteBytes: lim.limiteBytes },
       usuariosNaLista: listas[i].length,
       recursos: recursosValidos(d.recursos),
+      tipoAssinatura: tipoValido(d.tipoAssinatura),
       cobranca: B.resumoDeCobranca(d, pagos.get(doc.id), hoje),
       criadoEm: paraISO(d.criadoEm),
       limiteBytes: d.limiteBytes > 0 ? d.limiteBytes : LIMITE_PADRAO_BYTES,
@@ -245,6 +248,10 @@ async function atualizarCliente({ auth, db, emailDono }, data){
       throw new HttpsError('invalid-argument', 'Consentimento inválido (aceito verdadeiro/falso e versão de 1 a 40 caracteres).');
     upd.consentimentoDados = { aceito: c.aceito, versao: c.versao, data: new Date().toISOString(), por: typeof emailDono === 'string' ? emailDono : '' };
   }
+  if (data.tipoAssinatura !== undefined) {
+    if (!ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador ou ambos).');
+    upd.tipoAssinatura = data.tipoAssinatura;
+  }
   if (data.recursos !== undefined) {
     try { upd.recursos = normalizarRecursos(data.recursos); } catch (e) { throw new HttpsError('invalid-argument', 'Lista de novidades inválida (chaves com letras minúsculas, números e _; até 12).'); }
   }
@@ -279,12 +286,13 @@ async function atualizarCliente({ auth, db, emailDono }, data){
   const mudouPlano = upd.plano !== undefined && upd.plano !== planoAntes;
   const recursosAntes = recursosValidos((atual.data() || {}).recursos);
   const mudouRecursos = upd.recursos !== undefined && JSON.stringify(upd.recursos) !== JSON.stringify(recursosAntes);
+  const mudouTipo = upd.tipoAssinatura !== undefined && upd.tipoAssinatura !== tipoValido((atual.data() || {}).tipoAssinatura);
   if (mudouPlano && upd.limiteBytes === undefined) upd.limiteBytes = limitesDoPlano(upd.plano).limiteBytes;
   await ref.update(upd);
   const atualizado = Object.keys(upd);
-  if ((mudouPlano || mudouRecursos) && auth) {
+  if ((mudouPlano || mudouRecursos || mudouTipo) && auth) {
     const d = await dadosDoCliente(db, tenantId); // já com o que acabou de ser gravado
-    await ressincronizarCliente(auth, { tenantId, lista: await listaUsuariosDoCliente(db, tenantId), plano: d.plano, recursos: d.recursos });
+    await ressincronizarCliente(auth, { tenantId, lista: await listaUsuariosDoCliente(db, tenantId), plano: d.plano, recursos: d.recursos, tipoAssinatura: d.tipoAssinatura });
     atualizado.push('claims');
   }
   return { tenantId, atualizado };

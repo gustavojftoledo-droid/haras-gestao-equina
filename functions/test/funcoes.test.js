@@ -12,7 +12,7 @@ const fft = require('firebase-functions-test')({ projectId: 'demo-haras' });
 const F = require('../index');
 const { MODULOS, PLANOS, limitesDoPlano } = require('../comum');
 const modsDoPlano = (plano) => MODULOS.filter(m => limitesDoPlano(plano).modulos.includes(m)); // na ordem de MODULOS
-const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFotos: l.maxFotos, maxUsuarios: l.maxUsuarios, plano: l.plano, recursos: [] }; };
+const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFotos: l.maxFotos, maxUsuarios: l.maxUsuarios, plano: l.plano, recursos: [], tipoAssinatura: 'proprietario' }; };
 
 const auth = getAuth(), db = getFirestore();
 const trigHaras = fft.wrap(F.sincronizarPapeis);
@@ -537,10 +537,11 @@ describe('cobrança manual', () => {
 
 describe('integração entre assinaturas — etapa 1 (vínculo)', () => {
   const REC = ['integracao_prestadores'];
-  const tk = (tenantId, extra = {}) => ({ uid: 'u-' + (tenantId || 'orig'), token: { papel: 'admin', ...(tenantId ? { tenantId, recursos: REC } : {}), email: (tenantId || 'orig') + '@x.com', ...extra } });
+  const tipoDe = (id) => /^vet/.test(id || '') ? 'prestador' : 'proprietario';   // nos testes: ids 'vet...' são prestadores
+  const tk = (tenantId, extra = {}) => ({ uid: 'u-' + (tenantId || 'orig'), token: { papel: 'admin', ...(tenantId ? { tenantId, recursos: REC, tipoAssinatura: tipoDe(tenantId) } : {}), email: (tenantId || 'orig') + '@x.com', ...extra } });
   const cliente = async (id, nome, adminEmail, recursos = REC) => {
     await db.doc(`clientes/${id}`).set({ nome, ativo: true, plano: 'pro' });
-    await conta(adminEmail, { tenantId: id, papel: 'admin', modulos: MODULOS, recursos });
+    await conta(adminEmail, { tenantId: id, papel: 'admin', modulos: MODULOS, recursos, tipoAssinatura: tipoDe(id) });
   };
   const animais = (...ids) => ids.map(i => ({ id: i, nome: 'Cavalo ' + i }));
   beforeEach(async () => {
@@ -558,7 +559,7 @@ describe('integração entre assinaturas — etapa 1 (vínculo)', () => {
   test('convidar: validações (e-mail, ninguém encontrado, a si mesmo, animal que não é seu, lista vazia, prestador sem recurso)', async () => {
     await rejeita(wConvidar({ data: { email: 'nao-e-email', animaisTodos: true }, auth: tk('dono1') }), 'invalid-argument');
     await rejeita(wConvidar({ data: { email: 'ninguem@x.com', animaisTodos: true }, auth: tk('dono1') }), 'not-found');
-    await rejeita(wConvidar({ data: { email: 'adm@dono1.com', animaisTodos: true }, auth: tk('dono1') }), 'invalid-argument');
+    await rejeita(wConvidar({ data: { email: 'adm@dono1.com', animaisTodos: true }, auth: tk('dono1') }), 'not-found');   // uma conta de proprietário não é prestador
     await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: ['a1', 'de-outro'] }, auth: tk('dono1') }), 'invalid-argument');
     await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: [] }, auth: tk('dono1') }), 'invalid-argument');
     await rejeita(wConvidar({ data: { email: 'vet@vet1.com' }, auth: tk('dono1') }), 'invalid-argument');
@@ -626,6 +627,49 @@ describe('integração entre assinaturas — etapa 1 (vínculo)', () => {
     await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: ['h2'] }, auth: tk(null) }), 'already-exists');
     const l = await wVincs({ data: {}, auth: tk('vet1') });
     assert.equal(l.comoPrestador[0].donoNome, 'Haras original');
+  });
+  test('TIPO: o tipo de assinatura vem do dono (criar/editar), vai para as claims e o padrão é proprietário', async () => {
+    const id = (await wCriar({ data: { nome: 'Vet Tipo', emailAdmin: 't@tipo.com', senhaProvisoria: 'provisoria1', plano: 'pro', tipoAssinatura: 'prestador' }, auth: dono })).tenantId;
+    assert.equal((await claimsDe('t@tipo.com')).tipoAssinatura, 'prestador');
+    assert.equal((await db.doc(`clientes/${id}`).get()).data().tipoAssinatura, 'prestador');
+    await rejeita(wCriar({ data: { nome: 'Ruim', emailAdmin: 'r@tipo.com', tipoAssinatura: 'vendedor' }, auth: dono }), 'invalid-argument');
+    const id2 = (await wCriar({ data: { nome: 'Padrao Tipo', emailAdmin: 'p@tipo.com', senhaProvisoria: 'provisoria1' }, auth: dono })).tenantId;
+    assert.equal((await claimsDe('p@tipo.com')).tipoAssinatura, 'proprietario');
+    await db.doc(`tenants/${id2}/dados/usuarios_list`).set({ value: [user('p@tipo.com', true)] });
+    const r = await wAtual({ data: { tenantId: id2, tipoAssinatura: 'ambos' }, auth: dono });
+    assert.deepEqual(r.atualizado, ['tipoAssinatura', 'claims']);
+    assert.equal((await claimsDe('p@tipo.com')).tipoAssinatura, 'ambos');
+    await rejeita(wAtual({ data: { tenantId: id2, tipoAssinatura: 'xx' }, auth: dono }), 'invalid-argument');
+    const l = (await wListar({ data: {}, auth: dono })).clientes;
+    assert.equal(l.find(c => c.id === id2).tipoAssinatura, 'ambos'); assert.equal(l.find(c => c.id === id).tipoAssinatura, 'prestador');
+  });
+  test('TIPO: prestador não convida; proprietário não aceita; cliente comum não pode ser convidado; "ambos" faz os dois lados', async () => {
+    await rejeita(wConvidar({ data: { email: 'adm@dono1.com', animaisTodos: true }, auth: tk('vet1') }), 'permission-denied');         // prestador tentando convidar
+    await cliente('comum2', 'Cliente Comum', 'c@comum2.com');                                                                           // proprietário comum
+    await rejeita(wConvidar({ data: { email: 'c@comum2.com', animaisTodos: true }, auth: tk('dono1') }), 'not-found');                    // não é prestador: nem aparece como opção
+    await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') });
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('comum2') }), 'permission-denied');                // proprietário não aceita convite
+    await rejeita(wAnim({ data: { vinculoId: 'dono1__vet1', animaisTodos: true }, auth: tk('vet1') }), 'permission-denied');             // prestador não muda animais
+    // "ambos": convida e aceita
+    await cliente('ambos1', 'Vet com Animais', 'a@ambos1.com');
+    await conta('a@ambos1.com', { tenantId: 'ambos1', papel: 'admin', modulos: MODULOS, recursos: REC, tipoAssinatura: 'ambos' }).catch(() => {});
+    await auth.setCustomUserClaims((await auth.getUserByEmail('a@ambos1.com')).uid, { tenantId: 'ambos1', papel: 'admin', modulos: MODULOS, recursos: REC, tipoAssinatura: 'ambos' });
+    await db.doc('tenants/ambos1/dados/horses_list').set({ value: animais('z1') });
+    const tAmbos = { uid: 'u-ambos1', token: { papel: 'admin', tenantId: 'ambos1', recursos: REC, tipoAssinatura: 'ambos', email: 'a@ambos1.com' } };
+    const v1 = await wConvidar({ data: { email: 'vet@vet1.com', animais: ['z1'] }, auth: tAmbos });    // como proprietário
+    assert.equal(v1.id, 'ambos1__vet1');
+    await rejeita(wConvidar({ data: { email: 'a@ambos1.com', animaisTodos: true }, auth: tAmbos }), 'invalid-argument');   // ninguém se convida
+    await wConvidar({ data: { email: 'adm@dono1.com', animaisTodos: true }, auth: tk('vet1') }).then(() => assert.fail('vet1 é só prestador'), e => assert.equal(e.code, 'permission-denied'));
+    await wConvidar({ data: { email: 'a@ambos1.com', animaisTodos: true }, auth: tk('dono1') });        // dono1 convida o "ambos" como prestador
+    const v2 = await wResp({ data: { vinculoId: 'dono1__ambos1', aceitar: true }, auth: tAmbos });     // e o "ambos" aceita como prestador
+    assert.equal(v2.status, 'ativo');
+  });
+  test('TIPO: conta antiga sem a claim vale como proprietário (padrão)', async () => {
+    await conta('velho@x.com', { tenantId: 'dono1', papel: 'admin', modulos: MODULOS, recursos: REC });   // sem tipoAssinatura
+    const velho = { uid: 'u-velho', token: { papel: 'admin', tenantId: 'dono1', recursos: REC, email: 'velho@x.com' } };
+    const v = await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: velho });
+    assert.equal(v.status, 'pendente');
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: velho }), 'permission-denied');
   });
   test('o app não lê a coleção vinculos direto (regras fechadas)', async () => {
     const fs = require('fs'), path = require('path');
@@ -716,7 +760,7 @@ describe('listarClientes', () => {
     const r = await wListar({ data: {}, auth: dono });
     assert.deepEqual(r.clientes.map(c => c.id), ['alfa', 'beta', 'zeta']); // Álamo, beta, zeta (sem diferenciar maiúsculas)
     const [alfa, beta, zeta] = r.clientes;
-    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'cobranca', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'recursos', 'ultimoAcesso', 'usuariosNaLista']);
+    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'cobranca', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'recursos', 'tipoAssinatura', 'ultimoAcesso', 'usuariosNaLista']);
     assert.equal(zeta.ativo, false); assert.equal(zeta.plano, 'pro'); assert.equal(zeta.limiteBytes, 5000000);
     assert.equal(zeta.criadoEm, '2026-01-02T03:04:05.000Z');
     assert.deepEqual(zeta.consentimentoDados, { aceito: true, data: '2026-02-03T00:00:00.000Z', versao: 'v1', por: 'a@b.com' });

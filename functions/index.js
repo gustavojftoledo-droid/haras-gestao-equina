@@ -25,7 +25,7 @@ async function tratar(event, tenantId){
   const depois = valorDaLista(event.data && event.data.after);
   // cliente: aplica o plano dele (módulos, fotos, usuários); haras original: sem plano
   const dados = tenantId ? await C.dadosDoCliente(db(), tenantId) : {};
-  const resumo = await sincronizarLista(auth(), { tenantId, antes, depois, plano: dados.plano, recursos: dados.recursos });
+  const resumo = await sincronizarLista(auth(), { tenantId, antes, depois, plano: dados.plano, recursos: dados.recursos, tipoAssinatura: dados.tipoAssinatura });
   logger.info('sincronizarPapeis', { tenantId: tenantId || 'haras-original', ...resumo });
   return null;
 }
