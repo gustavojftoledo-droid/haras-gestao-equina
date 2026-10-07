@@ -5822,10 +5822,25 @@ async function loadAll(){
   // que faltam; não apaga nem renomeia nada que já exista). A ORDEM na tela vem de ORDEM_FILTRO_ANIMAIS.
   Object.entries(ORDEM_FILTRO_ANIMAIS).forEach(([campo, valores])=>{
     if(!aux[campo]) aux[campo] = [];
+    if(TENANT_ID) return; // status/categoria/raça/locais do haras original NÃO vão para cliente novo (começa vazio)
     valores.forEach(v=>{
       if(!aux[campo].some(x=>(x||'').trim().toLowerCase()===v.toLowerCase())){ aux[campo].push(v); auxChanged=true; }
     });
   });
+  // Cliente que já recebeu os valores do haras original (status, categoria, raça e locais — ver ORDEM_FILTRO_ANIMAIS): tira UMA vez,
+  // e só os que nenhum animal dele usa. Nunca mexe em valor que tenha animal nem em valor que o próprio cliente criou.
+  if(TENANT_ID && configLidoOk && !config.limpouSementesDoHaras){
+    const norm = x=>(x||'').toString().trim().toLowerCase();
+    Object.entries(ORDEM_FILTRO_ANIMAIS).forEach(([campo, valores])=>{
+      const doHaras = valores.map(norm);
+      const emUso = new Set((horses||[]).map(h=>norm(h[campo])));
+      const antes = (aux[campo]||[]).length;
+      aux[campo] = (aux[campo]||[]).filter(v=>!(doHaras.includes(norm(v)) && !emUso.has(norm(v))));
+      if(aux[campo].length!==antes) auxChanged=true;
+    });
+    config.limpouSementesDoHaras = true;
+    await storeSet('config', config);
+  }
   if(!aux.ferrador) { aux.ferrador=[]; auxChanged=true; }
   if(!aux.veterinario) { aux.veterinario=[]; auxChanged=true; }
   if(!aux.subtipoFerrageamento || aux.subtipoFerrageamento.length===0) { aux.subtipoFerrageamento=['Casqueado mãos','Casqueado completo','Casqueado pés','Ferrado mãos','Ferrado completo']; auxChanged=true; }
@@ -6043,6 +6058,7 @@ async function loadAll(){
 document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
   document.getElementById('loadWarning').style.display='none';
   await loadAll();
+  setTimeout(verificarOnboardingCliente, 600); // se a 1ª leitura falhou, o assistente do 1º login ainda precisa ter a chance de aparecer
 });
 
 function populateAuxSelects(){
