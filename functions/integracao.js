@@ -150,4 +150,121 @@ async function revogarVinculo({ db, token }, data){
   return publico(ref.id, novo);
 }
 
-module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo };
+/* ---------------- ETAPA 2: envio do registro pelo prestador (solicitação PENDENTE) ----------------
+   Coleção de servidor `solicitacoes/{id}`. Nada entra na ficha do proprietário aqui: só fica pendente (a aprovação é a etapa 3).
+   Itens: 'servico' (leva o VALOR do prestador) e 'material' (estoque/preço do proprietário; só leva valor se o prestador marcou
+   "este produto é meu": produtoDoPrestador=true, com valor unitário). Preço de compra/estoque do prestador nunca são enviados. */
+const TIPOS_REGISTRO = ['aplicacao', 'tratamento', 'procedimento', 'consulta', 'outro'];
+const CATEGORIAS_SERVICO = ['consulta', 'procedimento', 'exame', 'casqueamento', 'ferrageamento', 'deslocamento', 'outro'];
+const MAX_ITENS = 30, MAX_PENDENTES_POR_VINCULO = 50, MAX_LISTA = 200;
+const MAX_VALOR_CENTAVOS = 100000000;
+const RE_SID = /^[A-Za-z0-9]{10,40}$/;
+const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
+const dataOk = (d) => { if (typeof d !== 'string' || !RE_DATA.test(d)) return false; const x = new Date(d + 'T00:00:00Z'); return !isNaN(x.getTime()) && x.toISOString().slice(0, 10) === d; };
+const txt = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
+const inteiro = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
+
+function limparItens(brutos){
+  if (!Array.isArray(brutos) || brutos.length < 1) throw new HttpsError('invalid-argument', 'Inclua ao menos um item (serviço ou material).');
+  if (brutos.length > MAX_ITENS) throw new HttpsError('invalid-argument', 'Itens demais em um envio (máximo ' + MAX_ITENS + ').');
+  return brutos.map((it, i) => {
+    const n = i + 1;
+    if (!it || typeof it !== 'object') throw new HttpsError('invalid-argument', `Item ${n} inválido.`);
+    const nome = txt(it.nome, 120);
+    if (nome.length < 2) throw new HttpsError('invalid-argument', `Informe o nome do item ${n}.`);
+    if (it.tipo === 'servico') {
+      if (!inteiro(it.valorCentavos, MAX_VALOR_CENTAVOS)) throw new HttpsError('invalid-argument', `Informe o valor do serviço "${nome}".`);
+      const categoria = it.categoria === undefined || it.categoria === '' ? 'outro' : it.categoria;
+      if (!CATEGORIAS_SERVICO.includes(categoria)) throw new HttpsError('invalid-argument', `Categoria inválida no serviço "${nome}".`);
+      return { tipo: 'servico', nome, categoria, valorCentavos: it.valorCentavos, obs: txt(it.obs, 300) };
+    }
+    if (it.tipo === 'material') {
+      if (!(typeof it.quantidade === 'number' && isFinite(it.quantidade) && it.quantidade > 0 && it.quantidade <= 100000)) throw new HttpsError('invalid-argument', `Quantidade inválida em "${nome}".`);
+      const meu = it.produtoDoPrestador === true;
+      const base = { tipo: 'material', nome, quantidade: it.quantidade, unidade: txt(it.unidade, 20), produtoDoPrestador: meu, obs: txt(it.obs, 300) };
+      if (meu) {
+        if (!inteiro(it.valorUnitarioCentavos, MAX_VALOR_CENTAVOS)) throw new HttpsError('invalid-argument', `Informe o valor cobrado por unidade de "${nome}" (produto seu).`);
+        base.valorUnitarioCentavos = it.valorUnitarioCentavos;
+      } else if (it.valorUnitarioCentavos !== undefined && it.valorUnitarioCentavos !== null) {
+        throw new HttpsError('invalid-argument', `"${nome}" não é produto seu: não envie valor (vale o estoque e o preço do proprietário).`);
+      }
+      return base;
+    }
+    throw new HttpsError('invalid-argument', `Tipo inválido no item ${n} (servico ou material).`);
+  });
+}
+
+async function vinculoDoPrestador(db, token, vid){
+  exigirLado(token, 'prestador');
+  const eu = assinaturaDoChamador(token);
+  const { v } = await carregarVinculo(db, vid);
+  if (v.prestadorTenantId !== eu) throw new HttpsError('permission-denied', 'Esse vínculo não é da sua assinatura.');
+  if (v.status !== 'ativo') throw new HttpsError('failed-precondition', 'Esse vínculo não está ativo.');
+  return v;
+}
+async function animaisLiberados(db, v){
+  const todos = await animaisDoDono(db, v.donoTenantId);
+  if (v.animaisTodos === true) return todos;
+  const ids = new Set(Array.isArray(v.animaisIds) ? v.animaisIds : []);
+  return todos.filter(a => ids.has(a.id));
+}
+
+async function animaisAutorizados({ db, token }, data){
+  const v = await vinculoDoPrestador(db, token, data.vinculoId);
+  return { vinculoId: data.vinculoId, donoNome: v.donoNome, animais: (await animaisLiberados(db, v)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) };
+}
+
+async function enviarSolicitacao({ db, token }, data){
+  const v = await vinculoDoPrestador(db, token, data.vinculoId);
+  const animais = await animaisLiberados(db, v);
+  const animal = animais.find(a => a.id === data.animalId);
+  if (!animal) throw new HttpsError('permission-denied', 'Esse animal não está liberado para você.');
+  if (!dataOk(data.dataRegistro)) throw new HttpsError('invalid-argument', 'Data do registro inválida (AAAA-MM-DD).');
+  const amanha = new Date(Date.now() + 36 * 3600000).toISOString().slice(0, 10);
+  if (data.dataRegistro > amanha) throw new HttpsError('invalid-argument', 'A data do registro não pode ser no futuro.');
+  const tipoRegistro = data.tipoRegistro === undefined || data.tipoRegistro === '' ? 'outro' : data.tipoRegistro;
+  if (!TIPOS_REGISTRO.includes(tipoRegistro)) throw new HttpsError('invalid-argument', 'Tipo de registro inválido.');
+  const itens = limparItens(data.itens);
+  const pend = await db.collection('solicitacoes').where('vinculoId', '==', data.vinculoId).where('status', '==', 'pendente').get();
+  if (pend.size >= MAX_PENDENTES_POR_VINCULO) throw new HttpsError('resource-exhausted', 'Há solicitações pendentes demais para esse proprietário. Aguarde a aprovação.');
+  const por = typeof token.email === 'string' ? token.email : '';
+  const ref = db.collection('solicitacoes').doc();
+  const doc = { vinculoId: data.vinculoId, donoTenantId: v.donoTenantId, donoNome: v.donoNome, prestadorTenantId: v.prestadorTenantId, prestadorNome: v.prestadorNome,
+    enviadoPor: por, animalId: animal.id, animalNome: animal.nome, dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), itens,
+    status: 'pendente', criadoEm: agora(), atualizadoEm: agora(), eventos: [{ em: agora(), por, acao: 'enviado ao proprietário' }] };
+  await ref.set(doc);
+  return { id: ref.id, ...doc };
+}
+
+const solPublica = (id, d) => ({ id, vinculoId: d.vinculoId, donoNome: d.donoNome, prestadorNome: d.prestadorNome, enviadoPor: d.enviadoPor, animalId: d.animalId, animalNome: d.animalNome,
+  dataRegistro: d.dataRegistro, tipoRegistro: d.tipoRegistro, descricao: d.descricao || '', itens: Array.isArray(d.itens) ? d.itens : [], status: d.status,
+  criadoEm: d.criadoEm || null, atualizadoEm: d.atualizadoEm || null, motivo: d.motivo || '' });
+
+async function listarSolicitacoes({ db, token }){
+  const eu = assinaturaDoChamador(token);
+  const ordem = (a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm));
+  const [a, b] = await Promise.all([
+    db.collection('solicitacoes').where('donoTenantId', '==', eu).get(),
+    db.collection('solicitacoes').where('prestadorTenantId', '==', eu).get(),
+  ]);
+  const lista = (snap) => snap.docs.map(d => solPublica(d.id, d.data())).sort(ordem).slice(0, MAX_LISTA);
+  return { recebidas: lista(a), enviadas: lista(b) };
+}
+
+async function cancelarSolicitacao({ db, token }, data){
+  exigirLado(token, 'prestador');
+  if (typeof data.solicitacaoId !== 'string' || !RE_SID.test(data.solicitacaoId)) throw new HttpsError('invalid-argument', 'Solicitação inválida.');
+  const ref = db.collection('solicitacoes').doc(data.solicitacaoId);
+  const s = await ref.get();
+  if (!s.exists) throw new HttpsError('not-found', 'Solicitação não encontrada.');
+  const d = s.data();
+  if (d.prestadorTenantId !== assinaturaDoChamador(token)) throw new HttpsError('permission-denied', 'Essa solicitação não é da sua assinatura.');
+  if (d.status !== 'pendente') throw new HttpsError('failed-precondition', 'Só dá para cancelar enquanto está pendente.');
+  const por = typeof token.email === 'string' ? token.email : '';
+  const novo = { ...d, status: 'cancelado', atualizadoEm: agora(), eventos: [...(d.eventos || []).slice(-(MAX_EVENTOS - 1)), { em: agora(), por, acao: 'cancelado pelo prestador' }] };
+  await ref.set(novo);
+  return solPublica(ref.id, novo);
+}
+
+module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo,
+  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao };

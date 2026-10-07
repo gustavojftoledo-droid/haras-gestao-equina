@@ -32,8 +32,8 @@ Para não poluir o programa de um cliente comum, cada assinatura tem um **tipo**
 As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa por funções do servidor (callable), com a assinatura do chamador vindo da **claim** do login (nunca do pedido). Coleções de servidor (`vinculos`, `solicitacoes`) não são legíveis pelo app direto.
 
 ## Etapas
-1. **Vínculo** (esta etapa): convidar por e-mail, aceitar/recusar, escolher animais, revogar. Funções: `convidarPrestador`, `listarVinculos`, `responderConvite`, `atualizarAnimaisDoVinculo`, `revogarVinculo`. Tela "Prestadores".
-2. **Envio**: o prestador escolhe um animal da lista autorizada e registra medicamento/aplicação/tratamento/procedimento/materiais/observações (sem preço). Gera solicitação **pendente**. Prestador pode cancelar enquanto pendente.
+1. **Vínculo** (FEITA, no teste): convidar por e-mail, aceitar/recusar, escolher animais, revogar. Funções: `convidarPrestador`, `listarVinculos`, `responderConvite`, `atualizarAnimaisDoVinculo`, `revogarVinculo`. Tela "Prestadores".
+2. **Envio** (FEITA, no teste): o prestador escolhe um animal da lista autorizada e registra medicamento/aplicação/tratamento/procedimento/materiais/observações (sem preço). Gera solicitação **pendente**. Prestador pode cancelar enquanto pendente.
 3. **Aprovação**: o proprietário vê, **edita (revisa)**, aprova ou recusa (com motivo). Ao aprovar, o app aplica o dado pelo mesmo caminho do lançamento manual e confirma ao servidor. Pendência de estoque quando o produto não existe.
 4. **PDF e auditoria**: PDF da solicitação em qualquer status; linha na Auditoria; alerta/quadro de pendentes.
 

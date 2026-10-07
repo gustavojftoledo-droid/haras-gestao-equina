@@ -1056,7 +1056,11 @@
       <div class="grid-wrap"><table class="grid"><thead><tr><th>Prestador</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestMeusTbody"></tbody></table></div></div>
       <div id="prestSecComo"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Eu presto serviço para</div>
       <div class="grid-wrap"><table class="grid"><thead><tr><th>Proprietário</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestComoTbody"></tbody></table></div></div>
-      <div class="hint-text" style="margin-top:12px;">Nesta primeira etapa você só cria e gerencia a autorização. O envio e a aprovação dos registros vêm nas próximas etapas.</div>
+      <div id="prestSecRecebidas"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Registros recebidos de prestadores</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Prestador</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestRecebidasTbody"></tbody></table></div></div>
+      <div id="prestSecEnviadas"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Registros que eu enviei</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Proprietário</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestEnviadasTbody"></tbody></table></div></div>
+      <div class="hint-text" style="margin-top:12px;">Os registros enviados ficam <strong>pendentes</strong>. A aprovação pelo proprietário (e a entrada na ficha do animal) vem na próxima etapa.</div>
     </div>
 
     <div class="view" id="view-clientes">
@@ -5000,10 +5004,11 @@ async function salvarClienteEditado(){
 /* ================= PRESTADORES DE SERVIÇO (integração entre assinaturas — etapa 1: vínculo) =================
    Ver INTEGRACAO_ENTRE_ASSINATURAS.md. Tudo passa por funções do servidor; o app não lê dados de outra assinatura. */
 let vinculosPrest = { comoProprietario:[], comoPrestador:[] };
+let solicPrest = { recebidas:[], enviadas:[] };
 const STATUS_VINCULO = { pendente:'Aguardando aceite', ativo:'Ativo', recusado:'Recusado', revogado:'Encerrado' };
 async function renderPrestadores(){
   const msg = document.getElementById('prestMsg'); msg.textContent = 'Carregando...';
-  try{ vinculosPrest = await chamarFuncao('listarVinculos'); msg.textContent = ''; }
+  try{ vinculosPrest = await chamarFuncao('listarVinculos'); msg.textContent = ''; try{ solicPrest = await chamarFuncao('listarSolicitacoes'); }catch(_){ solicPrest = { recebidas:[], enviadas:[] }; } }
   catch(e){ msg.textContent = 'Não consegui carregar: '+msgErroFuncao(e); vinculosPrest = { comoProprietario:[], comoPrestador:[] }; }
   desenharPrestadores();
 }
@@ -5013,6 +5018,8 @@ function desenharPrestadores(){
   document.getElementById('prestSecMeus').style.display = ladoProprietario() ? '' : 'none';
   document.getElementById('prestSecComo').style.display = ladoPrestador() ? '' : 'none';
   document.getElementById('btnPrestConvidar').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecRecebidas').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecEnviadas').style.display = ladoPrestador() ? '' : 'none';
   const meus = vinculosPrest.comoProprietario||[], como = vinculosPrest.comoPrestador||[];
   document.getElementById('prestMeusTbody').innerHTML = meus.length===0 ? '<tr><td colspan="4" class="empty">Nenhum prestador autorizado ainda. Use "+ Convidar prestador".</td></tr>'
     : meus.map(v=>`<tr><td><strong>${escHtml(v.prestadorNome||v.prestadorTenantId)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(v.prestadorEmail||'')}</div></td>
@@ -5021,7 +5028,9 @@ function desenharPrestadores(){
   document.getElementById('prestComoTbody').innerHTML = como.length===0 ? '<tr><td colspan="4" class="empty">Ninguém autorizou você ainda.</td></tr>'
     : como.map(v=>`<tr><td><strong>${escHtml(v.donoNome||v.donoTenantId)}</strong></td><td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td>
       <td>${v.status==='ativo'?escHtml(textoAnimaisVinculo(v)):'—'}</td>
-      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`<button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
+      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`<button type="button" class="btn btn-sm" data-prestenviar="${escHtml(v.id)}">Enviar registro</button> <button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
+  desenharSolicitacoes();
+  document.querySelectorAll('[data-prestenviar]').forEach(b=>b.addEventListener('click', ()=>abrirEnvioRegistro(como.find(v=>v.id===b.dataset.prestenviar))));
   document.querySelectorAll('[data-prestanim]').forEach(b=>b.addEventListener('click', ()=>abrirModalPrestador(meus.find(v=>v.id===b.dataset.prestanim))));
   document.querySelectorAll('[data-prestrevogar]').forEach(b=>b.addEventListener('click', async ()=>{
     if(!(await showConfirm('Encerrar essa autorização? O prestador deixa de poder enviar registros dos seus animais. O que já foi aprovado continua na ficha.'))) return;
@@ -5089,12 +5098,154 @@ async function salvarModalPrestador(){
   try{ await chamarFuncao(fn, dados); closeModal('overlayPrestador'); if(fn==='convidarPrestador') showAlert('Convite enviado. O prestador precisa aceitar na tela Prestadores dele.'); renderPrestadores(); }
   catch(e){ msg.textContent = msgErroFuncao(e); }
 }
+
+/* ---- Etapa 2: envio de registro pelo prestador + lista de solicitações (aprovação = etapa 3) ---- */
+const STATUS_SOLIC = { pendente:'Pendente', aprovado:'Aprovado', recusado:'Recusado', cancelado:'Cancelado' };
+const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', outro:'Outro' };
+const CATEG_SERVICO_LABEL = { consulta:'Consulta', procedimento:'Procedimento', exame:'Exame (ex.: ultrassom)', casqueamento:'Casqueamento', ferrageamento:'Ferrageamento', deslocamento:'Deslocamento', outro:'Outro' };
+function resumoItensSolic(it){
+  const serv = it.filter(x=>x.tipo==='servico').length, mat = it.filter(x=>x.tipo==='material').length, meus = it.filter(x=>x.tipo==='material' && x.produtoDoPrestador).length;
+  return [serv?serv+' serviço(s)':'', mat?mat+' material(is)':'', meus?meus+' produto(s) do prestador':''].filter(Boolean).join(' · ') || '—';
+}
+function totalCobradoSolic(it){
+  return it.reduce((t,x)=> t + (x.tipo==='servico' ? (x.valorCentavos||0) : (x.produtoDoPrestador ? Math.round((x.quantidade||0)*(x.valorUnitarioCentavos||0)) : 0)), 0);
+}
+function desenharSolicitacoes(){
+  const rec = solicPrest.recebidas||[], env = solicPrest.enviadas||[];
+  const linha = (x, quem)=>`<tr data-solid="${escHtml(x.id)}" style="cursor:pointer;"><td>${fmtDate(x.dataRegistro)}</td><td>${escHtml(quem)}</td><td>${escHtml(x.animalNome||'')}</td><td>${escHtml(resumoItensSolic(x.itens||[]))}</td><td><strong>${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong></td><td style="white-space:nowrap;">${quem===x.prestadorNome?'':''}${x.status==='pendente' && quem===x.donoNome ? `<button type="button" class="btn btn-sm btn-ghost" data-solcancel="${escHtml(x.id)}">Cancelar</button>`:''}</td></tr>`;
+  document.getElementById('prestRecebidasTbody').innerHTML = rec.length===0 ? '<tr><td colspan="6" class="empty">Nenhum registro recebido.</td></tr>' : rec.map(x=>linha(x, x.prestadorNome)).join('');
+  document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome)).join('');
+  document.querySelectorAll('#prestRecebidasTbody tr[data-solid], #prestEnviadasTbody tr[data-solid]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(x) abrirDetalheSolicitacao(x);
+  }));
+  document.querySelectorAll('[data-solcancel]').forEach(b=>b.addEventListener('click', async e=>{
+    e.stopPropagation();
+    if(!(await showConfirm('Cancelar esse envio? O proprietário deixa de vê-lo como pendente.'))) return;
+    try{ await chamarFuncao('cancelarSolicitacao', { solicitacaoId:b.dataset.solcancel }); renderPrestadores(); }catch(err){ showAlert('Não consegui cancelar: '+msgErroFuncao(err)); }
+  }));
+}
+function abrirDetalheSolicitacao(x){
+  if(!document.getElementById('overlaySolicitacao')){
+    document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlaySolicitacao"><div class="modal" style="max-width:min(96vw,620px);max-height:92vh;overflow:auto;"><div class="modal-head"><div class="modal-title" id="sl_titulo">Registro</div><button class="modal-close" data-close="overlaySolicitacao">✕</button></div><div id="sl_corpo"></div></div></div>`);
+    document.querySelectorAll('#overlaySolicitacao [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlaySolicitacao')));
+    document.getElementById('overlaySolicitacao').addEventListener('click', e=>{ if(e.target.id==='overlaySolicitacao') closeModal('overlaySolicitacao'); });
+  }
+  document.getElementById('sl_titulo').textContent = (TIPO_REGISTRO_LABEL[x.tipoRegistro]||'Registro')+' — '+(x.animalNome||'');
+  const itens = (x.itens||[]).map(i=> i.tipo==='servico'
+    ? `<tr><td>Serviço</td><td>${escHtml(i.nome)}<div style="font-size:11px;color:var(--muted);">${escHtml(CATEG_SERVICO_LABEL[i.categoria]||'')}</div></td><td>—</td><td>${fmtCentavos(i.valorCentavos)}</td></tr>`
+    : `<tr><td>Material</td><td>${escHtml(i.nome)}${i.produtoDoPrestador?' <span style="font-size:11px;font-weight:700;color:var(--burgundy,#8b2a2a);">· produto do prestador</span>':''}</td><td>${escHtml(String(i.quantidade).replace('.',','))} ${escHtml(i.unidade||'')}</td><td>${i.produtoDoPrestador?(fmtCentavos(i.valorUnitarioCentavos)+' /un · '+fmtCentavos(Math.round(i.quantidade*i.valorUnitarioCentavos))):'<span style="color:var(--muted);">estoque e preço do proprietário</span>'}</td></tr>`).join('');
+  document.getElementById('sl_corpo').innerHTML = `
+    <div class="hint-text" style="margin:0 0 8px;">${escHtml(x.prestadorNome||'')} → ${escHtml(x.donoNome||'')} · registro de ${fmtDate(x.dataRegistro)} · enviado por ${escHtml(x.enviadoPor||'')}<br><strong>Situação: ${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong>${x.motivo?(' — '+escHtml(x.motivo)):''}</div>
+    ${x.descricao?`<div style="margin:0 0 8px;white-space:pre-wrap;">${escHtml(x.descricao)}</div>`:''}
+    <table class="grid"><thead><tr><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor cobrado pelo prestador</th></tr></thead><tbody>${itens}</tbody></table>
+    <div style="margin-top:8px;font-weight:700;">Total cobrado pelo prestador: ${fmtCentavos(totalCobradoSolic(x.itens||[]))}</div>`;
+  openModal('overlaySolicitacao');
+}
+let _envioVinculo = null, _envioSeq = 0;
+function garantirModalEnvio(){
+  if(document.getElementById('overlayEnvio')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayEnvio"><div class="modal" style="max-width:min(96vw,720px);max-height:94vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="ev_titulo">Enviar registro</div><button class="modal-close" data-close="overlayEnvio">✕</button></div>
+    <div class="hint-text" style="margin:0 0 8px;">O registro vai como <strong>pendente</strong>: só entra na ficha do animal depois que o proprietário aprovar.</div>
+    <div class="form-grid">
+      <div class="field"><label>Animal</label><select id="ev_animal"></select></div>
+      <div class="field"><label>Data do registro</label><input type="date" id="ev_data"></div>
+      <div class="field"><label>Tipo</label><select id="ev_tipo">${Object.entries(TIPO_REGISTRO_LABEL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="field full"><label>Observações</label><textarea id="ev_desc" rows="2" maxlength="1000" placeholder="O que foi feito, como o animal reagiu..."></textarea></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Itens</div>
+    <div id="ev_itens"></div>
+    <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-ghost" id="ev_addServ">+ Serviço (tem valor seu)</button><button type="button" class="btn btn-sm btn-ghost" id="ev_addMat">+ Material / medicamento</button></div>
+    <div class="hint-text">Marque <strong>"este produto é meu"</strong> só quando o produto saiu do <em>seu</em> estoque: aí você informa o valor cobrado e ele não dá baixa no estoque do proprietário. Sem marcar, vale o estoque e o preço do proprietário.</div>
+    <div id="ev_total" style="font-weight:700;margin:8px 0;"></div>
+    <div class="hint-text" id="ev_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayEnvio">Cancelar</button><button type="button" class="btn" id="ev_enviar">Enviar ao proprietário</button></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayEnvio [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayEnvio')));
+  document.getElementById('overlayEnvio').addEventListener('click', e=>{ if(e.target.id==='overlayEnvio') closeModal('overlayEnvio'); });
+  document.getElementById('ev_addServ').addEventListener('click', ()=>adicionarItemEnvio('servico'));
+  document.getElementById('ev_addMat').addEventListener('click', ()=>adicionarItemEnvio('material'));
+  document.getElementById('ev_enviar').addEventListener('click', enviarRegistroPelaTela);
+}
+function adicionarItemEnvio(tipo){
+  const id = ++_envioSeq, box = document.getElementById('ev_itens');
+  const html = tipo==='servico'
+    ? `<div class="form-grid" data-evitem="${id}" data-evtipo="servico" style="border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px;"><div class="field"><label>Serviço</label><input type="text" data-f="nome" maxlength="120" placeholder="ex.: Consulta, Ultrassom, Casqueamento"></div>
+        <div class="field"><label>Categoria</label><select data-f="categoria">${Object.entries(CATEG_SERVICO_LABEL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label>Valor cobrado (R$)</label><input type="text" inputmode="decimal" data-f="valor"></div><div class="field"><label>&nbsp;</label><button type="button" class="btn btn-sm btn-danger" data-evdel="${id}">Remover</button></div></div>`
+    : `<div class="form-grid" data-evitem="${id}" data-evtipo="material" style="border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px;"><div class="field"><label>Material / medicamento</label><input type="text" data-f="nome" maxlength="120" placeholder="ex.: Fenilbutazona, Ferradura"></div>
+        <div class="field"><label>Quantidade</label><input type="text" inputmode="decimal" data-f="qtd" placeholder="ex.: 2"></div><div class="field"><label>Unidade</label><input type="text" data-f="un" maxlength="20" placeholder="ml, un, par..."></div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;grid-column:1/-1;"><input type="checkbox" data-f="meu"> <strong>Este produto é meu</strong> (saiu do meu estoque)</label>
+        <div class="field" data-evvalor style="display:none;"><label>Valor cobrado por unidade (R$)</label><input type="text" inputmode="decimal" data-f="vun"></div><div class="field"><label>&nbsp;</label><button type="button" class="btn btn-sm btn-danger" data-evdel="${id}">Remover</button></div></div>`;
+  box.insertAdjacentHTML('beforeend', html);
+  const el = box.querySelector(`[data-evitem="${id}"]`);
+  el.querySelector('[data-evdel]').addEventListener('click', ()=>{ el.remove(); atualizarTotalEnvio(); });
+  const meu = el.querySelector('[data-f=meu]'); if(meu) meu.addEventListener('change', ()=>{ el.querySelector('[data-evvalor]').style.display = meu.checked ? '' : 'none'; atualizarTotalEnvio(); });
+  el.querySelectorAll('input,select').forEach(i=>i.addEventListener('input', atualizarTotalEnvio));
+}
+function lerItensEnvio(){
+  const itens = []; let erro = '';
+  document.querySelectorAll('#ev_itens [data-evitem]').forEach((el,i)=>{
+    if(erro) return; const f = k=>el.querySelector('[data-f='+k+']');
+    const nome = f('nome').value.trim();
+    if(el.dataset.evtipo==='servico'){
+      const v = reaisParaCentavos(f('valor').value);
+      if(nome.length<2) erro = 'Informe o nome do serviço '+(i+1)+'.'; else if(!(v>=0)) erro = 'Informe o valor do serviço "'+nome+'".';
+      else itens.push({ tipo:'servico', nome, categoria:f('categoria').value, valorCentavos:v });
+    } else {
+      const q = Number(String(f('qtd').value).replace(',','.')); const meu = f('meu').checked;
+      if(nome.length<2) erro = 'Informe o nome do material '+(i+1)+'.'; else if(!(q>0)) erro = 'Informe a quantidade de "'+nome+'".';
+      else { const it = { tipo:'material', nome, quantidade:q, unidade:f('un').value.trim(), produtoDoPrestador:meu };
+        if(meu){ const v = reaisParaCentavos(f('vun').value); if(!(v>=0)){ erro = 'Informe o valor por unidade de "'+nome+'" (produto seu).'; return; } it.valorUnitarioCentavos = v; }
+        itens.push(it); }
+    }
+  });
+  return { itens, erro };
+}
+function atualizarTotalEnvio(){
+  let t = 0;
+  document.querySelectorAll('#ev_itens [data-evitem]').forEach(el=>{
+    const f = k=>el.querySelector('[data-f='+k+']');
+    if(el.dataset.evtipo==='servico'){ const v = reaisParaCentavos(f('valor').value); if(v>=0) t += v; }
+    else if(f('meu').checked){ const q = Number(String(f('qtd').value).replace(',','.')), v = reaisParaCentavos(f('vun').value); if(q>0 && v>=0) t += Math.round(q*v); }
+  });
+  document.getElementById('ev_total').textContent = 'Total que você está cobrando do proprietário: '+fmtCentavos(t);
+}
+async function abrirEnvioRegistro(v){
+  if(!v) return; garantirModalEnvio(); _envioVinculo = v;
+  document.getElementById('ev_titulo').textContent = 'Enviar registro para '+(v.donoNome||'');
+  document.getElementById('ev_msg').textContent = 'Carregando animais liberados...'; document.getElementById('ev_itens').innerHTML = '';
+  document.getElementById('ev_data').value = toISODate(new Date()); document.getElementById('ev_desc').value = ''; document.getElementById('ev_tipo').value = 'aplicacao';
+  atualizarTotalEnvio(); openModal('overlayEnvio');
+  try{
+    const r = await chamarFuncao('animaisAutorizados', { vinculoId:v.id });
+    document.getElementById('ev_animal').innerHTML = r.animais.length===0 ? '<option value="">(nenhum animal liberado)</option>' : r.animais.map(a=>`<option value="${escHtml(a.id)}">${escHtml(a.nome||a.id)}</option>`).join('');
+    document.getElementById('ev_msg').textContent = r.animais.length===0 ? 'O proprietário ainda não liberou nenhum animal.' : '';
+  }catch(e){ document.getElementById('ev_msg').textContent = 'Não consegui carregar os animais: '+msgErroFuncao(e); }
+}
+async function enviarRegistroPelaTela(){
+  const msg = document.getElementById('ev_msg'), v = _envioVinculo; if(!v) return;
+  const animalId = document.getElementById('ev_animal').value, data = document.getElementById('ev_data').value;
+  if(!animalId){ msg.textContent = 'Escolha o animal.'; return; }
+  if(!data){ msg.textContent = 'Informe a data do registro.'; return; }
+  const { itens, erro } = lerItensEnvio();
+  if(erro){ msg.textContent = erro; return; }
+  if(itens.length===0){ msg.textContent = 'Inclua ao menos um item (serviço ou material).'; return; }
+  msg.textContent = 'Enviando...';
+  try{
+    await chamarFuncao('enviarSolicitacao', { vinculoId:v.id, animalId, dataRegistro:data, tipoRegistro:document.getElementById('ev_tipo').value, descricao:document.getElementById('ev_desc').value.trim(), itens });
+    closeModal('overlayEnvio'); showAlert('Registro enviado. Ele fica pendente até o proprietário aprovar.'); renderPrestadores();
+  }catch(e){ msg.textContent = 'Não consegui enviar: '+msgErroFuncao(e); }
+}
+
 document.getElementById('btnPrestConvidar').addEventListener('click', ()=>abrirModalPrestador(null));
 document.getElementById('btnPrestAtualizar').addEventListener('click', renderPrestadores);
 
 /* ---- Cobrança manual (dono): mensalidade, vencimento e pagamentos registrados à mão ---- */
 function fmtCentavos(v){ return (Number(v||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
-function reaisParaCentavos(txt){ const n = Number(String(txt).trim().replace(/\./g,'').replace(',','.')); return Number.isFinite(n) ? Math.round(n*100) : NaN; }
+function reaisParaCentavos(txt){ const t = String(txt==null?'':txt).trim(); if(t==='') return NaN; /* vazio NÃO é zero */ const n = Number(t.replace(/\./g,'').replace(',','.')); return Number.isFinite(n) ? Math.round(n*100) : NaN; }
 function chipCobranca(c){
   const b = c.cobranca || {situacao:'sem_cobranca'};
   const chip = (txt,cor)=>`<span style="font-weight:600;color:${cor};">${txt}</span>`;

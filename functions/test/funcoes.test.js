@@ -23,6 +23,7 @@ const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
 const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
 const BC = require('../cobranca');
+const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao);
 const wConvidar = fft.wrap(F.convidarPrestador), wVincs = fft.wrap(F.listarVinculos), wResp = fft.wrap(F.responderConvite), wAnim = fft.wrap(F.atualizarAnimaisDoVinculo), wRevog = fft.wrap(F.revogarVinculo);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
@@ -676,6 +677,82 @@ describe('integração entre assinaturas — etapa 1 (vínculo)', () => {
     const regras = fs.readFileSync(path.join(__dirname, '..', '..', 'firebase', 'firestore.rules.2b'), 'utf8');
     assert.ok(!/vinculos|solicitacoes/.test(regras));   // nenhuma regra libera: "todo o resto bloqueado" vale
     assert.ok(/match \/\{outro=\*\*\}/.test(regras) && /allow read, write: if false/.test(regras));
+  });
+});
+
+describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', () => {
+  const REC = ['integracao_prestadores'];
+  const tkD = { uid: 'u-d', token: { papel: 'admin', tenantId: 'dono2', recursos: REC, tipoAssinatura: 'proprietario', email: 'adm@dono2.com' } };
+  const tkV = (id = 'vet2') => ({ uid: 'u-' + id, token: { papel: 'admin', tenantId: id, recursos: REC, tipoAssinatura: 'prestador', email: 'vet@' + id + '.com' } });
+  const hoje = () => new Date().toISOString().slice(0, 10);
+  const servico = (extra = {}) => ({ tipo: 'servico', nome: 'Consulta', categoria: 'consulta', valorCentavos: 15000, ...extra });
+  const material = (extra = {}) => ({ tipo: 'material', nome: 'Fenilbutazona', quantidade: 2, unidade: 'ml', produtoDoPrestador: false, ...extra });
+  const ok = (extra = {}) => ({ vinculoId: 'dono2__vet2', animalId: 'a1', dataRegistro: hoje(), tipoRegistro: 'aplicacao', descricao: 'Aplicação IV', itens: [servico(), material()], ...extra });
+  beforeEach(async () => {
+    for (const [id, nome, email, tipo] of [['dono2', 'Haras Dois', 'adm@dono2.com', 'proprietario'], ['vet2', 'Vet Dois', 'vet@vet2.com', 'prestador'], ['vet3', 'Vet Tres', 'vet@vet3.com', 'prestador']]) {
+      await db.doc(`clientes/${id}`).set({ nome, ativo: true, plano: 'pro' });
+      await conta(email, { tenantId: id, papel: 'admin', modulos: MODULOS, recursos: REC, tipoAssinatura: tipo });
+    }
+    await db.doc('tenants/dono2/dados/horses_list').set({ value: [{ id: 'a1', nome: 'Alfa' }, { id: 'a2', nome: 'Beta' }, { id: 'a3', nome: 'Gama' }] });
+    await wConvidar({ data: { email: 'vet@vet2.com', animais: ['a1', 'a2'] }, auth: tkD });
+    await wResp({ data: { vinculoId: 'dono2__vet2', aceitar: true }, auth: tkV() });
+  });
+  test('animais autorizados: só os liberados (ou todos), só o prestador do vínculo ativo', async () => {
+    const r = await wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkV() });
+    assert.deepEqual(r.animais.map(a => a.id), ['a1', 'a2']);
+    await wAnim({ data: { vinculoId: 'dono2__vet2', animaisTodos: true }, auth: tkD });
+    assert.equal((await wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkV() })).animais.length, 3);
+    await rejeita(wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkV('vet3') }), 'permission-denied');
+    await rejeita(wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkD }), 'permission-denied');     // o proprietário não usa isso
+  });
+  test('enviar: cria solicitação PENDENTE com serviço (com valor) e material (sem valor)', async () => {
+    const r = await wEnviar({ data: ok(), auth: tkV() });
+    assert.equal(r.status, 'pendente'); assert.equal(r.animalNome, 'Alfa'); assert.equal(r.donoNome, 'Haras Dois'); assert.equal(r.prestadorNome, 'Vet Dois');
+    assert.deepEqual(r.itens[0], { tipo: 'servico', nome: 'Consulta', categoria: 'consulta', valorCentavos: 15000, obs: '' });
+    assert.equal(r.itens[1].produtoDoPrestador, false); assert.equal(r.itens[1].valorUnitarioCentavos, undefined);
+    const no = (await db.doc('tenants/dono2/dados/horses_list').get()).data().value;
+    assert.equal(no.length, 3);                                  // nada foi gravado na ficha do proprietário
+    assert.equal((await db.collection('tenants/dono2/dados').get()).docs.filter(d => /manejos|tratamentos|estoque|visitas/.test(d.id)).length, 0);
+  });
+  test('botão "este produto é meu": exige valor unitário; sem o botão, valor é recusado', async () => {
+    const meu = await wEnviar({ data: ok({ itens: [material({ nome: 'Ferradura', produtoDoPrestador: true, valorUnitarioCentavos: 4500, quantidade: 4 })] }), auth: tkV() });
+    assert.deepEqual([meu.itens[0].produtoDoPrestador, meu.itens[0].valorUnitarioCentavos, meu.itens[0].quantidade], [true, 4500, 4]);
+    await rejeita(wEnviar({ data: ok({ itens: [material({ produtoDoPrestador: true })] }), auth: tkV() }), 'invalid-argument');                       // sem valor
+    await rejeita(wEnviar({ data: ok({ itens: [material({ produtoDoPrestador: false, valorUnitarioCentavos: 100 })] }), auth: tkV() }), 'invalid-argument'); // preço sem ser dele
+    await rejeita(wEnviar({ data: ok({ itens: [material({ produtoDoPrestador: true, valorUnitarioCentavos: -5 })] }), auth: tkV() }), 'invalid-argument');
+  });
+  test('enviar: animal fora da lista, vínculo de outro prestador, tipos errados e entradas inválidas são recusados', async () => {
+    await rejeita(wEnviar({ data: ok({ animalId: 'a3' }), auth: tkV() }), 'permission-denied');                       // a3 não liberado
+    await rejeita(wEnviar({ data: ok(), auth: tkV('vet3') }), 'permission-denied');                                   // outro prestador
+    await rejeita(wEnviar({ data: ok(), auth: tkD }), 'permission-denied');                                           // proprietário não envia
+    await rejeita(wEnviar({ data: ok(), auth: { uid: 'f', token: { papel: 'funcionario', tenantId: 'vet2', recursos: REC, tipoAssinatura: 'prestador' } } }), 'permission-denied');
+    await rejeita(wEnviar({ data: ok({ dataRegistro: '2030-01-01' }), auth: tkV() }), 'invalid-argument');             // futuro
+    await rejeita(wEnviar({ data: ok({ dataRegistro: '2026-02-31' }), auth: tkV() }), 'invalid-argument');
+    await rejeita(wEnviar({ data: ok({ tipoRegistro: 'cirurgia' }), auth: tkV() }), 'invalid-argument');
+    await rejeita(wEnviar({ data: ok({ itens: [] }), auth: tkV() }), 'invalid-argument');
+    await rejeita(wEnviar({ data: ok({ itens: [{ tipo: 'outro', nome: 'x' }] }), auth: tkV() }), 'invalid-argument');
+    await rejeita(wEnviar({ data: ok({ itens: [servico({ valorCentavos: undefined })] }), auth: tkV() }), 'invalid-argument');           // serviço sem valor
+    await rejeita(wEnviar({ data: ok({ itens: [material({ quantidade: 0 })] }), auth: tkV() }), 'invalid-argument');
+    await rejeita(wEnviar({ data: ok({ itens: Array.from({ length: 31 }, () => servico()) }), auth: tkV() }), 'invalid-argument');
+    await wRevog({ data: { vinculoId: 'dono2__vet2' }, auth: tkD });
+    await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'failed-precondition');                                         // vínculo encerrado
+  });
+  test('listar: cada lado só vê o que é seu; prestador cancela só a própria e só pendente', async () => {
+    const s = await wEnviar({ data: ok(), auth: tkV() });
+    const d = await wSolic({ data: {}, auth: tkD }); const v = await wSolic({ data: {}, auth: tkV() }); const o = await wSolic({ data: {}, auth: tkV('vet3') });
+    assert.equal(d.recebidas.length, 1); assert.equal(d.enviadas.length, 0); assert.equal(v.enviadas.length, 1); assert.equal(v.recebidas.length, 0);
+    assert.deepEqual([o.recebidas.length, o.enviadas.length], [0, 0]);
+    await rejeita(wCancel({ data: { solicitacaoId: s.id }, auth: tkV('vet3') }), 'permission-denied');
+    await rejeita(wCancel({ data: { solicitacaoId: s.id }, auth: tkD }), 'permission-denied');
+    await rejeita(wCancel({ data: { solicitacaoId: 'curto' }, auth: tkV() }), 'invalid-argument');
+    const c = await wCancel({ data: { solicitacaoId: s.id }, auth: tkV() });
+    assert.equal(c.status, 'cancelado');
+    await rejeita(wCancel({ data: { solicitacaoId: s.id }, auth: tkV() }), 'failed-precondition');
+    assert.equal((await wSolic({ data: {}, auth: tkD })).recebidas[0].status, 'cancelado');
+  });
+  test('limite de pendentes por vínculo', async () => {
+    for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
+    await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'resource-exhausted');
   });
 });
 
