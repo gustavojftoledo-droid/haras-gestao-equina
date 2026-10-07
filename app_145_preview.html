@@ -3668,6 +3668,12 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAregRessinc">Conferir registros do app antigo</button>
       <button type="button" class="btn btn-sm btn-ghost" id="btnAregReverter">Voltar para o documento único</button>
     </div>
+    <div style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">
+      <div style="font-size:13px;font-weight:600;">Treinos divididos por ano</div>
+      <div class="hint-text" id="partTreinosStatus" style="margin:6px 0 8px;"></div>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartTreinosMigrar">Dividir treinos por ano agora</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="btnPartTreinosReverter">Voltar treinos para o documento único</button>
+    </div>
     <div style="margin-bottom:14px;"><button type="button" class="btn btn-sm" id="btnRunDiag">Verificar agora</button> <button type="button" class="btn btn-sm btn-ghost" id="btnTestWrite">1) Gravar valor de teste</button> <button type="button" class="btn btn-sm btn-ghost" id="btnReadOnly">2) Ler valor de teste (sem gravar)</button></div>
     <div id="diagOutput" style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;white-space:pre-wrap;max-height:420px;overflow-y:auto;"></div>
   </div>
@@ -4051,7 +4057,12 @@ function curarCacheFirestore(){
   })();
   return _curaCachePromise;
 }
+// storeGet: para as listas divididas por período (PART_CFG, ex.: treinos por ano) junta os documentos do período; para as demais, lê direto.
 async function storeGet(key){
+  if(typeof PART_CFG!=='undefined' && PART_CFG[key] && !HAS_CLOUD_STORAGE && HAS_FIRESTORE) return partLer(key);
+  return storeGetBruto(key);
+}
+async function storeGetBruto(key){
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     // Mesmas 3 tentativas do caminho abaixo: uma oscilação de rede na abertura não pode virar "lista vazia".
     const _t0 = performance.now();
@@ -4373,7 +4384,7 @@ function tamanhoDocBytes(val){ try{ return new Blob([JSON.stringify(val)]).size;
 function avisarEspacoDoc(key, val){
   const nomeDoc = NOME_DOC_GRANDE[key] || (ehChaveAreg(key) ? 'Linha do Tempo deste animal' : '');
   if(!nomeDoc || key==='auditoria_log') return;
-  const pct = Math.round(tamanhoDocBytes(val)/LIMITE_DOC_BYTES*100);
+  const pct = Math.round((PART_CFG[key] && partEstado[key] && partEstado[key].modo==='particionado' ? partMaiorGrupoBytes(key,val) : tamanhoDocBytes(val))/LIMITE_DOC_BYTES*100);
   const nivel = pct>=95 ? 95 : (pct>=80 ? 80 : 0);
   if(!nivel || (_avisoEspacoDoc[key]||0)>=nivel) return;
   _avisoEspacoDoc[key] = nivel;
@@ -4468,6 +4479,10 @@ async function storeSetCore(key,val,userDeleted){
     else if(key==='consultoria_fotos') consultoriaFotosSnapshot = JSON.parse(JSON.stringify(val));
     else examesSnapshot = JSON.parse(JSON.stringify(val));
     atualizarGlobalPosFusao(key, val);
+  }
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE && PART_CFG[key]){
+    const rp = await partGravar(key, val, userDeleted);
+    if(rp!==undefined) return rp; // undefined = ainda no documento único: segue o caminho de sempre
   }
   if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){
     try{
@@ -4729,6 +4744,145 @@ function aregMigrarEmSegundoPlano(){
   if(!AREG_MIGRACAO_AUTOMATICA || aregModo!=='legado' || aregRevertido) return;
   try{ if(localStorage.getItem('haras_areg_migracao_off')==='1') return; }catch(_){}
   aregMigrar().then(r=>{ if(!r.ok) console.warn('Migração da Linha do Tempo adiada:', r.motivo); else console.info('Linha do Tempo dividida por animal:', r); });
+}
+
+
+/* ================= LISTAS DIVIDIDAS POR PERÍODO (treinos: um documento por ANO) =================
+   ANTES: todos os treinos moravam num documento só ('treinos_list'), com teto de 1 MiB.
+   AGORA (depois da migração): um documento por ano ('treinos_2026', 'treinos_2025', ...; treino sem data válida vai para
+   'treinos_sem_data') e um recibo 'treinos_indice' que lista os documentos. Para o resto do app NADA muda: storeGet('treinos_list')
+   devolve a lista inteira (junta os anos) e storeSet('treinos_list', ...) grava só os anos que mudaram — a variável `treinos`
+   continua sendo a lista completa. Cada ano ocupa uma fração do teto, então o limite deixa de ser problema.
+   Segurança: se algum ano não puder ser lido, a leitura inteira é tratada como FALHA (nada é gravado por cima); a migração confere
+   lendo de volta e só então grava o recibo; o documento antigo NUNCA é alterado/apagado; dá para reverter (botão no Diagnóstico).
+   Modos (partEstado[key].modo): 'legado' = documento único (comportamento antigo); 'particionado' = formato novo.
+   Chave plana: as regras do Firestore já liberam qualquer nome de documento sem barra. */
+const PART_CFG = {
+  treinos_list: { prefixo:'treinos_', indice:'treinos_indice', semData:'treinos_sem_data', nome:'treinos', auto:false,
+    doc(r){ const m = /^(\d{4})-/.exec((r && r.data) || ''); return m ? ('treinos_'+m[1]) : 'treinos_sem_data'; } }
+};
+const PART_MIGRACAO_AUTOMATICA = false; // false = só migra pelo botão do Diagnóstico (ligar junto com o app em uso)
+const partEstado = {};
+function partSt(key){ return partEstado[key] || (partEstado[key] = { modo:null, indice:null, snap:{}, revertido:false }); }
+function partIndiceValido(v){ return !!(v && typeof v==='object' && !Array.isArray(v) && Number(v.versao)>=1 && Array.isArray(v.docs)); }
+function partCanon(arr){ return JSON.stringify((Array.isArray(arr)?arr:[]).slice().sort((a,b)=>String(a&&a.id).localeCompare(String(b&&b.id)))); }
+function partAgrupar(key, lista){ const g = new Map(); (lista||[]).forEach(r=>{ const d = PART_CFG[key].doc(r); if(!g.has(d)) g.set(d, []); g.get(d).push(r); }); return g; }
+function partMaiorGrupoBytes(key, val){ let m = 0; partAgrupar(key, val).forEach(a=>{ m = Math.max(m, tamanhoDocBytes(a)); }); return m; }
+async function partGravarBruto(doc, valor){ await db.collection(colecaoDados()).doc(doc).set({ value: valor, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); }
+// Lê o recibo e (se já dividido) todos os documentos do período, juntando numa lista só. Falhou qualquer leitura = falha total.
+async function partLer(key){
+  const cfg = PART_CFG[key], st = partSt(key);
+  const ri = await storeGetBruto(cfg.indice);
+  if(!ri.ok){ st.modo = 'indefinido'; chavesComFalhaDeLeitura.add(key); return { ok:false, value:[] }; }
+  if(!partIndiceValido(ri.value)){
+    st.modo = 'legado'; st.indice = null; st.revertido = !!(ri.value && !Array.isArray(ri.value) && ri.value.revertidoEm);
+    return storeGetBruto(key);
+  }
+  st.modo = 'particionado'; st.indice = ri.value;
+  const docs = [...new Set(ri.value.docs)];
+  const rs = await Promise.all(docs.map(d=>storeGetBruto(d)));
+  if(rs.some(r=>!r.ok)){ chavesComFalhaDeLeitura.add(key); return { ok:false, value:[] }; }
+  const uniao = []; const vistos = new Set();
+  rs.forEach((r,i)=>{
+    const arr = Array.isArray(r.value) ? r.value : [];
+    st.snap[docs[i]] = partCanon(arr);
+    arr.forEach(x=>{ const id = x && x.id; if(id!=null){ if(vistos.has(id)) return; vistos.add(id); } uniao.push(x); });
+  });
+  chavesComFalhaDeLeitura.delete(key);
+  return { ok:true, value:uniao };
+}
+// Grava só os documentos (anos) que mudaram. Devolve undefined se ainda está no documento único (o storeSetCore segue o caminho antigo).
+async function partGravar(key, val, userDeleted){
+  const cfg = PART_CFG[key], st = partSt(key);
+  if(st.modo===null){ const r = await partLer(key); if(!r.ok){ showAlert(MSG_SEM_RELEITURA); return false; } }
+  if(st.modo==='legado') return undefined;
+  if(st.modo!=='particionado'){ showAlert('A leitura dos '+cfg.nome+' falhou na abertura do app. Recarregue a página antes de salvar, para não apagar o que já está no servidor.'); return false; }
+  if(!Array.isArray(val)) return false;
+  const grupos = partAgrupar(key, val);
+  if(val.length===0 && !userDeleted && Object.values(st.snap).some(c=>c && c!=='[]')){ showAlert('Gravação bloqueada: isso apagaria dados existentes.'); return false; }
+  const docs = new Set(st.indice.docs); grupos.forEach((_,d)=>docs.add(d));
+  const aGravar = [];
+  for(const d of docs){
+    const regs = grupos.get(d) || [];
+    if(tamanhoDocBytes(regs) > LIMITE_DOC_BYTES*0.97){ showAlert('Um período dos '+cfg.nome+' ficou grande demais para um documento ('+d+'). Fale comigo antes de continuar.'); return false; }
+    if(partCanon(regs) !== st.snap[d]) aGravar.push([d, regs]);
+  }
+  try{
+    for(const [d, regs] of aGravar){ await partGravarBruto(d, regs); st.snap[d] = partCanon(regs); }
+    const novos = [...docs].filter(d=>!st.indice.docs.includes(d));
+    if(novos.length){
+      const idx = { ...st.indice, docs:[...docs].sort(), total:val.length, atualizadoEm:new Date().toISOString() };
+      await partGravarBruto(cfg.indice, idx); st.indice = idx;
+    }
+    return true;
+  }catch(e){
+    console.error('gravação por período falhou para', key, e);
+    const motivo = e && e.code ? ` (${e.code}${e.message?': '+e.message:''})` : '';
+    showAlert('Aviso: não consegui salvar agora'+motivo+'. Verifique sua conexão e tente de novo — se continuar acontecendo, me avise com essa mensagem.');
+    return false;
+  }
+}
+// MIGRAÇÃO: copia o documento único para um documento por período, CONFERE lendo de volta e só então grava o recibo.
+// Idempotente (soma por id; o que já está no documento do período vale). O documento original não é alterado.
+async function partCopiar(key, lista){
+  const grupos = partAgrupar(key, lista); const final = new Map(); let sem = 0;
+  for(const [d, regs] of grupos){
+    const ex = await storeGetBruto(d); if(!ex.ok) return { ok:false, motivo:'não consegui ler '+d };
+    const mapa = new Map(); (Array.isArray(ex.value)?ex.value:[]).forEach(r=>{ if(r && r.id!=null) mapa.set(r.id, r); });
+    regs.forEach(r=>{ if(!r) return; const id = r.id!=null ? r.id : ('trn_mig_'+(sem++)); if(!mapa.has(id)) mapa.set(id, r.id!=null ? r : { ...r, id }); });
+    const lst = [...mapa.values()];
+    if(tamanhoDocBytes(lst) > LIMITE_DOC_BYTES*0.95) return { ok:false, motivo:d+' passaria de 95% do limite' };
+    await partGravarBruto(d, lst);
+    const conf = await storeGetBruto(d); const ids = new Set((conf.ok && Array.isArray(conf.value) ? conf.value : []).map(x=>x && x.id));
+    if(!conf.ok || !lst.every(x=>ids.has(x.id))) return { ok:false, motivo:'a conferência de '+d+' não bateu' };
+    final.set(d, lst);
+  }
+  return { ok:true, final };
+}
+async function partMigrar(key){
+  const cfg = PART_CFG[key], st = partSt(key), inicioMs = Date.now();
+  try{
+    const ri = await storeGetBruto(cfg.indice); if(!ri.ok) return { ok:false, motivo:'não consegui ler o recibo' };
+    if(partIndiceValido(ri.value)) return { ok:true, jaFeito:true };
+    const leg = await storeGetBruto(key); if(!leg.ok || !Array.isArray(leg.value)) return { ok:false, motivo:'não consegui ler o documento único' };
+    const c1 = await partCopiar(key, leg.value); if(!c1.ok) return c1;
+    const docs = [...c1.final.keys()].sort(); const total = leg.value.length;
+    const idx = { versao:1, migradoEm:new Date().toISOString(), inicioMs, total, docs };
+    await partGravarBruto(cfg.indice, idx);
+    const conf = await storeGetBruto(cfg.indice); if(!conf.ok || !partIndiceValido(conf.value)) return { ok:false, motivo:'a conferência do recibo não bateu' };
+    // ressincroniza: o que o app antigo possa ter gravado no documento único durante a migração
+    const leg2 = await storeGetBruto(key);
+    if(leg2.ok && Array.isArray(leg2.value)){
+      const jaTem = new Set(); c1.final.forEach(l=>l.forEach(x=>jaTem.add(x.id)));
+      const faltam = leg2.value.filter(r=>r && r.id!=null && !jaTem.has(r.id));
+      if(faltam.length){ const c2 = await partCopiar(key, faltam); if(!c2.ok) return c2; c2.final.forEach((l,d)=>c1.final.set(d, l)); const docs2 = [...new Set([...docs, ...c2.final.keys()])].sort(); idx.docs = docs2; await partGravarBruto(cfg.indice, idx); }
+    }
+    st.modo = 'particionado'; st.indice = idx; st.snap = {}; c1.final.forEach((l,d)=>{ st.snap[d] = partCanon(l); });
+    return { ok:true, docs:idx.docs.length, total };
+  }catch(e){ console.error('migração por período:', e); return { ok:false, motivo:(e && (e.code||e.message)) || 'erro' }; }
+}
+// REVERSÃO: junta tudo de novo no documento único (confere o tamanho e lê de volta); só então troca o recibo por um marcador.
+async function partReverter(key){
+  const cfg = PART_CFG[key], st = partSt(key);
+  try{
+    const r = await partLer(key); if(!r.ok || st.modo!=='particionado') return { ok:false, motivo:'não consegui ler todos os documentos' };
+    const final = r.value;
+    if(tamanhoDocBytes(final) > LIMITE_DOC_BYTES*0.95) return { ok:false, motivo:'o documento único ficaria grande demais ('+Math.round(tamanhoDocBytes(final)/1024)+' KB)' };
+    await partGravarBruto(key, final);
+    const conf = await storeGetBruto(key); const ids = new Set((conf.ok && Array.isArray(conf.value) ? conf.value : []).map(x=>x && x.id));
+    if(!conf.ok || !final.every(x=>ids.has(x.id))) return { ok:false, motivo:'a conferência do documento único não bateu (o recibo foi mantido)' };
+    await partGravarBruto(cfg.indice, { versao:0, revertidoEm:new Date().toISOString() });
+    st.modo = 'legado'; st.indice = null; st.snap = {}; st.revertido = true;
+    return { ok:true, total:final.length };
+  }catch(e){ console.error('reversão por período:', e); return { ok:false, motivo:(e && (e.code||e.message)) || 'erro' }; }
+}
+function partMigrarEmSegundoPlano(){
+  if(!PART_MIGRACAO_AUTOMATICA || !HAS_FIRESTORE || HAS_CLOUD_STORAGE) return;
+  try{ if(localStorage.getItem('haras_part_migracao_off')==='1') return; }catch(_){}
+  Object.keys(PART_CFG).forEach(key=>{
+    const st = partSt(key); if(st.modo!=='legado' || st.revertido) return;
+    partMigrar(key).then(r=>{ if(!r.ok) console.warn('Divisão de '+key+' adiada:', r.motivo); else if(!r.jaFeito) console.info('Divisão de '+key+' feita:', r); });
+  });
 }
 
 /* ================= BACKUP AUTOMÁTICO DIÁRIO (dentro do próprio Firestore) =================
@@ -5158,6 +5312,7 @@ async function loadAll(){
   // rodam acima são do próprio sistema, não de uma pessoa — encheriam o log de "alterou 725 animais"
   // toda vez que alguém abrisse o app.
   auditPronto = true;
+  partMigrarEmSegundoPlano(); // listas por período (treinos): divide em segundo plano só se a chave estiver ligada
   aregMigrarEmSegundoPlano(); // ainda no documento único? divide por animal em segundo plano (seguro, confere, reversível)
 }
 document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{
@@ -24594,7 +24749,33 @@ document.getElementById('btnAregReverter').addEventListener('click', async ()=>{
   const r = await aregReverter();
   aregAtualizarStatusDiag(r.ok ? ('revertido: '+r.total+' registro(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
 });
+function partTreinosStatusDiag(msg){
+  const el = document.getElementById('partTreinosStatus'); if(!el) return;
+  const st = partSt('treinos_list');
+  const base = st.modo==='particionado' ? ('Formato novo: um documento por ano ('+(st.indice&&st.indice.docs?st.indice.docs.length:0)+' documento(s)). O documento antigo foi mantido como cópia.')
+    : st.modo==='legado' ? ('Formato antigo: todos os treinos num documento só'+(st.revertido?' (revertido de propósito: não divide sozinho).':'.'))
+    : 'Os treinos não foram lidos na abertura — recarregue a página.';
+  el.textContent = base + (msg?(' — '+msg):'');
+}
+document.getElementById('btnPartTreinosMigrar').addEventListener('click', async ()=>{
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+  const st = partSt('treinos_list');
+  if(st.modo==='particionado'){ partTreinosStatusDiag('já está dividido.'); return; }
+  if(st.modo!=='legado'){ showAlert('Recarregue a página antes (os treinos não foram lidos na abertura).'); return; }
+  partTreinosStatusDiag('dividindo...');
+  const r = await partMigrar('treinos_list');
+  partTreinosStatusDiag(r.ok ? ('pronto: '+(r.docs||0)+' documento(s), '+(r.total||0)+' treino(s). O documento antigo não foi apagado.') : ('não foi possível agora: '+r.motivo+'. Nada foi alterado.'));
+});
+document.getElementById('btnPartTreinosReverter').addEventListener('click', async ()=>{
+  if(!currentUser || !currentUser.admin){ showAlert('Só administrador pode fazer isso.'); return; }
+  if(partSt('treinos_list').modo!=='particionado'){ partTreinosStatusDiag('já está no formato antigo.'); return; }
+  if(!(await showConfirm('Juntar de novo todos os treinos no documento único antigo? Os documentos por ano ficam guardados como cópia.'))) return;
+  partTreinosStatusDiag('revertendo...');
+  const r = await partReverter('treinos_list');
+  partTreinosStatusDiag(r.ok ? ('revertido: '+r.total+' treino(s) no documento único.') : ('não foi possível: '+r.motivo+'. Nada foi alterado.'));
+});
 document.getElementById('btnDiagnostico').addEventListener('click', ()=>{
+  partTreinosStatusDiag();
   aregAtualizarStatusDiag();
   try{ document.getElementById('chkFotosStorage').checked = localStorage.getItem('haras_fotos_storage')==='1'; }catch(_){}
   document.getElementById('diagOutput').textContent = 'Clique em "Verificar agora" para consultar o armazenamento.';
