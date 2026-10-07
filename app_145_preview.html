@@ -23629,7 +23629,13 @@ function renderAnimalTimeline(h){
         </div>
         <div class="hint-text" style="margin:0 0 12px;">Clique duas vezes num chip de categoria pra abrir a busca dentro dela.</div>
         ${timelineBuscaAberta ? `<div class="field" style="margin-bottom:12px;"><input type="text" id="tlBusca" placeholder="Buscar dentro de ${timelineFiltro==='todos'?'todos os eventos':'“'+({manejo:'Manejos',treino:'Atividade Esportiva',visita:'Visitas',filho:'Filhos'}[timelineFiltro]||timelineFiltro)+'”'}..." value="${escHtml(timelineBuscaTexto)}"></div>` : ''}
-        ${filtrados.length===0 ? '<div class="hint-text">Nenhum evento encontrado nesse período (ou pra esse filtro/busca).</div>' :
+        ${filtrados.length===0 ? (()=>{
+          const noHistorico = (timelineFiltro==='todos' ? todosSemPeriodo : todosSemPeriodo.filter(e=>e.tipo===timelineFiltro)).length;
+          const periodoTxt = { '20d':'nos últimos 20 dias', '3m':'nos últimos 3 meses', '6m':'nos últimos 6 meses', '1a':'no último ano', 'custom':'no período escolhido' }[timelinePeriodoPreset] || 'neste período';
+          if(noHistorico>0 && !(timelineBuscaAberta && timelineBuscaTexto.trim()) && timelinePeriodoPreset!=='tudo')
+            return `<div class="hint-text">Nada ${periodoTxt}, mas este animal tem <strong>${noHistorico}</strong> evento(s) mais antigo(s) neste filtro. <span class="chip" data-tperiodo="tudo" style="font-size:11px;padding:4px 10px;margin-left:6px;">Ver tudo</span></div>`;
+          return '<div class="hint-text">Nenhum evento encontrado nesse período (ou pra esse filtro/busca).</div>';
+        })() :
           `<div class="timeline">${filtrados.map(e=>`
             <div class="timeline-item">
               <div class="timeline-dot">${TIMELINE_ICON[e.tipo]||'•'}</div>
