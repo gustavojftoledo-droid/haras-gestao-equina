@@ -10,6 +10,7 @@ const { sincronizarLista } = require('./papeis');
 const C = require('./clientes');
 const U = require('./usuarios');
 const B = require('./cobranca');
+const I = require('./integracao');
 
 // Região: precisa ser a mesma do Firestore (o banco do Gustavo está em São Paulo, southamerica-east1). Para outra região, crie functions/.env com REGIAO_FUNCOES=...
 setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'southamerica-east1', maxInstances: 10 });
@@ -79,3 +80,10 @@ exports.listarPagamentos = onCall(async (request) => {
   C.exigirDono(request);
   return B.listarPagamentos({ db: db() }, request.data || {});
 });
+
+// 9) Integração entre assinaturas (etapa 1: vínculo proprietário ↔ prestador). Só administrador, e só assinaturas com o recurso liberado.
+exports.convidarPrestador = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.convidarPrestador({ auth: auth(), db: db(), token: request.auth.token }, request.data || {}); });
+exports.listarVinculos = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.listarVinculos({ db: db(), token: request.auth.token }); });
+exports.responderConvite = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.responderConvite({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.atualizarAnimaisDoVinculo = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.atualizarAnimaisDoVinculo({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.revogarVinculo = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.revogarVinculo({ db: db(), token: request.auth.token }, request.data || {}); });

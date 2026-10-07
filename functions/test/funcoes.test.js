@@ -23,6 +23,7 @@ const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
 const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
 const BC = require('../cobranca');
+const wConvidar = fft.wrap(F.convidarPrestador), wVincs = fft.wrap(F.listarVinculos), wResp = fft.wrap(F.responderConvite), wAnim = fft.wrap(F.atualizarAnimaisDoVinculo), wRevog = fft.wrap(F.revogarVinculo);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
 const user = (email, admin, mods = []) => ({ id: email, nome: email, email, admin, permissoes: perm(...mods) });
@@ -531,6 +532,106 @@ describe('cobrança manual', () => {
     c = (await wListar({ data: {}, auth: dono })).clientes.find(x => x.id === id).cobranca;
     assert.notEqual(c.situacao, 'atrasado'); assert.ok(c.pagoNoMesCentavos >= 10000); assert.ok(c.pagamentos >= 3);
     assert.equal(fim.situacao, 'atrasado');
+  });
+});
+
+describe('integração entre assinaturas — etapa 1 (vínculo)', () => {
+  const REC = ['integracao_prestadores'];
+  const tk = (tenantId, extra = {}) => ({ uid: 'u-' + (tenantId || 'orig'), token: { papel: 'admin', ...(tenantId ? { tenantId, recursos: REC } : {}), email: (tenantId || 'orig') + '@x.com', ...extra } });
+  const cliente = async (id, nome, adminEmail, recursos = REC) => {
+    await db.doc(`clientes/${id}`).set({ nome, ativo: true, plano: 'pro' });
+    await conta(adminEmail, { tenantId: id, papel: 'admin', modulos: MODULOS, recursos });
+  };
+  const animais = (...ids) => ids.map(i => ({ id: i, nome: 'Cavalo ' + i }));
+  beforeEach(async () => {
+    await cliente('dono1', 'Haras do Dono', 'adm@dono1.com');
+    await cliente('vet1', 'Clínica Vet', 'vet@vet1.com');
+    await db.doc('tenants/dono1/dados/horses_list').set({ value: animais('a1', 'a2', 'a3') });
+  });
+  test('convidar: cria vínculo pendente; só admin com o recurso; prestador precisa ser uma assinatura com o recurso', async () => {
+    const v = await wConvidar({ data: { email: 'Vet@Vet1.com', animais: ['a1', 'a2'] }, auth: tk('dono1') });
+    assert.equal(v.id, 'dono1__vet1'); assert.equal(v.status, 'pendente'); assert.deepEqual(v.animaisIds, ['a1', 'a2']); assert.equal(v.prestadorNome, 'Clínica Vet'); assert.equal(v.donoNome, 'Haras do Dono');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true } }), 'unauthenticated');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: { uid: 'f', token: { papel: 'funcionario', tenantId: 'dono1', recursos: REC } } }), 'permission-denied');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1', { recursos: [] }) }), 'permission-denied');   // sem o recurso liberado
+  });
+  test('convidar: validações (e-mail, ninguém encontrado, a si mesmo, animal que não é seu, lista vazia, prestador sem recurso)', async () => {
+    await rejeita(wConvidar({ data: { email: 'nao-e-email', animaisTodos: true }, auth: tk('dono1') }), 'invalid-argument');
+    await rejeita(wConvidar({ data: { email: 'ninguem@x.com', animaisTodos: true }, auth: tk('dono1') }), 'not-found');
+    await rejeita(wConvidar({ data: { email: 'adm@dono1.com', animaisTodos: true }, auth: tk('dono1') }), 'invalid-argument');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: ['a1', 'de-outro'] }, auth: tk('dono1') }), 'invalid-argument');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: [] }, auth: tk('dono1') }), 'invalid-argument');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com' }, auth: tk('dono1') }), 'invalid-argument');
+    await conta('livre@x.com');
+    await rejeita(wConvidar({ data: { email: 'livre@x.com', animaisTodos: true }, auth: tk('dono1') }), 'not-found');    // conta sem assinatura
+    await cliente('vet2', 'Sem Recurso', 'v2@vet2.com', []);
+    await rejeita(wConvidar({ data: { email: 'v2@vet2.com', animaisTodos: true }, auth: tk('dono1') }), 'failed-precondition');
+  });
+  test('convidar de novo: bloqueia duplicado pendente/ativo; depois de recusado/revogado pode convidar outra vez', async () => {
+    await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') });
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') }), 'already-exists');
+    await wResp({ data: { vinculoId: 'dono1__vet1', aceitar: false }, auth: tk('vet1') });
+    const v2 = await wConvidar({ data: { email: 'vet@vet1.com', animais: ['a3'] }, auth: tk('dono1') });
+    assert.equal(v2.status, 'pendente'); assert.deepEqual(v2.animaisIds, ['a3']);
+  });
+  test('prestador aceita/recusa só o que é dele, só se pendente; aceitar torna ativo', async () => {
+    await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') });
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('dono1') }), 'permission-denied');          // o dono não aceita por ele
+    await cliente('vet3', 'Outro Vet', 'v3@vet3.com');
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('vet3') }), 'permission-denied');           // outro prestador
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: 'sim' }, auth: tk('vet1') }), 'invalid-argument');
+    await rejeita(wResp({ data: { vinculoId: 'x', aceitar: true }, auth: tk('vet1') }), 'invalid-argument');
+    await rejeita(wResp({ data: { vinculoId: 'dono1__naoexiste', aceitar: true }, auth: tk('vet1') }), 'not-found');
+    const v = await wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('vet1') });
+    assert.equal(v.status, 'ativo');
+    await rejeita(wResp({ data: { vinculoId: 'dono1__vet1', aceitar: false }, auth: tk('vet1') }), 'failed-precondition');          // já não está pendente
+  });
+  test('proprietário muda os animais liberados (só ele); prestador não vê a lista antes de aceitar', async () => {
+    await wConvidar({ data: { email: 'vet@vet1.com', animais: ['a1'] }, auth: tk('dono1') });
+    let l = await wVincs({ data: {}, auth: tk('vet1') });
+    assert.equal(l.comoPrestador.length, 1); assert.deepEqual(l.comoPrestador[0].animaisIds, []);    // pendente: não vê
+    await wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('vet1') });
+    l = await wVincs({ data: {}, auth: tk('vet1') });
+    assert.deepEqual(l.comoPrestador[0].animaisIds, ['a1']);
+    await rejeita(wAnim({ data: { vinculoId: 'dono1__vet1', animaisTodos: true }, auth: tk('vet1') }), 'permission-denied');          // prestador não mexe
+    const v = await wAnim({ data: { vinculoId: 'dono1__vet1', animais: ['a2', 'a3'] }, auth: tk('dono1') });
+    assert.deepEqual(v.animaisIds, ['a2', 'a3']);
+    const t = await wAnim({ data: { vinculoId: 'dono1__vet1', animaisTodos: true }, auth: tk('dono1') });
+    assert.equal(t.animaisTodos, true); assert.deepEqual(t.animaisIds, []);
+    await rejeita(wAnim({ data: { vinculoId: 'dono1__vet1', animais: ['nao-meu'] }, auth: tk('dono1') }), 'invalid-argument');
+  });
+  test('listar: cada lado só vê o que é seu; terceiro não vê nada', async () => {
+    await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') });
+    const d = await wVincs({ data: {}, auth: tk('dono1') });
+    assert.equal(d.comoProprietario.length, 1); assert.equal(d.comoPrestador.length, 0);
+    await cliente('vet9', 'Intruso', 'i@vet9.com');
+    const i = await wVincs({ data: {}, auth: tk('vet9') });
+    assert.deepEqual([i.comoProprietario.length, i.comoPrestador.length], [0, 0]);
+  });
+  test('revogar: qualquer um dos dois lados encerra; terceiro não; encerrado não encerra de novo', async () => {
+    await wConvidar({ data: { email: 'vet@vet1.com', animaisTodos: true }, auth: tk('dono1') });
+    await wResp({ data: { vinculoId: 'dono1__vet1', aceitar: true }, auth: tk('vet1') });
+    await cliente('vet9', 'Intruso', 'i@vet9.com');
+    await rejeita(wRevog({ data: { vinculoId: 'dono1__vet1' }, auth: tk('vet9') }), 'permission-denied');
+    const v = await wRevog({ data: { vinculoId: 'dono1__vet1' }, auth: tk('vet1') });
+    assert.equal(v.status, 'revogado');
+    const doc = (await db.doc('vinculos/dono1__vet1').get()).data();
+    assert.equal(doc.revogadoLado, 'prestador'); assert.ok(doc.eventos.some(e => /encerrado pelo prestador/.test(e.acao)));
+    await rejeita(wRevog({ data: { vinculoId: 'dono1__vet1' }, auth: tk('dono1') }), 'failed-precondition');
+  });
+  test('o haras original (sem cliente) também pode ser proprietário', async () => {
+    await db.doc('harasData/horses_list').set({ value: animais('h1', 'h2') });
+    const v = await wConvidar({ data: { email: 'vet@vet1.com', animais: ['h1'] }, auth: tk(null) });
+    assert.equal(v.id, '_original__vet1'); assert.equal(v.donoNome, 'Haras original');
+    await rejeita(wConvidar({ data: { email: 'vet@vet1.com', animais: ['h2'] }, auth: tk(null) }), 'already-exists');
+    const l = await wVincs({ data: {}, auth: tk('vet1') });
+    assert.equal(l.comoPrestador[0].donoNome, 'Haras original');
+  });
+  test('o app não lê a coleção vinculos direto (regras fechadas)', async () => {
+    const fs = require('fs'), path = require('path');
+    const regras = fs.readFileSync(path.join(__dirname, '..', '..', 'firebase', 'firestore.rules.2b'), 'utf8');
+    assert.ok(!/vinculos|solicitacoes/.test(regras));   // nenhuma regra libera: "todo o resto bloqueado" vale
+    assert.ok(/match \/\{outro=\*\*\}/.test(regras) && /allow read, write: if false/.test(regras));
   });
 });
 
