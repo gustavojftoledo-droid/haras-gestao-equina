@@ -2019,7 +2019,7 @@
         <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
         <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnFtTamanhoMaximo">🔍 Abrir em tamanho máximo (nova aba, dá para dar zoom)</button></div>
         <div id="ftAcoes" style="display:none;gap:8px;margin-top:12px;justify-content:space-between;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame (PDF)</button>
+          <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame original (PDF, nítido)</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnFtEditar">✏️ Editar data / anotação</button>
           <button type="button" class="btn btn-danger btn-sm" id="btnFtExcluir">🗑 Excluir esta foto</button>
         </div>
@@ -23109,13 +23109,10 @@ function renderAnimalPerfil(id){
           try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
           const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
           const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
-          let miniUrl = '';
-          if(file.type==='application/pdf'){
-            const mini = await miniaturaDePdf(file);
-            if(mini){ try{ const m = await Fotos.enviarMiniaturaBlob(st, TENANT_ID, h.id, mini); miniUrl = m.url; }catch(e){ console.warn('Miniatura do PDF não enviada:', e); } }
-          }
-          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, miniUrl, dataUpload: toISODate(new Date()) });
-          if(miniUrl) fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, obs:'Exame — '+nome });
+          let miniUrl = '', grandeUrl = '';
+          if(file.type==='application/pdf'){ const im = await imagensDoPdf(st, h.id, file); miniUrl = im.miniUrl; grandeUrl = im.grandeUrl; }
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, miniUrl, grandeUrl, dataUpload: toISODate(new Date()) });
+          if(miniUrl) fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:grandeUrl||miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, obs:'Exame — '+nome });
         }catch(err){
           console.error('Exame: envio ao Storage falhou:', err);
           recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
@@ -23159,7 +23156,7 @@ function renderAnimalPerfil(id){
         if(pontos.length){ const ids = new Set(pontos.map(r=>r.id)); animalRegistros = animalRegistros.filter(r=>!ids.has(r.id)); await aregGravarAnimais([h.id], true); }
       }
       if(removido && removido.tipo==='arquivo' && removido.path && window.Fotos){
-        carregarStorage().then(async st=>{ await Fotos.removerArquivo(st, removido.path); if(removido.miniUrl && !fotoAindaReferenciada(removido.miniUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.miniUrl }); }).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
+        carregarStorage().then(async st=>{ await Fotos.removerArquivo(st, removido.path); if(removido.miniUrl && !fotoAindaReferenciada(removido.miniUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.miniUrl }); if(removido.grandeUrl && !fotoAindaReferenciada(removido.grandeUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.grandeUrl }); }).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
       }
       renderAnimalPerfil(h.id);
     });
@@ -23398,20 +23395,39 @@ function abrirAnimalRegistroEditar(id){
   document.getElementById('btnArExcluir').style.display = 'inline-block';
 }
 /* ---- Miniatura da 1ª página de um PDF (usa o leitor de PDF que o app já carrega). Devolve Blob JPEG ou null. ---- */
-async function miniaturaDePdf(file){
+async function miniaturaDePdf(file, lado, qualidade){
+  lado = lado || 240; qualidade = qualidade || 0.7;
   try{
     if(typeof pdfjsLib === 'undefined') return null;
     if(!pdfjsLib.GlobalWorkerOptions.workerSrc){ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     const page = await pdf.getPage(1);
     const v0 = page.getViewport({ scale:1 });
-    const escala = 240 / Math.max(v0.width, v0.height);
+    const escala = lado / Math.max(v0.width, v0.height);
     const vp = page.getViewport({ scale: escala });
     const cv = document.createElement('canvas'); cv.width = Math.max(1,Math.round(vp.width)); cv.height = Math.max(1,Math.round(vp.height));
     const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-    return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', 0.7));
+    return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', qualidade));
   }catch(e){ console.warn('Não consegui gerar a miniatura do PDF:', e); return null; }
+}
+// 1ª página do PDF em tamanho de LEITURA (texto legível ao ampliar). O Storage aceita imagem até 400 KB: reduz qualidade/tamanho até caber.
+async function paginaGrandeDePdf(file){
+  for(const [lado,q] of [[1700,0.8],[1700,0.62],[1400,0.6],[1200,0.55],[1000,0.5]]){
+    const b = await miniaturaDePdf(file, lado, q);
+    if(!b) return null;
+    if(b.size <= 390*1024) return b;
+  }
+  return null;
+}
+// Gera e envia as duas imagens do PDF: grande (ponto da linha do tempo ao ampliar) e pequena (miniatura). Devolve {miniUrl, grandeUrl}.
+async function imagensDoPdf(st, animalId, file){
+  const out = { miniUrl:'', grandeUrl:'' };
+  const mini = await miniaturaDePdf(file);
+  if(mini){ try{ out.miniUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, animalId, mini)).url; }catch(e){ console.warn('Miniatura do PDF não enviada:', e); } }
+  const grande = out.miniUrl ? await paginaGrandeDePdf(file) : null;
+  if(grande){ try{ out.grandeUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, animalId, grande)).url; }catch(e){ console.warn('Página grande do PDF não enviada:', e); } }
+  return out;
 }
 /* ================= EXAMES COM VALIDADE (AIE / Mormo): PDFs, aviso 5 dias antes e descarte do vencido =================
    h.examesSaude[tp] = { data, dias, arquivos:[{id,nome,url,path,miniUrl,mime,tamanho,tipo}], manterPdf }
@@ -23463,7 +23479,7 @@ async function descartarArquivosExame(h, arquivos){
       for(const a of arquivos){
         try{
           if(a.tipo==='foto'){ await Fotos.removerFoto(st, { fotoUrl:a.url, fotoMiniUrl:a.miniUrl||'' }); }
-          else { if(a.path) await Fotos.removerArquivo(st, a.path); if(a.miniUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.miniUrl }); }
+          else { if(a.path) await Fotos.removerArquivo(st, a.path); if(a.miniUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.miniUrl }); if(a.grandeUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.grandeUrl }); }
         }catch(e){ console.warn('Não consegui apagar um arquivo do exame (fica órfão, sem prejuízo):', e); }
       }
     }catch(e){ console.warn('Storage indisponível para apagar arquivos de exame:', e); }
@@ -23495,10 +23511,10 @@ async function anexarArquivosExameSaude(h, tp, files){
         }else{
           if(file.size > Fotos.LIMITE_ARQUIVO_BYTES){ recusados.push(file.name+' (passa de 10 MB — comprima o PDF)'); continue; }
           const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
-          let miniUrl = '';
-          if(file.type==='application/pdf'){ const mini = await miniaturaDePdf(file); if(mini){ try{ miniUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, h.id, mini)).url; }catch(_){} } }
-          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, path:r.path, miniUrl, tipo:'arquivo', mime:r.tipo, tamanho:file.size });
-          if(miniUrl) pontos.push({ fotoDataUrl:miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, nome:file.name });
+          let miniUrl = '', grandeUrl = '';
+          if(file.type==='application/pdf'){ const im = await imagensDoPdf(st, h.id, file); miniUrl = im.miniUrl; grandeUrl = im.grandeUrl; }
+          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, path:r.path, miniUrl, grandeUrl, tipo:'arquivo', mime:r.tipo, tamanho:file.size });
+          if(miniUrl) pontos.push({ fotoDataUrl:grandeUrl||miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, nome:file.name });
         }
       }catch(err){ recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')'); }
     }

@@ -94,3 +94,4 @@ Etapa 2b em 05/10/2026: `definir_papeis.js` rodado no Cloud Shell (simulação e
 | 2026-10-07 | Quadro "Refazer exame" volta no card Saúde do Início, só quando há animal com 5 dias ou menos (SÓ versão de teste) | app_145_preview.html |
 | 2026-10-07 | "Exames válidos" não repete animal que já está em "Refazer exame" (SÓ versão de teste) | app_145_preview.html |
 | 2026-10-07 | Foto ampliada: janela maior e botão "Abrir em tamanho máximo" (nova aba, com zoom) (SÓ versão de teste) | app_145_preview.html |
+| 2026-10-07 | Exame em PDF: o ponto da linha do tempo agora guarda a 1ª página em tamanho de leitura (até 1700 px, ≤400 KB), além da miniatura; botão "Abrir o exame original (PDF, nítido)" (SÓ versão de teste). Vale para exames anexados daqui em diante | app_145_preview.html |
