@@ -9,6 +9,7 @@ const logger = require('firebase-functions/logger');
 const { sincronizarLista } = require('./papeis');
 const C = require('./clientes');
 const U = require('./usuarios');
+const B = require('./cobranca');
 
 // Região: precisa ser a mesma do Firestore (o banco do Gustavo está em São Paulo, southamerica-east1). Para outra região, crie functions/.env com REGIAO_FUNCOES=...
 setGlobalOptions({ region: process.env.REGIAO_FUNCOES || 'southamerica-east1', maxInstances: 10 });
@@ -63,4 +64,18 @@ exports.atualizarCliente = onCall(async (request) => {
 exports.criarLoginDoUsuario = onCall(async (request) => {
   U.exigirAdmin(request);
   return U.criarLoginDoUsuario({ auth: auth(), db: db(), claims: request.auth.token }, request.data || {});
+});
+
+// 8) Cobrança manual (só dono): registrar, corrigir/excluir pagamento e listar os de um cliente
+exports.registrarPagamento = onCall(async (request) => {
+  C.exigirDono(request);
+  return B.registrarPagamento({ db: db(), emailDono: request.auth.token.email }, request.data || {});
+});
+exports.excluirPagamento = onCall(async (request) => {
+  C.exigirDono(request);
+  return B.excluirPagamento({ db: db() }, request.data || {});
+});
+exports.listarPagamentos = onCall(async (request) => {
+  C.exigirDono(request);
+  return B.listarPagamentos({ db: db() }, request.data || {});
 });
