@@ -8600,9 +8600,11 @@ function renderInicioSaude(host){
     return (e && e.data) ? toISODate(addToDate(e.data, Number(e.dias)||60, 'dias')) : null;
   };
   const curtoData = iso => iso ? (iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(2,4)) : '—';
+  const idsRefazer = new Set(examesSaudeParaRenovar().map(x=>x.h.id));
   const comExamesOk = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento)
     .map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
     .filter(x=> x.aie && x.mormo && x.aie>=hojeS && x.mormo>=hojeS)
+    .filter(x=> !idsRefazer.has(x.h.id)) // quem está em "Refazer exame" (5 dias ou menos) não repete em "Exames válidos"
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const secExames = `<div style="margin-top:16px;">
     <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
