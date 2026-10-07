@@ -145,6 +145,33 @@ export async function getList(env: Env, docId: string): Promise<any[]> {
   return Array.isArray(val) ? val : [];
 }
 
+/**
+ * Lista que o app pode ter dividido em vários documentos (ex.: estoque_movimentos -> emov_AAAA-MM).
+ * Se existir o recibo `indiceId` com { versao>=1, docs:[...] }, junta todos os documentos (sem repetir id);
+ * senão lê o documento único de sempre. Qualquer leitura que falhe lança erro (nunca devolve lista parcial).
+ */
+export async function getListaDividida(env: Env, docId: string, indiceId: string): Promise<any[]> {
+  const indice = await getMap(env, indiceId);
+  const docs = (indice as any).docs;
+  if (!(Number((indice as any).versao) >= 1) || !Array.isArray(docs)) return getList(env, docId);
+  const partes = await Promise.all([...new Set<string>(docs)].map((d) => getList(env, d)));
+  const vistos = new Set<any>();
+  const out: any[] = [];
+  for (const lista of partes) {
+    for (const r of lista) {
+      const id = r && r.id;
+      if (id != null) {
+        if (vistos.has(id)) continue;
+        vistos.add(id);
+      }
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+export const getMovimentosEstoque = (env: Env) => getListaDividida(env, "estoque_movimentos", "emov_indice");
+
 export async function getMap(env: Env, docId: string): Promise<Record<string, any>> {
   const token = await getAccessToken(env);
   const res = await fetch(docUrl(env, docId), { headers: { authorization: `Bearer ${token}` } });

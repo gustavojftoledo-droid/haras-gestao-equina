@@ -8,7 +8,7 @@
  *   0 22 * * *  -> 19:00 Brasília — "O que foi feito à tarde" (só o que não veio às 12h)
  */
 import type { Env } from "./firestore.ts";
-import { getList, getMap } from "./firestore.ts";
+import { getList, getMap, getMovimentosEstoque } from "./firestore.ts";
 import { sendMessage, sendPhoto } from "./telegram.ts";
 import {
   montarRelatorioManha,
@@ -63,7 +63,7 @@ async function carregarDados(env: Env): Promise<DadosHaras> {
     getList(env, "visitas_list"),
     getList(env, "visitas_repro_list"),
     getList(env, "estoque_produtos"),
-    getList(env, "estoque_movimentos"),
+    getMovimentosEstoque(env),
     getList(env, "funcionarios_list"),
     getList(env, "financeiro_lancamentos"),
     getList(env, "transportes_list"),
@@ -202,7 +202,7 @@ export async function rodarFeitoTarde(env: Env): Promise<void> {
 export async function textoRelatorioEstoque(env: Env): Promise<string> {
   const [produtos, movimentos] = await Promise.all([
     getList(env, "estoque_produtos"),
-    getList(env, "estoque_movimentos"),
+    getMovimentosEstoque(env),
   ]);
   return montarRelatorioEstoque({ produtos, movimentos }, hojeBrasilia());
 }
