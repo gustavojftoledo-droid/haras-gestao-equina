@@ -45,6 +45,11 @@ exports.bloquearCliente = onCall(async (request) => {
   C.exigirDono(request);
   return C.bloquearCliente({ auth: auth(), db: db() }, request.data || {});
 });
+// 3b) Excluir cliente de vez (só dono; só cliente bloqueado; exige digitar o nome)
+exports.excluirCliente = onCall(async (request) => {
+  C.exigirDono(request);
+  return C.excluirCliente({ auth: auth(), db: db() }, request.data || {});
+});
 // 4) Uso de armazenamento do cliente (só dono)
 exports.usoDoCliente = onCall(async (request) => {
   C.exigirDono(request);

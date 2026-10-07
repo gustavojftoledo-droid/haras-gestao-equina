@@ -10,6 +10,7 @@ Funções que rodam no servidor do Firebase (projeto `equinos-manager`). Nada aq
 | `sincronizarPapeisCliente` | quando `tenants/{id}/dados/usuarios_list` muda | O mesmo, e também grava `tenantId`. |
 | `criarCliente` | chamada pelo app (só dono) | `{nome, emailAdmin, senhaProvisoria?, nomeAdmin?}` cria o cliente e devolve `{tenantId}`. Se você não passar senha e a conta for nova, devolve também `senhaGerada`. |
 | `bloquearCliente` | chamada pelo app (só dono) | `{tenantId, ativo}` desativa/reativa todas as contas do cliente. |
+| `excluirCliente` | chamada pelo app (só dono) | `{tenantId, confirmacaoNome, confirmacao:"EXCLUIR"}` apaga DE VEZ um cliente já bloqueado: dados, contas de login, pagamentos, vínculos e pedidos. Sem volta. |
 | `usoDoCliente` | chamada pelo app (só dono) | `{tenantId}` devolve `{bytes, documentos, percentualDoLimite}`. |
 | `listarClientes` | chamada pelo app (só dono) | Sem entrada. Devolve `{clientes:[{id, nome, ativo, plano, criadoEm, limiteBytes, consentimentoDados, contas, emailAdmin, ultimoAcesso}]}` ordenado por nome. |
 | `atualizarCliente` | chamada pelo app (só dono) | `{tenantId, nome?, plano?, limiteBytes?, consentimentoDados?}` devolve `{tenantId, atualizado:[campos]}`. |

@@ -123,6 +123,44 @@ async function bloquearCliente({ auth, db }, data){
   return { tenantId, ativo: data.ativo, contasAfetadas: contas.length };
 }
 
+
+/* Exclui o cliente DE VEZ (sem volta): dados, contas de login, pagamentos, vínculos e pedidos. Só cliente já BLOQUEADO,
+   e só se o nome digitado for igual ao nome do cliente. O registro clientes/{id} é o último a sair (se algo falhar, dá para repetir). */
+async function apagarColecao(db, caminho){
+  let n = 0;
+  for (;;) {
+    const snap = await db.collection(caminho).limit(300).get();
+    if (snap.empty) break;
+    const b = db.batch(); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); n += snap.size;
+  }
+  return n;
+}
+async function apagarPorCampo(db, colecao, campo, valor){
+  const snap = await db.collection(colecao).where(campo, '==', valor).get();
+  for (const d of snap.docs) await d.ref.delete();
+  return snap.size;
+}
+async function excluirCliente({ auth, db }, data){
+  const tenantId = exigirTenantId(data.tenantId);
+  const ref = db.collection('clientes').doc(tenantId);
+  const cli = await ref.get();
+  if (!cli.exists) throw new HttpsError('not-found', 'Cliente não encontrado.');
+  const c = cli.data();
+  if (c.ativo !== false) throw new HttpsError('failed-precondition', 'Bloqueie o cliente antes de excluir.');
+  if (data.confirmacao !== 'EXCLUIR') throw new HttpsError('invalid-argument', 'Digite a palavra EXCLUIR para confirmar.');
+  const digitado = typeof data.confirmacaoNome === 'string' ? data.confirmacaoNome.trim() : '';
+  if (!digitado || digitado !== String(c.nome || '').trim()) throw new HttpsError('invalid-argument', 'O nome digitado não confere com o nome do cliente.');
+  const contas = await contasDoCliente(auth, tenantId);
+  for (const u of contas) { if (u.customClaims && u.customClaims.dono === true) throw new HttpsError('failed-precondition', 'Esse cliente tem a conta do dono do sistema; nada foi apagado.'); }
+  const documentos = await apagarColecao(db, `tenants/${tenantId}/dados`);
+  const pagamentos = await apagarColecao(db, `clientes/${tenantId}/pagamentos`);
+  const vinculos = (await apagarPorCampo(db, 'vinculos', 'donoTenantId', tenantId)) + (await apagarPorCampo(db, 'vinculos', 'prestadorTenantId', tenantId));
+  const pedidos = (await apagarPorCampo(db, 'solicitacoes', 'donoTenantId', tenantId)) + (await apagarPorCampo(db, 'solicitacoes', 'prestadorTenantId', tenantId));
+  for (const u of contas) await auth.deleteUser(u.uid);
+  await ref.delete();
+  return { tenantId, contasApagadas: contas.length, documentosApagados: documentos, pagamentosApagados: pagamentos, vinculosApagados: vinculos, pedidosApagados: pedidos };
+}
+
 async function usoDoCliente({ db }, data){
   const tenantId = exigirTenantId(data.tenantId);
   const cli = await db.collection('clientes').doc(tenantId).get();
@@ -298,4 +336,4 @@ async function atualizarCliente({ auth, db, emailDono }, data){
   return { tenantId, atualizado };
 }
 
-module.exports = { exigirDono, criarCliente, bloquearCliente, usoDoCliente, listarClientes, atualizarCliente, planoDoCliente, dadosDoCliente, gerarSlug, RE_TENANT };
+module.exports = { exigirDono, criarCliente, bloquearCliente, excluirCliente, usoDoCliente, listarClientes, atualizarCliente, planoDoCliente, dadosDoCliente, gerarSlug, RE_TENANT };

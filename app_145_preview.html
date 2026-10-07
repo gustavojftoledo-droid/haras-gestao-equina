@@ -4878,7 +4878,7 @@ function desenharClientes(){
       <td>${chipCobranca(c)}</td>
       <td><button type="button" class="btn btn-sm btn-ghost" data-cliuso="${escHtml(c.id)}">Ver uso</button> <span data-cliusotxt="${escHtml(c.id)}" style="font-size:12px;"></span></td>
       <td>${cons && cons.aceito===true ? ('✔ '+fmtDataHoraCli(cons.data)+(cons.versao?' (termo '+escHtml(cons.versao)+')':'')) : `<span style="color:var(--muted);">pendente${c.plano==='gratuito'?' <strong style="color:var(--burgundy,#8b2a2a);">(obrigatório no Gratuito)</strong>':''}</span>`}</td>
-      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-clipag="${escHtml(c.id)}">💰 Pagamentos</button> <button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button></td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-clipag="${escHtml(c.id)}">💰 Pagamentos</button> <button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button>${ativo?'':` <button type="button" class="btn btn-sm btn-danger" data-cliexcl="${escHtml(c.id)}">Excluir</button>`}</td>
     </tr>`;
   }).join('');
   document.querySelectorAll('[data-cliuso]').forEach(b=>b.addEventListener('click', async ()=>{
@@ -4893,6 +4893,22 @@ function desenharClientes(){
     if(!ok) return;
     try{ const r = await chamarFuncao('bloquearCliente', { tenantId:c.id, ativo:!bloquear }); showAlert((bloquear?'Cliente bloqueado':'Cliente reativado')+' ('+r.contasAfetadas+' conta(s)).'); renderClientes(); }
     catch(e){ showAlert('Não consegui: '+msgErroFuncao(e)); }
+  }));
+  document.querySelectorAll('[data-cliexcl]').forEach(b=>b.addEventListener('click', async ()=>{
+    const c = clientesLista.find(x=>x.id===b.dataset.cliexcl); if(!c || c.ativo!==false) return;
+    const nome = c.nome||c.id;
+    // Aviso 1
+    if(!(await showConfirm('ATENÇÃO 1/2: você vai EXCLUIR DE VEZ o cliente "'+nome+'". Serão apagados todos os animais, manejos, estoque, financeiro e fotos dele, as contas de login (dono e equipe), os pagamentos e as integrações com prestadores. ISSO NÃO TEM VOLTA.', {titulo:'Excluir cliente'}))) return;
+    // Aviso 2
+    if(!(await showConfirm('ATENÇÃO 2/2: tem certeza? Não existe lixeira nem desfazer. Se o cliente pode precisar dos dados, cancele agora e use apenas "Bloquear" (os dados ficam guardados).', {titulo:'Última chance'}))) return;
+    // Palavra escrita
+    const palavra = await showPrompt('Para confirmar, digite a palavra EXCLUIR (em maiúsculas) e confirme.', 'EXCLUIR');
+    if(palavra===null || palavra===undefined || String(palavra).trim()!=='EXCLUIR'){ showAlert('Nada foi apagado: a palavra não foi digitada corretamente.'); return; }
+    try{
+      const r = await chamarFuncao('excluirCliente', { tenantId:c.id, confirmacaoNome:nome, confirmacao:'EXCLUIR' });
+      showAlert('Cliente excluído de vez: '+r.contasApagadas+' conta(s) e '+r.documentosApagados+' documento(s) de dados apagados.');
+      renderClientes();
+    }catch(e){ showAlert('Não consegui excluir: '+msgErroFuncao(e)); }
   }));
   document.querySelectorAll('[data-cliedit]').forEach(b=>b.addEventListener('click', ()=>abrirEditarCliente(b.dataset.cliedit)));
   document.querySelectorAll('[data-clipag]').forEach(b=>b.addEventListener('click', ()=>abrirPagamentosCliente(b.dataset.clipag)));

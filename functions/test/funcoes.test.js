@@ -17,7 +17,7 @@ const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFo
 const auth = getAuth(), db = getFirestore();
 const trigHaras = fft.wrap(F.sincronizarPapeis);
 const trigCliente = fft.wrap(F.sincronizarPapeisCliente);
-const wCriar = fft.wrap(F.criarCliente), wBloq = fft.wrap(F.bloquearCliente), wUso = fft.wrap(F.usoDoCliente);
+const wCriar = fft.wrap(F.criarCliente), wBloq = fft.wrap(F.bloquearCliente), wExcl = fft.wrap(F.excluirCliente), wUso = fft.wrap(F.usoDoCliente);
 const wListar = fft.wrap(F.listarClientes), wAtual = fft.wrap(F.atualizarCliente);
 const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
@@ -928,4 +928,44 @@ describe('atualizarCliente', () => {
     await rejeita(wAtual({ data: { tenantId: 'nao-existe', nome: 'Ok' }, auth: dono }), 'not-found');
     assert.equal((await db.doc('clientes/nao-existe').get()).exists, false);
   });
+});
+
+describe('excluirCliente', () => {
+  async function criar(nome, email){ return (await wCriar({ data: { nome, emailAdmin: email, senhaProvisoria: 'provisoria1' }, auth: dono })).tenantId; }
+  test('negado a não-dono', async () => {
+    const id = await criar('Apagar', 'x@apagar.com');
+    await wBloq({ data: { tenantId: id, ativo: false }, auth: dono });
+    await rejeita(wExcl({ data: { tenantId: id, confirmacaoNome: 'Apagar' }, auth: { uid: 'u', token: { papel: 'admin', tenantId: id } } }), 'permission-denied');
+  });
+  test('recusa cliente ativo e nome errado; nada é apagado', async () => {
+    const id = await criar('Apagar', 'x@apagar.com');
+    await rejeita(wExcl({ data: { tenantId: id, confirmacaoNome: 'Apagar', confirmacao: 'EXCLUIR' }, auth: dono }), 'failed-precondition');
+    await wBloq({ data: { tenantId: id, ativo: false }, auth: dono });
+    await rejeita(wExcl({ data: { tenantId: id, confirmacaoNome: 'outro', confirmacao: 'EXCLUIR' }, auth: dono }), 'invalid-argument');
+    await rejeita(wExcl({ data: { tenantId: id, confirmacaoNome: 'Apagar', confirmacao: 'excluir' }, auth: dono }), 'invalid-argument');
+    await rejeita(wExcl({ data: { tenantId: id }, auth: dono }), 'invalid-argument');
+    assert.ok((await db.doc(`clientes/${id}`).get()).exists);
+    await auth.getUserByEmail('x@apagar.com');
+  });
+  test('apaga dados, contas, pagamentos, vínculos e pedidos só desse cliente', async () => {
+    const id = await criar('Apagar', 'x@apagar.com');
+    const outro = await criar('Fica', 'y@fica.com');
+    await conta('func@apagar.com', { tenantId: id, papel: 'funcionario', modulos: ['animais'] });
+    await db.doc(`tenants/${id}/dados/animais`).set({ value: [1] });
+    await db.doc(`tenants/${outro}/dados/animais`).set({ value: [2] });
+    await db.doc(`clientes/${id}/pagamentos/p1`).set({ valorCentavos: 100 });
+    await db.doc(`vinculos/${id}__${outro}`).set({ donoTenantId: id, prestadorTenantId: outro });
+    await db.doc(`vinculos/${outro}__zz`).set({ donoTenantId: outro, prestadorTenantId: 'zz' });
+    await db.doc('solicitacoes/s1').set({ donoTenantId: outro, prestadorTenantId: id });
+    await wBloq({ data: { tenantId: id, ativo: false }, auth: dono });
+    const r = await wExcl({ data: { tenantId: id, confirmacaoNome: ' Apagar ', confirmacao: 'EXCLUIR' }, auth: dono });
+    assert.equal(r.contasApagadas, 2); assert.equal(r.documentosApagados, 2); assert.equal(r.pagamentosApagados, 1); assert.equal(r.vinculosApagados, 1); assert.equal(r.pedidosApagados, 1);
+    assert.equal((await db.doc(`clientes/${id}`).get()).exists, false);
+    assert.equal((await db.doc(`tenants/${id}/dados/animais`).get()).exists, false);
+    await assert.rejects(auth.getUserByEmail('x@apagar.com')); await assert.rejects(auth.getUserByEmail('func@apagar.com'));
+    assert.ok((await db.doc(`tenants/${outro}/dados/animais`).get()).exists);
+    assert.ok((await db.doc(`vinculos/${outro}__zz`).get()).exists);
+    await auth.getUserByEmail('y@fica.com');
+  });
+  test('cliente inexistente', async () => { await rejeita(wExcl({ data: { tenantId: 'nao-existe', confirmacaoNome: 'x', confirmacao: 'EXCLUIR' }, auth: dono }), 'not-found'); });
 });
