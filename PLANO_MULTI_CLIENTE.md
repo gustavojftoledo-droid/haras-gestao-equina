@@ -46,9 +46,9 @@ Fotos (~150 KB cada, com cache): centavos. **Vídeo** é o que pesa (cada visual
 
 Pedido do Gustavo: o histórico de **estoque, medicamentos e consumo de ração por dieta** é valioso para farmácias parceiras e empresas de ração (sazonalidade, consumo, histórico completo) e é parte da força do programa. **Nunca pode ser perdido nem apagado.** Vale principalmente para clientes que derem permissão, em especial no plano gratuito.
 
-Decisões / pendências (nada abaixo foi implementado ainda, exceto o item 1):
+Decisões / pendências (nada abaixo foi implementado ainda, exceto o item 1; o item 3 aguarda o OK do dono):
 1. **Dividir os documentos que enchem** (estoque por mês, treinos por ano): evita o teto de 1 MiB, que hoje é o único risco de "parar de gravar". Os documentos divididos nunca são apagados. (Feito no teste; ligar só com "pode ligar".)
-2. **Excluir não pode apagar a história**: hoje `excluirMovimento` remove o movimento do banco. Proposta: "exclusão suave" (o movimento fica marcado como excluído e some das telas, mas continua guardado) e o mesmo para dieta/consumo. Aguardando o OK do dono.
+2. **Excluir é excluir** (decisão do dono, 07/10/2026): quem exclui um movimento é porque registrou errado; não haverá "exclusão suave". O histórico fica completo porque, com a divisão em documentos pequenos, nunca enche e nada é apagado sozinho.
 3. **Cópia permanente por cliente**: além do backup diário de 10 dias, guardar um arquivo mensal imutável (`hist_estoque_AAAA-MM`) que o app nunca altera nem apaga.
 4. **Consentimento**: campo por cliente (tenant) `consentimentoDados` (data, versão do termo, quem aceitou), exigido no cadastro do plano gratuito. Só os dados de clientes com consentimento entram em análises/ofertas a parceiros.
 5. **Privacidade (LGPD)**: dados oferecidos a parceiros devem ser **agregados e anonimizados** (sem nome do haras/pessoa); os termos de uso/contrato precisam de revisão jurídica antes de qualquer venda de dados.
