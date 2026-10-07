@@ -5077,6 +5077,86 @@ async function registrarPagamentoPelaTela(){
 document.getElementById('btnClienteNovo').addEventListener('click', abrirNovoCliente);
 document.getElementById('btnClientesAtualizar').addEventListener('click', renderClientes);
 
+
+/* ================= ASSISTENTE DO PRIMEIRO LOGIN (só cliente novo, só administrador) =================
+   Na 1ª vez que o administrador de um cliente entra, uma tela pergunta os valores básicos de manejo. TUDO é opcional: campo vazio
+   fica vazio e o cliente preenche quando quiser (Manejos → "⚙ Editar valores de referência" / "⚙ Editar frequência de vacinas").
+   Os números cinzas são só EXEMPLO (placeholder); "Usar valores de exemplo" copia todos de uma vez. Os de ferrador são os do haras do
+   dono; os de vermífugo/dental/vacinas são exemplos genéricos — NÃO são recomendação veterinária. O haras original nunca vê isto. */
+const ONBOARDING_EXEMPLOS = { casco:{ 'Casqueado mãos':40, 'Casqueado completo':80, 'Casqueado pés':40, 'Ferrado mãos':140, 'Ferrado completo':200, 'Ferrado pés':140 },
+  deslocamento:0, freqFerrageamento:30, freqCasqueamento:60, vermifugoMeses:3, dentalMeses:12, vacinas:[['Influenza',180],['Tétano',365],['Raiva',365]] };
+function garantirModalOnboarding(){
+  if(document.getElementById('overlayOnboarding')) return;
+  const ex = ONBOARDING_EXEMPLOS;
+  const campo = (id,rot,ph,tipo='number',extra='min="0" step="0.01"')=>`<div class="field"><label>${rot}</label><input type="${tipo}" id="${id}" ${extra} placeholder="${ph}"></div>`;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayOnboarding"><div class="modal" style="max-width:min(96vw,680px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title">Bem-vindo! Configuração inicial</div></div>
+    <div class="hint-text" style="margin:0 0 10px;">Tudo aqui é <strong>opcional</strong>. Deixe em branco o que não quiser agora — você preenche quando quiser, nas telas de Manejos. Os números em cinza são <strong>só exemplos</strong> (os de vermífugo, dental e vacinas são genéricos: confirme com o seu veterinário).</div>
+    <div style="margin:0 0 8px;"><button type="button" class="btn btn-sm btn-ghost" id="ob_exemplos">Usar todos os valores de exemplo</button></div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Valor do ferrador (R$)</div>
+    <div class="form-grid">
+      ${Object.entries(ex.casco).map(([k,v],i)=>campo('ob_casco'+i, k+' (R$)', 'ex.: '+v)).join('')}
+      ${campo('ob_desloc','Deslocamento do ferrador (R$)','ex.: '+ex.deslocamento)}
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Quando avisar a próxima vez</div>
+    <div class="form-grid">
+      ${campo('ob_ferr','Ferrageamento: avisar após (dias)','ex.: '+ex.freqFerrageamento,'number','min="1" step="1"')}
+      ${campo('ob_casq','Casqueamento: avisar após (dias)','ex.: '+ex.freqCasqueamento,'number','min="1" step="1"')}
+      ${campo('ob_verm','Vermífugo: avisar após (meses) — para todos os animais','ex.: '+ex.vermifugoMeses,'number','min="1" step="1"')}
+      ${campo('ob_dent','Cheque dental: avisar após (meses) — para todos os animais','ex.: '+ex.dentalMeses,'number','min="1" step="1"')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Vacinas e de quantos em quantos dias repetir</div>
+    <div class="form-grid">
+      ${ex.vacinas.map(([n,d],i)=>campo('ob_vacn'+i,'Vacina '+(i+1)+' (nome)','ex.: '+n,'text','maxlength="60"')+campo('ob_vacd'+i,'Repetir a cada (dias)','ex.: '+d,'number','min="1" step="1"')).join('')}
+    </div>
+    <div class="hint-text" id="ob_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="ob_pular">Pular, configuro depois</button><button type="button" class="btn" id="ob_salvar">Salvar e começar</button></div>
+  </div></div>`);
+  document.getElementById('ob_exemplos').addEventListener('click', ()=>{
+    Object.values(ex.casco).forEach((v,i)=>{ document.getElementById('ob_casco'+i).value = v; });
+    document.getElementById('ob_desloc').value = ex.deslocamento; document.getElementById('ob_ferr').value = ex.freqFerrageamento; document.getElementById('ob_casq').value = ex.freqCasqueamento;
+    document.getElementById('ob_verm').value = ex.vermifugoMeses; document.getElementById('ob_dent').value = ex.dentalMeses;
+    ex.vacinas.forEach(([n,d],i)=>{ document.getElementById('ob_vacn'+i).value = n; document.getElementById('ob_vacd'+i).value = d; });
+  });
+  document.getElementById('ob_pular').addEventListener('click', ()=>concluirOnboarding(false));
+  document.getElementById('ob_salvar').addEventListener('click', ()=>concluirOnboarding(true));
+}
+async function concluirOnboarding(salvar){
+  const msg = document.getElementById('ob_msg');
+  if(salvar){
+    const num = id => { const v = document.getElementById(id).value; return v==='' ? null : Number(String(v).replace(',','.')); };
+    const ex = ONBOARDING_EXEMPLOS; const casco = {};
+    let erroCasco = false;
+    Object.keys(ex.casco).forEach((k,i)=>{ const v = num('ob_casco'+i); if(v!==null){ if(!(v>=0)){ msg.textContent = 'Valor inválido em "'+k+'".'; erroCasco = true; } else casco[k] = v; } });
+    if(erroCasco) return;
+    const pos = (id,rot)=>{ const v = num(id); if(v!==null && !(v>=1)){ msg.textContent = 'Informe um número de 1 em diante em "'+rot+'".'; throw 0; } return v; };
+    try{
+      const ferr = pos('ob_ferr','Ferrageamento'), casq = pos('ob_casq','Casqueamento'), verm = pos('ob_verm','Vermífugo'), dent = pos('ob_dent','Cheque dental');
+      const desloc = num('ob_desloc'); if(desloc!==null && !(desloc>=0)){ msg.textContent = 'Valor inválido no deslocamento.'; return; }
+      config.valoresCasco = { ...(config.valoresCasco||{}), ...casco };
+      if(desloc!==null) config.deslocamentoFerrador = desloc;
+      if(ferr!==null) config.freqFerrageamento = Math.round(ferr);
+      if(casq!==null) config.freqCasqueamento = Math.round(casq);
+      config.freqPadrao = { ...(config.freqPadrao||{}) };
+      if(verm!==null) config.freqPadrao['Vermífugo'] = Math.round(verm);
+      if(dent!==null) config.freqPadrao['Dente'] = Math.round(dent);
+      if(!config.freqVacinas) config.freqVacinas = {};
+      ex.vacinas.forEach((_,i)=>{ const n = document.getElementById('ob_vacn'+i).value.trim(); const d = pos('ob_vacd'+i,'Vacina '+(i+1)); if(n && d!==null) config.freqVacinas[n] = Math.round(d); });
+    }catch(e){ if(e===0) return; throw e; }
+  }
+  config.onboardingFeito = true;
+  msg.textContent = 'Salvando...';
+  if(!(await storeSet('config', config))){ msg.textContent = 'Não consegui salvar agora. Tente de novo.'; return; }
+  closeModal('overlayOnboarding');
+  try{ preencherValorRefCasco(); }catch(_){}
+  renderInicio();
+}
+function verificarOnboardingCliente(){
+  if(!TENANT_ID || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
+  garantirModalOnboarding(); openModal('overlayOnboarding');
+}
+
 /* ================= LISTAS DIVIDIDAS POR PERÍODO (treinos: um documento por ANO) =================
    ANTES: todos os treinos moravam num documento só ('treinos_list'), com teto de 1 MiB.
    AGORA (depois da migração): um documento por ano ('treinos_2026', 'treinos_2025', ...; treino sem data válida vai para
@@ -5374,6 +5454,8 @@ async function loadAll(){
     }
   }
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
+  // Cliente novo NÃO herda os valores de referência do ferrador do haras original: começa vazio e preenche no assistente do 1º login (ou depois).
+  if(TENANT_ID && !(rConfig.value && !Array.isArray(rConfig.value) && rConfig.value.valoresCasco)) config.valoresCasco = {};
   // Se a leitura da config FALHOU, as marcas "migração já feita" não vieram — sem esta trava o app achava
   // que nenhuma migração tinha rodado e rodava todas de novo (ex.: mandar rações do Estoque pro Catálogo).
   configLidoOk = !!rConfig.ok;
@@ -5392,7 +5474,7 @@ async function loadAll(){
     // "Ferrado mãos" tinha valor de referência antigo (100) — atualiza pro novo (140) só se ninguém
     // customizou esse valor manualmente; se já foi mudado à mão, respeita a escolha feita.
     if(config.valoresCasco['Ferrado mãos']===100) config.valoresCasco['Ferrado mãos'] = 140;
-    Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
+    if(!TENANT_ID) Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
     if(!config.freqVacinas) config.freqVacinas = {};
     // Frequência dinâmica de Casco (Fase 4): recalcula a próxima data sozinha conforme o último tipo
     // de procedimento (Ferrageamento ou Casqueamento), em vez de um valor fixo por animal.
@@ -8421,7 +8503,7 @@ function computeProgramacao(dataReferencia){
       }
     }
     tiposSimples.forEach(tipo=>{
-      const freq = h[FREQ_FIELD[tipo]];
+      const freq = h[FREQ_FIELD[tipo]] || (config.freqPadrao && config.freqPadrao[tipo]); // do animal; se vazio, o padrão do assistente inicial (se houver)
       if(!freq) return; // sem frequência definida para esse animal/tipo
       const registros = manejos.filter(m=> m.tipo===tipo && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
       const ultima = registros[0] ? registros[0].data : null;
@@ -25045,6 +25127,7 @@ function iniciarAppLogado(authUser){
     vetRelSelector.restoreFromSaved();
     relFichaSelector.restoreFromSaved();
     entrarNoApp();
+    setTimeout(verificarOnboardingCliente, 600); // cliente novo: assistente do 1º login (só administrador, uma vez)
     // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
     const paramAnimal = new URLSearchParams(location.search).get('animal');
     if(paramAnimal && horses.some(h=>h.id===paramAnimal)){
