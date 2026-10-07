@@ -4894,6 +4894,43 @@ function partMigrarEmSegundoPlano(){
   });
 }
 
+
+/* ================= CÓPIA MENSAL PERMANENTE DO ESTOQUE (histórico é patrimônio do dono) =================
+   Todo mês FECHADO ganha um documento 'hist_estoque_AAAA-MM' com os movimentos daquele mês (e, no mês recém-fechado,
+   também uma foto dos produtos e das dietas da época). Só é CRIADO se ainda não existir — nunca regravado e nunca
+   apagado pelo app. É uma cópia de segurança do histórico de consumo/estoque, independente das listas do dia a dia
+   (e independente da divisão por mês), para que esse dado nunca se perca. Corre em segundo plano depois da abertura. */
+const HIST_MENSAL_AUTOMATICO = true;
+function histMesDe(r){ const m = /^(\d{4}-\d{2})-/.exec((r && r.data) || ''); return m ? m[1] : null; }
+async function histMensalGarantir(){
+  if(!HIST_MENSAL_AUTOMATICO || !HAS_FIRESTORE || HAS_CLOUD_STORAGE) return { ok:false, criados:0 };
+  const mesAtual = toISODate(new Date()).slice(0,7);
+  const grupos = new Map();
+  (estoqueMovimentos||[]).forEach(r=>{ const m = histMesDe(r); if(m && m<mesAtual){ if(!grupos.has(m)) grupos.set(m, []); grupos.get(m).push(r); } });
+  const ordenados = [...grupos.keys()].sort();
+  const ultimoFechado = ordenados[ordenados.length-1];
+  let criados = 0;
+  for(const mes of ordenados){
+    const chave = 'hist_estoque_'+mes, marca = 'haras_hist_'+colecaoDados()+'_'+chave;
+    try{ if(localStorage.getItem(marca)==='1') continue; }catch(_){}
+    try{
+      const ref = db.collection(colecaoDados()).doc(chave);
+      const ja = await ref.get();
+      if(!ja.exists){
+        const agora = new Date().toISOString();
+        let conteudo = { mes, movimentos:grupos.get(mes), criadoEm:agora, observacao:'Cópia permanente do mês: criada uma vez e nunca alterada pelo app.' };
+        if(mes===ultimoFechado) conteudo = { ...conteudo, produtosNaEpoca:estoqueProdutos, dietasNaEpoca:dietas };
+        if(tamanhoDocBytes(conteudo) > LIMITE_DOC_BYTES*0.95){ delete conteudo.produtosNaEpoca; delete conteudo.dietasNaEpoca; }
+        if(tamanhoDocBytes(conteudo) > LIMITE_DOC_BYTES*0.95){ console.warn('Cópia mensal de '+mes+' grande demais para um documento; não criada.'); continue; }
+        await ref.set({ value: conteudo, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+        criados++;
+      }
+      try{ localStorage.setItem(marca, '1'); }catch(_){}
+    }catch(e){ console.warn('Cópia mensal do estoque ('+mes+') adiada:', e); return { ok:false, criados }; }
+  }
+  return { ok:true, criados };
+}
+
 /* ================= BACKUP AUTOMÁTICO DIÁRIO (dentro do próprio Firestore) =================
    Na primeira abertura de cada dia, cada aparelho guarda uma cópia das listas críticas (estoque, dietas,
    animais, manejos) em documentos "bkp_<chave>_<AAAA-MM-DD>", mantendo os últimos BKP_AUTO_DIAS dias.
@@ -5322,6 +5359,7 @@ async function loadAll(){
   // toda vez que alguém abrisse o app.
   auditPronto = true;
   partMigrarEmSegundoPlano(); // listas por período (treinos): divide em segundo plano só se a chave estiver ligada
+  if(rEM.ok && rEP.ok) histMensalGarantir().catch(e=>console.warn('cópia mensal:', e)); // cópia permanente dos meses fechados do estoque (só cria; nunca altera)
   aregMigrarEmSegundoPlano(); // ainda no documento único? divide por animal em segundo plano (seguro, confere, reversível)
 }
 document.getElementById('btnRetryLoad').addEventListener('click', async ()=>{

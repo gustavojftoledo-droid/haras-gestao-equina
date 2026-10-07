@@ -132,6 +132,24 @@ async function preparar(page){
   ok('10) estoque dividido por mês: migra, grava só o mês certo e muda de mês ao editar a data', o.r.ok && o.set === 'm1' && o.out === 'm2,m3' && o.sem === 'm4' && o.mem === 4 && o.escritas.join() === 'emov_2026-10'
     && o.nov === 'm3' && o.out2 === 'm2,m5' && o.treinosIntactos, o);
 
+  // 11) cópia mensal permanente do estoque: só cria, nunca altera nem apaga
+  o = await page.evaluate(async () => {
+    semear(); localStorage.clear();
+    const mv = (id, data) => ({ id, data, produtoId: 'p1', produtoNome: 'Ração', tipoMov: 'saida', quantidade: 1 });
+    const hoje = toISODate(new Date()); const mesAtual = hoje.slice(0, 7);
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); const mesAnt = toISODate(d).slice(0, 7);
+    d.setMonth(d.getMonth() - 1); const mesAnt2 = toISODate(d).slice(0, 7);
+    put('aux_lists', aux); put('estoque_movimentos', [mv('a', mesAnt2 + '-10'), mv('b', mesAnt + '-05'), mv('c', mesAnt + '-20'), mv('atual', hoje)]);
+    estoqueProdutos = [{ id: 'p1', nome: 'Ração' }]; dietas = [{ id: 'd1' }];
+    estoqueMovimentos = val('estoque_movimentos').slice();
+    const r1 = await histMensalGarantir();
+    const o = { r1, ant2: val('hist_estoque_' + mesAnt2), ant: val('hist_estoque_' + mesAnt), atual: val('hist_estoque_' + mesAtual) };
+    // alterar o estoque depois não altera a cópia; rodar de novo não recria
+    const antes = JSON.stringify(banco.get('hist_estoque_' + mesAnt)); estoqueMovimentos = estoqueMovimentos.filter(x => x.id !== 'b'); localStorage.clear(); ctl.escritas.length = 0;
+    const r2 = await histMensalGarantir(); o.r2criados = r2.criados; o.igual = JSON.stringify(banco.get('hist_estoque_' + mesAnt)) === antes; o.escritasHist = ctl.escritas.filter(k => /hist_/.test(k)).length; return o; });
+  ok('11) cópia mensal: cria um documento por mês fechado (sem o mês atual), com produtos/dietas só no último, e nunca regrava', o.r1.ok && o.r1.criados === 2 && o.ant2.movimentos.length === 1 && !o.ant2.produtosNaEpoca
+    && o.ant.movimentos.length === 2 && o.ant.produtosNaEpoca.length === 1 && o.ant.dietasNaEpoca.length === 1 && o.atual === null && o.r2criados === 0 && o.igual && o.escritasHist === 0, o);
+
   console.log('\nErros de JavaScript na página:', JSON.stringify(errs));
   console.log(`\n${total - falhas} passaram, ${falhas} falharam`);
   await b.close(); process.exit(falhas || errs.length ? 1 : 0);
