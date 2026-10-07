@@ -4515,7 +4515,7 @@ async function storeSetCore(key,val,userDeleted){
           'indefinido'= a leitura falhou na abertura: NADA de registros é gravado (não arrisca apagar). */
 const AREG_PREFIXO = 'areg_';
 const AREG_INDICE = 'areg_indice';
-const AREG_MIGRACAO_AUTOMATICA = false; // false = só migra pelo botão do Diagnóstico
+const AREG_MIGRACAO_AUTOMATICA = true; // true = divide sozinho em segundo plano ao abrir (ligado em 07/10/2026 a pedido do dono, com backup feito); false = só pelo botão do Diagnóstico
 let aregModo = 'legado';
 let aregIndice = null;                 // conteúdo do 'areg_indice' (quando migrado)
 let aregRevertido = false;             // recibo marcado como "revertido": não migra sozinho de novo
