@@ -20,6 +20,7 @@ const trigCliente = fft.wrap(F.sincronizarPapeisCliente);
 const wCriar = fft.wrap(F.criarCliente), wBloq = fft.wrap(F.bloquearCliente), wUso = fft.wrap(F.usoDoCliente);
 const wListar = fft.wrap(F.listarClientes), wAtual = fft.wrap(F.atualizarCliente);
 const CL = require('../clientes');
+const wLogin = fft.wrap(F.criarLoginDoUsuario);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
 const user = (email, admin, mods = []) => ({ id: email, nome: email, email, admin, permissoes: perm(...mods) });
@@ -349,6 +350,100 @@ describe('novidades por cliente (interruptor)', () => {
     await conta('h@orig2.com');
     await trigHaras(evento(null, [user('h@orig2.com', true)], 'harasData/usuarios_list'));
     assert.equal((await claimsDe('h@orig2.com')).recursos, undefined);
+  });
+});
+
+describe('criarLoginDoUsuario (admin do cliente cria o login da equipe)', () => {
+  const adminDe = (tid) => ({ uid: 'adm-' + tid, token: { papel: 'admin', tenantId: tid } });
+  const montar = async (plano, emails) => {   // cria o cliente e a lista de usuários dele; devolve o tenantId
+    const id = (await wCriar({ data: { nome: 'Cli ' + plano + emails.length, emailAdmin: 'adm@' + plano + emails.length + '.com', senhaProvisoria: 'provisoria1', plano }, auth: dono })).tenantId;
+    const admEmail = 'adm@' + plano + emails.length + '.com';
+    await db.doc(`tenants/${id}/dados/usuarios_list`).set({ value: [user(admEmail, true), ...emails.map(e => user(e, false, ['animais']))] });
+    return id;
+  };
+  test('cria o login (senha gerada uma vez) e já aplica papel, módulos e plano', async () => {
+    const id = await montar('basico', ['novo@cli.com']);
+    const r = await wLogin({ data: { email: 'Novo@Cli.com' }, auth: adminDe(id) });
+    assert.equal(r.criado, true); assert.equal(r.email, 'novo@cli.com'); assert.ok(r.senhaGerada && r.senhaGerada.length >= 8);
+    const c = await claimsDe('novo@cli.com');
+    assert.deepEqual(c, { tenantId: id, papel: 'funcionario', modulos: ['animais'], ...claimsPlano('basico') });
+  });
+  test('com senha informada: usa a senha e não devolve senhaGerada; senha curta é recusada', async () => {
+    const id = await montar('basico', ['s@cli.com']);
+    const r = await wLogin({ data: { email: 's@cli.com', senhaProvisoria: 'minhasenha9' }, auth: adminDe(id) });
+    assert.equal(r.criado, true); assert.equal(r.senhaGerada, undefined);
+    await rejeita(wLogin({ data: { email: 's@cli.com', senhaProvisoria: '123' }, auth: adminDe(id) }), 'invalid-argument');
+  });
+  test('negado: anônimo, não-admin, e-mail inválido', async () => {
+    const id = await montar('basico', ['x@cli.com']);
+    await rejeita(wLogin({ data: { email: 'x@cli.com' } }), 'unauthenticated');
+    await rejeita(wLogin({ data: { email: 'x@cli.com' }, auth: { uid: 'f', token: { papel: 'funcionario', tenantId: id } } }), 'permission-denied');
+    await rejeita(wLogin({ data: { email: 'nao-e-email' }, auth: adminDe(id) }), 'invalid-argument');
+    await assert.rejects(() => auth.getUserByEmail('x@cli.com'));
+  });
+  test('só quem já está na lista de usuários do cliente ganha login', async () => {
+    const id = await montar('basico', []);
+    await rejeita(wLogin({ data: { email: 'intruso@x.com' }, auth: adminDe(id) }), 'failed-precondition');
+    await assert.rejects(() => auth.getUserByEmail('intruso@x.com'));
+  });
+  test('limite de usuários do plano: quem passa do limite não ganha login (gratuito = 2)', async () => {
+    const id = await montar('gratuito', ['f1@lim.com', 'f2@lim.com']);   // admin + 2 = 3 na lista; só 2 cabem
+    await wLogin({ data: { email: 'f1@lim.com' }, auth: adminDe(id) });
+    await rejeita(wLogin({ data: { email: 'f2@lim.com' }, auth: adminDe(id) }), 'failed-precondition');
+    await assert.rejects(() => auth.getUserByEmail('f2@lim.com'));
+  });
+  test('o cliente vem do login do chamador, não do pedido: admin de A não cria login em B', async () => {
+    const a = await montar('basico', ['a1@cli.com']);
+    const b = await montar('pro', ['b1@cli.com']);
+    await rejeita(wLogin({ data: { email: 'b1@cli.com', tenantId: b }, auth: adminDe(a) }), 'failed-precondition'); // b1 não está na lista de A
+    await assert.rejects(() => auth.getUserByEmail('b1@cli.com'));
+  });
+  test('não toca em conta do dono, de outro cliente nem do haras original', async () => {
+    const id = await montar('basico', ['dono2@cli.com', 'outro@cli.com', 'haras@cli.com']);
+    await conta('dono2@cli.com', { dono: true });
+    await conta('outro@cli.com', { tenantId: 'beta', papel: 'admin' });
+    await conta('haras@cli.com', { papel: 'admin' });
+    for (const e of ['dono2@cli.com', 'outro@cli.com', 'haras@cli.com'])
+      await rejeita(wLogin({ data: { email: e, redefinir: true }, auth: adminDe(id) }), 'already-exists');
+    assert.deepEqual(await claimsDe('dono2@cli.com'), { dono: true });
+  });
+  test('conta que já existe e é livre ou do próprio cliente: reaproveita; redefinir troca a senha e derruba sessões', async () => {
+    const id = await montar('basico', ['livre2@cli.com', 'meu@cli.com']);
+    await conta('livre2@cli.com');
+    const r1 = await wLogin({ data: { email: 'livre2@cli.com' }, auth: adminDe(id) });
+    assert.equal(r1.criado, false); assert.equal(r1.jaExistia, true); assert.equal(r1.senhaGerada, undefined);
+    assert.equal((await claimsDe('livre2@cli.com')).tenantId, id);
+    await wLogin({ data: { email: 'meu@cli.com' }, auth: adminDe(id) });
+    const antes = (await auth.getUserByEmail('meu@cli.com')).tokensValidAfterTime;
+    await new Promise(r => setTimeout(r, 1100));
+    const r2 = await wLogin({ data: { email: 'meu@cli.com', redefinir: true }, auth: adminDe(id) });
+    assert.equal(r2.redefinida, true); assert.ok(r2.senhaGerada);
+    assert.notEqual((await auth.getUserByEmail('meu@cli.com')).tokensValidAfterTime, antes);
+  });
+  test('segurança: conta nova nasce desligada e só liga depois de receber o cliente; se falhar, é apagada', async () => {
+    const id = await montar('basico', ['seg@cli.com']);
+    await wLogin({ data: { email: 'seg@cli.com' }, auth: adminDe(id) });
+    const ok = await auth.getUserByEmail('seg@cli.com');
+    assert.equal(ok.disabled, false); assert.equal(ok.customClaims.tenantId, id);   // ligada, já com o cliente
+    // falha ao gravar o acesso: a conta recém-criada é apagada (conta sem cliente valeria como "haras original")
+    const usuarios = new Map(); const apagadas = [];
+    const fakeAuth = {
+      getUserByEmail: async (e) => { const u = usuarios.get(e); if (!u) { const err = new Error('nf'); err.code = 'auth/user-not-found'; throw err; } return u; },
+      createUser: async ({ email, disabled }) => { const u = { uid: 'u-' + email, email, disabled, customClaims: {} }; usuarios.set(email, u); return u; },
+      setCustomUserClaims: async () => { throw new Error('boom'); },
+      deleteUser: async (uid) => { apagadas.push(uid); },
+    };
+    const fakeDb = { doc: () => ({ get: async () => ({ exists: true, data: () => ({ value: [user('adm@t.com', true), user('falha@t.com', false, ['animais'])] }) }) }),
+      collection: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => ({ plano: 'basico' }) }) }) }) };
+    await assert.rejects(() => require('../usuarios').criarLoginDoUsuario({ auth: fakeAuth, db: fakeDb, claims: { papel: 'admin', tenantId: 'tt' } }, { email: 'falha@t.com' }));
+    assert.deepEqual(apagadas, ['u-falha@t.com']);
+    assert.equal(usuarios.get('falha@t.com').disabled, true);
+  });
+  test('administrador do haras original também cria login da própria equipe (sem plano)', async () => {
+    await db.doc('harasData/usuarios_list').set({ value: [user('adm@haras.com', true), user('func@haras.com', false, ['animais'])] });
+    const r = await wLogin({ data: { email: 'func@haras.com' }, auth: { uid: 'g', token: { papel: 'admin' } } });
+    assert.equal(r.criado, true);
+    assert.deepEqual(await claimsDe('func@haras.com'), { papel: 'funcionario', modulos: ['animais'] });
   });
 });
 
