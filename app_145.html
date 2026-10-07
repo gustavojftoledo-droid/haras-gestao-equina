@@ -936,6 +936,7 @@
           <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
           <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
           <div class="nav-item" data-view="auditoria"><span class="dot"></span>Auditoria</div>
+          <div class="nav-item" data-view="prestadores" style="display:none;"><span class="dot"></span>Prestadores</div>
           <div class="nav-item" data-view="clientes" style="display:none;"><span class="dot"></span>Clientes</div>
           <div class="nav-item" data-view="filtrosanimais"><span class="dot"></span>Filtros Sistema</div>
         </div>
@@ -1045,6 +1046,23 @@
     </div>
 
     <!-- AUDITORIA -->
+    <div class="view" id="view-prestadores">
+      <div class="topbar">
+        <div><div class="title">Prestadores de serviço</div><div class="subtitle">Autorize veterinárias, ferradores etc. (que têm assinatura própria) a enviar registros dos seus animais para você aprovar</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="btnPrestAtualizar">Atualizar</button><button type="button" class="btn" id="btnPrestConvidar">+ Convidar prestador</button></div>
+      </div>
+      <div class="hint-text" id="prestMsg" style="margin:6px 0 10px;"></div>
+      <div id="prestSecMeus"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:6px 0;">Prestadores que eu autorizei</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Prestador</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestMeusTbody"></tbody></table></div></div>
+      <div id="prestSecComo"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Eu presto serviço para</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Proprietário</th><th>Situação</th><th>Animais liberados</th><th></th></tr></thead><tbody id="prestComoTbody"></tbody></table></div></div>
+      <div id="prestSecRecebidas"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Registros recebidos de prestadores</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Prestador</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestRecebidasTbody"></tbody></table></div></div>
+      <div id="prestSecEnviadas"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Registros que eu enviei</div>
+      <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Proprietário</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestEnviadasTbody"></tbody></table></div></div>
+      <div class="hint-text" style="margin-top:12px;">Os registros enviados ficam <strong>pendentes</strong>. A aprovação pelo proprietário (e a entrada na ficha do animal) vem na próxima etapa.</div>
+    </div>
+
     <div class="view" id="view-clientes">
       <div class="topbar">
         <div><div class="title">Clientes</div><div class="subtitle">Painel do dono — quem usa o sistema, plano, uso de espaço e consentimento de dados</div></div>
@@ -1053,7 +1071,7 @@
       <div class="stats" id="cliStats"></div>
       <div class="hint-text" id="cliMsg" style="margin:6px 0 10px;"></div>
       <div class="grid-wrap"><table class="grid">
-        <thead><tr><th>Cliente</th><th>Plano</th><th>Situação</th><th>Contas</th><th>Último acesso</th><th>Uso de dados</th><th>Consentiu uso dos dados</th><th></th></tr></thead>
+        <thead><tr><th>Cliente</th><th>Plano</th><th>Situação</th><th>Contas</th><th>Último acesso</th><th>Cobrança</th><th>Uso de dados</th><th>Consentiu uso dos dados</th><th></th></tr></thead>
         <tbody id="cliTbody"></tbody>
       </table></div>
     </div>
@@ -4005,6 +4023,7 @@ const FIRESTORE_COLLECTION = 'harasData';
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
 let CLAIM_MODULOS = null;  // módulos liberados pelo PLANO do cliente (claim 'modulos'); null = sem limite de plano (haras original)
+let CLAIM_TIPO = 'proprietario'; // tipo da assinatura (claim 'tipoAssinatura', definido só pelo dono): proprietario | prestador | ambos
 let CLAIM_RECURSOS = [];   // novidades liberadas só para este cliente (claim 'recursos'); veja RECURSOS_APP / recursoAtivo()
 let MAX_USUARIOS = 0;     // usuários permitidos pelo plano (claim 'maxUsuarios'); 0 = sem limite
 let PLANO_ATUAL = '';     // claim 'plano' (só informativo)
@@ -4016,8 +4035,12 @@ let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais).
    liberacao: 'todos' = todos veem (sem interruptor); 'selecionados' = só quem estiver marcado; 'desligado' = ninguém (em teste).
    O haras original (sem cliente) sempre vê tudo. As chaves marcadas ficam na claim 'recursos' da conta (gravada pelo servidor). */
 const RECURSOS_APP = {
+  integracao_prestadores: { nome:'Integração com prestadores de serviço (veterinária, ferrador...)', liberacao:'selecionados' },
   // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
 };
+// Lados da integração entre assinaturas. O haras original (sem cliente) é só proprietário.
+const ladoProprietario = ()=> CLAIM_TIPO!=='prestador';
+const ladoPrestador = ()=> !!TENANT_ID && CLAIM_TIPO!=='proprietario';
 function recursoAtivo(chave){
   if(!TENANT_ID) return true;
   const def = RECURSOS_APP[chave];
@@ -4042,7 +4065,7 @@ async function resolverTenantDoUsuario(authUser){
       claims = JSON.parse(localStorage.getItem(chaveCl) || '{}') || {};
     }else{
       if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
-      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos }));
+      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos, tipoAssinatura: claims.tipoAssinatura }));
     }
   }catch(_){}
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
@@ -4050,6 +4073,7 @@ async function resolverTenantDoUsuario(authUser){
   CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
   MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
   PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
+  CLAIM_TIPO = (TENANT_ID && ['proprietario','prestador','ambos'].includes(claims.tipoAssinatura)) ? claims.tipoAssinatura : 'proprietario';
   CLAIM_RECURSOS = (TENANT_ID && Array.isArray(claims.recursos)) ? claims.recursos.filter(r=>typeof r==='string') : [];
   try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
@@ -4837,18 +4861,24 @@ function desenharClientes(){
   const ativos = clientesLista.filter(c=>c.ativo!==false).length;
   const comConsent = clientesLista.filter(c=>c.consentimentoDados && c.consentimentoDados.aceito===true).length;
   const card = (n,l)=>`<div class="stat"><div class="stat-num" style="font-size:22px;font-weight:700;">${n}</div><div class="stat-label" style="font-size:11.5px;color:var(--muted);">${l}</div></div>`;
-  document.getElementById('cliStats').innerHTML = card(clientesLista.length,'Clientes')+card(ativos,'Ativos')+card(clientesLista.length-ativos,'Bloqueados')+card(comConsent,'Consentiram o uso dos dados');
+  const cobr = c=>c.cobranca||{situacao:'sem_cobranca'};
+  const atrasados = clientesLista.filter(c=>c.ativo!==false && cobr(c).situacao==='atrasado').length;
+  const aVencer = clientesLista.filter(c=>c.ativo!==false && cobr(c).situacao==='vence_em_breve').length;
+  const recebido = clientesLista.reduce((t,c)=>t+(Number(cobr(c).pagoNoMesCentavos)||0),0);
+  document.getElementById('cliStats').innerHTML = card(clientesLista.length,'Clientes')+card(ativos,'Ativos')+card(clientesLista.length-ativos,'Bloqueados')+card(comConsent,'Consentiram o uso dos dados')
+    + card(`<span style="color:${atrasados?'var(--burgundy,#8b2a2a)':'inherit'};">${atrasados}</span>`,'Pagamento atrasado') + card(aVencer,'Vencem em até 5 dias') + card(fmtCentavos(recebido),'Recebido neste mês');
   document.getElementById('cliTbody').innerHTML = clientesLista.map(c=>{
     const ativo = c.ativo!==false, cons = c.consentimentoDados;
     return `<tr data-cid="${escHtml(c.id)}">
       <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
-      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}${c.tipoAssinatura&&c.tipoAssinatura!=='proprietario'?` <span style="font-size:11px;font-weight:700;color:var(--brass);">· ${c.tipoAssinatura==='prestador'?'Prestador':'Proprietário + Prestador'}</span>`:''}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
       <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
       <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
       <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
+      <td>${chipCobranca(c)}</td>
       <td><button type="button" class="btn btn-sm btn-ghost" data-cliuso="${escHtml(c.id)}">Ver uso</button> <span data-cliusotxt="${escHtml(c.id)}" style="font-size:12px;"></span></td>
       <td>${cons && cons.aceito===true ? ('✔ '+fmtDataHoraCli(cons.data)+(cons.versao?' (termo '+escHtml(cons.versao)+')':'')) : `<span style="color:var(--muted);">pendente${c.plano==='gratuito'?' <strong style="color:var(--burgundy,#8b2a2a);">(obrigatório no Gratuito)</strong>':''}</span>`}</td>
-      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button></td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-clipag="${escHtml(c.id)}">💰 Pagamentos</button> <button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button></td>
     </tr>`;
   }).join('');
   document.querySelectorAll('[data-cliuso]').forEach(b=>b.addEventListener('click', async ()=>{
@@ -4865,6 +4895,7 @@ function desenharClientes(){
     catch(e){ showAlert('Não consegui: '+msgErroFuncao(e)); }
   }));
   document.querySelectorAll('[data-cliedit]').forEach(b=>b.addEventListener('click', ()=>abrirEditarCliente(b.dataset.cliedit)));
+  document.querySelectorAll('[data-clipag]').forEach(b=>b.addEventListener('click', ()=>abrirPagamentosCliente(b.dataset.clipag)));
 }
 function garantirModaisClientes(){
   if(document.getElementById('overlayClienteNovo')) return;
@@ -4874,6 +4905,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome do cliente (haras/empresa)</label><input type="text" id="cn_nome" maxlength="100"></div>
     <div class="field"><label>E-mail do administrador</label><input type="email" id="cn_email" maxlength="200"></div>
     <div class="field"><label>Nome do administrador (opcional)</label><input type="text" id="cn_nomeAdmin" maxlength="100"></div>
+    <div class="field"><label>Tipo de assinatura</label><select id="cn_tipo"><option value="proprietario" selected>Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
     <div class="field"><label>Plano</label><select id="cn_plano"><option value="gratuito">Gratuito</option><option value="basico" selected>Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">Pro: espaço acima do limite é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Senha provisória (opcional — se vazio, o sistema cria uma)</label><input type="text" id="cn_senha" maxlength="100" autocomplete="off"></div>
@@ -4885,6 +4917,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome</label><input type="text" id="ce_nome" maxlength="100"></div>
     <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
+    <div class="field"><label>Tipo de assinatura</label><select id="ce_tipo"><option value="proprietario">Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
     <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
     <div class="field"><label>Novidades liberadas só para este cliente</label><div id="ce_recursos" style="display:flex;flex-direction:column;gap:6px;"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
@@ -4899,13 +4932,13 @@ function garantirModaisClientes(){
 function abrirNovoCliente(){
   garantirModaisClientes();
   ['cn_nome','cn_email','cn_nomeAdmin','cn_senha'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_msg').textContent = '';
+  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_tipo').value = 'proprietario'; document.getElementById('cn_msg').textContent = '';
   openModal('overlayClienteNovo');
 }
 async function salvarClienteNovo(){
   const dados = { nome:document.getElementById('cn_nome').value.trim(), emailAdmin:document.getElementById('cn_email').value.trim(), nomeAdmin:document.getElementById('cn_nomeAdmin').value.trim() };
   const senha = document.getElementById('cn_senha').value; if(senha) dados.senhaProvisoria = senha;
-  dados.plano = document.getElementById('cn_plano').value;
+  dados.plano = document.getElementById('cn_plano').value; dados.tipoAssinatura = document.getElementById('cn_tipo').value;
   const msg = document.getElementById('cn_msg');
   if(dados.nome.length<2){ msg.textContent = 'Informe o nome do cliente.'; return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.emailAdmin)){ msg.textContent = 'E-mail do administrador inválido.'; return; }
@@ -4924,6 +4957,7 @@ function abrirEditarCliente(id){
   document.getElementById('ce_titulo').textContent = 'Editar — '+(c.nome||c.id);
   document.getElementById('ce_nome').value = c.nome||'';
   document.getElementById('ce_plano').value = ['gratuito','basico','pro'].includes(c.plano) ? c.plano : 'basico';
+  document.getElementById('ce_tipo').value = ['proprietario','prestador','ambos'].includes(c.tipoAssinatura) ? c.tipoAssinatura : 'proprietario';
   document.getElementById('ce_limite').value = ((Number(c.limiteBytes)||1073741824)/1073741824).toFixed(3).replace(/\.?0+$/,'');
   const seletivos = Object.entries(RECURSOS_APP).filter(([,d])=>d.liberacao==='selecionados');
   const marcados = new Set(Array.isArray(c.recursos) ? c.recursos : []);
@@ -4942,6 +4976,7 @@ async function salvarClienteEditado(){
   const dados = { tenantId:c.id }; const nome = document.getElementById('ce_nome').value.trim();
   if(nome && nome!==c.nome) dados.nome = nome;
   const plano = document.getElementById('ce_plano').value; if(plano!==c.plano) dados.plano = plano;
+  const tipoNovo = document.getElementById('ce_tipo').value; if(tipoNovo!==(c.tipoAssinatura||'proprietario')) dados.tipoAssinatura = tipoNovo;
   const gb = Number(String(document.getElementById('ce_limite').value).replace(',','.'));
   const bytes = Math.round(gb*1073741824);
   if(!(gb>0)){ msg.textContent = 'Informe o limite em GB.'; return; }
@@ -4965,8 +5000,432 @@ async function salvarClienteEditado(){
   try{ await chamarFuncao('atualizarCliente', dados); closeModal('overlayClienteEditar'); renderClientes(); }
   catch(e){ msg.textContent = 'Não consegui salvar: '+msgErroFuncao(e); }
 }
+
+/* ================= PRESTADORES DE SERVIÇO (integração entre assinaturas — etapa 1: vínculo) =================
+   Ver INTEGRACAO_ENTRE_ASSINATURAS.md. Tudo passa por funções do servidor; o app não lê dados de outra assinatura. */
+let vinculosPrest = { comoProprietario:[], comoPrestador:[] };
+let solicPrest = { recebidas:[], enviadas:[] };
+const STATUS_VINCULO = { pendente:'Aguardando aceite', ativo:'Ativo', recusado:'Recusado', revogado:'Encerrado' };
+async function renderPrestadores(){
+  const msg = document.getElementById('prestMsg'); msg.textContent = 'Carregando...';
+  try{ vinculosPrest = await chamarFuncao('listarVinculos'); msg.textContent = ''; try{ solicPrest = await chamarFuncao('listarSolicitacoes'); }catch(_){ solicPrest = { recebidas:[], enviadas:[] }; } }
+  catch(e){ msg.textContent = 'Não consegui carregar: '+msgErroFuncao(e); vinculosPrest = { comoProprietario:[], comoPrestador:[] }; }
+  desenharPrestadores();
+}
+function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
+function desenharPrestadores(){
+  // cada assinatura só vê o lado que é dela (tipo definido pelo dono): proprietário autoriza; prestador recebe convites
+  document.getElementById('prestSecMeus').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecComo').style.display = ladoPrestador() ? '' : 'none';
+  document.getElementById('btnPrestConvidar').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecRecebidas').style.display = ladoProprietario() ? '' : 'none';
+  document.getElementById('prestSecEnviadas').style.display = ladoPrestador() ? '' : 'none';
+  const meus = vinculosPrest.comoProprietario||[], como = vinculosPrest.comoPrestador||[];
+  document.getElementById('prestMeusTbody').innerHTML = meus.length===0 ? '<tr><td colspan="4" class="empty">Nenhum prestador autorizado ainda. Use "+ Convidar prestador".</td></tr>'
+    : meus.map(v=>`<tr><td><strong>${escHtml(v.prestadorNome||v.prestadorTenantId)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(v.prestadorEmail||'')}</div></td>
+      <td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td><td>${escHtml(textoAnimaisVinculo(v))}</td>
+      <td style="white-space:nowrap;">${['pendente','ativo'].includes(v.status)?`<button type="button" class="btn btn-sm btn-ghost" data-prestanim="${escHtml(v.id)}">Animais</button> <button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:''}</td></tr>`).join('');
+  document.getElementById('prestComoTbody').innerHTML = como.length===0 ? '<tr><td colspan="4" class="empty">Ninguém autorizou você ainda.</td></tr>'
+    : como.map(v=>`<tr><td><strong>${escHtml(v.donoNome||v.donoTenantId)}</strong></td><td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td>
+      <td>${v.status==='ativo'?escHtml(textoAnimaisVinculo(v)):'—'}</td>
+      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`<button type="button" class="btn btn-sm" data-prestenviar="${escHtml(v.id)}">Enviar registro</button> <button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
+  desenharSolicitacoes();
+  document.querySelectorAll('[data-prestenviar]').forEach(b=>b.addEventListener('click', ()=>abrirEnvioRegistro(como.find(v=>v.id===b.dataset.prestenviar))));
+  document.querySelectorAll('[data-prestanim]').forEach(b=>b.addEventListener('click', ()=>abrirModalPrestador(meus.find(v=>v.id===b.dataset.prestanim))));
+  document.querySelectorAll('[data-prestrevogar]').forEach(b=>b.addEventListener('click', async ()=>{
+    if(!(await showConfirm('Encerrar essa autorização? O prestador deixa de poder enviar registros dos seus animais. O que já foi aprovado continua na ficha.'))) return;
+    try{ await chamarFuncao('revogarVinculo', { vinculoId:b.dataset.prestrevogar }); renderPrestadores(); }catch(e){ showAlert('Não consegui encerrar: '+msgErroFuncao(e)); }
+  }));
+  const responder = (attr, aceitar)=>document.querySelectorAll('['+attr+']').forEach(b=>b.addEventListener('click', async ()=>{
+    if(!(await showConfirm(aceitar ? 'Aceitar esse convite? O proprietário poderá receber os registros que você enviar sobre os animais liberados.' : 'Recusar esse convite?'))) return;
+    try{ await chamarFuncao('responderConvite', { vinculoId:b.getAttribute(attr), aceitar }); renderPrestadores(); }catch(e){ showAlert('Não consegui responder: '+msgErroFuncao(e)); }
+  }));
+  responder('data-prestaceitar', true); responder('data-prestrecusar', false);
+}
+let _vinculoEditando = null;
+function garantirModalPrestador(){
+  if(document.getElementById('overlayPrestador')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayPrestador"><div class="modal" style="max-width:min(96vw,560px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="pr_titulo">Convidar prestador</div><button class="modal-close" data-close="overlayPrestador">✕</button></div>
+    <div class="field" id="pr_emailBox"><label>E-mail do administrador da assinatura do prestador</label><input type="email" id="pr_email" maxlength="200" placeholder="ex.: veterinaria@clinica.com"></div>
+    <div class="field" style="margin-top:8px;"><label>Animais que ele poderá ver</label>
+      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="todos" id="pr_todos"> Todos os meus animais</label>
+      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="alguns" id="pr_alguns" checked> Só os que eu escolher</label>
+    </div>
+    <div id="pr_listaBox"><input type="text" id="pr_busca" placeholder="Buscar animal..." style="width:100%;margin:6px 0;"><div id="pr_lista" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px;"></div>
+      <div class="hint-text" id="pr_cont" style="margin-top:4px;"></div></div>
+    <div class="hint-text" id="pr_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayPrestador">Cancelar</button><button type="button" class="btn" id="pr_salvar">Salvar</button></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayPrestador [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayPrestador')));
+  document.getElementById('overlayPrestador').addEventListener('click', e=>{ if(e.target.id==='overlayPrestador') closeModal('overlayPrestador'); });
+  document.querySelectorAll('input[name=pr_modo]').forEach(r=>r.addEventListener('change', atualizarModoPrestador));
+  document.getElementById('pr_busca').addEventListener('input', desenharListaAnimaisPrestador);
+  document.getElementById('pr_salvar').addEventListener('click', salvarModalPrestador);
+}
+let _prSel = new Set();
+function atualizarModoPrestador(){ document.getElementById('pr_listaBox').style.display = document.getElementById('pr_todos').checked ? 'none' : ''; }
+function desenharListaAnimaisPrestador(){
+  const termo = normNomeProduto(document.getElementById('pr_busca').value||'');
+  const lista = horses.filter(h=>h.situacao!=='E' && h.situacao!=='V' && !h.falecimento).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt')).filter(h=>!termo || normNomeProduto(h.nome||'').includes(termo));
+  document.getElementById('pr_lista').innerHTML = lista.length===0 ? '<div class="hint-text">Nenhum animal encontrado.</div>'
+    : lista.map(h=>`<label style="display:flex;gap:8px;align-items:center;font-size:13px;padding:2px 0;"><input type="checkbox" data-prid="${escHtml(h.id)}" ${_prSel.has(h.id)?'checked':''}> ${escHtml(h.nome||'—')}</label>`).join('');
+  document.querySelectorAll('#pr_lista [data-prid]').forEach(c=>c.addEventListener('change', ()=>{ if(c.checked) _prSel.add(c.dataset.prid); else _prSel.delete(c.dataset.prid); document.getElementById('pr_cont').textContent = _prSel.size+' animal(is) escolhido(s)'; }));
+  document.getElementById('pr_cont').textContent = _prSel.size+' animal(is) escolhido(s)';
+}
+function abrirModalPrestador(vinculo){
+  garantirModalPrestador(); _vinculoEditando = vinculo || null;
+  document.getElementById('pr_titulo').textContent = vinculo ? ('Animais liberados — '+(vinculo.prestadorNome||'')) : 'Convidar prestador';
+  document.getElementById('pr_emailBox').style.display = vinculo ? 'none' : '';
+  document.getElementById('pr_email').value = ''; document.getElementById('pr_busca').value = ''; document.getElementById('pr_msg').textContent = '';
+  _prSel = new Set(vinculo && !vinculo.animaisTodos ? (vinculo.animaisIds||[]) : []);
+  document.getElementById('pr_todos').checked = !!(vinculo && vinculo.animaisTodos); document.getElementById('pr_alguns').checked = !(vinculo && vinculo.animaisTodos);
+  atualizarModoPrestador(); desenharListaAnimaisPrestador(); openModal('overlayPrestador');
+}
+async function salvarModalPrestador(){
+  const msg = document.getElementById('pr_msg'), todos = document.getElementById('pr_todos').checked;
+  const dados = todos ? { animaisTodos:true } : { animais:[..._prSel] };
+  if(!todos && _prSel.size===0){ msg.textContent = 'Escolha ao menos um animal, ou marque "Todos".'; return; }
+  let fn = 'atualizarAnimaisDoVinculo';
+  if(_vinculoEditando){ dados.vinculoId = _vinculoEditando.id; }
+  else {
+    const email = document.getElementById('pr_email').value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg.textContent = 'Informe o e-mail do prestador.'; return; }
+    dados.email = email; fn = 'convidarPrestador';
+  }
+  msg.textContent = 'Salvando...';
+  try{ await chamarFuncao(fn, dados); closeModal('overlayPrestador'); if(fn==='convidarPrestador') showAlert('Convite enviado. O prestador precisa aceitar na tela Prestadores dele.'); renderPrestadores(); }
+  catch(e){ msg.textContent = msgErroFuncao(e); }
+}
+
+/* ---- Etapa 2: envio de registro pelo prestador + lista de solicitações (aprovação = etapa 3) ---- */
+const STATUS_SOLIC = { pendente:'Pendente', aprovado:'Aprovado', recusado:'Recusado', cancelado:'Cancelado' };
+const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', outro:'Outro' };
+const CATEG_SERVICO_LABEL = { consulta:'Consulta', procedimento:'Procedimento', exame:'Exame (ex.: ultrassom)', casqueamento:'Casqueamento', ferrageamento:'Ferrageamento', deslocamento:'Deslocamento', outro:'Outro' };
+function resumoItensSolic(it){
+  const serv = it.filter(x=>x.tipo==='servico').length, mat = it.filter(x=>x.tipo==='material').length, meus = it.filter(x=>x.tipo==='material' && x.produtoDoPrestador).length;
+  return [serv?serv+' serviço(s)':'', mat?mat+' material(is)':'', meus?meus+' produto(s) do prestador':''].filter(Boolean).join(' · ') || '—';
+}
+function totalCobradoSolic(it){
+  return it.reduce((t,x)=> t + (x.tipo==='servico' ? (x.valorCentavos||0) : (x.produtoDoPrestador ? Math.round((x.quantidade||0)*(x.valorUnitarioCentavos||0)) : 0)), 0);
+}
+function desenharSolicitacoes(){
+  const rec = solicPrest.recebidas||[], env = solicPrest.enviadas||[];
+  const linha = (x, quem)=>`<tr data-solid="${escHtml(x.id)}" style="cursor:pointer;"><td>${fmtDate(x.dataRegistro)}</td><td>${escHtml(quem)}</td><td>${escHtml(x.animalNome||'')}</td><td>${escHtml(resumoItensSolic(x.itens||[]))}</td><td><strong>${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong></td><td style="white-space:nowrap;">${quem===x.prestadorNome?'':''}${x.status==='pendente' && quem===x.donoNome ? `<button type="button" class="btn btn-sm btn-ghost" data-solcancel="${escHtml(x.id)}">Cancelar</button>`:''}</td></tr>`;
+  document.getElementById('prestRecebidasTbody').innerHTML = rec.length===0 ? '<tr><td colspan="6" class="empty">Nenhum registro recebido.</td></tr>' : rec.map(x=>linha(x, x.prestadorNome)).join('');
+  document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome)).join('');
+  document.querySelectorAll('#prestRecebidasTbody tr[data-solid], #prestEnviadasTbody tr[data-solid]').forEach(tr=>tr.addEventListener('click', e=>{
+    if(e.target.closest('button')) return;
+    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(x) abrirDetalheSolicitacao(x);
+  }));
+  document.querySelectorAll('[data-solcancel]').forEach(b=>b.addEventListener('click', async e=>{
+    e.stopPropagation();
+    if(!(await showConfirm('Cancelar esse envio? O proprietário deixa de vê-lo como pendente.'))) return;
+    try{ await chamarFuncao('cancelarSolicitacao', { solicitacaoId:b.dataset.solcancel }); renderPrestadores(); }catch(err){ showAlert('Não consegui cancelar: '+msgErroFuncao(err)); }
+  }));
+}
+function abrirDetalheSolicitacao(x){
+  if(!document.getElementById('overlaySolicitacao')){
+    document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlaySolicitacao"><div class="modal" style="max-width:min(96vw,620px);max-height:92vh;overflow:auto;"><div class="modal-head"><div class="modal-title" id="sl_titulo">Registro</div><button class="modal-close" data-close="overlaySolicitacao">✕</button></div><div id="sl_corpo"></div></div></div>`);
+    document.querySelectorAll('#overlaySolicitacao [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlaySolicitacao')));
+    document.getElementById('overlaySolicitacao').addEventListener('click', e=>{ if(e.target.id==='overlaySolicitacao') closeModal('overlaySolicitacao'); });
+  }
+  document.getElementById('sl_titulo').textContent = (TIPO_REGISTRO_LABEL[x.tipoRegistro]||'Registro')+' — '+(x.animalNome||'');
+  const itens = (x.itens||[]).map(i=> i.tipo==='servico'
+    ? `<tr><td>Serviço</td><td>${escHtml(i.nome)}<div style="font-size:11px;color:var(--muted);">${escHtml(CATEG_SERVICO_LABEL[i.categoria]||'')}</div></td><td>—</td><td>${fmtCentavos(i.valorCentavos)}</td></tr>`
+    : `<tr><td>Material</td><td>${escHtml(i.nome)}${i.produtoDoPrestador?' <span style="font-size:11px;font-weight:700;color:var(--burgundy,#8b2a2a);">· produto do prestador</span>':''}</td><td>${escHtml(String(i.quantidade).replace('.',','))} ${escHtml(i.unidade||'')}</td><td>${i.produtoDoPrestador?(fmtCentavos(i.valorUnitarioCentavos)+' /un · '+fmtCentavos(Math.round(i.quantidade*i.valorUnitarioCentavos))):'<span style="color:var(--muted);">estoque e preço do proprietário</span>'}</td></tr>`).join('');
+  document.getElementById('sl_corpo').innerHTML = `
+    <div class="hint-text" style="margin:0 0 8px;">${escHtml(x.prestadorNome||'')} → ${escHtml(x.donoNome||'')} · registro de ${fmtDate(x.dataRegistro)} · enviado por ${escHtml(x.enviadoPor||'')}<br><strong>Situação: ${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong>${x.motivo?(' — '+escHtml(x.motivo)):''}</div>
+    ${x.descricao?`<div style="margin:0 0 8px;white-space:pre-wrap;">${escHtml(x.descricao)}</div>`:''}
+    <table class="grid"><thead><tr><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor cobrado pelo prestador</th></tr></thead><tbody>${itens}</tbody></table>
+    <div style="margin-top:8px;font-weight:700;">Total cobrado pelo prestador: ${fmtCentavos(totalCobradoSolic(x.itens||[]))}</div>`;
+  openModal('overlaySolicitacao');
+}
+let _envioVinculo = null, _envioSeq = 0;
+function garantirModalEnvio(){
+  if(document.getElementById('overlayEnvio')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayEnvio"><div class="modal" style="max-width:min(96vw,720px);max-height:94vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="ev_titulo">Enviar registro</div><button class="modal-close" data-close="overlayEnvio">✕</button></div>
+    <div class="hint-text" style="margin:0 0 8px;">O registro vai como <strong>pendente</strong>: só entra na ficha do animal depois que o proprietário aprovar.</div>
+    <div class="form-grid">
+      <div class="field"><label>Animal</label><select id="ev_animal"></select></div>
+      <div class="field"><label>Data do registro</label><input type="date" id="ev_data"></div>
+      <div class="field"><label>Tipo</label><select id="ev_tipo">${Object.entries(TIPO_REGISTRO_LABEL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="field full"><label>Observações</label><textarea id="ev_desc" rows="2" maxlength="1000" placeholder="O que foi feito, como o animal reagiu..."></textarea></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Itens</div>
+    <div id="ev_itens"></div>
+    <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-ghost" id="ev_addServ">+ Serviço (tem valor seu)</button><button type="button" class="btn btn-sm btn-ghost" id="ev_addMat">+ Material / medicamento</button></div>
+    <div class="hint-text">Marque <strong>"este produto é meu"</strong> só quando o produto saiu do <em>seu</em> estoque: aí você informa o valor cobrado e ele não dá baixa no estoque do proprietário. Sem marcar, vale o estoque e o preço do proprietário.</div>
+    <div id="ev_total" style="font-weight:700;margin:8px 0;"></div>
+    <div class="hint-text" id="ev_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayEnvio">Cancelar</button><button type="button" class="btn" id="ev_enviar">Enviar ao proprietário</button></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayEnvio [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayEnvio')));
+  document.getElementById('overlayEnvio').addEventListener('click', e=>{ if(e.target.id==='overlayEnvio') closeModal('overlayEnvio'); });
+  document.getElementById('ev_addServ').addEventListener('click', ()=>adicionarItemEnvio('servico'));
+  document.getElementById('ev_addMat').addEventListener('click', ()=>adicionarItemEnvio('material'));
+  document.getElementById('ev_enviar').addEventListener('click', enviarRegistroPelaTela);
+}
+function adicionarItemEnvio(tipo){
+  const id = ++_envioSeq, box = document.getElementById('ev_itens');
+  const html = tipo==='servico'
+    ? `<div class="form-grid" data-evitem="${id}" data-evtipo="servico" style="border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px;"><div class="field"><label>Serviço</label><input type="text" data-f="nome" maxlength="120" placeholder="ex.: Consulta, Ultrassom, Casqueamento"></div>
+        <div class="field"><label>Categoria</label><select data-f="categoria">${Object.entries(CATEG_SERVICO_LABEL).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+        <div class="field"><label>Valor cobrado (R$)</label><input type="text" inputmode="decimal" data-f="valor"></div><div class="field"><label>&nbsp;</label><button type="button" class="btn btn-sm btn-danger" data-evdel="${id}">Remover</button></div></div>`
+    : `<div class="form-grid" data-evitem="${id}" data-evtipo="material" style="border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:6px;"><div class="field"><label>Material / medicamento</label><input type="text" data-f="nome" maxlength="120" placeholder="ex.: Fenilbutazona, Ferradura"></div>
+        <div class="field"><label>Quantidade</label><input type="text" inputmode="decimal" data-f="qtd" placeholder="ex.: 2"></div><div class="field"><label>Unidade</label><input type="text" data-f="un" maxlength="20" placeholder="ml, un, par..."></div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;grid-column:1/-1;"><input type="checkbox" data-f="meu"> <strong>Este produto é meu</strong> (saiu do meu estoque)</label>
+        <div class="field" data-evvalor style="display:none;"><label>Valor cobrado por unidade (R$)</label><input type="text" inputmode="decimal" data-f="vun"></div><div class="field"><label>&nbsp;</label><button type="button" class="btn btn-sm btn-danger" data-evdel="${id}">Remover</button></div></div>`;
+  box.insertAdjacentHTML('beforeend', html);
+  const el = box.querySelector(`[data-evitem="${id}"]`);
+  el.querySelector('[data-evdel]').addEventListener('click', ()=>{ el.remove(); atualizarTotalEnvio(); });
+  const meu = el.querySelector('[data-f=meu]'); if(meu) meu.addEventListener('change', ()=>{ el.querySelector('[data-evvalor]').style.display = meu.checked ? '' : 'none'; atualizarTotalEnvio(); });
+  el.querySelectorAll('input,select').forEach(i=>i.addEventListener('input', atualizarTotalEnvio));
+}
+function lerItensEnvio(){
+  const itens = []; let erro = '';
+  document.querySelectorAll('#ev_itens [data-evitem]').forEach((el,i)=>{
+    if(erro) return; const f = k=>el.querySelector('[data-f='+k+']');
+    const nome = f('nome').value.trim();
+    if(el.dataset.evtipo==='servico'){
+      const v = reaisParaCentavos(f('valor').value);
+      if(nome.length<2) erro = 'Informe o nome do serviço '+(i+1)+'.'; else if(!(v>=0)) erro = 'Informe o valor do serviço "'+nome+'".';
+      else itens.push({ tipo:'servico', nome, categoria:f('categoria').value, valorCentavos:v });
+    } else {
+      const q = Number(String(f('qtd').value).replace(',','.')); const meu = f('meu').checked;
+      if(nome.length<2) erro = 'Informe o nome do material '+(i+1)+'.'; else if(!(q>0)) erro = 'Informe a quantidade de "'+nome+'".';
+      else { const it = { tipo:'material', nome, quantidade:q, unidade:f('un').value.trim(), produtoDoPrestador:meu };
+        if(meu){ const v = reaisParaCentavos(f('vun').value); if(!(v>=0)){ erro = 'Informe o valor por unidade de "'+nome+'" (produto seu).'; return; } it.valorUnitarioCentavos = v; }
+        itens.push(it); }
+    }
+  });
+  return { itens, erro };
+}
+function atualizarTotalEnvio(){
+  let t = 0;
+  document.querySelectorAll('#ev_itens [data-evitem]').forEach(el=>{
+    const f = k=>el.querySelector('[data-f='+k+']');
+    if(el.dataset.evtipo==='servico'){ const v = reaisParaCentavos(f('valor').value); if(v>=0) t += v; }
+    else if(f('meu').checked){ const q = Number(String(f('qtd').value).replace(',','.')), v = reaisParaCentavos(f('vun').value); if(q>0 && v>=0) t += Math.round(q*v); }
+  });
+  document.getElementById('ev_total').textContent = 'Total que você está cobrando do proprietário: '+fmtCentavos(t);
+}
+async function abrirEnvioRegistro(v){
+  if(!v) return; garantirModalEnvio(); _envioVinculo = v;
+  document.getElementById('ev_titulo').textContent = 'Enviar registro para '+(v.donoNome||'');
+  document.getElementById('ev_msg').textContent = 'Carregando animais liberados...'; document.getElementById('ev_itens').innerHTML = '';
+  document.getElementById('ev_data').value = toISODate(new Date()); document.getElementById('ev_desc').value = ''; document.getElementById('ev_tipo').value = 'aplicacao';
+  atualizarTotalEnvio(); openModal('overlayEnvio');
+  try{
+    const r = await chamarFuncao('animaisAutorizados', { vinculoId:v.id });
+    document.getElementById('ev_animal').innerHTML = r.animais.length===0 ? '<option value="">(nenhum animal liberado)</option>' : r.animais.map(a=>`<option value="${escHtml(a.id)}">${escHtml(a.nome||a.id)}</option>`).join('');
+    document.getElementById('ev_msg').textContent = r.animais.length===0 ? 'O proprietário ainda não liberou nenhum animal.' : '';
+  }catch(e){ document.getElementById('ev_msg').textContent = 'Não consegui carregar os animais: '+msgErroFuncao(e); }
+}
+async function enviarRegistroPelaTela(){
+  const msg = document.getElementById('ev_msg'), v = _envioVinculo; if(!v) return;
+  const animalId = document.getElementById('ev_animal').value, data = document.getElementById('ev_data').value;
+  if(!animalId){ msg.textContent = 'Escolha o animal.'; return; }
+  if(!data){ msg.textContent = 'Informe a data do registro.'; return; }
+  const { itens, erro } = lerItensEnvio();
+  if(erro){ msg.textContent = erro; return; }
+  if(itens.length===0){ msg.textContent = 'Inclua ao menos um item (serviço ou material).'; return; }
+  msg.textContent = 'Enviando...';
+  try{
+    await chamarFuncao('enviarSolicitacao', { vinculoId:v.id, animalId, dataRegistro:data, tipoRegistro:document.getElementById('ev_tipo').value, descricao:document.getElementById('ev_desc').value.trim(), itens });
+    closeModal('overlayEnvio'); showAlert('Registro enviado. Ele fica pendente até o proprietário aprovar.'); renderPrestadores();
+  }catch(e){ msg.textContent = 'Não consegui enviar: '+msgErroFuncao(e); }
+}
+
+document.getElementById('btnPrestConvidar').addEventListener('click', ()=>abrirModalPrestador(null));
+document.getElementById('btnPrestAtualizar').addEventListener('click', renderPrestadores);
+
+/* ---- Cobrança manual (dono): mensalidade, vencimento e pagamentos registrados à mão ---- */
+function fmtCentavos(v){ return (Number(v||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function reaisParaCentavos(txt){ const t = String(txt==null?'':txt).trim(); if(t==='') return NaN; /* vazio NÃO é zero */ const n = Number(t.replace(/\./g,'').replace(',','.')); return Number.isFinite(n) ? Math.round(n*100) : NaN; }
+function chipCobranca(c){
+  const b = c.cobranca || {situacao:'sem_cobranca'};
+  const chip = (txt,cor)=>`<span style="font-weight:600;color:${cor};">${txt}</span>`;
+  let t;
+  if(b.situacao==='atrasado') t = chip('Atrasado há '+b.diasAtraso+' d','var(--burgundy,#8b2a2a)');
+  else if(b.situacao==='vence_em_breve') t = chip(b.diasParaVencer===0?'Vence hoje':('Vence em '+b.diasParaVencer+' d'),'var(--warn-ink,#9a6a00)');
+  else if(b.situacao==='em_dia') t = chip('Em dia','var(--ok,#2f6b3a)');
+  else return '<span style="color:var(--muted);">sem cobrança</span>';
+  return t+`<div style="font-size:11px;color:var(--muted);">${fmtCentavos(b.mensalidadeCentavos)} · dia ${b.diaVencimento}</div>`;
+}
+let _cobrCliente = null;
+function garantirModalPagamentos(){
+  if(document.getElementById('overlayPagamentos')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayPagamentos"><div class="modal" style="max-width:min(96vw,640px);">
+    <div class="modal-head"><div class="modal-title" id="pg_titulo">Pagamentos</div><button class="modal-close" data-close="overlayPagamentos">✕</button></div>
+    <div class="hint-text" style="margin:0 0 8px;">Cobrança <strong>manual</strong>: você recebe por Pix/boleto/transferência e anota aqui. O sistema não cobra nem bloqueia sozinho — ele só mostra quem está em dia, a vencer (5 dias) ou atrasado.</div>
+    <div class="form-grid">
+      <div class="field"><label>Mensalidade (R$)</label><input type="text" id="pg_mensal" inputmode="decimal" placeholder="ex.: 99,00 (vazio = sem cobrança)"></div>
+      <div class="field"><label>Dia do vencimento (1 a 28)</label><input type="number" id="pg_dia" min="1" max="28"></div>
+      <div class="field"><label>Cobrar a partir de</label><input type="date" id="pg_inicio"></div>
+      <div class="field"><label>Observação</label><input type="text" id="pg_obs" maxlength="300" placeholder="ex.: combinado Pix, desconto..."></div>
+    </div>
+    <div style="margin:6px 0 12px;"><button type="button" class="btn btn-sm" id="pg_salvarCfg">Salvar combinado</button> <span id="pg_cfgMsg" class="hint-text"></span></div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Registrar pagamento</div>
+    <div class="form-grid">
+      <div class="field"><label>Mês de referência</label><input type="month" id="pg_comp"></div>
+      <div class="field"><label>Valor pago (R$)</label><input type="text" id="pg_valor" inputmode="decimal"></div>
+      <div class="field"><label>Data do pagamento</label><input type="date" id="pg_data"></div>
+      <div class="field"><label>Forma</label><select id="pg_forma"><option value="pix">Pix</option><option value="boleto">Boleto</option><option value="transferencia">Transferência</option><option value="cartao">Cartão</option><option value="dinheiro">Dinheiro</option><option value="outro">Outro</option></select></div>
+    </div>
+    <div style="margin:6px 0 10px;"><button type="button" class="btn btn-sm" id="pg_registrar">Registrar pagamento</button> <span id="pg_msg" class="hint-text"></span></div>
+    <div style="max-height:220px;overflow:auto;"><table class="grid"><thead><tr><th>Mês</th><th>Valor</th><th>Pago em</th><th>Forma</th><th></th></tr></thead><tbody id="pg_lista"></tbody></table></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayPagamentos [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayPagamentos')));
+  document.getElementById('overlayPagamentos').addEventListener('click', e=>{ if(e.target.id==='overlayPagamentos') closeModal('overlayPagamentos'); });
+  document.getElementById('pg_salvarCfg').addEventListener('click', salvarCombinadoCobranca);
+  document.getElementById('pg_registrar').addEventListener('click', registrarPagamentoPelaTela);
+}
+async function abrirPagamentosCliente(id){
+  const c = clientesLista.find(x=>x.id===id); if(!c) return;
+  garantirModalPagamentos(); _cobrCliente = c;
+  const b = c.cobranca || {};
+  document.getElementById('pg_titulo').textContent = 'Pagamentos — '+(c.nome||c.id);
+  document.getElementById('pg_mensal').value = b.mensalidadeCentavos>0 ? (b.mensalidadeCentavos/100).toFixed(2).replace('.',',') : '';
+  document.getElementById('pg_dia').value = b.diaVencimento || '';
+  document.getElementById('pg_inicio').value = b.inicioCobranca || '';
+  document.getElementById('pg_obs').value = b.obs || '';
+  const hoje = toISODate(new Date());
+  document.getElementById('pg_comp').value = b.competenciaEmAberto || hoje.slice(0,7);
+  document.getElementById('pg_valor').value = b.mensalidadeCentavos>0 ? (b.mensalidadeCentavos/100).toFixed(2).replace('.',',') : '';
+  document.getElementById('pg_data').value = hoje;
+  document.getElementById('pg_cfgMsg').textContent = ''; document.getElementById('pg_msg').textContent = '';
+  openModal('overlayPagamentos');
+  await recarregarPagamentos();
+}
+async function recarregarPagamentos(){
+  const c = _cobrCliente; if(!c) return;
+  const tb = document.getElementById('pg_lista'); tb.innerHTML = '<tr><td colspan="5" class="empty">Carregando...</td></tr>';
+  try{
+    const r = await chamarFuncao('listarPagamentos', { tenantId:c.id });
+    const l = Array.isArray(r.pagamentos) ? r.pagamentos : [];
+    tb.innerHTML = l.length===0 ? '<tr><td colspan="5" class="empty">Nenhum pagamento registrado.</td></tr>'
+      : l.map(p=>`<tr><td>${escHtml(p.competencia)}</td><td>${fmtCentavos(p.valorCentavos)}</td><td>${fmtDate(p.pagoEm)}</td><td>${escHtml(p.forma||'')}</td><td><button type="button" class="btn btn-sm btn-danger" data-pgexc="${escHtml(p.competencia)}">Excluir</button></td></tr>`).join('');
+    tb.querySelectorAll('[data-pgexc]').forEach(b=>b.addEventListener('click', async ()=>{
+      if(!(await showConfirm('Excluir o pagamento de '+b.dataset.pgexc+'? O cliente volta a constar como não pago nesse mês.'))) return;
+      try{ await chamarFuncao('excluirPagamento', { tenantId:c.id, competencia:b.dataset.pgexc }); await recarregarPagamentos(); renderClientes(); }
+      catch(e){ showAlert('Não consegui excluir: '+msgErroFuncao(e)); }
+    }));
+  }catch(e){ tb.innerHTML = '<tr><td colspan="5" class="empty">Não consegui carregar: '+escHtml(msgErroFuncao(e))+'</td></tr>'; }
+}
+async function salvarCombinadoCobranca(){
+  const c = _cobrCliente; if(!c) return; const msg = document.getElementById('pg_cfgMsg');
+  const mTxt = document.getElementById('pg_mensal').value.trim();
+  const dados = { tenantId:c.id, obsCobranca: document.getElementById('pg_obs').value.trim() };
+  if(mTxt===''){ dados.mensalidadeCentavos = null; }
+  else { const v = reaisParaCentavos(mTxt); if(!(v>=0)){ msg.textContent = 'Valor da mensalidade inválido.'; return; } dados.mensalidadeCentavos = v; }
+  const dia = document.getElementById('pg_dia').value; dados.diaVencimento = dia==='' ? null : Number(dia);
+  const ini = document.getElementById('pg_inicio').value; dados.inicioCobranca = ini || null;
+  if(dados.mensalidadeCentavos>0 && (!dados.diaVencimento || !dados.inicioCobranca)){ msg.textContent = 'Para cobrar, informe o dia do vencimento e a data de início.'; return; }
+  msg.textContent = 'Salvando...';
+  try{ await chamarFuncao('atualizarCliente', dados); msg.textContent = 'Combinado salvo.'; await renderClientes(); _cobrCliente = clientesLista.find(x=>x.id===c.id) || c; }
+  catch(e){ msg.textContent = 'Não consegui salvar: '+msgErroFuncao(e); }
+}
+async function registrarPagamentoPelaTela(){
+  const c = _cobrCliente; if(!c) return; const msg = document.getElementById('pg_msg');
+  const comp = document.getElementById('pg_comp').value, data = document.getElementById('pg_data').value;
+  const v = reaisParaCentavos(document.getElementById('pg_valor').value);
+  if(!/^\d{4}-\d{2}$/.test(comp)){ msg.textContent = 'Escolha o mês de referência.'; return; }
+  if(!(v>=0)){ msg.textContent = 'Informe o valor pago.'; return; }
+  if(!data){ msg.textContent = 'Informe a data do pagamento.'; return; }
+  msg.textContent = 'Registrando...';
+  try{
+    await chamarFuncao('registrarPagamento', { tenantId:c.id, competencia:comp, valorCentavos:v, pagoEm:data, forma:document.getElementById('pg_forma').value });
+    msg.textContent = 'Pagamento registrado.'; await recarregarPagamentos(); renderClientes();
+  }catch(e){ msg.textContent = 'Não consegui registrar: '+msgErroFuncao(e); }
+}
+
 document.getElementById('btnClienteNovo').addEventListener('click', abrirNovoCliente);
 document.getElementById('btnClientesAtualizar').addEventListener('click', renderClientes);
+
+
+/* ================= ASSISTENTE DO PRIMEIRO LOGIN (só cliente novo, só administrador) =================
+   Na 1ª vez que o administrador de um cliente entra, uma tela pergunta os valores básicos de manejo. TUDO é opcional: campo vazio
+   fica vazio e o cliente preenche quando quiser (Manejos → "⚙ Editar valores de referência" / "⚙ Editar frequência de vacinas").
+   Os números cinzas são só EXEMPLO (placeholder); "Usar valores de exemplo" copia todos de uma vez. Os de ferrador são os do haras do
+   dono; os de vermífugo/dental/vacinas são exemplos genéricos — NÃO são recomendação veterinária. O haras original nunca vê isto. */
+const ONBOARDING_EXEMPLOS = { casco:{ 'Casqueado mãos':40, 'Casqueado completo':80, 'Casqueado pés':40, 'Ferrado mãos':140, 'Ferrado completo':200, 'Ferrado pés':140 },
+  deslocamento:0, freqFerrageamento:30, freqCasqueamento:60, vermifugoMeses:3, dentalMeses:12, vacinas:[['Influenza',180],['Tétano',365],['Raiva',365]] };
+function garantirModalOnboarding(){
+  if(document.getElementById('overlayOnboarding')) return;
+  const ex = ONBOARDING_EXEMPLOS;
+  const campo = (id,rot,ph,tipo='number',extra='min="0" step="0.01"')=>`<div class="field"><label>${rot}</label><input type="${tipo}" id="${id}" ${extra} placeholder="${ph}"></div>`;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayOnboarding"><div class="modal" style="max-width:min(96vw,680px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title">Bem-vindo! Configuração inicial</div></div>
+    <div class="hint-text" style="margin:0 0 10px;">Tudo aqui é <strong>opcional</strong>. Deixe em branco o que não quiser agora — você preenche quando quiser, nas telas de Manejos. Os números em cinza são <strong>só exemplos</strong> (os de vermífugo, dental e vacinas são genéricos: confirme com o seu veterinário).</div>
+    <div style="margin:0 0 8px;"><button type="button" class="btn btn-sm btn-ghost" id="ob_exemplos">Usar todos os valores de exemplo</button></div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Valor do ferrador (R$)</div>
+    <div class="form-grid">
+      ${Object.entries(ex.casco).map(([k,v],i)=>campo('ob_casco'+i, k+' (R$)', 'ex.: '+v)).join('')}
+      ${campo('ob_desloc','Deslocamento do ferrador (R$)','ex.: '+ex.deslocamento)}
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Quando avisar a próxima vez</div>
+    <div class="form-grid">
+      ${campo('ob_ferr','Ferrageamento: avisar após (dias)','ex.: '+ex.freqFerrageamento,'number','min="1" step="1"')}
+      ${campo('ob_casq','Casqueamento: avisar após (dias)','ex.: '+ex.freqCasqueamento,'number','min="1" step="1"')}
+      ${campo('ob_verm','Vermífugo: avisar após (meses) — para todos os animais','ex.: '+ex.vermifugoMeses,'number','min="1" step="1"')}
+      ${campo('ob_dent','Cheque dental: avisar após (meses) — para todos os animais','ex.: '+ex.dentalMeses,'number','min="1" step="1"')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Vacinas e de quantos em quantos dias repetir</div>
+    <div class="form-grid">
+      ${ex.vacinas.map(([n,d],i)=>campo('ob_vacn'+i,'Vacina '+(i+1)+' (nome)','ex.: '+n,'text','maxlength="60"')+campo('ob_vacd'+i,'Repetir a cada (dias)','ex.: '+d,'number','min="1" step="1"')).join('')}
+    </div>
+    <div class="hint-text" id="ob_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="ob_pular">Pular, configuro depois</button><button type="button" class="btn" id="ob_salvar">Salvar e começar</button></div>
+  </div></div>`);
+  document.getElementById('ob_exemplos').addEventListener('click', ()=>{
+    Object.values(ex.casco).forEach((v,i)=>{ document.getElementById('ob_casco'+i).value = v; });
+    document.getElementById('ob_desloc').value = ex.deslocamento; document.getElementById('ob_ferr').value = ex.freqFerrageamento; document.getElementById('ob_casq').value = ex.freqCasqueamento;
+    document.getElementById('ob_verm').value = ex.vermifugoMeses; document.getElementById('ob_dent').value = ex.dentalMeses;
+    ex.vacinas.forEach(([n,d],i)=>{ document.getElementById('ob_vacn'+i).value = n; document.getElementById('ob_vacd'+i).value = d; });
+  });
+  document.getElementById('ob_pular').addEventListener('click', ()=>concluirOnboarding(false));
+  document.getElementById('ob_salvar').addEventListener('click', ()=>concluirOnboarding(true));
+}
+async function concluirOnboarding(salvar){
+  const msg = document.getElementById('ob_msg');
+  if(salvar){
+    const num = id => { const v = document.getElementById(id).value; return v==='' ? null : Number(String(v).replace(',','.')); };
+    const ex = ONBOARDING_EXEMPLOS; const casco = {};
+    let erroCasco = false;
+    Object.keys(ex.casco).forEach((k,i)=>{ const v = num('ob_casco'+i); if(v!==null){ if(!(v>=0)){ msg.textContent = 'Valor inválido em "'+k+'".'; erroCasco = true; } else casco[k] = v; } });
+    if(erroCasco) return;
+    const pos = (id,rot)=>{ const v = num(id); if(v!==null && !(v>=1)){ msg.textContent = 'Informe um número de 1 em diante em "'+rot+'".'; throw 0; } return v; };
+    try{
+      const ferr = pos('ob_ferr','Ferrageamento'), casq = pos('ob_casq','Casqueamento'), verm = pos('ob_verm','Vermífugo'), dent = pos('ob_dent','Cheque dental');
+      const desloc = num('ob_desloc'); if(desloc!==null && !(desloc>=0)){ msg.textContent = 'Valor inválido no deslocamento.'; return; }
+      config.valoresCasco = { ...(config.valoresCasco||{}), ...casco };
+      if(desloc!==null) config.deslocamentoFerrador = desloc;
+      if(ferr!==null) config.freqFerrageamento = Math.round(ferr);
+      if(casq!==null) config.freqCasqueamento = Math.round(casq);
+      config.freqPadrao = { ...(config.freqPadrao||{}) };
+      if(verm!==null) config.freqPadrao['Vermífugo'] = Math.round(verm);
+      if(dent!==null) config.freqPadrao['Dente'] = Math.round(dent);
+      if(!config.freqVacinas) config.freqVacinas = {};
+      ex.vacinas.forEach((_,i)=>{ const n = document.getElementById('ob_vacn'+i).value.trim(); const d = pos('ob_vacd'+i,'Vacina '+(i+1)); if(n && d!==null) config.freqVacinas[n] = Math.round(d); });
+    }catch(e){ if(e===0) return; throw e; }
+  }
+  config.onboardingFeito = true;
+  msg.textContent = 'Salvando...';
+  if(!(await storeSet('config', config))){ msg.textContent = 'Não consegui salvar agora. Tente de novo.'; return; }
+  closeModal('overlayOnboarding');
+  try{ preencherValorRefCasco(); }catch(_){}
+  renderInicio();
+}
+function verificarOnboardingCliente(){
+  if(!TENANT_ID || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
+  garantirModalOnboarding(); openModal('overlayOnboarding');
+}
 
 /* ================= LISTAS DIVIDIDAS POR PERÍODO (treinos: um documento por ANO) =================
    ANTES: todos os treinos moravam num documento só ('treinos_list'), com teto de 1 MiB.
@@ -5265,6 +5724,8 @@ async function loadAll(){
     }
   }
   if(rConfig.value && !Array.isArray(rConfig.value)) config = {...config, ...rConfig.value};
+  // Cliente novo NÃO herda os valores de referência do ferrador do haras original: começa vazio e preenche no assistente do 1º login (ou depois).
+  if(TENANT_ID && !(rConfig.value && !Array.isArray(rConfig.value) && rConfig.value.valoresCasco)) config.valoresCasco = {};
   // Se a leitura da config FALHOU, as marcas "migração já feita" não vieram — sem esta trava o app achava
   // que nenhuma migração tinha rodado e rodava todas de novo (ex.: mandar rações do Estoque pro Catálogo).
   configLidoOk = !!rConfig.ok;
@@ -5283,7 +5744,7 @@ async function loadAll(){
     // "Ferrado mãos" tinha valor de referência antigo (100) — atualiza pro novo (140) só se ninguém
     // customizou esse valor manualmente; se já foi mudado à mão, respeita a escolha feita.
     if(config.valoresCasco['Ferrado mãos']===100) config.valoresCasco['Ferrado mãos'] = 140;
-    Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
+    if(!TENANT_ID) Object.keys(padraoValoresCasco).forEach(k=>{ if(config.valoresCasco[k]===undefined) config.valoresCasco[k] = padraoValoresCasco[k]; });
     if(!config.freqVacinas) config.freqVacinas = {};
     // Frequência dinâmica de Casco (Fase 4): recalcula a próxima data sozinha conforme o último tipo
     // de procedimento (Ferrageamento ou Casqueamento), em vez de um valor fixo por animal.
@@ -5998,7 +6459,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','clientes','filtrosanimais','consultoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','clientes','prestadores','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -6014,6 +6475,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='usuarios'){ renderUsuarios(); recarregarUsuarios().then(ok=>{ if(ok) renderUsuarios(); }); }
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
       if(view==='clientes') renderClientes();
+      if(view==='prestadores') renderPrestadores();
       if(view==='filtrosanimais') renderFiltrosAdmin();
       if(view==='consultoria') renderConsultoria();
     }else{
@@ -8312,7 +8774,7 @@ function computeProgramacao(dataReferencia){
       }
     }
     tiposSimples.forEach(tipo=>{
-      const freq = h[FREQ_FIELD[tipo]];
+      const freq = h[FREQ_FIELD[tipo]] || (config.freqPadrao && config.freqPadrao[tipo]); // do animal; se vazio, o padrão do assistente inicial (se houver)
       if(!freq) return; // sem frequência definida para esse animal/tipo
       const registros = manejos.filter(m=> m.tipo===tipo && m.animais.some(a=>a.id===h.id)).sort((a,b)=> b.data.localeCompare(a.data));
       const ultima = registros[0] ? registros[0].data : null;
@@ -22510,7 +22972,7 @@ function viewsPermitidasBruto(user){
   if(!user) return [];
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : [])];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : []), ...(recursoAtivo('integracao_prestadores') ? ['prestadores'] : [])];
   const base = ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
   if(permissaoDe(user,'estoque').ver){ base.push('dietas'); base.push('piquetes'); }
   return base;
@@ -24936,6 +25398,7 @@ function iniciarAppLogado(authUser){
     vetRelSelector.restoreFromSaved();
     relFichaSelector.restoreFromSaved();
     entrarNoApp();
+    setTimeout(verificarOnboardingCliente, 600); // cliente novo: assistente do 1º login (só administrador, uma vez)
     // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
     const paramAnimal = new URLSearchParams(location.search).get('animal');
     if(paramAnimal && horses.some(h=>h.id===paramAnimal)){
