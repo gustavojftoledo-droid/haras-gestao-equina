@@ -1,14 +1,22 @@
 /* Lógica da sincronização de papéis (separada do trigger para poder ser testada direto). */
-const { MODULOS, papelEModulos, normalizarEmail, mesmaLista } = require('./comum');
+const { MODULOS, papelEModulos, normalizarEmail, mesmaLista, limitesDoPlano } = require('./comum');
 
 /* Transforma a lista em { email -> {papel, modulos} }. E-mails vazios e repetidos são ignorados (vale o primeiro). */
-function mapaDaLista(lista){
+function mapaDaLista(lista, limites){
   const mapa = new Map();
   if (!Array.isArray(lista)) return mapa;
   for (const u of lista) {
     const email = normalizarEmail(u && u.email);
     if (!email || mapa.has(email)) continue;
-    mapa.set(email, papelEModulos(u));
+    const pm = papelEModulos(u);
+    // plano do cliente: o que está fora do plano some, mesmo para o admin
+    if (limites) pm.modulos = pm.modulos.filter(m => limites.modulos.includes(m));
+    mapa.set(email, pm);
+  }
+  // limite de usuários do plano: admins primeiro, depois a ordem da lista; os que passam do limite ficam sem acesso
+  if (limites && limites.maxUsuarios > 0 && mapa.size > limites.maxUsuarios) {
+    const ordem = [...mapa.entries()].sort((a, b) => (b[1].papel === 'admin') - (a[1].papel === 'admin'));
+    ordem.slice(limites.maxUsuarios).forEach(([email]) => mapa.delete(email));
   }
   return mapa;
 }
@@ -32,9 +40,10 @@ function podeMexer(claims, tenantId){
 }
 
 /* Aplica as claims. Retorna um resumo (útil para log e testes). */
-async function sincronizarLista(auth, { tenantId, antes, depois }){
+async function sincronizarLista(auth, { tenantId, antes, depois, plano }){
   const resumo = { atualizados: [], iguais: [], semConta: [], removidos: [], ignorados: [], revogados: [] };
-  const novoMapa = mapaDaLista(depois);
+  const limites = tenantId && plano ? limitesDoPlano(plano) : null; // só clientes têm plano; o haras original não
+  const novoMapa = mapaDaLista(depois, limites);
   const velhoMapa = mapaDaLista(antes);
 
   for (const [email, { papel, modulos }] of novoMapa) {
@@ -44,7 +53,9 @@ async function sincronizarLista(auth, { tenantId, antes, depois }){
     if (!podeMexer(atuais, tenantId)) { resumo.ignorados.push(email); continue; }
     const novas = { ...atuais, papel, modulos };
     if (tenantId) novas.tenantId = tenantId;
-    if (mesmaLista(atuais.modulos, modulos) && atuais.papel === papel && (!tenantId || atuais.tenantId === tenantId)) {
+    if (limites) { novas.maxFotos = limites.maxFotos; novas.maxUsuarios = limites.maxUsuarios; novas.plano = limites.plano; }
+    const planoIgual = !limites || (atuais.maxFotos === limites.maxFotos && atuais.maxUsuarios === limites.maxUsuarios && atuais.plano === limites.plano);
+    if (mesmaLista(atuais.modulos, modulos) && atuais.papel === papel && (!tenantId || atuais.tenantId === tenantId) && planoIgual) {
       resumo.iguais.push(email); continue;
     }
     await auth.setCustomUserClaims(conta.uid, novas);
@@ -68,6 +79,7 @@ async function sincronizarLista(auth, { tenantId, antes, depois }){
     if (!('papel' in atuais) && !('modulos' in atuais)) continue; // já estava limpo (idempotente)
     const novas = { ...atuais };
     delete novas.papel; delete novas.modulos;
+    if (tenantId) { delete novas.maxFotos; delete novas.maxUsuarios; delete novas.plano; }
     await auth.setCustomUserClaims(conta.uid, novas);
     await auth.revokeRefreshTokens(conta.uid);
     resumo.removidos.push(email); resumo.revogados.push(email);
@@ -75,4 +87,10 @@ async function sincronizarLista(auth, { tenantId, antes, depois }){
   return resumo;
 }
 
-module.exports = { sincronizarLista, mapaDaLista, podeMexer, MODULOS };
+/* Reaplica o plano a todas as contas de um cliente (usado quando o plano muda): lista atual + plano novo.
+   Quem passou do limite de usuários ou perdeu módulos é rebaixado (e tem as sessões derrubadas pela mesma regra de sempre). */
+async function ressincronizarCliente(auth, { tenantId, lista, plano }){
+  return sincronizarLista(auth, { tenantId, antes: lista, depois: lista, plano });
+}
+
+module.exports = { sincronizarLista, ressincronizarCliente, mapaDaLista, podeMexer, MODULOS };

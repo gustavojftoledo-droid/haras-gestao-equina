@@ -1,7 +1,8 @@
 /* Lógica de criar/bloquear cliente e medir uso (separada para poder ser testada). */
 const { HttpsError } = require('firebase-functions/v2/https');
 const crypto = require('crypto');
-const { MODULOS, LIMITE_PADRAO_BYTES, normalizarEmail } = require('./comum');
+const { MODULOS, LIMITE_PADRAO_BYTES, normalizarEmail, PLANOS: TABELA_PLANOS, ehPlano, limitesDoPlano } = require('./comum');
+const { ressincronizarCliente } = require('./papeis');
 
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RE_TENANT = /^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/; // 3 a 40, sem '-' nas pontas
@@ -48,6 +49,8 @@ async function criarCliente({ auth, db, FieldValue }, data){
   if (!RE_EMAIL.test(emailAdmin) || emailAdmin.length > 200) throw new HttpsError('invalid-argument', 'E-mail do administrador inválido.');
   if (senha !== undefined && senha !== null && (typeof senha !== 'string' || senha.length < 8 || senha.length > 100))
     throw new HttpsError('invalid-argument', 'A senha provisória precisa ter de 8 a 100 caracteres.');
+  if (data.plano !== undefined && !ehPlano(data.plano)) throw new HttpsError('invalid-argument', 'Plano inválido (gratuito, basico ou pro).');
+  const lim = limitesDoPlano(data.plano); // sem plano informado = básico
 
   // conta já existente: só reaproveita se estiver livre (sem papel, sem tenantId, não é dono)
   let conta = null;
@@ -60,7 +63,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
   }
 
   const tenantId = await reservarTenantId(db, nome, {
-    nome, ativo: true, criadoEm: FieldValue.serverTimestamp(), plano: 'basico', limiteBytes: LIMITE_PADRAO_BYTES,
+    nome, ativo: true, criadoEm: FieldValue.serverTimestamp(), plano: lim.plano, limiteBytes: lim.limiteBytes,
   });
   try {
     let senhaGerada;
@@ -71,7 +74,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
       await auth.updateUser(conta.uid, { password: senha });
     }
     const claimsAntigas = conta.customClaims || {};
-    await auth.setCustomUserClaims(conta.uid, { ...claimsAntigas, tenantId, papel: 'admin', modulos: MODULOS.slice() });
+    await auth.setCustomUserClaims(conta.uid, { ...claimsAntigas, tenantId, papel: 'admin', modulos: lim.modulos.slice(), maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, plano: lim.plano });
     const permissoes = {};
     MODULOS.forEach(m => { permissoes[m] = { ver: true, inserir: true, editar: true, excluir: true }; });
     await db.doc(`tenants/${tenantId}/dados/usuarios_list`).set({
@@ -124,7 +127,7 @@ async function usoDoCliente({ db }, data){
 }
 
 /* ---- painel de clientes ---- */
-const PLANOS = ['gratuito', 'basico', 'pro'];
+const PLANOS = Object.keys(TABELA_PLANOS);
 const LIMITE_MIN_BYTES = 1048576;          // 1 MB
 const LIMITE_MAX_BYTES = 107374182400;     // 100 GB
 
@@ -156,12 +159,28 @@ async function contasPorCliente(auth){
   return mapa;
 }
 
+/* Plano do cliente (clientes/{id}.plano); ausente ou desconhecido = básico. */
+async function planoDoCliente(db, tenantId){
+  const s = await db.collection('clientes').doc(tenantId).get();
+  const p = s.exists && s.data() ? s.data().plano : null;
+  return ehPlano(p) ? p : 'basico';
+}
+async function listaUsuariosDoCliente(db, tenantId){
+  try {
+    const s = await db.doc(`tenants/${tenantId}/dados/usuarios_list`).get();
+    const v = s.exists && s.data() ? s.data().value : null;
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+
 async function listarClientes({ auth, db }){
   const snap = await db.collection('clientes').get();
   const mapa = await contasPorCliente(auth);
-  const clientes = snap.docs.map(doc => {
+  const listas = await Promise.all(snap.docs.map(doc => listaUsuariosDoCliente(db, doc.id)));
+  const clientes = snap.docs.map((doc, i) => {
     const d = doc.data() || {};
     const contas = mapa.get(doc.id) || [];
+    const lim = limitesDoPlano(d.plano);
     const admin = contas.find(u => u.customClaims.papel === 'admin');
     let ultimo = null;
     contas.forEach(u => {
@@ -172,7 +191,9 @@ async function listarClientes({ auth, db }){
       id: doc.id,
       nome: typeof d.nome === 'string' ? d.nome : '',
       ativo: d.ativo !== false,
-      plano: typeof d.plano === 'string' && d.plano ? d.plano : 'basico',
+      plano: lim.plano,
+      limites: { modulos: lim.modulos, maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, limiteBytes: lim.limiteBytes },
+      usuariosNaLista: listas[i].length,
       criadoEm: paraISO(d.criadoEm),
       limiteBytes: d.limiteBytes > 0 ? d.limiteBytes : LIMITE_PADRAO_BYTES,
       consentimentoDados: normalizarConsentimento(d.consentimentoDados),
@@ -185,7 +206,7 @@ async function listarClientes({ auth, db }){
   return { clientes };
 }
 
-async function atualizarCliente({ db, emailDono }, data){
+async function atualizarCliente({ auth, db, emailDono }, data){
   const tenantId = exigirTenantId(data.tenantId);
   const upd = {};
   if (data.nome !== undefined) {
@@ -212,9 +233,20 @@ async function atualizarCliente({ db, emailDono }, data){
   const campos = Object.keys(upd);
   if (!campos.length) throw new HttpsError('invalid-argument', 'Nada para atualizar');
   const ref = db.collection('clientes').doc(tenantId);
-  if (!(await ref.get()).exists) throw new HttpsError('not-found', 'Cliente não encontrado.');
+  const atual = await ref.get();
+  if (!atual.exists) throw new HttpsError('not-found', 'Cliente não encontrado.');
+  // Mudança de plano: o limite de espaço passa a ser o do novo plano (a menos que venha um limite junto) e as contas
+  // do cliente são reaplicadas (módulos, fotos, usuários) na hora.
+  const planoAntes = limitesDoPlano((atual.data() || {}).plano).plano;
+  const mudouPlano = upd.plano !== undefined && upd.plano !== planoAntes;
+  if (mudouPlano && upd.limiteBytes === undefined) upd.limiteBytes = limitesDoPlano(upd.plano).limiteBytes;
   await ref.update(upd);
-  return { tenantId, atualizado: campos };
+  const atualizado = Object.keys(upd);
+  if (mudouPlano && auth) {
+    await ressincronizarCliente(auth, { tenantId, lista: await listaUsuariosDoCliente(db, tenantId), plano: upd.plano });
+    atualizado.push('claims');
+  }
+  return { tenantId, atualizado };
 }
 
-module.exports = { exigirDono, criarCliente, bloquearCliente, usoDoCliente, listarClientes, atualizarCliente, gerarSlug, RE_TENANT };
+module.exports = { exigirDono, criarCliente, bloquearCliente, usoDoCliente, listarClientes, atualizarCliente, planoDoCliente, gerarSlug, RE_TENANT };

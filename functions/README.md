@@ -44,3 +44,19 @@ cd /tmp/fn && ./node_modules/.bin/firebase emulators:exec --only firestore,auth 
 3. Ainda no Cloud Shell, dê a claim de dono: `node definirDono.js` (simulação) e depois `node definirDono.js --aplicar`. Saia e entre de novo no app.
 4. Depois de publicado, o `definir_papeis.js` manual não é mais necessário no dia a dia (serve só para a primeira carga, ou salve a lista de usuários de novo para disparar o trigger).
 5. Os triggers só reagem a mudanças novas: para quem já existe, rode `definir_papeis.js --aplicar` uma vez ou edite/salve a lista.
+
+## Planos (07/10/2026)
+O plano do cliente (`clientes/{id}.plano`: gratuito | basico | pro; ausente = basico) define, nas contas dele, as claims
+`{ tenantId, papel, modulos, maxFotos, maxUsuarios, plano }`. `modulos` = permissões da lista de usuários ∩ módulos do plano.
+
+| | gratuito | basico | pro |
+|---|---|---|---|
+| módulos | animais, manejos, treinos, estoque, usuarios | + nascimentos, veterinaria, transporte, grupos | todos |
+| maxFotos | 1 | 4 | 8 |
+| maxUsuarios | 2 | 5 | 0 (sem limite) |
+| limiteBytes | 200 MB | 1 GB | 5 GB |
+
+- `criarCliente` aceita `plano` (padrão basico). `atualizarCliente` com plano diferente: troca `limiteBytes` pelo do plano (a não ser que venha um limite junto) e reaplica as claims de TODAS as contas do cliente (lista de usuários ∩ plano; passou do limite de usuários = admins primeiro, resto sem acesso; quem perdeu módulo tem a sessão derrubada). Devolve `'claims'` em `atualizado`.
+- `listarClientes` devolve também `limites` e `usuariosNaLista`.
+- **Honestidade sobre o que é trava:** as regras do Firestore (`firebase/firestore.rules*`) só conferem o cliente (`tenantId`) e se a conta é administradora; **não conferem módulo**. O corte por plano vale no app (menu/telas, limite de usuários e de fotos) e nas claims; **não é uma barreira de segurança** contra quem acessa o banco por fora do app. O isolamento entre clientes e o bloqueio (`ativo`) são travas reais.
+- O limite de espaço (`limiteBytes`) é medido por `usoDoCliente`; **não bloqueia** gravações. No plano Pro o excedente é cobrado do cliente (ver `TERMOS_E_LGPD_RASCUNHO.md`).

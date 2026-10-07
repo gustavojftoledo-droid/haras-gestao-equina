@@ -4003,6 +4003,9 @@ const FIRESTORE_COLLECTION = 'harasData';
    copiado. O id do cliente vem do login (claim 'tenantId' criado pelo servidor); sem claim = haras original. */
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
+let CLAIM_MODULOS = null;  // módulos liberados pelo PLANO do cliente (claim 'modulos'); null = sem limite de plano (haras original)
+let MAX_USUARIOS = 0;     // usuários permitidos pelo plano (claim 'maxUsuarios'); 0 = sem limite
+let PLANO_ATUAL = '';     // claim 'plano' (só informativo)
 let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais). Claim 'maxFotos' sobrescreve (plano do cliente)
 function colecaoDados(){ return TENANT_ID ? ('tenants/'+TENANT_ID+'/dados') : FIRESTORE_COLLECTION; }
 function tenantIdValido(t){ return typeof t==='string' && /^[a-z0-9_-]{3,40}$/i.test(t); }
@@ -4019,11 +4022,14 @@ async function resolverTenantDoUsuario(authUser){
       claims = JSON.parse(localStorage.getItem(chaveCl) || '{}') || {};
     }else{
       if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
-      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos }));
+      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano }));
     }
   }catch(_){}
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
   DONO = claims.dono === true;
+  CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
+  MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
+  PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
   try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
   MAX_FOTOS = (Number.isInteger(mf) && mf>=1 && mf<=50) ? mf : 4;
@@ -4815,12 +4821,12 @@ function desenharClientes(){
     const ativo = c.ativo!==false, cons = c.consentimentoDados;
     return `<tr data-cid="${escHtml(c.id)}">
       <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
-      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">limite ${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
       <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
-      <td>${Number(c.contas)||0}</td>
+      <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
       <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
       <td><button type="button" class="btn btn-sm btn-ghost" data-cliuso="${escHtml(c.id)}">Ver uso</button> <span data-cliusotxt="${escHtml(c.id)}" style="font-size:12px;"></span></td>
-      <td>${cons && cons.aceito===true ? ('✔ '+fmtDataHoraCli(cons.data)+(cons.versao?' (termo '+escHtml(cons.versao)+')':'')) : '<span style="color:var(--muted);">pendente</span>'}</td>
+      <td>${cons && cons.aceito===true ? ('✔ '+fmtDataHoraCli(cons.data)+(cons.versao?' (termo '+escHtml(cons.versao)+')':'')) : `<span style="color:var(--muted);">pendente${c.plano==='gratuito'?' <strong style="color:var(--burgundy,#8b2a2a);">(obrigatório no Gratuito)</strong>':''}</span>`}</td>
       <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button></td>
     </tr>`;
   }).join('');
@@ -4847,6 +4853,8 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome do cliente (haras/empresa)</label><input type="text" id="cn_nome" maxlength="100"></div>
     <div class="field"><label>E-mail do administrador</label><input type="email" id="cn_email" maxlength="200"></div>
     <div class="field"><label>Nome do administrador (opcional)</label><input type="text" id="cn_nomeAdmin" maxlength="100"></div>
+    <div class="field"><label>Plano</label><select id="cn_plano"><option value="gratuito">Gratuito</option><option value="basico" selected>Básico</option><option value="pro">Pro</option></select></div>
+    <div class="hint-text" style="margin:-4px 0 8px;">Pro: espaço acima do limite é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Senha provisória (opcional — se vazio, o sistema cria uma)</label><input type="text" id="cn_senha" maxlength="100" autocomplete="off"></div>
     <div class="hint-text" id="cn_msg" style="margin:8px 0;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayClienteNovo">Cancelar</button><button type="button" class="btn" id="cn_salvar">Criar cliente</button></div>
@@ -4855,6 +4863,7 @@ function garantirModaisClientes(){
     <div class="modal-head"><div class="modal-title" id="ce_titulo">Editar cliente</div><button class="modal-close" data-close="overlayClienteEditar">✕</button></div>
     <div class="field"><label>Nome</label><input type="text" id="ce_nome" maxlength="100"></div>
     <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
+    <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
     <div class="hint-text" id="ce_msg" style="margin:8px 0;"></div>
@@ -4868,12 +4877,13 @@ function garantirModaisClientes(){
 function abrirNovoCliente(){
   garantirModaisClientes();
   ['cn_nome','cn_email','cn_nomeAdmin','cn_senha'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cn_msg').textContent = '';
+  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_msg').textContent = '';
   openModal('overlayClienteNovo');
 }
 async function salvarClienteNovo(){
   const dados = { nome:document.getElementById('cn_nome').value.trim(), emailAdmin:document.getElementById('cn_email').value.trim(), nomeAdmin:document.getElementById('cn_nomeAdmin').value.trim() };
   const senha = document.getElementById('cn_senha').value; if(senha) dados.senhaProvisoria = senha;
+  dados.plano = document.getElementById('cn_plano').value;
   const msg = document.getElementById('cn_msg');
   if(dados.nome.length<2){ msg.textContent = 'Informe o nome do cliente.'; return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.emailAdmin)){ msg.textContent = 'E-mail do administrador inválido.'; return; }
@@ -4916,6 +4926,7 @@ async function salvarClienteEditado(){
     dados.consentimentoDados = { aceito:aceitou, versao };
   }
   if(Object.keys(dados).length===1){ closeModal('overlayClienteEditar'); return; }
+  if(dados.plano && !(await showConfirm('Mudar o plano de "'+(c.nome||c.id)+'" para '+(PLANO_LABEL[dados.plano]||dados.plano)+'? Isso muda na hora os módulos, o limite de fotos, de usuários e de dados deste cliente (quem perder um módulo é desconectado).'))) return;
   msg.textContent = 'Salvando...';
   try{ await chamarFuncao('atualizarCliente', dados); closeModal('overlayClienteEditar'); renderClientes(); }
   catch(e){ msg.textContent = 'Não consegui salvar: '+msgErroFuncao(e); }
@@ -22434,6 +22445,17 @@ function podeVerValoresAnimais(){
 // Auditoria fica de fora da grade de permissões de propósito: é a tela que fiscaliza todas as outras,
 // então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
+  return viewsPermitidasBruto(user).filter(naPlanoDoCliente);
+}
+// Plano do cliente (claim 'modulos'): tela fora do plano some do menu, mesmo para o administrador do cliente.
+// Dietas e Piquetes seguem o módulo Estoque. O haras original (sem cliente) não tem limite de plano.
+function naPlanoDoCliente(view){
+  if(!TENANT_ID || !Array.isArray(CLAIM_MODULOS)) return true;
+  if(MODULOS_PERMISSAO.includes(view)) return CLAIM_MODULOS.includes(view);
+  if(view==='dietas' || view==='piquetes') return CLAIM_MODULOS.includes('estoque');
+  return true;
+}
+function viewsPermitidasBruto(user){
   if(!user) return [];
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
@@ -22888,7 +22910,12 @@ function atualizarAcessoPreview(){
   const { admin, permissoes } = lerPermissoesDoForm();
   document.getElementById('u_acessoPreview').textContent = 'Esse usuário vê: ' + descreverAcesso({ admin, permissoes });
 }
+function limiteDeUsuariosAtingido(){
+  return !!(TENANT_ID && MAX_USUARIOS>0 && usuarios.length>=MAX_USUARIOS);
+}
+const MSG_LIMITE_USUARIOS = ()=>'O plano do seu cliente'+(PLANO_ATUAL?(' ('+PLANO_ATUAL+')'):'')+' permite até '+MAX_USUARIOS+' usuário(s), e você já tem '+usuarios.length+'. Para cadastrar mais, fale com o suporte para mudar o plano.';
 function openUsuarioNew(){
+  if(limiteDeUsuariosAtingido()){ showAlert(MSG_LIMITE_USUARIOS()); return; }
   editingUsuarioId=null;
   document.getElementById('usrModalTitle').textContent='Novo Usuário';
   document.getElementById('btnDeleteUsuario').style.display='none';
@@ -22920,6 +22947,7 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   if(editingUsuarioId && editingUsuarioId===currentUser.id && !admin && !usuarios.some(u=>u.id!==editingUsuarioId && u.admin)){
     showAlert('Esse é o único Administrador — não dá pra rebaixar o próprio acesso sem ter outro admin cadastrado.'); return;
   }
+  if(!editingUsuarioId && limiteDeUsuariosAtingido()){ showAlert(MSG_LIMITE_USUARIOS()); return; }
   const data = { id: editingUsuarioId || ('usr_'+Date.now()), nome, email, admin, permissoes };
   usuarios = editingUsuarioId ? usuarios.map(u=>u.id===editingUsuarioId?data:u) : [...usuarios, data];
   if(!(await storeSet('usuarios_list', usuarios))){ await recarregarUsuarios(); renderUsuarios(); return; }
