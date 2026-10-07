@@ -40,7 +40,7 @@ function podeMexer(claims, tenantId){
 }
 
 /* Aplica as claims. Retorna um resumo (útil para log e testes). */
-async function sincronizarLista(auth, { tenantId, antes, depois, plano }){
+async function sincronizarLista(auth, { tenantId, antes, depois, plano, recursos }){
   const resumo = { atualizados: [], iguais: [], semConta: [], removidos: [], ignorados: [], revogados: [] };
   const limites = tenantId && plano ? limitesDoPlano(plano) : null; // só clientes têm plano; o haras original não
   const novoMapa = mapaDaLista(depois, limites);
@@ -53,8 +53,9 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano }){
     if (!podeMexer(atuais, tenantId)) { resumo.ignorados.push(email); continue; }
     const novas = { ...atuais, papel, modulos };
     if (tenantId) novas.tenantId = tenantId;
-    if (limites) { novas.maxFotos = limites.maxFotos; novas.maxUsuarios = limites.maxUsuarios; novas.plano = limites.plano; }
-    const planoIgual = !limites || (atuais.maxFotos === limites.maxFotos && atuais.maxUsuarios === limites.maxUsuarios && atuais.plano === limites.plano);
+    const recs = recursos || [];
+    if (limites) { novas.maxFotos = limites.maxFotos; novas.maxUsuarios = limites.maxUsuarios; novas.plano = limites.plano; novas.recursos = recs; }
+    const planoIgual = !limites || (atuais.maxFotos === limites.maxFotos && atuais.maxUsuarios === limites.maxUsuarios && atuais.plano === limites.plano && mesmaLista(atuais.recursos || [], recs));
     if (mesmaLista(atuais.modulos, modulos) && atuais.papel === papel && (!tenantId || atuais.tenantId === tenantId) && planoIgual) {
       resumo.iguais.push(email); continue;
     }
@@ -79,7 +80,7 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano }){
     if (!('papel' in atuais) && !('modulos' in atuais)) continue; // já estava limpo (idempotente)
     const novas = { ...atuais };
     delete novas.papel; delete novas.modulos;
-    if (tenantId) { delete novas.maxFotos; delete novas.maxUsuarios; delete novas.plano; }
+    if (tenantId) { delete novas.maxFotos; delete novas.maxUsuarios; delete novas.plano; delete novas.recursos; }
     await auth.setCustomUserClaims(conta.uid, novas);
     await auth.revokeRefreshTokens(conta.uid);
     resumo.removidos.push(email); resumo.revogados.push(email);
@@ -89,8 +90,8 @@ async function sincronizarLista(auth, { tenantId, antes, depois, plano }){
 
 /* Reaplica o plano a todas as contas de um cliente (usado quando o plano muda): lista atual + plano novo.
    Quem passou do limite de usuários ou perdeu módulos é rebaixado (e tem as sessões derrubadas pela mesma regra de sempre). */
-async function ressincronizarCliente(auth, { tenantId, lista, plano }){
-  return sincronizarLista(auth, { tenantId, antes: lista, depois: lista, plano });
+async function ressincronizarCliente(auth, { tenantId, lista, plano, recursos }){
+  return sincronizarLista(auth, { tenantId, antes: lista, depois: lista, plano, recursos });
 }
 
 module.exports = { sincronizarLista, ressincronizarCliente, mapaDaLista, podeMexer, MODULOS };

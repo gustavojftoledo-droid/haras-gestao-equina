@@ -12,7 +12,7 @@ const fft = require('firebase-functions-test')({ projectId: 'demo-haras' });
 const F = require('../index');
 const { MODULOS, PLANOS, limitesDoPlano } = require('../comum');
 const modsDoPlano = (plano) => MODULOS.filter(m => limitesDoPlano(plano).modulos.includes(m)); // na ordem de MODULOS
-const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFotos: l.maxFotos, maxUsuarios: l.maxUsuarios, plano: l.plano }; };
+const claimsPlano = (plano) => { const l = limitesDoPlano(plano); return { maxFotos: l.maxFotos, maxUsuarios: l.maxUsuarios, plano: l.plano, recursos: [] }; };
 
 const auth = getAuth(), db = getFirestore();
 const trigHaras = fft.wrap(F.sincronizarPapeis);
@@ -307,6 +307,51 @@ describe('planos: o plano vale de verdade', () => {
   });
 });
 
+describe('novidades por cliente (interruptor)', () => {
+  const P = 'tenants/acme/dados/usuarios_list';
+  const novoCli = async (email, extra = {}) => (await wCriar({ data: { nome: 'Cli ' + email, emailAdmin: email, senhaProvisoria: 'provisoria1', ...extra }, auth: dono })).tenantId;
+  test('criarCliente aceita recursos (limpa repetidos, ordena) e rejeita chaves inválidas', async () => {
+    const id = await novoCli('a@rec.com', { recursos: ['zeta_x', 'alfa_y', 'alfa_y'] });
+    assert.deepEqual((await claimsDe('a@rec.com')).recursos, ['alfa_y', 'zeta_x']);
+    assert.deepEqual((await db.doc(`clientes/${id}`).get()).data().recursos, ['alfa_y', 'zeta_x']);
+    for (const ruim of [['Maiuscula'], ['com espaço'], [1], 'texto', ['a'], ['x'.repeat(31)], Array.from({ length: 13 }, (_, i) => 'rec_' + i)])
+      await rejeita(wCriar({ data: { nome: 'Ruim', emailAdmin: 'r@rec.com', recursos: ruim }, auth: dono }), 'invalid-argument');
+  });
+  test('atualizarCliente liga/desliga novidades e reaplica as claims de todas as contas', async () => {
+    const id = await novoCli('adm@rec2.com');
+    await conta('f@rec2.com');
+    const lista = [user('adm@rec2.com', true), user('f@rec2.com', false, ['animais'])];
+    await db.doc(`tenants/${id}/dados/usuarios_list`).set({ value: lista });
+    await trigCliente(evento(null, lista, `tenants/${id}/dados/usuarios_list`, { tid: id }));
+    assert.deepEqual((await claimsDe('f@rec2.com')).recursos, []);
+    const r = await wAtual({ data: { tenantId: id, recursos: ['novo_painel'] }, auth: dono });
+    assert.deepEqual(r.atualizado, ['recursos', 'claims']);
+    assert.deepEqual((await claimsDe('adm@rec2.com')).recursos, ['novo_painel']);
+    assert.deepEqual((await claimsDe('f@rec2.com')).recursos, ['novo_painel']);
+    const r2 = await wAtual({ data: { tenantId: id, recursos: ['novo_painel'] }, auth: dono });   // igual: não reaplica
+    assert.deepEqual(r2.atualizado, ['recursos']);
+    await wAtual({ data: { tenantId: id, recursos: [] }, auth: dono });
+    assert.deepEqual((await claimsDe('f@rec2.com')).recursos, []);
+    await rejeita(wAtual({ data: { tenantId: id, recursos: ['Ruim!'] }, auth: dono }), 'invalid-argument');
+  });
+  test('o gatilho de usuários mantém as novidades do cliente; listarClientes mostra', async () => {
+    await db.doc('clientes/acme').set({ nome: 'Acme', ativo: true, plano: 'pro', recursos: ['x_um', 'y_dois'] });
+    await conta('n@acme.com');
+    await trigCliente(evento(null, [user('n@acme.com', true)], P, { tid: 'acme' }));
+    assert.deepEqual((await claimsDe('n@acme.com')).recursos, ['x_um', 'y_dois']);
+    const r = await wListar({ data: {}, auth: dono });
+    assert.deepEqual(r.clientes.find(c => c.id === 'acme').recursos, ['x_um', 'y_dois']);
+  });
+  test('mudar de plano mantém as novidades; haras original não ganha claim de recursos', async () => {
+    const id = await novoCli('adm@rec3.com', { recursos: ['guardada'] });
+    await wAtual({ data: { tenantId: id, plano: 'gratuito' }, auth: dono });
+    assert.deepEqual((await claimsDe('adm@rec3.com')).recursos, ['guardada']);
+    await conta('h@orig2.com');
+    await trigHaras(evento(null, [user('h@orig2.com', true)], 'harasData/usuarios_list'));
+    assert.equal((await claimsDe('h@orig2.com')).recursos, undefined);
+  });
+});
+
 describe('bloquearCliente', () => {
   async function criar(nome, email){ return (await wCriar({ data: { nome, emailAdmin: email, senhaProvisoria: 'provisoria1' }, auth: dono })).tenantId; }
   test('negado a não-dono', async () => {
@@ -388,7 +433,7 @@ describe('listarClientes', () => {
     const r = await wListar({ data: {}, auth: dono });
     assert.deepEqual(r.clientes.map(c => c.id), ['alfa', 'beta', 'zeta']); // Álamo, beta, zeta (sem diferenciar maiúsculas)
     const [alfa, beta, zeta] = r.clientes;
-    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'ultimoAcesso', 'usuariosNaLista']);
+    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'recursos', 'ultimoAcesso', 'usuariosNaLista']);
     assert.equal(zeta.ativo, false); assert.equal(zeta.plano, 'pro'); assert.equal(zeta.limiteBytes, 5000000);
     assert.equal(zeta.criadoEm, '2026-01-02T03:04:05.000Z');
     assert.deepEqual(zeta.consentimentoDados, { aceito: true, data: '2026-02-03T00:00:00.000Z', versao: 'v1', por: 'a@b.com' });

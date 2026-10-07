@@ -4004,9 +4004,28 @@ const FIRESTORE_COLLECTION = 'harasData';
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
 let CLAIM_MODULOS = null;  // módulos liberados pelo PLANO do cliente (claim 'modulos'); null = sem limite de plano (haras original)
+let CLAIM_RECURSOS = [];   // novidades liberadas só para este cliente (claim 'recursos'); veja RECURSOS_APP / recursoAtivo()
 let MAX_USUARIOS = 0;     // usuários permitidos pelo plano (claim 'maxUsuarios'); 0 = sem limite
 let PLANO_ATUAL = '';     // claim 'plano' (só informativo)
 let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais). Claim 'maxFotos' sobrescreve (plano do cliente)
+
+/* ---- Novidades por cliente (interruptor) ----
+   Toda função NOVA que eu quiser entregar só para alguns clientes entra aqui com liberacao:'selecionados' e é protegida no
+   código por  if(recursoAtivo('chave')) { ... }.  O dono marca, na tela Clientes → Editar, quais clientes recebem cada novidade.
+   liberacao: 'todos' = todos veem (sem interruptor); 'selecionados' = só quem estiver marcado; 'desligado' = ninguém (em teste).
+   O haras original (sem cliente) sempre vê tudo. As chaves marcadas ficam na claim 'recursos' da conta (gravada pelo servidor). */
+const RECURSOS_APP = {
+  // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
+};
+function recursoAtivo(chave){
+  if(!TENANT_ID) return true;
+  const def = RECURSOS_APP[chave];
+  if(!def) return false;
+  if(def.liberacao==='todos') return true;
+  if(def.liberacao==='selecionados') return CLAIM_RECURSOS.includes(chave);
+  return false;
+}
+
 function colecaoDados(){ return TENANT_ID ? ('tenants/'+TENANT_ID+'/dados') : FIRESTORE_COLLECTION; }
 function tenantIdValido(t){ return typeof t==='string' && /^[a-z0-9_-]{3,40}$/i.test(t); }
 async function resolverTenantDoUsuario(authUser){
@@ -4022,7 +4041,7 @@ async function resolverTenantDoUsuario(authUser){
       claims = JSON.parse(localStorage.getItem(chaveCl) || '{}') || {};
     }else{
       if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
-      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano }));
+      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos }));
     }
   }catch(_){}
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
@@ -4030,6 +4049,7 @@ async function resolverTenantDoUsuario(authUser){
   CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
   MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
   PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
+  CLAIM_RECURSOS = (TENANT_ID && Array.isArray(claims.recursos)) ? claims.recursos.filter(r=>typeof r==='string') : [];
   try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
   MAX_FOTOS = (Number.isInteger(mf) && mf>=1 && mf<=50) ? mf : 4;
@@ -4821,7 +4841,7 @@ function desenharClientes(){
     const ativo = c.ativo!==false, cons = c.consentimentoDados;
     return `<tr data-cid="${escHtml(c.id)}">
       <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
-      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
       <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
       <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
       <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
@@ -4865,6 +4885,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
+    <div class="field"><label>Novidades liberadas só para este cliente</label><div id="ce_recursos" style="display:flex;flex-direction:column;gap:6px;"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
     <div class="hint-text" id="ce_msg" style="margin:8px 0;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayClienteEditar">Cancelar</button><button type="button" class="btn" id="ce_salvar">Salvar</button></div>
@@ -4903,6 +4924,11 @@ function abrirEditarCliente(id){
   document.getElementById('ce_nome').value = c.nome||'';
   document.getElementById('ce_plano').value = ['gratuito','basico','pro'].includes(c.plano) ? c.plano : 'basico';
   document.getElementById('ce_limite').value = ((Number(c.limiteBytes)||1073741824)/1073741824).toFixed(3).replace(/\.?0+$/,'');
+  const seletivos = Object.entries(RECURSOS_APP).filter(([,d])=>d.liberacao==='selecionados');
+  const marcados = new Set(Array.isArray(c.recursos) ? c.recursos : []);
+  document.getElementById('ce_recursos').innerHTML = seletivos.length===0
+    ? '<div class="hint-text">Nenhuma novidade seletiva no momento. Quando uma função nova for entregue só para alguns clientes, ela aparece aqui para você marcar.</div>'
+    : seletivos.map(([k,d])=>`<label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" data-cerec="${escHtml(k)}" ${marcados.has(k)?'checked':''}> ${escHtml(d.nome||k)}</label>`).join('');
   const cons = c.consentimentoDados;
   document.getElementById('ce_consent').checked = !!(cons && cons.aceito===true);
   document.getElementById('ce_versao').value = (cons && cons.versao) || '1.0';
@@ -4919,6 +4945,13 @@ async function salvarClienteEditado(){
   const bytes = Math.round(gb*1073741824);
   if(!(gb>0)){ msg.textContent = 'Informe o limite em GB.'; return; }
   if(bytes!==Number(c.limiteBytes)) dados.limiteBytes = bytes;
+  const recMarcados = [...document.querySelectorAll('#ce_recursos [data-cerec]:checked')].map(x=>x.dataset.cerec);
+  const recAntes = (Array.isArray(c.recursos)?c.recursos:[]).filter(k=>RECURSOS_APP[k] && RECURSOS_APP[k].liberacao==='selecionados');
+  if(document.querySelector('#ce_recursos [data-cerec]') && JSON.stringify(recMarcados.slice().sort())!==JSON.stringify(recAntes.slice().sort())){
+    // mantém chaves antigas que já não estão no registro (não apaga sem querer) e aplica as marcações de agora
+    const fora = (Array.isArray(c.recursos)?c.recursos:[]).filter(k=>!(RECURSOS_APP[k] && RECURSOS_APP[k].liberacao==='selecionados'));
+    dados.recursos = [...new Set([...fora, ...recMarcados])];
+  }
   const aceitou = document.getElementById('ce_consent').checked, versao = document.getElementById('ce_versao').value.trim();
   const antes = c.consentimentoDados || null;
   if(aceitou!==!!(antes && antes.aceito===true) || (aceitou && versao!==((antes&&antes.versao)||''))){
