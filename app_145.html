@@ -3567,7 +3567,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
       </div>
       <div class="field full hint-text" id="u_acessoPreview" style="margin-top:14px;"></div>
       <div class="modal-actions">
-        <div><button type="button" class="btn btn-danger" id="btnDeleteUsuario" style="display:none;">Excluir</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-danger" id="btnDeleteUsuario" style="display:none;">Excluir</button><button type="button" class="btn btn-ghost" id="btnUsuarioLogin" style="display:none;" title="Cria o login (e-mail e senha) desta pessoa, ou gera uma senha nova se ela já tiver login">🔑 Criar login / nova senha</button></div>
         <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayUsuario">Cancelar</button><button type="submit" class="btn">Salvar <span style="opacity:.65;font-weight:400;font-size:11px;">(Ctrl+S)</span></button></div>
       </div>
     </form>
@@ -22970,6 +22970,7 @@ function openUsuarioNew(){
   editingUsuarioId=null;
   document.getElementById('usrModalTitle').textContent='Novo Usuário';
   document.getElementById('btnDeleteUsuario').style.display='none';
+  document.getElementById('btnUsuarioLogin').style.display='none';
   document.getElementById('usuarioForm').reset();
   aplicarEstadoPermNoForm({admin:false, permissoes:{}});
   atualizarAcessoPreview();
@@ -22980,6 +22981,7 @@ function openUsuarioEdit(id){
   editingUsuarioId=id;
   document.getElementById('usrModalTitle').textContent=u.nome;
   document.getElementById('btnDeleteUsuario').style.display = usuarios.length>1 ? 'inline-block' : 'none';
+  document.getElementById('btnUsuarioLogin').style.display = (HAS_FIRESTORE && currentUser && currentUser.admin && u.email) ? 'inline-block' : 'none';
   document.getElementById('u_nome').value=u.nome;
   document.getElementById('u_email').value=u.email||'';
   aplicarEstadoPermNoForm(u);
@@ -23005,6 +23007,26 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   if(currentUser && editingUsuarioId===currentUser.id) currentUser = data;
   closeModal('overlayUsuario'); renderUsuarios(); aplicarPermissoes();
   showAlert('Usuário salvo.');
+  // Usuário novo: oferece já criar o login (e-mail + senha) para a pessoa conseguir entrar — sem passar pelo Firebase.
+  if(!editingUsuarioId && HAS_FIRESTORE && currentUser && currentUser.admin){
+    if(await showConfirm('Criar agora o login de '+nome+' ('+email+')? O sistema gera uma senha provisória, que aparece UMA vez para você passar à pessoa.')) await criarLoginDoUsuarioPelaTela(email, false);
+  }
+});
+// Cria (ou redefine a senha d)o login de alguém da equipe. O servidor só aceita administrador do próprio cliente, usuário já
+// cadastrado na lista e dentro do limite do plano.
+async function criarLoginDoUsuarioPelaTela(email, redefinir){
+  try{
+    const r = await chamarFuncao('criarLoginDoUsuario', { email, redefinir: !!redefinir });
+    if(r.senhaGerada) showAlert((r.redefinida?'Nova senha':'Login criado')+' para '+r.email+'.\n\nSENHA PROVISÓRIA (anote agora — não aparece de novo): '+r.senhaGerada+'\n\nPasse à pessoa o endereço do sistema, o e-mail e essa senha.');
+    else if(r.jaExistia) showAlert(r.email+' já tem login. Para gerar uma senha nova, abra o usuário e toque em "🔑 Criar login / nova senha".');
+    else showAlert('Login criado para '+r.email+'.');
+    return true;
+  }catch(e){ showAlert('Não consegui criar o login: '+msgErroFuncao(e)); return false; }
+}
+document.getElementById('btnUsuarioLogin').addEventListener('click', async ()=>{
+  const u = usuarios.find(x=>x.id===editingUsuarioId); if(!u || !u.email) return;
+  if(!(await showConfirm('Gerar login/senha nova para '+u.email+'? Se a pessoa já tinha senha, a antiga deixa de valer e as sessões abertas são encerradas.'))) return;
+  await criarLoginDoUsuarioPelaTela(u.email, true);
 });
 document.getElementById('btnDeleteUsuario').addEventListener('click', async ()=>{
   if(!editingUsuarioId) return;
