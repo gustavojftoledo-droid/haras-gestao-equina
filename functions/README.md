@@ -11,6 +11,14 @@ Funções que rodam no servidor do Firebase (projeto `equinos-manager`). Nada aq
 | `criarCliente` | chamada pelo app (só dono) | `{nome, emailAdmin, senhaProvisoria?, nomeAdmin?}` cria o cliente e devolve `{tenantId}`. Se você não passar senha e a conta for nova, devolve também `senhaGerada`. |
 | `bloquearCliente` | chamada pelo app (só dono) | `{tenantId, ativo}` desativa/reativa todas as contas do cliente. |
 | `usoDoCliente` | chamada pelo app (só dono) | `{tenantId}` devolve `{bytes, documentos, percentualDoLimite}`. |
+| `listarClientes` | chamada pelo app (só dono) | Sem entrada. Devolve `{clientes:[{id, nome, ativo, plano, criadoEm, limiteBytes, consentimentoDados, contas, emailAdmin, ultimoAcesso}]}` ordenado por nome. |
+| `atualizarCliente` | chamada pelo app (só dono) | `{tenantId, nome?, plano?, limiteBytes?, consentimentoDados?}` devolve `{tenantId, atualizado:[campos]}`. |
+
+### Painel de clientes (`listarClientes` e `atualizarCliente`)
+
+- `listarClientes` lê `clientes` e lista as contas do Auth uma única vez (paginado), agrupando por `tenantId` na memória. `ativo` assume `true`, `plano` `'basico'` e `limiteBytes` 1 GB quando faltam. `criadoEm` e `consentimentoDados.data` saem em ISO (ou `null`). `contas` é o número de contas do cliente, `emailAdmin` o e-mail da primeira conta com `papel==='admin'` (ou `''`) e `ultimoAcesso` o login mais recente entre elas (ou `null`). Não calcula uso de armazenamento: use `usoDoCliente` sob demanda.
+- `atualizarCliente` só grava `nome` (2 a 100 letras, sem espaços nas pontas), `plano` (`gratuito`, `basico` ou `pro`), `limiteBytes` (inteiro de 1048576 a 107374182400) e `consentimentoDados` (`{aceito:boolean, versao:1 a 40 caracteres}`, guardado como `{aceito, versao, data: agora em ISO, por: e-mail do dono}`). Nunca altera `ativo` (isso é do `bloquearCliente`). Sem nenhum campo válido: `invalid-argument` "Nada para atualizar". Cliente inexistente: `not-found`.
+- Para publicar (na raiz do repositório, onde fica o `firebase.json`): `firebase deploy --only functions`.
 
 Proteções que acrescentei (além do pedido): uma lista de usuários nunca altera a conta do dono, nem a de outro cliente, nem (lista de cliente) a conta de quem é do haras original. `criarCliente` recusa um e-mail que já pertence a outro cliente, ao haras original ou ao dono.
 

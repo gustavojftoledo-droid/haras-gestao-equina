@@ -123,4 +123,98 @@ async function usoDoCliente({ db }, data){
   return { bytes, documentos, percentualDoLimite: Math.round(bytes / limite * 10000) / 100 };
 }
 
-module.exports = { exigirDono, criarCliente, bloquearCliente, usoDoCliente, gerarSlug, RE_TENANT };
+/* ---- painel de clientes ---- */
+const PLANOS = ['gratuito', 'basico', 'pro'];
+const LIMITE_MIN_BYTES = 1048576;          // 1 MB
+const LIMITE_MAX_BYTES = 107374182400;     // 100 GB
+
+function paraISO(v){
+  if (!v) return null;
+  try {
+    const d = typeof v.toDate === 'function' ? v.toDate() : new Date(v);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  } catch (e) { return null; }
+}
+function normalizarConsentimento(c){
+  if (!c || typeof c !== 'object') return null;
+  return { aceito: c.aceito === true, data: paraISO(c.data), versao: typeof c.versao === 'string' ? c.versao : '', por: typeof c.por === 'string' ? c.por : '' };
+}
+/* Lista os usuários do Auth UMA vez (paginado) e agrupa por tenantId. */
+async function contasPorCliente(auth){
+  const mapa = new Map();
+  let token;
+  do {
+    const r = await auth.listUsers(1000, token);
+    r.users.forEach(u => {
+      const t = u.customClaims && u.customClaims.tenantId;
+      if (!t) return;
+      if (!mapa.has(t)) mapa.set(t, []);
+      mapa.get(t).push(u);
+    });
+    token = r.pageToken;
+  } while (token);
+  return mapa;
+}
+
+async function listarClientes({ auth, db }){
+  const snap = await db.collection('clientes').get();
+  const mapa = await contasPorCliente(auth);
+  const clientes = snap.docs.map(doc => {
+    const d = doc.data() || {};
+    const contas = mapa.get(doc.id) || [];
+    const admin = contas.find(u => u.customClaims.papel === 'admin');
+    let ultimo = null;
+    contas.forEach(u => {
+      const t = u.metadata && u.metadata.lastSignInTime ? new Date(u.metadata.lastSignInTime) : null;
+      if (t && !isNaN(t.getTime()) && (!ultimo || t > ultimo)) ultimo = t;
+    });
+    return {
+      id: doc.id,
+      nome: typeof d.nome === 'string' ? d.nome : '',
+      ativo: d.ativo !== false,
+      plano: typeof d.plano === 'string' && d.plano ? d.plano : 'basico',
+      criadoEm: paraISO(d.criadoEm),
+      limiteBytes: d.limiteBytes > 0 ? d.limiteBytes : LIMITE_PADRAO_BYTES,
+      consentimentoDados: normalizarConsentimento(d.consentimentoDados),
+      contas: contas.length,
+      emailAdmin: admin && admin.email ? admin.email : '',
+      ultimoAcesso: ultimo ? ultimo.toISOString() : null,
+    };
+  });
+  clientes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
+  return { clientes };
+}
+
+async function atualizarCliente({ db, emailDono }, data){
+  const tenantId = exigirTenantId(data.tenantId);
+  const upd = {};
+  if (data.nome !== undefined) {
+    const nome = typeof data.nome === 'string' ? data.nome.trim() : '';
+    if (nome.length < 2 || nome.length > 100) throw new HttpsError('invalid-argument', 'Informe o nome do cliente (2 a 100 letras).');
+    upd.nome = nome;
+  }
+  if (data.plano !== undefined) {
+    if (!PLANOS.includes(data.plano)) throw new HttpsError('invalid-argument', 'Plano inválido (gratuito, basico ou pro).');
+    upd.plano = data.plano;
+  }
+  if (data.limiteBytes !== undefined) {
+    const l = data.limiteBytes;
+    if (!Number.isInteger(l) || l < LIMITE_MIN_BYTES || l > LIMITE_MAX_BYTES)
+      throw new HttpsError('invalid-argument', 'Limite de armazenamento inválido (1 MB a 100 GB, em bytes).');
+    upd.limiteBytes = l;
+  }
+  if (data.consentimentoDados !== undefined) {
+    const c = data.consentimentoDados;
+    if (!c || typeof c !== 'object' || typeof c.aceito !== 'boolean' || typeof c.versao !== 'string' || c.versao.length < 1 || c.versao.length > 40)
+      throw new HttpsError('invalid-argument', 'Consentimento inválido (aceito verdadeiro/falso e versão de 1 a 40 caracteres).');
+    upd.consentimentoDados = { aceito: c.aceito, versao: c.versao, data: new Date().toISOString(), por: typeof emailDono === 'string' ? emailDono : '' };
+  }
+  const campos = Object.keys(upd);
+  if (!campos.length) throw new HttpsError('invalid-argument', 'Nada para atualizar');
+  const ref = db.collection('clientes').doc(tenantId);
+  if (!(await ref.get()).exists) throw new HttpsError('not-found', 'Cliente não encontrado.');
+  await ref.update(upd);
+  return { tenantId, atualizado: campos };
+}
+
+module.exports = { exigirDono, criarCliente, bloquearCliente, usoDoCliente, listarClientes, atualizarCliente, gerarSlug, RE_TENANT };
