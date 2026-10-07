@@ -28,7 +28,7 @@ Partes: **[NOME/CNPJ DO DONO DO SISTEMA]** ("**Plataforma**") e o **cliente** qu
 
 ## 4. Direitos dos titulares e retenção
 - O titular (ex.: funcionário, proprietário) exerce direitos (acesso, correção, eliminação, portabilidade) **junto ao Cliente**; a Plataforma **ajuda** o Cliente a atender (prazo: **[15] dias**). **[ADVOGADO]**
-- **Retenção:** os dados ficam enquanto o contrato durar. Após o cancelamento, a Plataforma **mantém os dados do Cliente por [90] dias** para ele poder exportar/reativar e depois **elimina**, **exceto** o que a lei obrigue guardar e os **dados anonimizados/agregados** (seção 6). Backups se extinguem no ciclo normal. **[ADVOGADO: prazos]**
+- **Retenção:** os dados ficam enquanto o contrato durar. Após o cancelamento, a Plataforma **mantém os dados do Cliente por [90] dias** para ele poder exportar/reativar e depois **elimina**; no caso de **inadimplência**, vale o prazo da seção 5.3 (**[12 meses]** para exportar ou regularizar, e depois eliminação definitiva), **exceto** o que a lei obrigue guardar e os **dados anonimizados/agregados** (seção 6). Backups se extinguem no ciclo normal. **[ADVOGADO: prazos]**
 - **Incidente de segurança:** a Plataforma avisa o Cliente **sem demora injustificada** (meta: **até 48 h** após ciência) e colabora na comunicação à ANPD e aos titulares quando exigido.
 - **Encarregado (DPO)/contato de privacidade:** **[NOME e E-MAIL]**.
 
@@ -44,7 +44,13 @@ Partes: **[NOME/CNPJ DO DONO DO SISTEMA]** ("**Plataforma**") e o **cliente** qu
 
 **5.2 Excedente de espaço (decisão do dono):** no plano **Pro**, o uso de espaço **acima do limite incluído** é **cobrado do Cliente**, pelo custo repassado **[valor por GB/mês ou critério — definir; ex.: custo do provedor + X%]**, com **aviso prévio** quando o uso passar de **80%** e de **100%** do limite, e cobrança no ciclo seguinte. O Cliente **autoriza** essa cobrança ao contratar o Pro. Nos planos **Gratuito** e **Básico**, ao atingir o limite a Plataforma pode **bloquear novos envios** de fotos/arquivos e/ou propor mudança de plano, **sem cobrança de excedente**. **[ADVOGADO: validade da cobrança variável, forma de aviso, CDC se o Cliente for consumidor]**
 
-**5.3 Pagamento e inadimplência:** **[definir quando a cobrança existir — etapa 5]**. Falta de pagamento pode levar a **bloqueio do acesso** (os dados ficam guardados pelo prazo da seção 4).
+**5.3 Pagamento, manutenção mínima dos dados e inadimplência (decisão do dono, 07/10/2026):**
+- **Manter os dados guardados tem um custo mínimo mensal** de **[valor — definir]**. Enquanto o Cliente pagar **ao menos esse mínimo**, a Plataforma **mantém os dados dele guardados** (mesmo que ele deixe de usar os recursos do plano).
+- **Falta de pagamento:** o acesso pode ser **bloqueado** (os dados continuam guardados). Durante os **[12 meses]** seguintes ao início da inadimplência, o Cliente **pode pedir a exportação dos próprios dados** e/ou **regularizar** o pagamento para recuperar o acesso. A Plataforma **avisa** o Cliente por e-mail **[quantas vezes e quando, ex.: ao bloquear, aos 6 meses, aos 11 meses]**.
+- **Fim do prazo:** passados **[12 meses]** sem regularização, o Cliente **perde o direito de recuperar os dados** e a Plataforma pode **eliminá-los de forma definitiva**, **sem possibilidade de recuperação**, **sem indenização**. O Cliente reconhece que **teve prazo e meios** (exportação) para guardar os dados e que **é dele a responsabilidade de exportá-los**. Ficam ressalvados os **dados anonimizados/agregados** (seção 6) e o que a lei obrigue a guardar.
+- **Aceite:** o Cliente concorda com essas regras **no aceite dos Termos** (primeiro acesso), com versão e data guardadas.
+- **[ADVOGADO: validade da eliminação por inadimplência (CDC/LGPD arts. 15–16 e 18), forma de notificação que comprove ciência, prazo de 12 meses, exclusão sem indenização, e se o mínimo mensal vale para plano Gratuito (hoje não há cobrança no Gratuito — decidir se o Gratuito inativo também tem prazo de eliminação).]**
+
 **5.4 Responsabilidades:** o Cliente responde pelo conteúdo cadastrado, pelo uso por seus usuários e pela guarda de senhas. A Plataforma responde pela disponibilidade **razoável** do serviço (**sem garantia de 100%**), pelos limites de responsabilidade a definir **[ADVOGADO: limite de responsabilidade e exclusões]**.
 **5.5 Propriedade:** os dados cadastrados **pertencem ao Cliente**. O sistema e sua marca pertencem à Plataforma.
 **5.6 Cancelamento:** o Cliente pode cancelar a qualquer momento; exportação de backup dos próprios dados disponível **[confirmar o formato]**.
@@ -85,7 +91,10 @@ Objetivo do dono: usar o histórico de **consumo de ração, medicamentos e esto
 | **Aceite dos Termos e da Política no primeiro acesso, dentro do app**, com versão e data guardadas | ⏳ a fazer (depende do texto final do advogado) |
 | **Aceite separado** do uso de dados agregados (seção 6) | ⏳ a fazer |
 | **Exportar todos os dados de um cliente** (portabilidade) | ⏳ a fazer |
-| **Excluir definitivamente um cliente** (com confirmação reforçada) | ⏳ a fazer (hoje só bloqueia) |
+| **Excluir definitivamente um cliente** (com confirmação reforçada) | ✔ feito (botão "Excluir" no painel: só cliente bloqueado, 2 avisos + palavra EXCLUIR) |
+| **Aviso automático por e-mail** ao cliente bloqueado por falta de pagamento (e perto do fim dos 12 meses) | ⏳ a fazer (hoje o dono avisa manualmente) |
+| **Lista no painel de clientes bloqueados há mais de [11/12] meses** (para o dono decidir a exclusão) | ⏳ a fazer |
+| **Mínimo mensal para manter os dados**: registrar no painel de cobrança | ⏳ a fazer (valor a definir) |
 | **Relatório agregado/anonimizado** com mínimo de N clientes | ⏳ a fazer (etapa 4/5; só depois do parecer) |
 | **Alerta de uso de espaço** (80% / 100%) para o cliente e para o dono | ⏳ a fazer (hoje só aparece em "Ver uso") |
 | Cobrança do excedente do Pro | ⏳ etapa 5 |
