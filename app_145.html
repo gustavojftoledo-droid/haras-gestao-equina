@@ -936,6 +936,7 @@
           <div class="nav-item" data-view="financeiro" title="Atalho: Alt+Shift+F"><span class="dot"></span>Financeiro</div>
           <div class="nav-item" data-view="usuarios" title="Atalho: Alt+Shift+U"><span class="dot"></span>Usuários</div>
           <div class="nav-item" data-view="auditoria"><span class="dot"></span>Auditoria</div>
+          <div class="nav-item" data-view="clientes" style="display:none;"><span class="dot"></span>Clientes</div>
           <div class="nav-item" data-view="filtrosanimais"><span class="dot"></span>Filtros Sistema</div>
         </div>
       </div>
@@ -1044,6 +1045,19 @@
     </div>
 
     <!-- AUDITORIA -->
+    <div class="view" id="view-clientes">
+      <div class="topbar">
+        <div><div class="title">Clientes</div><div class="subtitle">Painel do dono — quem usa o sistema, plano, uso de espaço e consentimento de dados</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="btnClientesAtualizar">Atualizar</button><button type="button" class="btn" id="btnClienteNovo">+ Novo cliente</button></div>
+      </div>
+      <div class="stats" id="cliStats"></div>
+      <div class="hint-text" id="cliMsg" style="margin:6px 0 10px;"></div>
+      <div class="grid-wrap"><table class="grid">
+        <thead><tr><th>Cliente</th><th>Plano</th><th>Situação</th><th>Contas</th><th>Último acesso</th><th>Uso de dados</th><th>Consentiu uso dos dados</th><th></th></tr></thead>
+        <tbody id="cliTbody"></tbody>
+      </table></div>
+    </div>
+
     <div class="view" id="view-auditoria">
       <div class="topbar">
         <div><div class="title">Auditoria</div><div class="subtitle">Tudo que foi incluído, alterado ou excluído — quem fez e quando</div></div>
@@ -2188,6 +2202,7 @@
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn" id="btnNovaRacaoCatalogo">+ Nova ração no catálogo</button>
+          <button type="button" class="btn btn-danger btn-ghost" id="btnApagarCatalogo" title="Exclui TODAS as rações do catálogo da Consultoria (não mexe no Estoque)">🗑 Apagar todo o catálogo</button>
           <button type="button" class="btn btn-ghost" id="btnOrganizarCatalogo" style="margin-right:auto;" title="Manda pro catálogo toda ração do Estoque que não é do haras">🧹 Organizar Estoque</button>
         </div>
         <div class="grid-wrap"><table class="grid">
@@ -3989,7 +4004,29 @@ const FIRESTORE_COLLECTION = 'harasData';
    copiado. O id do cliente vem do login (claim 'tenantId' criado pelo servidor); sem claim = haras original. */
 let TENANT_ID = null;
 let DONO = false;         // claim 'dono' (só o Gustavo): libera o Diagnóstico no menu
+let CLAIM_MODULOS = null;  // módulos liberados pelo PLANO do cliente (claim 'modulos'); null = sem limite de plano (haras original)
+let CLAIM_RECURSOS = [];   // novidades liberadas só para este cliente (claim 'recursos'); veja RECURSOS_APP / recursoAtivo()
+let MAX_USUARIOS = 0;     // usuários permitidos pelo plano (claim 'maxUsuarios'); 0 = sem limite
+let PLANO_ATUAL = '';     // claim 'plano' (só informativo)
 let MAX_FOTOS = 4;        // fotos por animal na ficha (principal + adicionais). Claim 'maxFotos' sobrescreve (plano do cliente)
+
+/* ---- Novidades por cliente (interruptor) ----
+   Toda função NOVA que eu quiser entregar só para alguns clientes entra aqui com liberacao:'selecionados' e é protegida no
+   código por  if(recursoAtivo('chave')) { ... }.  O dono marca, na tela Clientes → Editar, quais clientes recebem cada novidade.
+   liberacao: 'todos' = todos veem (sem interruptor); 'selecionados' = só quem estiver marcado; 'desligado' = ninguém (em teste).
+   O haras original (sem cliente) sempre vê tudo. As chaves marcadas ficam na claim 'recursos' da conta (gravada pelo servidor). */
+const RECURSOS_APP = {
+  // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
+};
+function recursoAtivo(chave){
+  if(!TENANT_ID) return true;
+  const def = RECURSOS_APP[chave];
+  if(!def) return false;
+  if(def.liberacao==='todos') return true;
+  if(def.liberacao==='selecionados') return CLAIM_RECURSOS.includes(chave);
+  return false;
+}
+
 function colecaoDados(){ return TENANT_ID ? ('tenants/'+TENANT_ID+'/dados') : FIRESTORE_COLLECTION; }
 function tenantIdValido(t){ return typeof t==='string' && /^[a-z0-9_-]{3,40}$/i.test(t); }
 async function resolverTenantDoUsuario(authUser){
@@ -4005,11 +4042,16 @@ async function resolverTenantDoUsuario(authUser){
       claims = JSON.parse(localStorage.getItem(chaveCl) || '{}') || {};
     }else{
       if(tenant) localStorage.setItem(chave, tenant); else localStorage.removeItem(chave);
-      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos }));
+      localStorage.setItem(chaveCl, JSON.stringify({ dono: claims.dono===true, maxFotos: claims.maxFotos, modulos: claims.modulos, maxUsuarios: claims.maxUsuarios, plano: claims.plano, recursos: claims.recursos }));
     }
   }catch(_){}
   TENANT_ID = tenantIdValido(tenant) ? tenant : null;
   DONO = claims.dono === true;
+  CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
+  MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
+  PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
+  CLAIM_RECURSOS = (TENANT_ID && Array.isArray(claims.recursos)) ? claims.recursos.filter(r=>typeof r==='string') : [];
+  try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
   MAX_FOTOS = (Number.isInteger(mf) && mf>=1 && mf<=50) ? mf : 4;
   aplicarDiagnosticoVisivel();
@@ -4753,6 +4795,179 @@ function aregMigrarEmSegundoPlano(){
 }
 
 
+
+/* ================= PAINEL DE CLIENTES (só o dono) =================
+   Tela "Clientes" (Administração): lista os clientes (tenants) do sistema, cria cliente novo, bloqueia/reativa,
+   edita plano/limite/consentimento e mostra o uso de dados. Tudo passa pelas funções do servidor (functions/): o app
+   não grava nada do cliente direto — quem decide é o servidor, que só aceita o dono (claim 'dono'). */
+let _functionsPromise = null;
+function carregarFunctions(){
+  if(_functionsPromise) return _functionsPromise;
+  _functionsPromise = new Promise((resolve, reject)=>{
+    const pronto = ()=>{ try{ resolve(firebase.app().functions('southamerica-east1')); }catch(e){ reject(e); } };
+    if(firebase.functions) return pronto();
+    const sc = document.createElement('script');
+    sc.src = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js';
+    sc.onload = pronto; sc.onerror = ()=>reject(new Error('não consegui carregar o módulo de funções'));
+    document.head.appendChild(sc);
+  }).catch(e=>{ _functionsPromise = null; throw e; });
+  return _functionsPromise;
+}
+async function chamarFuncao(nome, dados){
+  const fn = await carregarFunctions();
+  const r = await fn.httpsCallable(nome)(dados || {});
+  return r.data;
+}
+function msgErroFuncao(e){ return (e && (e.message || e.code)) ? String(e.message || e.code) : 'erro desconhecido'; }
+let clientesLista = [];
+const PLANO_LABEL = { gratuito:'Gratuito', basico:'Básico', pro:'Pro' };
+function fmtBytesCli(b){ b = Number(b)||0; return b>=1073741824 ? (b/1073741824).toFixed(2)+' GB' : (b/1048576).toFixed(1)+' MB'; }
+function fmtDataHoraCli(iso){ if(!iso) return '—'; const d = String(iso).slice(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? fmtDate(d) : '—'; }
+async function renderClientes(){
+  if(!DONO) return;
+  const msg = document.getElementById('cliMsg'); msg.textContent = 'Carregando clientes...';
+  try{
+    const r = await chamarFuncao('listarClientes');
+    clientesLista = Array.isArray(r && r.clientes) ? r.clientes : [];
+    msg.textContent = clientesLista.length===0 ? 'Nenhum cliente cadastrado ainda. Use "+ Novo cliente".' : '';
+  }catch(e){ msg.textContent = 'Não consegui carregar os clientes: '+msgErroFuncao(e)+' (as funções do servidor precisam estar publicadas).'; clientesLista = []; }
+  desenharClientes();
+}
+function desenharClientes(){
+  const ativos = clientesLista.filter(c=>c.ativo!==false).length;
+  const comConsent = clientesLista.filter(c=>c.consentimentoDados && c.consentimentoDados.aceito===true).length;
+  const card = (n,l)=>`<div class="stat"><div class="stat-num" style="font-size:22px;font-weight:700;">${n}</div><div class="stat-label" style="font-size:11.5px;color:var(--muted);">${l}</div></div>`;
+  document.getElementById('cliStats').innerHTML = card(clientesLista.length,'Clientes')+card(ativos,'Ativos')+card(clientesLista.length-ativos,'Bloqueados')+card(comConsent,'Consentiram o uso dos dados');
+  document.getElementById('cliTbody').innerHTML = clientesLista.map(c=>{
+    const ativo = c.ativo!==false, cons = c.consentimentoDados;
+    return `<tr data-cid="${escHtml(c.id)}">
+      <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
+      <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
+      <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
+      <td><button type="button" class="btn btn-sm btn-ghost" data-cliuso="${escHtml(c.id)}">Ver uso</button> <span data-cliusotxt="${escHtml(c.id)}" style="font-size:12px;"></span></td>
+      <td>${cons && cons.aceito===true ? ('✔ '+fmtDataHoraCli(cons.data)+(cons.versao?' (termo '+escHtml(cons.versao)+')':'')) : `<span style="color:var(--muted);">pendente${c.plano==='gratuito'?' <strong style="color:var(--burgundy,#8b2a2a);">(obrigatório no Gratuito)</strong>':''}</span>`}</td>
+      <td style="white-space:nowrap;"><button type="button" class="btn btn-sm btn-ghost" data-cliedit="${escHtml(c.id)}">Editar</button> <button type="button" class="btn btn-sm ${ativo?'btn-danger':''}" data-clibloq="${escHtml(c.id)}">${ativo?'Bloquear':'Reativar'}</button></td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('[data-cliuso]').forEach(b=>b.addEventListener('click', async ()=>{
+    const id = b.dataset.cliuso, el = document.querySelector(`[data-cliusotxt="${id}"]`); el.textContent = 'calculando...';
+    try{ const r = await chamarFuncao('usoDoCliente', { tenantId:id }); el.textContent = fmtBytesCli(r.bytes)+' ('+r.percentualDoLimite+'% do limite, '+r.documentos+' documentos)'; }
+    catch(e){ el.textContent = 'erro: '+msgErroFuncao(e); }
+  }));
+  document.querySelectorAll('[data-clibloq]').forEach(b=>b.addEventListener('click', async ()=>{
+    const c = clientesLista.find(x=>x.id===b.dataset.clibloq); if(!c) return;
+    const bloquear = c.ativo!==false;
+    const ok = await showConfirm(bloquear ? ('Bloquear "'+(c.nome||c.id)+'"? Todas as contas desse cliente deixam de conseguir entrar (os dados ficam guardados).') : ('Reativar "'+(c.nome||c.id)+'"? As contas voltam a poder entrar.'));
+    if(!ok) return;
+    try{ const r = await chamarFuncao('bloquearCliente', { tenantId:c.id, ativo:!bloquear }); showAlert((bloquear?'Cliente bloqueado':'Cliente reativado')+' ('+r.contasAfetadas+' conta(s)).'); renderClientes(); }
+    catch(e){ showAlert('Não consegui: '+msgErroFuncao(e)); }
+  }));
+  document.querySelectorAll('[data-cliedit]').forEach(b=>b.addEventListener('click', ()=>abrirEditarCliente(b.dataset.cliedit)));
+}
+function garantirModaisClientes(){
+  if(document.getElementById('overlayClienteNovo')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="overlayClienteNovo"><div class="modal" style="max-width:min(94vw,460px);">
+    <div class="modal-head"><div class="modal-title">Novo cliente</div><button class="modal-close" data-close="overlayClienteNovo">✕</button></div>
+    <div class="field"><label>Nome do cliente (haras/empresa)</label><input type="text" id="cn_nome" maxlength="100"></div>
+    <div class="field"><label>E-mail do administrador</label><input type="email" id="cn_email" maxlength="200"></div>
+    <div class="field"><label>Nome do administrador (opcional)</label><input type="text" id="cn_nomeAdmin" maxlength="100"></div>
+    <div class="field"><label>Plano</label><select id="cn_plano"><option value="gratuito">Gratuito</option><option value="basico" selected>Básico</option><option value="pro">Pro</option></select></div>
+    <div class="hint-text" style="margin:-4px 0 8px;">Pro: espaço acima do limite é cobrado do cliente (cláusula nos Termos de Uso).</div>
+    <div class="field"><label>Senha provisória (opcional — se vazio, o sistema cria uma)</label><input type="text" id="cn_senha" maxlength="100" autocomplete="off"></div>
+    <div class="hint-text" id="cn_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayClienteNovo">Cancelar</button><button type="button" class="btn" id="cn_salvar">Criar cliente</button></div>
+  </div></div>
+  <div class="overlay" id="overlayClienteEditar"><div class="modal" style="max-width:min(94vw,460px);">
+    <div class="modal-head"><div class="modal-title" id="ce_titulo">Editar cliente</div><button class="modal-close" data-close="overlayClienteEditar">✕</button></div>
+    <div class="field"><label>Nome</label><input type="text" id="ce_nome" maxlength="100"></div>
+    <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
+    <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
+    <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
+    <div class="field"><label>Novidades liberadas só para este cliente</label><div id="ce_recursos" style="display:flex;flex-direction:column;gap:6px;"></div></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
+    <div class="hint-text" id="ce_msg" style="margin:8px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" class="btn btn-ghost" data-close="overlayClienteEditar">Cancelar</button><button type="button" class="btn" id="ce_salvar">Salvar</button></div>
+  </div></div>`);
+  document.querySelectorAll('#overlayClienteNovo [data-close], #overlayClienteEditar [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal(b.dataset.close)));
+  document.querySelectorAll('#overlayClienteNovo, #overlayClienteEditar').forEach(o=>o.addEventListener('click', e=>{ if(e.target===o) closeModal(o.id); }));
+  document.getElementById('cn_salvar').addEventListener('click', salvarClienteNovo);
+  document.getElementById('ce_salvar').addEventListener('click', salvarClienteEditado);
+}
+function abrirNovoCliente(){
+  garantirModaisClientes();
+  ['cn_nome','cn_email','cn_nomeAdmin','cn_senha'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cn_plano').value = 'basico'; document.getElementById('cn_msg').textContent = '';
+  openModal('overlayClienteNovo');
+}
+async function salvarClienteNovo(){
+  const dados = { nome:document.getElementById('cn_nome').value.trim(), emailAdmin:document.getElementById('cn_email').value.trim(), nomeAdmin:document.getElementById('cn_nomeAdmin').value.trim() };
+  const senha = document.getElementById('cn_senha').value; if(senha) dados.senhaProvisoria = senha;
+  dados.plano = document.getElementById('cn_plano').value;
+  const msg = document.getElementById('cn_msg');
+  if(dados.nome.length<2){ msg.textContent = 'Informe o nome do cliente.'; return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.emailAdmin)){ msg.textContent = 'E-mail do administrador inválido.'; return; }
+  msg.textContent = 'Criando...';
+  try{
+    const r = await chamarFuncao('criarCliente', dados);
+    closeModal('overlayClienteNovo');
+    showAlert('Cliente criado: '+r.tenantId+'.'+(r.senhaGerada ? '\n\nSENHA PROVISÓRIA (anote agora, não aparece de novo): '+r.senhaGerada : ''));
+    renderClientes();
+  }catch(e){ msg.textContent = 'Não consegui criar: '+msgErroFuncao(e); }
+}
+let _clienteEditando = null;
+function abrirEditarCliente(id){
+  const c = clientesLista.find(x=>x.id===id); if(!c) return;
+  garantirModaisClientes(); _clienteEditando = c;
+  document.getElementById('ce_titulo').textContent = 'Editar — '+(c.nome||c.id);
+  document.getElementById('ce_nome').value = c.nome||'';
+  document.getElementById('ce_plano').value = ['gratuito','basico','pro'].includes(c.plano) ? c.plano : 'basico';
+  document.getElementById('ce_limite').value = ((Number(c.limiteBytes)||1073741824)/1073741824).toFixed(3).replace(/\.?0+$/,'');
+  const seletivos = Object.entries(RECURSOS_APP).filter(([,d])=>d.liberacao==='selecionados');
+  const marcados = new Set(Array.isArray(c.recursos) ? c.recursos : []);
+  document.getElementById('ce_recursos').innerHTML = seletivos.length===0
+    ? '<div class="hint-text">Nenhuma novidade seletiva no momento. Quando uma função nova for entregue só para alguns clientes, ela aparece aqui para você marcar.</div>'
+    : seletivos.map(([k,d])=>`<label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" data-cerec="${escHtml(k)}" ${marcados.has(k)?'checked':''}> ${escHtml(d.nome||k)}</label>`).join('');
+  const cons = c.consentimentoDados;
+  document.getElementById('ce_consent').checked = !!(cons && cons.aceito===true);
+  document.getElementById('ce_versao').value = (cons && cons.versao) || '1.0';
+  document.getElementById('ce_msg').textContent = '';
+  openModal('overlayClienteEditar');
+}
+async function salvarClienteEditado(){
+  const c = _clienteEditando; if(!c) return;
+  const msg = document.getElementById('ce_msg');
+  const dados = { tenantId:c.id }; const nome = document.getElementById('ce_nome').value.trim();
+  if(nome && nome!==c.nome) dados.nome = nome;
+  const plano = document.getElementById('ce_plano').value; if(plano!==c.plano) dados.plano = plano;
+  const gb = Number(String(document.getElementById('ce_limite').value).replace(',','.'));
+  const bytes = Math.round(gb*1073741824);
+  if(!(gb>0)){ msg.textContent = 'Informe o limite em GB.'; return; }
+  if(bytes!==Number(c.limiteBytes)) dados.limiteBytes = bytes;
+  const recMarcados = [...document.querySelectorAll('#ce_recursos [data-cerec]:checked')].map(x=>x.dataset.cerec);
+  const recAntes = (Array.isArray(c.recursos)?c.recursos:[]).filter(k=>RECURSOS_APP[k] && RECURSOS_APP[k].liberacao==='selecionados');
+  if(document.querySelector('#ce_recursos [data-cerec]') && JSON.stringify(recMarcados.slice().sort())!==JSON.stringify(recAntes.slice().sort())){
+    // mantém chaves antigas que já não estão no registro (não apaga sem querer) e aplica as marcações de agora
+    const fora = (Array.isArray(c.recursos)?c.recursos:[]).filter(k=>!(RECURSOS_APP[k] && RECURSOS_APP[k].liberacao==='selecionados'));
+    dados.recursos = [...new Set([...fora, ...recMarcados])];
+  }
+  const aceitou = document.getElementById('ce_consent').checked, versao = document.getElementById('ce_versao').value.trim();
+  const antes = c.consentimentoDados || null;
+  if(aceitou!==!!(antes && antes.aceito===true) || (aceitou && versao!==((antes&&antes.versao)||''))){
+    if(!versao){ msg.textContent = 'Informe a versão do termo de consentimento.'; return; }
+    dados.consentimentoDados = { aceito:aceitou, versao };
+  }
+  if(Object.keys(dados).length===1){ closeModal('overlayClienteEditar'); return; }
+  if(dados.plano && !(await showConfirm('Mudar o plano de "'+(c.nome||c.id)+'" para '+(PLANO_LABEL[dados.plano]||dados.plano)+'? Isso muda na hora os módulos, o limite de fotos, de usuários e de dados deste cliente (quem perder um módulo é desconectado).'))) return;
+  msg.textContent = 'Salvando...';
+  try{ await chamarFuncao('atualizarCliente', dados); closeModal('overlayClienteEditar'); renderClientes(); }
+  catch(e){ msg.textContent = 'Não consegui salvar: '+msgErroFuncao(e); }
+}
+document.getElementById('btnClienteNovo').addEventListener('click', abrirNovoCliente);
+document.getElementById('btnClientesAtualizar').addEventListener('click', renderClientes);
+
 /* ================= LISTAS DIVIDIDAS POR PERÍODO (treinos: um documento por ANO) =================
    ANTES: todos os treinos moravam num documento só ('treinos_list'), com teto de 1 MiB.
    AGORA (depois da migração): um documento por ano ('treinos_2026', 'treinos_2025', ...; treino sem data válida vai para
@@ -5280,7 +5495,9 @@ async function loadAll(){
   // Laminados, sal mineral) do resto das rações, que passa a viver no catálogo da Consultoria. Roda
   // UMA vez (config.migracaoCatalogoRacoes) pra não voltar a marcar um produto que o usuário trouxe
   // de volta pro Estoque depois. Nada é apagado — só a marca catalogoConsultoria muda.
-  if(configLidoOk && !config.migracaoCatalogoRacoes){
+  // As 3 rotinas abaixo (separar rações do haras, repetir a separação, cadastrar as Nutrimax) são do haras ORIGINAL do dono.
+  // Cliente novo (TENANT_ID) começa com catálogo e estoque vazios — nada é cadastrado sozinho.
+  if(configLidoOk && !TENANT_ID && !config.migracaoCatalogoRacoes){
     const marcados = moverNaoDoHarasParaCatalogo();
     config.migracaoCatalogoRacoes = true;
     await storeSet('config', config);
@@ -5294,7 +5511,7 @@ async function loadAll(){
   // catálogo, todas com 1 Kg simbólico, ficaram na lista). Repete a separação uma vez para limpar
   // esse acúmulo. Daqui pra frente, quem mantém a casa em ordem é o botão "Organizar" do catálogo,
   // manual — assim não é preciso uma migração nova a cada vez.
-  if(configLidoOk && config.migracaoCatalogoRacoes && !config.migracaoCatalogoRacoes2){
+  if(configLidoOk && !TENANT_ID && config.migracaoCatalogoRacoes && !config.migracaoCatalogoRacoes2){
     const marcados = moverNaoDoHarasParaCatalogo();
     config.migracaoCatalogoRacoes2 = true;
     await storeSet('config', config);
@@ -5310,7 +5527,7 @@ async function loadAll(){
   // existentes. Obs: o rótulo do fabricante lista "Energia Digestível" em "Mcal/kg", mas os valores
   // (3400 a 3900) estão na faixa esperada pelo campo ED (Kcal/kg) do app — mantido o número como no
   // rótulo, só ajustada a unidade do campo.
-  if(configLidoOk && !config.migracaoCatalogoNutrimax){
+  if(configLidoOk && !TENANT_ID && !config.migracaoCatalogoNutrimax){
     const RACOES_NUTRIMAX = [
       { nome:'Horse 12 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Aveia Laminada, Milho Floculado e Melaço. Indicação: ração multipartículas para equinos adultos em reprodução, com regime de treinamento contínuo e trabalho de média intensidade. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:12, caPercent:1.20, pPercent:0.65, fibraBrutaPercent:10 } },
       { nome:'Horse 15 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Pellet de Alfafa, Aveia Laminada, Milho Floculado e Melaço. Indicação: equinos adultos em regime de treinamento contínuo e trabalho de média intensidade; éguas gestantes, lactantes e garanhões. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:15, caPercent:1.40, pPercent:0.70, fibraBrutaPercent:11 } },
@@ -5781,7 +5998,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     const view = item.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     atualizarBotaoVoltar();
-    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','filtrosanimais','consultoria'].includes(view)){
+    if(['inicio','calendario','animais','grupos','manejos','transporte','treinos','nascimentos','estoque','dietas','piquetes','veterinaria','funcionarios','financeiro','usuarios','auditoria','clientes','filtrosanimais','consultoria'].includes(view)){
       document.getElementById('view-'+view).classList.add('active');
       if(view==='inicio') renderInicio();
       if(view==='calendario') renderCalendar();
@@ -5796,6 +6013,7 @@ document.querySelectorAll('.nav-item').forEach(item=>{
       if(view==='financeiro') renderFinanceiro();
       if(view==='usuarios'){ renderUsuarios(); recarregarUsuarios().then(ok=>{ if(ok) renderUsuarios(); }); }
       if(view==='auditoria') garantirAuditoriaCarregada().then(renderAuditoria);
+      if(view==='clientes') renderClientes();
       if(view==='filtrosanimais') renderFiltrosAdmin();
       if(view==='consultoria') renderConsultoria();
     }else{
@@ -17133,6 +17351,21 @@ document.getElementById('btnOrganizarCatalogo').addEventListener('click', async 
   renderCatalogoRacoes(); renderEstoque();
   showAlert(marcados+' ração(ões) movidas pro catálogo.');
 });
+// Apaga TODO o catálogo de rações da Consultoria (só os produtos marcados como catálogo; o Estoque do haras não é tocado).
+// Mostra quantas são e quais ainda são usadas por dietas, pede confirmação e só então exclui.
+document.getElementById('btnApagarCatalogo').addEventListener('click', async ()=>{
+  const todas = produtosDoCatalogo();
+  if(todas.length===0){ showAlert('O catálogo já está vazio.'); return; }
+  const emUso = todas.map(p=>({ p, dep: quemDependeDoProduto(p.id) })).filter(x=>x.dep.length>0);
+  const aviso = emUso.length ? `\n\nAtenção: ${emUso.length} ração(ões) ainda são usadas em dietas/tratamentos (${emUso.slice(0,3).map(x=>x.p.nome).join(', ')}${emUso.length>3?' e mais':''}). Excluindo, essas dietas travam até você corrigir o vínculo.` : '';
+  if(!(await showConfirm(`Apagar TODAS as ${todas.length} ração(ões) do catálogo da Consultoria? Não dá para desfazer (só por backup). O Estoque não é alterado.${aviso}`))) return;
+  if(!(await showConfirm(`Confirma de novo: apagar ${todas.length} ração(ões) do catálogo, definitivamente?`))) return;
+  const ids = new Set(todas.map(p=>p.id));
+  estoqueProdutos = estoqueProdutos.filter(p=>!ids.has(p.id));
+  if(!(await storeSet('estoque_produtos', estoqueProdutos, true))){ showAlert('Não consegui apagar agora. Tente de novo.'); return; }
+  renderCatalogoRacoes(); renderEstoque();
+  showAlert(todas.length+' ração(ões) apagadas do catálogo.');
+});
 document.getElementById('btnNovaRacaoCatalogo').addEventListener('click', ()=>{
   // Abre o cadastro normal de produto já como Alimento; ao salvar, entra no catálogo (ver btnSaveProduto).
   // Marcar o Tipo aqui não é cosmético: os campos bromatológicos (ED, PB, Ca, P, Fibra Bruta) só
@@ -22263,10 +22496,21 @@ function podeVerValoresAnimais(){
 // Auditoria fica de fora da grade de permissões de propósito: é a tela que fiscaliza todas as outras,
 // então quem pode olhar é só quem administra o sistema — não é algo pra distribuir por checkbox.
 function viewsPermitidas(user){
+  return viewsPermitidasBruto(user).filter(naPlanoDoCliente);
+}
+// Plano do cliente (claim 'modulos'): tela fora do plano some do menu, mesmo para o administrador do cliente.
+// Dietas e Piquetes seguem o módulo Estoque. O haras original (sem cliente) não tem limite de plano.
+function naPlanoDoCliente(view){
+  if(!TENANT_ID || !Array.isArray(CLAIM_MODULOS)) return true;
+  if(MODULOS_PERMISSAO.includes(view)) return CLAIM_MODULOS.includes(view);
+  if(view==='dietas' || view==='piquetes') return CLAIM_MODULOS.includes('estoque');
+  return true;
+}
+function viewsPermitidasBruto(user){
   if(!user) return [];
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
-  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais'];
+  if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : [])];
   const base = ['inicio','calendario', ...MODULOS_PERMISSAO.filter(m=>permissaoDe(user,m).ver)];
   if(permissaoDe(user,'estoque').ver){ base.push('dietas'); base.push('piquetes'); }
   return base;
@@ -22717,7 +22961,12 @@ function atualizarAcessoPreview(){
   const { admin, permissoes } = lerPermissoesDoForm();
   document.getElementById('u_acessoPreview').textContent = 'Esse usuário vê: ' + descreverAcesso({ admin, permissoes });
 }
+function limiteDeUsuariosAtingido(){
+  return !!(TENANT_ID && MAX_USUARIOS>0 && usuarios.length>=MAX_USUARIOS);
+}
+const MSG_LIMITE_USUARIOS = ()=>'O plano do seu cliente'+(PLANO_ATUAL?(' ('+PLANO_ATUAL+')'):'')+' permite até '+MAX_USUARIOS+' usuário(s), e você já tem '+usuarios.length+'. Para cadastrar mais, fale com o suporte para mudar o plano.';
 function openUsuarioNew(){
+  if(limiteDeUsuariosAtingido()){ showAlert(MSG_LIMITE_USUARIOS()); return; }
   editingUsuarioId=null;
   document.getElementById('usrModalTitle').textContent='Novo Usuário';
   document.getElementById('btnDeleteUsuario').style.display='none';
@@ -22749,6 +22998,7 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   if(editingUsuarioId && editingUsuarioId===currentUser.id && !admin && !usuarios.some(u=>u.id!==editingUsuarioId && u.admin)){
     showAlert('Esse é o único Administrador — não dá pra rebaixar o próprio acesso sem ter outro admin cadastrado.'); return;
   }
+  if(!editingUsuarioId && limiteDeUsuariosAtingido()){ showAlert(MSG_LIMITE_USUARIOS()); return; }
   const data = { id: editingUsuarioId || ('usr_'+Date.now()), nome, email, admin, permissoes };
   usuarios = editingUsuarioId ? usuarios.map(u=>u.id===editingUsuarioId?data:u) : [...usuarios, data];
   if(!(await storeSet('usuarios_list', usuarios))){ await recarregarUsuarios(); renderUsuarios(); return; }

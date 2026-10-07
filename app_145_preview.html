@@ -2202,6 +2202,7 @@
         </div>
         <div class="lista-toolbar">
           <button type="button" class="btn" id="btnNovaRacaoCatalogo">+ Nova ração no catálogo</button>
+          <button type="button" class="btn btn-danger btn-ghost" id="btnApagarCatalogo" title="Exclui TODAS as rações do catálogo da Consultoria (não mexe no Estoque)">🗑 Apagar todo o catálogo</button>
           <button type="button" class="btn btn-ghost" id="btnOrganizarCatalogo" style="margin-right:auto;" title="Manda pro catálogo toda ração do Estoque que não é do haras">🧹 Organizar Estoque</button>
         </div>
         <div class="grid-wrap"><table class="grid">
@@ -5494,7 +5495,9 @@ async function loadAll(){
   // Laminados, sal mineral) do resto das rações, que passa a viver no catálogo da Consultoria. Roda
   // UMA vez (config.migracaoCatalogoRacoes) pra não voltar a marcar um produto que o usuário trouxe
   // de volta pro Estoque depois. Nada é apagado — só a marca catalogoConsultoria muda.
-  if(configLidoOk && !config.migracaoCatalogoRacoes){
+  // As 3 rotinas abaixo (separar rações do haras, repetir a separação, cadastrar as Nutrimax) são do haras ORIGINAL do dono.
+  // Cliente novo (TENANT_ID) começa com catálogo e estoque vazios — nada é cadastrado sozinho.
+  if(configLidoOk && !TENANT_ID && !config.migracaoCatalogoRacoes){
     const marcados = moverNaoDoHarasParaCatalogo();
     config.migracaoCatalogoRacoes = true;
     await storeSet('config', config);
@@ -5508,7 +5511,7 @@ async function loadAll(){
   // catálogo, todas com 1 Kg simbólico, ficaram na lista). Repete a separação uma vez para limpar
   // esse acúmulo. Daqui pra frente, quem mantém a casa em ordem é o botão "Organizar" do catálogo,
   // manual — assim não é preciso uma migração nova a cada vez.
-  if(configLidoOk && config.migracaoCatalogoRacoes && !config.migracaoCatalogoRacoes2){
+  if(configLidoOk && !TENANT_ID && config.migracaoCatalogoRacoes && !config.migracaoCatalogoRacoes2){
     const marcados = moverNaoDoHarasParaCatalogo();
     config.migracaoCatalogoRacoes2 = true;
     await storeSet('config', config);
@@ -5524,7 +5527,7 @@ async function loadAll(){
   // existentes. Obs: o rótulo do fabricante lista "Energia Digestível" em "Mcal/kg", mas os valores
   // (3400 a 3900) estão na faixa esperada pelo campo ED (Kcal/kg) do app — mantido o número como no
   // rótulo, só ajustada a unidade do campo.
-  if(configLidoOk && !config.migracaoCatalogoNutrimax){
+  if(configLidoOk && !TENANT_ID && !config.migracaoCatalogoNutrimax){
     const RACOES_NUTRIMAX = [
       { nome:'Horse 12 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Aveia Laminada, Milho Floculado e Melaço. Indicação: ração multipartículas para equinos adultos em reprodução, com regime de treinamento contínuo e trabalho de média intensidade. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:12, caPercent:1.20, pPercent:0.65, fibraBrutaPercent:10 } },
       { nome:'Horse 15 Mix', pesoSaco:30, obs:'Alimento balanceado composto por Pellet, Pellet de Alfafa, Aveia Laminada, Milho Floculado e Melaço. Indicação: equinos adultos em regime de treinamento contínuo e trabalho de média intensidade; éguas gestantes, lactantes e garanhões. (Fabricante: Nutrimax)', nutrientes:{ edKcalPorKg:3500, pbPercent:15, caPercent:1.40, pPercent:0.70, fibraBrutaPercent:11 } },
@@ -17347,6 +17350,21 @@ document.getElementById('btnOrganizarCatalogo').addEventListener('click', async 
   await storeSet('estoque_produtos', estoqueProdutos);
   renderCatalogoRacoes(); renderEstoque();
   showAlert(marcados+' ração(ões) movidas pro catálogo.');
+});
+// Apaga TODO o catálogo de rações da Consultoria (só os produtos marcados como catálogo; o Estoque do haras não é tocado).
+// Mostra quantas são e quais ainda são usadas por dietas, pede confirmação e só então exclui.
+document.getElementById('btnApagarCatalogo').addEventListener('click', async ()=>{
+  const todas = produtosDoCatalogo();
+  if(todas.length===0){ showAlert('O catálogo já está vazio.'); return; }
+  const emUso = todas.map(p=>({ p, dep: quemDependeDoProduto(p.id) })).filter(x=>x.dep.length>0);
+  const aviso = emUso.length ? `\n\nAtenção: ${emUso.length} ração(ões) ainda são usadas em dietas/tratamentos (${emUso.slice(0,3).map(x=>x.p.nome).join(', ')}${emUso.length>3?' e mais':''}). Excluindo, essas dietas travam até você corrigir o vínculo.` : '';
+  if(!(await showConfirm(`Apagar TODAS as ${todas.length} ração(ões) do catálogo da Consultoria? Não dá para desfazer (só por backup). O Estoque não é alterado.${aviso}`))) return;
+  if(!(await showConfirm(`Confirma de novo: apagar ${todas.length} ração(ões) do catálogo, definitivamente?`))) return;
+  const ids = new Set(todas.map(p=>p.id));
+  estoqueProdutos = estoqueProdutos.filter(p=>!ids.has(p.id));
+  if(!(await storeSet('estoque_produtos', estoqueProdutos, true))){ showAlert('Não consegui apagar agora. Tente de novo.'); return; }
+  renderCatalogoRacoes(); renderEstoque();
+  showAlert(todas.length+' ração(ões) apagadas do catálogo.');
 });
 document.getElementById('btnNovaRacaoCatalogo').addEventListener('click', ()=>{
   // Abre o cadastro normal de produto já como Alimento; ao salvar, entra no catálogo (ver btnSaveProduto).
