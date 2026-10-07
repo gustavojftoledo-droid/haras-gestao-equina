@@ -21,6 +21,8 @@ const wCriar = fft.wrap(F.criarCliente), wBloq = fft.wrap(F.bloquearCliente), wU
 const wListar = fft.wrap(F.listarClientes), wAtual = fft.wrap(F.atualizarCliente);
 const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
+const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
+const BC = require('../cobranca');
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
 const user = (email, admin, mods = []) => ({ id: email, nome: email, email, admin, permissoes: perm(...mods) });
@@ -447,6 +449,91 @@ describe('criarLoginDoUsuario (admin do cliente cria o login da equipe)', () => 
   });
 });
 
+describe('cobrança manual', () => {
+  const set = (...c) => new Set(c);
+  test('situação: sem mensalidade/vencimento/início = sem cobrança', () => {
+    assert.equal(BC.situacaoDeCobranca({}, set(), '2026-10-07').situacao, 'sem_cobranca');
+    assert.equal(BC.situacaoDeCobranca({ mensalidadeCentavos: 0, diaVencimento: 10, inicioCobranca: '2026-01-01' }, set(), '2026-10-07').situacao, 'sem_cobranca');
+    assert.equal(BC.situacaoDeCobranca({ mensalidadeCentavos: 9900, diaVencimento: 29, inicioCobranca: '2026-01-01' }, set(), '2026-10-07').situacao, 'sem_cobranca');
+  });
+  test('situação: atrasado (mais antiga em aberto), a vencer em 5 dias, em dia, vence hoje', () => {
+    const cfg = { mensalidadeCentavos: 9900, diaVencimento: 10, inicioCobranca: '2026-08-01' };
+    // venceu 10/08 e 10/09 sem pagar; hoje 07/10
+    const a = BC.situacaoDeCobranca(cfg, set(), '2026-10-07');
+    assert.deepEqual([a.situacao, a.competenciaEmAberto, a.diasAtraso], ['atrasado', '2026-08', 58]);
+    // pagou ago e set: próximo vence 10/10 (3 dias)
+    const b = BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09'), '2026-10-07');
+    assert.deepEqual([b.situacao, b.competenciaEmAberto, b.diasParaVencer], ['vence_em_breve', '2026-10', 3]);
+    // pagou também out: próximo é novembro, longe
+    assert.equal(BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09', '2026-10'), '2026-10-07').situacao, 'em_dia');
+    // 6 dias para vencer não conta como "em breve"; no dia do vencimento é "vence hoje" (0)
+    assert.equal(BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09'), '2026-10-04').situacao, 'em_dia');
+    const h = BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09'), '2026-10-10');
+    assert.deepEqual([h.situacao, h.diasParaVencer], ['vence_em_breve', 0]);
+    // 1 dia depois do vencimento sem pagar = atrasado 1 dia
+    assert.deepEqual([BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09'), '2026-10-11').situacao, BC.situacaoDeCobranca(cfg, set('2026-08', '2026-09'), '2026-10-11').diasAtraso], ['atrasado', 1]);
+  });
+  test('situação: início depois do dia do vencimento começa no mês seguinte; virada de ano', () => {
+    const cfg = { mensalidadeCentavos: 5000, diaVencimento: 5, inicioCobranca: '2026-10-20' };
+    const a = BC.situacaoDeCobranca(cfg, set(), '2026-10-25');
+    assert.deepEqual([a.situacao, a.competenciaEmAberto], ['em_dia', '2026-11']);
+    const b = BC.situacaoDeCobranca({ ...cfg, inicioCobranca: '2026-11-01' }, set('2026-11', '2026-12'), '2027-01-02');
+    assert.deepEqual([b.situacao, b.competenciaEmAberto, b.diasParaVencer], ['vence_em_breve', '2027-01', 3]);
+  });
+  test('situação: a data de hoje usa o fuso de São Paulo', () => {
+    assert.equal(BC.hojeSaoPaulo(new Date('2026-10-08T01:30:00Z')), '2026-10-07'); // 22h30 do dia 7 em SP
+  });
+  const novoCli = async (email = 'a@cob.com') => (await wCriar({ data: { nome: 'Cob ' + email, emailAdmin: email, senhaProvisoria: 'provisoria1', plano: 'pro' }, auth: dono })).tenantId;
+  test('registrar, corrigir, listar e excluir pagamento (só dono)', async () => {
+    const id = await novoCli();
+    await rejeita(wPagar({ data: { tenantId: id, competencia: '2026-10', valorCentavos: 9900, pagoEm: '2026-10-05' }, auth: { uid: 'u', token: { papel: 'admin', tenantId: id } } }), 'permission-denied');
+    await rejeita(wPagar({ data: { tenantId: id, competencia: '2026-10', valorCentavos: 9900, pagoEm: '2026-10-05' } }), 'unauthenticated');
+    const r = await wPagar({ data: { tenantId: id, competencia: '2026-10', valorCentavos: 9900, pagoEm: '2026-10-05', forma: 'pix' }, auth: { uid: 'd', token: { dono: true, email: 'dono@x.com' } } });
+    assert.equal(r.registradoPor, 'dono@x.com'); assert.equal(r.forma, 'pix');
+    await wPagar({ data: { tenantId: id, competencia: '2026-10', valorCentavos: 10000, pagoEm: '2026-10-06' }, auth: dono });   // corrige a mesma competência
+    await wPagar({ data: { tenantId: id, competencia: '2026-09', valorCentavos: 9900, pagoEm: '2026-09-04', obs: '  atrasou  ' }, auth: dono });
+    const l = await wListPag({ data: { tenantId: id }, auth: dono });
+    assert.deepEqual(l.pagamentos.map(p => [p.competencia, p.valorCentavos, p.forma]), [['2026-10', 10000, 'outro'], ['2026-09', 9900, 'outro']]);
+    assert.equal(l.pagamentos[1].obs, 'atrasou');
+    await wExcPag({ data: { tenantId: id, competencia: '2026-10' }, auth: dono });
+    assert.deepEqual((await wListPag({ data: { tenantId: id }, auth: dono })).pagamentos.map(p => p.competencia), ['2026-09']);
+    await rejeita(wExcPag({ data: { tenantId: id, competencia: '2026-10' }, auth: dono }), 'not-found');
+  });
+  test('registrar: entradas inválidas e cliente inexistente', async () => {
+    const id = await novoCli('b@cob.com'); const ok = { tenantId: id, competencia: '2026-10', valorCentavos: 100, pagoEm: '2026-10-05' };
+    for (const ruim of [{ competencia: '2026-13' }, { competencia: '10/2026' }, { valorCentavos: -1 }, { valorCentavos: 9.5 }, { valorCentavos: '99' }, { pagoEm: '2026-02-30' }, { pagoEm: 'ontem' }, { forma: 'cripto' }, { tenantId: 'x' }])
+      await rejeita(wPagar({ data: { ...ok, ...ruim }, auth: dono }), 'invalid-argument');
+    await rejeita(wPagar({ data: { ...ok, tenantId: 'nao-existe' }, auth: dono }), 'not-found');
+  });
+  test('atualizarCliente grava e limpa mensalidade, vencimento, início e observação; valida', async () => {
+    const id = await novoCli('c@cob.com');
+    const r = await wAtual({ data: { tenantId: id, mensalidadeCentavos: 24900, diaVencimento: 10, inicioCobranca: '2026-10-01', obsCobranca: ' combinado Pix ' }, auth: dono });
+    assert.deepEqual(r.atualizado, ['mensalidadeCentavos', 'diaVencimento', 'inicioCobranca', 'obsCobranca']);
+    const c = (await db.doc(`clientes/${id}`).get()).data();
+    assert.deepEqual([c.mensalidadeCentavos, c.diaVencimento, c.inicioCobranca, c.obsCobranca], [24900, 10, '2026-10-01', 'combinado Pix']);
+    for (const ruim of [{ mensalidadeCentavos: -5 }, { mensalidadeCentavos: 1.5 }, { diaVencimento: 0 }, { diaVencimento: 29 }, { inicioCobranca: '2026-13-01' }, { obsCobranca: 7 }])
+      await rejeita(wAtual({ data: { tenantId: id, ...ruim }, auth: dono }), 'invalid-argument');
+    await wAtual({ data: { tenantId: id, mensalidadeCentavos: null, diaVencimento: null, inicioCobranca: null }, auth: dono });
+    const l = (await wListar({ data: {}, auth: dono })).clientes.find(x => x.id === id);
+    assert.equal(l.cobranca.situacao, 'sem_cobranca');
+  });
+  test('listarClientes traz a situação de cobrança e quanto entrou no mês', async () => {
+    const id = await novoCli('d@cob.com');
+    const hoje = BC.hojeSaoPaulo(); const mes = hoje.slice(0, 7);
+    const ini = BC.hojeSaoPaulo(new Date(Date.now() - 80 * 86400000));   // começou há ~80 dias
+    await wAtual({ data: { tenantId: id, mensalidadeCentavos: 10000, diaVencimento: 10, inicioCobranca: ini }, auth: dono });
+    let c = (await wListar({ data: {}, auth: dono })).clientes.find(x => x.id === id).cobranca;
+    assert.equal(c.situacao, 'atrasado'); assert.ok(c.diasAtraso > 0); assert.equal(c.pagoNoMesCentavos, 0);
+    // paga todas as competências desde o início até o mês seguinte
+    let comp = ini.slice(0, 7); const fim = BC.situacaoDeCobranca({ mensalidadeCentavos: 1, diaVencimento: 10, inicioCobranca: ini }, new Set(), hoje);
+    for (let m = ini.slice(0, 7); m <= mes; m = (() => { const t = +m.slice(0, 4) * 12 + (+m.slice(5, 7)) ; return String(Math.floor(t / 12)).padStart(4, '0') + '-' + String(t % 12 + 1).padStart(2, '0'); })())
+      await wPagar({ data: { tenantId: id, competencia: m, valorCentavos: 10000, pagoEm: hoje }, auth: dono });
+    c = (await wListar({ data: {}, auth: dono })).clientes.find(x => x.id === id).cobranca;
+    assert.notEqual(c.situacao, 'atrasado'); assert.ok(c.pagoNoMesCentavos >= 10000); assert.ok(c.pagamentos >= 3);
+    assert.equal(fim.situacao, 'atrasado');
+  });
+});
+
 describe('bloquearCliente', () => {
   async function criar(nome, email){ return (await wCriar({ data: { nome, emailAdmin: email, senhaProvisoria: 'provisoria1' }, auth: dono })).tenantId; }
   test('negado a não-dono', async () => {
@@ -528,7 +615,7 @@ describe('listarClientes', () => {
     const r = await wListar({ data: {}, auth: dono });
     assert.deepEqual(r.clientes.map(c => c.id), ['alfa', 'beta', 'zeta']); // Álamo, beta, zeta (sem diferenciar maiúsculas)
     const [alfa, beta, zeta] = r.clientes;
-    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'recursos', 'ultimoAcesso', 'usuariosNaLista']);
+    assert.deepEqual(Object.keys(zeta).sort(), ['ativo', 'cobranca', 'consentimentoDados', 'contas', 'criadoEm', 'emailAdmin', 'id', 'limiteBytes', 'limites', 'nome', 'plano', 'recursos', 'ultimoAcesso', 'usuariosNaLista']);
     assert.equal(zeta.ativo, false); assert.equal(zeta.plano, 'pro'); assert.equal(zeta.limiteBytes, 5000000);
     assert.equal(zeta.criadoEm, '2026-01-02T03:04:05.000Z');
     assert.deepEqual(zeta.consentimentoDados, { aceito: true, data: '2026-02-03T00:00:00.000Z', versao: 'v1', por: 'a@b.com' });

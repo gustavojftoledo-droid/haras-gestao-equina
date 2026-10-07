@@ -3,6 +3,7 @@ const { HttpsError } = require('firebase-functions/v2/https');
 const crypto = require('crypto');
 const { MODULOS, LIMITE_PADRAO_BYTES, normalizarEmail, PLANOS: TABELA_PLANOS, ehPlano, limitesDoPlano, normalizarRecursos, recursosValidos } = require('./comum');
 const { ressincronizarCliente } = require('./papeis');
+const B = require('./cobranca');
 
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RE_TENANT = /^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/; // 3 a 40, sem '-' nas pontas
@@ -187,6 +188,8 @@ async function listarClientes({ auth, db }){
   const snap = await db.collection('clientes').get();
   const mapa = await contasPorCliente(auth);
   const listas = await Promise.all(snap.docs.map(doc => listaUsuariosDoCliente(db, doc.id)));
+  const pagos = await B.pagamentosPorCliente(db);
+  const hoje = B.hojeSaoPaulo();
   const clientes = snap.docs.map((doc, i) => {
     const d = doc.data() || {};
     const contas = mapa.get(doc.id) || [];
@@ -205,6 +208,7 @@ async function listarClientes({ auth, db }){
       limites: { modulos: lim.modulos, maxFotos: lim.maxFotos, maxUsuarios: lim.maxUsuarios, limiteBytes: lim.limiteBytes },
       usuariosNaLista: listas[i].length,
       recursos: recursosValidos(d.recursos),
+      cobranca: B.resumoDeCobranca(d, pagos.get(doc.id), hoje),
       criadoEm: paraISO(d.criadoEm),
       limiteBytes: d.limiteBytes > 0 ? d.limiteBytes : LIMITE_PADRAO_BYTES,
       consentimentoDados: normalizarConsentimento(d.consentimentoDados),
@@ -243,6 +247,26 @@ async function atualizarCliente({ auth, db, emailDono }, data){
   }
   if (data.recursos !== undefined) {
     try { upd.recursos = normalizarRecursos(data.recursos); } catch (e) { throw new HttpsError('invalid-argument', 'Lista de novidades inválida (chaves com letras minúsculas, números e _; até 12).'); }
+  }
+  // cobrança manual: valores em CENTAVOS; null apaga o campo
+  if (data.mensalidadeCentavos !== undefined) {
+    const v = data.mensalidadeCentavos;
+    if (v !== null && (!Number.isInteger(v) || v < 0 || v > B.MAX_MENSALIDADE_CENTAVOS)) throw new HttpsError('invalid-argument', 'Mensalidade inválida.');
+    upd.mensalidadeCentavos = v;
+  }
+  if (data.diaVencimento !== undefined) {
+    const v = data.diaVencimento;
+    if (v !== null && (!Number.isInteger(v) || v < 1 || v > 28)) throw new HttpsError('invalid-argument', 'Dia de vencimento inválido (1 a 28).');
+    upd.diaVencimento = v;
+  }
+  if (data.inicioCobranca !== undefined) {
+    const v = data.inicioCobranca;
+    if (v !== null && !B.dataValida(v)) throw new HttpsError('invalid-argument', 'Data de início da cobrança inválida (AAAA-MM-DD).');
+    upd.inicioCobranca = v;
+  }
+  if (data.obsCobranca !== undefined) {
+    if (typeof data.obsCobranca !== 'string') throw new HttpsError('invalid-argument', 'Observação inválida.');
+    upd.obsCobranca = data.obsCobranca.trim().slice(0, 300);
   }
   const campos = Object.keys(upd);
   if (!campos.length) throw new HttpsError('invalid-argument', 'Nada para atualizar');
