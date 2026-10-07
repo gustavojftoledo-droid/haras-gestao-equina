@@ -2014,11 +2014,12 @@
 
     <!-- Foto ampliada, clicada na Linha do Tempo Visual — só mostra a imagem grande + a data, sem editar nada. -->
     <div class="overlay" id="overlayFotoTimeline">
-      <div class="modal" style="max-width:min(90vw,640px);">
+      <div class="modal" style="max-width:min(94vw,900px);">
         <div class="modal-head"><div class="modal-title" id="ftModalTitulo">Foto</div><button class="modal-close" data-close="overlayFotoTimeline">✕</button></div>
         <img id="ftFotoGrande" style="width:100%;border-radius:8px;">
+        <div style="margin-top:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnFtTamanhoMaximo">🔍 Abrir em tamanho máximo (nova aba, dá para dar zoom)</button></div>
         <div id="ftAcoes" style="display:none;gap:8px;margin-top:12px;justify-content:space-between;flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame (PDF)</button>
+          <button type="button" class="btn btn-sm" id="btnFtAbrirArquivo" style="display:none;">📄 Abrir o exame original (PDF, nítido)</button>
           <button type="button" class="btn btn-sm btn-ghost" id="btnFtEditar">✏️ Editar data / anotação</button>
           <button type="button" class="btn btn-danger btn-sm" id="btnFtExcluir">🗑 Excluir esta foto</button>
         </div>
@@ -2374,6 +2375,13 @@
         <input type="date" id="el_mormoData" disabled style="flex:1;min-width:140px;">
         <input type="number" id="el_mormoDias" disabled style="width:110px;" value="60" min="1" placeholder="Dias de validade">
       </div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="el_chkControle"> Alterar Controle de exames (avisos de AIE/Mormo) para:</label>
+      <select id="el_controle" disabled style="margin-top:6px;width:100%;">
+        <option value="1">Seguir controlando (o app avisa quando faltar/vencer)</option>
+        <option value="0">Parar de controlar (some dos avisos)</option>
+      </select>
     </div>
     <div class="modal-actions">
       <div></div>
@@ -3742,6 +3750,7 @@ function showConfirm(msg, opts){
     const ok = document.getElementById('dialogOk');
     ok.textContent = opts.okLabel || 'OK';
     ok.classList.toggle('btn-danger', !!opts.danger);
+    const cancelBtn = document.getElementById('dialogCancel'); if(cancelBtn) cancelBtn.textContent = opts.cancelLabel || 'Cancelar';
     dialogResolve=resolve; openModal('overlayDialog');
   });
 }
@@ -3817,12 +3826,14 @@ document.getElementById('dialogOk').addEventListener('click', ()=>{
   closeModal('overlayDialog');
   document.getElementById('dialogOk').classList.remove('btn-danger');
   document.getElementById('dialogOk').textContent = 'OK';
+  document.getElementById('dialogCancel').textContent = 'Cancelar';
   if(dialogResolve){ dialogResolve(val); dialogResolve=null; }
 });
 document.getElementById('dialogCancel').addEventListener('click', ()=>{
   closeModal('overlayDialog');
   document.getElementById('dialogOk').classList.remove('btn-danger');
   document.getElementById('dialogOk').textContent = 'OK';
+  document.getElementById('dialogCancel').textContent = 'Cancelar';
   if(dialogResolve){ dialogResolve(null); dialogResolve=null; }
 });
 document.getElementById('dialogInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('dialogOk').click(); } });
@@ -6453,7 +6464,7 @@ function renderHorses(){
   const banner = document.getElementById('grupoFiltroBanner');
   if(grupoFiltroAtivo){
     banner.style.display='flex';
-    banner.innerHTML = `<span>📁 Mostrando só o grupo <strong>${escHtml(grupoFiltroAtivo.nome)}</strong> (${(grupoFiltroAtivo.animais||[]).length} ${pluralAnimal((grupoFiltroAtivo.animais||[]).length)})</span>
+    banner.innerHTML = `<span>${grupoFiltroAtivo.mostrarExames ? '🩺 Mostrando só' : '📁 Mostrando só o grupo'} <strong>${escHtml(grupoFiltroAtivo.nome)}</strong> (${(grupoFiltroAtivo.animais||[]).length} ${pluralAnimal((grupoFiltroAtivo.animais||[]).length)}${grupoFiltroAtivo.mostrarExames ? ' — todos marcados: use "Editar em lote" para registrar o exame novo ou parar de controlar' : ''})</span>
       <button type="button" class="btn btn-sm btn-ghost" id="btnLimparFiltroGrupo">✕ Limpar filtro de grupo</button>`;
     document.getElementById('btnLimparFiltroGrupo').addEventListener('click', ()=>{ grupoFiltroAtivo=null; renderHorses(); });
   } else {
@@ -6530,7 +6541,7 @@ function renderHorses(){
     if(h.situacao==='V') tags.push('<span class="pill st-outro" style="margin-left:4px;">Vendido</span>');
     return `<tr data-id="${h.id}">
       <td><input type="checkbox" class="hRowSelect" data-id="${h.id}" ${selectedHorseIds.has(h.id)?'checked':''} onclick="event.stopPropagation()"></td>
-      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${urlSegura(h.fotoMiniUrl||h.fotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${escHtml(h.apelido)}</span> `:''}<strong>${escHtml(h.nome||'')}</strong>${tags.join('')}</td>
+      <td><button type="button" class="btn-icon-link" data-verperfil="${h.id}" title="Ver ficha completa" onclick="event.stopPropagation()" style="${h.fotoUrl?'padding:0;border-radius:50%;overflow:hidden;width:22px;height:22px;vertical-align:middle;line-height:0;':''}">${h.fotoUrl?`<img src="${urlSegura(h.fotoMiniUrl||h.fotoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`:'👁'}</button> ${h.apelido?`<span style="color:var(--muted);">${escHtml(h.apelido)}</span> `:''}<strong>${escHtml(h.nome||'')}</strong>${tags.join('')}${(grupoFiltroAtivo && grupoFiltroAtivo.mostrarExames) ? `<div style="font-size:11px;font-weight:600;color:var(--burgundy);margin:2px 0 0 28px;">${resumoExamesAnimal(h)}</div>` : ''}</td>
       <td data-col="sexo"><span class="pill ${h.sexo==='MASCULINO'?'sex-m':'sex-f'}">${h.sexo==='MASCULINO'?'M':'F'}</span></td>
       <td data-col="nascimento">${fmtDate(h.nascimento)}</td>
       <td data-col="pai">${escHtml(h.pai||'')}</td><td data-col="mae">${escHtml(h.mae||'')}</td><td data-col="pelagem">${escHtml(h.pelagem||'')}</td><td data-col="raca">${escHtml(h.raca||'')}</td><td data-col="categoria">${escHtml(h.categoria||'')}</td>
@@ -6629,6 +6640,8 @@ document.getElementById('btnAbrirEditLote').addEventListener('click', ()=>{
   document.getElementById('el_chkFreqManejo').checked = false;
   document.getElementById('el_chkAie').checked = false;
   document.getElementById('el_chkMormo').checked = false;
+  document.getElementById('el_chkControle').checked = false;
+  document.getElementById('el_controle').disabled = true;
   document.getElementById('el_localizacao').disabled = true;
   document.getElementById('el_categoria').disabled = true;
   document.getElementById('el_status').disabled = true;
@@ -6665,6 +6678,7 @@ document.getElementById('el_chkFreqManejo').addEventListener('change', e=>{
   document.getElementById('el_freqManejoTipo').disabled = !e.target.checked;
   document.getElementById('el_freqManejoValor').disabled = !e.target.checked;
 });
+document.getElementById('el_chkControle').addEventListener('change', e=>{ document.getElementById('el_controle').disabled = !e.target.checked; });
 document.getElementById('el_chkAie').addEventListener('change', e=>{
   document.getElementById('el_aieData').disabled = !e.target.checked;
   document.getElementById('el_aieDias').disabled = !e.target.checked;
@@ -6686,7 +6700,9 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
   const alterarFreqManejo = document.getElementById('el_chkFreqManejo').checked;
   const alterarAie = document.getElementById('el_chkAie').checked;
   const alterarMormo = document.getElementById('el_chkMormo').checked;
-  if(!alterarLoc && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarPeso && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
+  const alterarControle = document.getElementById('el_chkControle').checked;
+  const novoControle = document.getElementById('el_controle').value === '1';
+  if(!alterarLoc && !alterarControle && !alterarCat && !alterarStatus && !alterarProp && !alterarRaca && !alterarPelagem && !alterarPeso && !alterarSituacao && !alterarDoador && !alterarFreqManejo && !alterarAie && !alterarMormo){ showAlert('Marque ao menos um campo pra alterar.'); return; }
   const novaLoc = document.getElementById('el_localizacao').value;
   const novaCat = document.getElementById('el_categoria').value;
   const novoStatus = document.getElementById('el_status').value;
@@ -6740,10 +6756,17 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     if(alterarSituacao) nh.situacao = novaSituacao;
     if(alterarDoador && nh.sexo==='FEMININO') nh.doador = novoDoador;
     if(alterarFreqManejo) nh[freqCampo] = freqManejoValor;
+    if(alterarControle) nh.controleExames = novoControle;
     if(alterarAie || alterarMormo){
       nh.examesSaude = {...(h.examesSaude||{})};
-      if(alterarAie) nh.examesSaude.AIE = { data: aieData, dias: Math.max(1, Math.round(Number(aieDias))) };
-      if(alterarMormo) nh.examesSaude.Mormo = { data: mormoData, dias: Math.max(1, Math.round(Number(mormoDias))) };
+      // Exame novo substitui o anterior; arquivos (PDF) do exame anterior não se perdem: ficam em "exames anteriores".
+      const trocar = (tp, data, dias)=>{
+        const ant = nh.examesSaude[tp];
+        if(ant && ant.data && ant.data!==data && (ant.arquivos||[]).length) nh.examesSaudeAnteriores = [...(nh.examesSaudeAnteriores||h.examesSaudeAnteriores||[]), { tipo:tp, data:ant.data, arquivos:ant.arquivos }];
+        nh.examesSaude[tp] = (ant && ant.data===data) ? { ...ant, dias } : { data, dias, arquivos:[] };
+      };
+      if(alterarAie) trocar('AIE', aieData, Math.max(1, Math.round(Number(aieDias))));
+      if(alterarMormo) trocar('Mormo', mormoData, Math.max(1, Math.round(Number(mormoDias))));
     }
     return nh;
   });
@@ -6753,7 +6776,7 @@ document.getElementById('btnSalvarEditLote').addEventListener('click', async ()=
     await aregGravarAnimais(novosRegistrosPeso.map(r=>r.animalId));
   }
   closeModal('overlayEditLote');
-  renderHorses();
+  renderHorses(); atualizarAlertaExames();
   showAlert(`${n} animal(is) atualizado(s).`);
 });
 
@@ -8220,6 +8243,7 @@ let inicioAgendaView = 'semana'; // 'dia' | 'semana' — o chip "Mês" não é u
 
 function renderInicio(){
   atualizarAlertaMedicamento();
+  atualizarAlertaExames();
   renderInicioHero();
   renderInicioPilares();
   renderInicioAgenda();
@@ -8577,9 +8601,11 @@ function renderInicioSaude(host){
     return (e && e.data) ? toISODate(addToDate(e.data, Number(e.dias)||60, 'dias')) : null;
   };
   const curtoData = iso => iso ? (iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(2,4)) : '—';
+  const idsRefazer = new Set(examesSaudeParaRenovar().map(x=>x.h.id));
   const comExamesOk = horses.filter(h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento)
     .map(h=>({ h, aie: vencExameSaude(h,'AIE'), mormo: vencExameSaude(h,'Mormo') }))
     .filter(x=> x.aie && x.mormo && x.aie>=hojeS && x.mormo>=hojeS)
+    .filter(x=> !idsRefazer.has(x.h.id)) // quem está em "Refazer exame" (5 dias ou menos) não repete em "Exames válidos"
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const secExames = `<div style="margin-top:16px;">
     <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Exames válidos — AIE + Mormo${comExamesOk.length?` (${comExamesOk.length})`:''}</div>
@@ -8593,6 +8619,18 @@ function renderInicioSaude(host){
         </div>`}
   </div>`;
 
+  // "Refazer exame": só aparece quando há animal com controle ligado faltando 5 dias ou menos, vencido ou sem exame.
+  // Tocar abre Animais com todos marcados (mesma ação do alerta vermelho 🩺 do topo).
+  const paraRefazer = []; const jaVisto = new Set();
+  examesSaudeParaRenovar().forEach(x=>{ if(!jaVisto.has(x.h.id)){ jaVisto.add(x.h.id); paraRefazer.push(x.h); } });
+  const secRefazer = paraRefazer.length===0 ? '' : `<div style="margin-top:16px;">
+    <div style="font-size:10.5px;color:#C0392B;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${paraRefazer.length})</div>
+    <div data-abrirrefazer="1" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;">
+      ${paraRefazer.map(h=>`<div style="line-height:1.35;"><div style="font-weight:600;font-size:12.5px;">${escHtml(h.nome||'—')}</div>
+        <div style="color:#C0392B;font-size:11px;">${escHtml(resumoExamesAnimal(h))}</div></div>`).join('')}
+    </div>
+  </div>`;
+
   host.innerHTML = `
     ${dashCardHead('coracao','Saúde','Veterinária')}
     ${pocoVisita}
@@ -8600,9 +8638,12 @@ function renderInicioSaude(host){
       <div style="font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Tratamentos em curso</div>
       <div style="max-height:200px;overflow-y:auto;padding-right:2px;">${tratamentosHtml}</div>
     </div>
+    ${secRefazer}
     ${secExames}
   `;
+  host.querySelectorAll('[data-abrirrefazer]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); alertaExameIds = paraRefazer.map(h=>h.id); abrirAnimaisComExameParaRefazer(); }));
   host.querySelectorAll('[data-verperfilexame]').forEach(el=> el.addEventListener('click', (ev)=>{ ev.stopPropagation(); abrirPerfilAnimal(el.dataset.verperfilexame); }));
+
 }
 
 // "Reprodução" no Início: TUDO agrupado por ESTAÇÃO reprodutiva (mais ANTIGA primeiro, pra a estação
@@ -20048,9 +20089,9 @@ function verGrupoNoFront(id){
 // Grupo (banner "Mostrando só o grupo X", com botão de limpar), só que aqui a lista não precisa vir de
 // um grupo salvo: pode vir de qualquer lugar (ex: animais atrasados no calendário do Início). Assim dá
 // pra selecionar os mesmos animais e usar "Editar em Lote" pra mudar frequências, localização, etc.
-function abrirAnimaisNoFront(nome, animaisArr){
+function abrirAnimaisNoFront(nome, animaisArr, opcoes){
   if(!animaisArr || animaisArr.length===0){ showAlert('Nenhum animal nessa lista.'); return; }
-  grupoFiltroAtivo = { nome, animais: animaisArr };
+  grupoFiltroAtivo = { nome, animais: animaisArr, mostrarExames: !!(opcoes && opcoes.mostrarExames) };
   // Já marca os checkboxes da Lista (Editar em Lote) E o seletor de Relatórios (Relatório/PDF) — as
   // duas estruturas de seleção que já existiam, sem inventar nenhuma nova. Sem isso o usuário chegava
   // na lista filtrada mas precisava marcar tudo de novo à mão em cada aba pra gerar relatório do grupo.
@@ -22811,17 +22852,22 @@ function renderAnimalPerfil(id){
 
   cardsDefs.push({ key:'examesValidade', defaultCol:'principal', html:`
     <div class="perfil-card">
-      <div class="perfil-card-head">🩺 Exames com validade — AIE · Mormo</div>
+      <div class="perfil-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>🩺 Exames com validade — AIE · Mormo</span>
+        <button type="button" class="btn btn-sm ${controleExamesAtivo(h)?'':'btn-ghost'} no-print" id="btnControleExames" style="text-transform:none;letter-spacing:0;font-weight:600;" title="${controleExamesAtivo(h)?'Seguindo o controle: o app avisa quando o exame faltar ou vencer. Toque para PARAR de controlar este animal.':'Controle parado: este animal não gera avisos. Toque para VOLTAR a controlar.'}">${controleExamesAtivo(h)?'🔔 Seguir controlando':'🔕 Controle parado'}</button>
+      </div>
       <div class="perfil-card-body">
+        ${controleExamesAtivo(h) ? '' : '<div class="hint-text" style="margin:0 0 10px;">Controle parado: este animal não gera avisos de AIE/Mormo. Toque no botão acima para voltar a controlar se for precisar do exame.</div>'}
         ${['AIE','Mormo'].map(tp=>{
           const e = (h.examesSaude||{})[tp];
-          if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span></div>`;
+          if(!e || !e.data) return `<div style="margin-bottom:12px;font-size:12.5px;"><strong>${tp}</strong> <span style="color:var(--muted);">— nenhum exame registrado</span>${controleExamesAtivo(h) ? ` <span style="color:var(--warn-ink,var(--warn));font-weight:700;">⚠ Fazer o exame de ${tp}</span>` : ''}</div>`;
           const dias = Number(e.dias)||60;
           const venc = toISODate(addToDate(e.data, dias, 'dias'));
           const restante = Math.round((new Date(venc+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
           const pct = Math.max(0, Math.min(100, restante/dias*100));
           const cor = restante<=0 ? 'var(--burgundy)' : restante <= dias*0.2 ? 'var(--warn)' : 'var(--ok)';
           const txt = restante<=0 ? `VENCIDO há ${-restante} dia(s)` : `faltam ${restante} dia(s)`;
+          const refazer = restante <= EXAME_SAUDE_AVISO_DIAS && controleExamesAtivo(h);
           return `<div style="margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px;flex-wrap:wrap;">
               <span><strong>${tp}</strong> — feito ${fmtDate(e.data)}</span>
@@ -22830,8 +22876,19 @@ function renderAnimalPerfil(id){
             <div style="height:14px;background:var(--line);border-radius:7px;overflow:hidden;">
               <div style="height:100%;width:${pct}%;background:${cor};transition:width .2s;"></div>
             </div>
+            ${refazer ? `<div style="margin-top:6px;font-size:12.5px;font-weight:700;color:${restante<0?'var(--burgundy)':'var(--warn-ink,var(--warn))'};">⚠ Refazer o exame de ${tp}${restante<0?' (vencido)':''}</div>` : ''}
+            ${htmlArquivosExameSaude(h, tp, e)}
+            ${restante<0 && (e.arquivos||[]).length && controleExamesAtivo(h) ? `<div class="no-print" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
+              <span>${e.manterPdf?'Você escolheu manter os arquivos deste exame vencido.':'Exame vencido: descartar os arquivos para liberar espaço?'}</span>
+              <button type="button" class="btn btn-sm btn-danger" data-exsdescartar="${tp}">🗑 Descartar arquivos</button>
+              ${e.manterPdf?'':`<button type="button" class="btn btn-sm btn-ghost" data-exsmanter="${tp}">Manter</button>`}
+            </div>` : ''}
+            <div class="no-print" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <label class="btn btn-sm btn-ghost" style="cursor:pointer;margin:0;">📎 Anexar PDF/foto do ${tp}<input type="file" data-exsarq="${tp}" multiple accept="application/pdf,image/*,.zip" style="display:none;"></label>
+            </div>
           </div>`;
         }).join('')}
+        ${(h.examesSaudeAnteriores||[]).length ? `<div style="margin:6px 0 10px;"><div class="hint-text" style="margin:0 0 4px;">Arquivos de exames anteriores (mantidos):</div>${(h.examesSaudeAnteriores||[]).map((an,ai)=>`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><span style="font-size:12px;"><strong>${an.tipo}</strong> de ${fmtDate(an.data)}</span>${htmlArquivosExameSaude({id:h.id}, 'ANT'+ai, {arquivos:an.arquivos})}<button type="button" class="btn btn-sm btn-danger no-print" data-exsantdescartar="${ai}">🗑 Descartar</button></div>`).join('')}</div>` : ''}
         <div class="no-print" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
           <select id="exs_tipo" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;"><option>AIE</option><option>Mormo</option></select>
           <input type="date" id="exs_data" style="padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;">
@@ -23052,13 +23109,10 @@ function renderAnimalPerfil(id){
           try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
           const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
           const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
-          let miniUrl = '';
-          if(file.type==='application/pdf'){
-            const mini = await miniaturaDePdf(file);
-            if(mini){ try{ const m = await Fotos.enviarMiniaturaBlob(st, TENANT_ID, h.id, mini); miniUrl = m.url; }catch(e){ console.warn('Miniatura do PDF não enviada:', e); } }
-          }
-          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, miniUrl, dataUpload: toISODate(new Date()) });
-          if(miniUrl) fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, obs:'Exame — '+nome });
+          let miniUrl = '', grandeUrl = '';
+          if(file.type==='application/pdf'){ const im = await imagensDoPdf(st, h.id, file); miniUrl = im.miniUrl; grandeUrl = im.grandeUrl; }
+          novos.push({ id:'ex_'+Date.now()+'_'+novos.length, nome, url:r.url, path:r.path, tipo:'arquivo', mime:r.tipo, tamanho:file.size, miniUrl, grandeUrl, dataUpload: toISODate(new Date()) });
+          if(miniUrl) fotosNovas.push({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data: toISODate(new Date()), peso:'', scoreCorporal:'', fotoDataUrl:grandeUrl||miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, obs:'Exame — '+nome });
         }catch(err){
           console.error('Exame: envio ao Storage falhou:', err);
           recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')');
@@ -23102,7 +23156,7 @@ function renderAnimalPerfil(id){
         if(pontos.length){ const ids = new Set(pontos.map(r=>r.id)); animalRegistros = animalRegistros.filter(r=>!ids.has(r.id)); await aregGravarAnimais([h.id], true); }
       }
       if(removido && removido.tipo==='arquivo' && removido.path && window.Fotos){
-        carregarStorage().then(async st=>{ await Fotos.removerArquivo(st, removido.path); if(removido.miniUrl && !fotoAindaReferenciada(removido.miniUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.miniUrl }); }).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
+        carregarStorage().then(async st=>{ await Fotos.removerArquivo(st, removido.path); if(removido.miniUrl && !fotoAindaReferenciada(removido.miniUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.miniUrl }); if(removido.grandeUrl && !fotoAindaReferenciada(removido.grandeUrl)) await Fotos.removerFoto(st, { fotoMiniUrl:removido.grandeUrl }); }).catch(e=>console.warn('Não consegui apagar o arquivo do Storage (fica órfão, sem prejuízo):', e));
       }
       renderAnimalPerfil(h.id);
     });
@@ -23142,15 +23196,59 @@ function renderAnimalPerfil(id){
       renderAnimalPerfil(h.id);
     });
   });
+  document.getElementById('btnControleExames').addEventListener('click', async ()=>{
+    const ligar = !controleExamesAtivo(h);
+    await alternarControleExames(h, ligar, true);
+    renderAnimalPerfil(h.id); atualizarTelasQueDependemDeAnimais();
+  });
+  document.querySelectorAll('[data-exsarq]').forEach(inp=> inp.addEventListener('change', async ()=>{
+    const files = [...(inp.files||[])]; const tp = inp.dataset.exsarq; inp.value = '';
+    if(!files.length) return;
+    await anexarArquivosExameSaude(h, tp, files); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    const [tp, idx] = b.dataset.exsdel.split('|'); const i = Number(idx);
+    if(tp.startsWith('ANT')){
+      const ai = Number(tp.slice(3)); const an = (h.examesSaudeAnteriores||[])[ai]; if(!an) return;
+      const a = (an.arquivos||[])[i]; if(!a || !(await showConfirm('Remover este arquivo?'))) return;
+      an.arquivos = an.arquivos.filter((_,k)=>k!==i);
+      if(!an.arquivos.length) h.examesSaudeAnteriores = h.examesSaudeAnteriores.filter((_,k)=>k!==ai);
+      await storeSet('horses_list', horses); await descartarArquivosExame(h, [a]); renderAnimalPerfil(h.id); return;
+    }
+    const e = (h.examesSaude||{})[tp]; const a = e && (e.arquivos||[])[i]; if(!a || !(await showConfirm('Remover este arquivo do exame?'))) return;
+    e.arquivos = e.arquivos.filter((_,k)=>k!==i);
+    await storeSet('horses_list', horses); await descartarArquivosExame(h, [a]); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsdescartar]').forEach(b=> b.addEventListener('click', async ()=>{
+    const tp = b.dataset.exsdescartar; if(!(await showConfirm('Descartar os arquivos do exame de '+tp+' vencido? Não pode ser desfeito.', {danger:true, okLabel:'Descartar'}))) return;
+    await descartarPdfsExameVencido(h, tp); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsmanter]').forEach(b=> b.addEventListener('click', async ()=>{
+    const e = (h.examesSaude||{})[b.dataset.exsmanter]; if(!e) return; e.manterPdf = true; await storeSet('horses_list', horses); renderAnimalPerfil(h.id);
+  }));
+  document.querySelectorAll('[data-exsantdescartar]').forEach(b=> b.addEventListener('click', async ()=>{
+    const ai = Number(b.dataset.exsantdescartar); const an = (h.examesSaudeAnteriores||[])[ai]; if(!an) return;
+    if(!(await showConfirm('Descartar os arquivos do exame anterior? Não pode ser desfeito.', {danger:true, okLabel:'Descartar'}))) return;
+    h.examesSaudeAnteriores = h.examesSaudeAnteriores.filter((_,k)=>k!==ai); await storeSet('horses_list', horses);
+    await descartarArquivosExame(h, an.arquivos||[]); renderAnimalPerfil(h.id);
+  }));
   document.getElementById('btnAddExameSaude').addEventListener('click', async ()=>{
     const tp = document.getElementById('exs_tipo').value;
     const data = document.getElementById('exs_data').value;
     if(!data){ showAlert('Informe a data do exame.'); return; }
     const dias = Math.max(1, Math.round(Number(document.getElementById('exs_dias').value)||60));
     if(!h.examesSaude) h.examesSaude = {};
-    h.examesSaude[tp] = { data, dias };
+    const anterior = h.examesSaude[tp];
+    const arqsAnt = (anterior && anterior.data && anterior.data!==data) ? (anterior.arquivos||[]) : [];
+    let descartar = false;
+    if(arqsAnt.length){
+      descartar = await showConfirm('Existem '+arqsAnt.length+' arquivo(s) do exame de '+tp+' anterior (feito em '+fmtDate(anterior.data)+'). Descartar esses arquivos agora que o exame foi renovado? (Se escolher "Manter", eles ficam guardados em "exames anteriores".)', { danger:true, okLabel:'Descartar', cancelLabel:'Manter' });
+    }
+    h.examesSaude[tp] = (anterior && anterior.data===data) ? { ...anterior, dias } : { data, dias, arquivos:[] };
+    if(arqsAnt.length && !descartar){ h.examesSaudeAnteriores = [...(h.examesSaudeAnteriores||[]), { tipo:tp, data:anterior.data, arquivos:arqsAnt }]; }
     await storeSet('horses_list', horses);
-    renderAnimalPerfil(h.id);
+    if(arqsAnt.length && descartar) await descartarArquivosExame(h, arqsAnt);
+    renderAnimalPerfil(h.id); atualizarAlertaExames();
   });
 }
 
@@ -23297,20 +23395,201 @@ function abrirAnimalRegistroEditar(id){
   document.getElementById('btnArExcluir').style.display = 'inline-block';
 }
 /* ---- Miniatura da 1ª página de um PDF (usa o leitor de PDF que o app já carrega). Devolve Blob JPEG ou null. ---- */
-async function miniaturaDePdf(file){
+async function miniaturaDePdf(file, lado, qualidade){
+  lado = lado || 240; qualidade = qualidade || 0.7;
   try{
     if(typeof pdfjsLib === 'undefined') return null;
     if(!pdfjsLib.GlobalWorkerOptions.workerSrc){ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     const page = await pdf.getPage(1);
     const v0 = page.getViewport({ scale:1 });
-    const escala = 240 / Math.max(v0.width, v0.height);
+    const escala = lado / Math.max(v0.width, v0.height);
     const vp = page.getViewport({ scale: escala });
     const cv = document.createElement('canvas'); cv.width = Math.max(1,Math.round(vp.width)); cv.height = Math.max(1,Math.round(vp.height));
     const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-    return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', 0.7));
+    return await new Promise(res=>cv.toBlob(b=>res(b), 'image/jpeg', qualidade));
   }catch(e){ console.warn('Não consegui gerar a miniatura do PDF:', e); return null; }
+}
+// 1ª página do PDF em tamanho de LEITURA (texto legível ao ampliar). O Storage aceita imagem até 400 KB: reduz qualidade/tamanho até caber.
+async function paginaGrandeDePdf(file){
+  for(const [lado,q] of [[1700,0.8],[1700,0.62],[1400,0.6],[1200,0.55],[1000,0.5]]){
+    const b = await miniaturaDePdf(file, lado, q);
+    if(!b) return null;
+    if(b.size <= 390*1024) return b;
+  }
+  return null;
+}
+// Gera e envia as duas imagens do PDF: grande (ponto da linha do tempo ao ampliar) e pequena (miniatura). Devolve {miniUrl, grandeUrl}.
+async function imagensDoPdf(st, animalId, file){
+  const out = { miniUrl:'', grandeUrl:'' };
+  const mini = await miniaturaDePdf(file);
+  if(mini){ try{ out.miniUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, animalId, mini)).url; }catch(e){ console.warn('Miniatura do PDF não enviada:', e); } }
+  const grande = out.miniUrl ? await paginaGrandeDePdf(file) : null;
+  if(grande){ try{ out.grandeUrl = (await Fotos.enviarMiniaturaBlob(st, TENANT_ID, animalId, grande)).url; }catch(e){ console.warn('Página grande do PDF não enviada:', e); } }
+  return out;
+}
+/* ================= EXAMES COM VALIDADE (AIE / Mormo): PDFs, aviso 5 dias antes e descarte do vencido =================
+   h.examesSaude[tp] = { data, dias, arquivos:[{id,nome,url,path,miniUrl,mime,tamanho,tipo}], manterPdf }
+   h.examesSaudeAnteriores = [{ tipo, data, arquivos }]  (PDFs de exames já renovados que o usuário preferiu manter) */
+const EXAME_SAUDE_AVISO_DIAS = 5;
+function vencimentoExameSaude(e){ return (e && e.data) ? toISODate(addToDate(e.data, Number(e.dias)||60, 'dias')) : null; }
+function diasParaVencerExameSaude(e){
+  const v = vencimentoExameSaude(e); if(!v) return null;
+  return Math.round((new Date(v+'T00:00:00') - new Date(toISODate(new Date())+'T00:00:00'))/86400000);
+}
+// Controle de exames (AIE/Mormo) por animal: LIGADO = o app cobra o exame (avisa quando falta/vence); DESLIGADO = o animal
+// some dos avisos (ex.: animal solto, que não vai mais competir). Sem escolha feita: liga sozinho só se o animal já tem exame registrado.
+function controleExamesAtivo(h){
+  if(h.controleExames!==undefined && h.controleExames!==null) return !!h.controleExames;
+  const ex = h.examesSaude || {};
+  return !!((ex.AIE && ex.AIE.data) || (ex.Mormo && ex.Mormo.data));
+}
+// Animais ativos COM controle ligado: exame sem registro, faltando <= 5 dias ou vencido. Vencido com PDFs pede decisão.
+function examesSaudeParaRenovar(){
+  const out = [];
+  horses.forEach(h=>{
+    if(h.situacao==='E' || h.situacao==='V' || h.falecimento) return;
+    if(!controleExamesAtivo(h)) return;
+    ['AIE','Mormo'].forEach(tp=>{
+      const e = (h.examesSaude||{})[tp];
+      if(!e || !e.data){ out.push({ h, tp, e:null, semExame:true, restante:null, vencido:false, venc:null, temPdf:false }); return; }
+      const restante = diasParaVencerExameSaude(e);
+      if(restante===null || restante > EXAME_SAUDE_AVISO_DIAS) return;
+      out.push({ h, tp, e, semExame:false, restante, vencido: restante<0, venc: vencimentoExameSaude(e), temPdf: (e.arquivos||[]).length>0 && !e.manterPdf });
+    });
+  });
+  // vencidos primeiro, depois os que vencem logo, e por último os sem exame registrado
+  return out.sort((a,b)=> (a.semExame-b.semExame) || ((a.restante||0)-(b.restante||0)));
+}
+function textoStatusExameSaude(x){
+  if(x.semExame) return 'sem exame registrado';
+  return x.vencido ? 'vencido há '+(-x.restante)+' dia(s)' : (x.restante===0 ? 'vence hoje' : 'vence em '+x.restante+' dia(s)');
+}
+function arquivosDeExameParaApagar(lista){ return (lista||[]).map(a=>a); }
+// Apaga arquivos de exame (e miniaturas) do Storage e os pontos da Linha do Tempo que apontam para eles.
+async function descartarArquivosExame(h, arquivos){
+  if(!arquivos || !arquivos.length) return;
+  const urls = new Set(); arquivos.forEach(a=>{ if(a.url) urls.add(a.url); });
+  const pontos = animalRegistros.filter(r=> urls.has(r.arquivoUrl) || urls.has(r.fotoDataUrl));
+  if(pontos.length){ const ids = new Set(pontos.map(r=>r.id)); animalRegistros = animalRegistros.filter(r=>!ids.has(r.id)); await aregGravarAnimais([h.id], true); }
+  if(window.Fotos){
+    try{
+      const st = await carregarStorage();
+      for(const a of arquivos){
+        try{
+          if(a.tipo==='foto'){ await Fotos.removerFoto(st, { fotoUrl:a.url, fotoMiniUrl:a.miniUrl||'' }); }
+          else { if(a.path) await Fotos.removerArquivo(st, a.path); if(a.miniUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.miniUrl }); if(a.grandeUrl) await Fotos.removerFoto(st, { fotoMiniUrl:a.grandeUrl }); }
+        }catch(e){ console.warn('Não consegui apagar um arquivo do exame (fica órfão, sem prejuízo):', e); }
+      }
+    }catch(e){ console.warn('Storage indisponível para apagar arquivos de exame:', e); }
+  }
+}
+async function descartarPdfsExameVencido(h, tp){
+  const e = (h.examesSaude||{})[tp]; if(!e) return;
+  const arqs = e.arquivos || [];
+  e.arquivos = []; e.manterPdf = false;
+  await storeSet('horses_list', horses);
+  await descartarArquivosExame(h, arqs);
+}
+// Anexa PDFs/fotos a um exame com validade (AIE/Mormo). Exige o Storage ligado.
+async function anexarArquivosExameSaude(h, tp, files){
+  const e = (h.examesSaude||{})[tp];
+  if(!e || !e.data){ showAlert('Registre primeiro a data do exame de '+tp+' e depois anexe os arquivos.'); return; }
+  if(!fotosNoStorageAtivo()){ showAlert('Para anexar PDF/foto aos exames com validade, ligue a opção do Storage (Diagnóstico).'); return; }
+  const novos = [], recusados = [], pontos = [];
+  try{
+    const st = await carregarStorage();
+    try{ st.setMaxUploadRetryTime(60000); st.setMaxOperationRetryTime(60000); }catch(_){}
+    for(const file of files){
+      try{
+        const limite = new Promise((_,rej)=>setTimeout(()=>rej(new Error('o Storage não respondeu em 60 s')), 60000));
+        if(/^image\//i.test(file.type||'')){
+          const r = await Promise.race([Fotos.enviarFoto(st, TENANT_ID, h.id, file), limite]);
+          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, miniUrl:r.urlMiniatura||'', tipo:'foto', mime:'image/jpeg' });
+          pontos.push({ fotoDataUrl:r.url, fotoMiniUrl:r.urlMiniatura||'', arquivoUrl:'', nome:file.name });
+        }else{
+          if(file.size > Fotos.LIMITE_ARQUIVO_BYTES){ recusados.push(file.name+' (passa de 10 MB — comprima o PDF)'); continue; }
+          const r = await Promise.race([Fotos.enviarArquivo(st, TENANT_ID, h.id, file), limite]);
+          let miniUrl = '', grandeUrl = '';
+          if(file.type==='application/pdf'){ const im = await imagensDoPdf(st, h.id, file); miniUrl = im.miniUrl; grandeUrl = im.grandeUrl; }
+          novos.push({ id:'exa_'+Date.now()+'_'+novos.length, nome:file.name, url:r.url, path:r.path, miniUrl, grandeUrl, tipo:'arquivo', mime:r.tipo, tamanho:file.size });
+          if(miniUrl) pontos.push({ fotoDataUrl:grandeUrl||miniUrl, fotoMiniUrl:miniUrl, arquivoUrl:r.url, nome:file.name });
+        }
+      }catch(err){ recusados.push(file.name+' (não consegui enviar: '+((err&&(err.code||err.message))||'erro')+')'); }
+    }
+  }catch(err){ showAlert('Não consegui usar o Storage ('+((err&&(err.code||err.message))||'erro')+'). Nada foi alterado.'); return; }
+  if(novos.length){
+    e.arquivos = [...(e.arquivos||[]), ...novos]; e.manterPdf = false;
+    if(!(await storeSet('horses_list', horses))) return;
+    if(pontos.length) aregAdicionar(pontos.map(pt=>({ id:aregNovoId(), animalId:h.id, animalNome:h.nome||'', data:e.data, peso:'', scoreCorporal:'',
+      fotoDataUrl:pt.fotoDataUrl, fotoMiniUrl:pt.fotoMiniUrl, arquivoUrl:pt.arquivoUrl||'', obs:'Exame '+tp+' — '+pt.nome })));
+  }
+  if(recusados.length) showAlert((novos.length ? novos.length+' arquivo(s) anexado(s). ' : '')+'Não anexado(s): '+recusados.join('; ')+'.');
+}
+// Linhas de arquivo (miniatura + nome) de um exame com validade.
+function htmlArquivosExameSaude(h, tp, e){
+  const arqs = e.arquivos || [];
+  if(!arqs.length) return '';
+  return `<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">`+arqs.map((a,i)=>{
+    const thumb = a.miniUrl || (a.tipo==='foto' ? a.url : '');
+    const caixa = thumb ? `<img src="${urlSegura(thumb)}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;">`
+                        : `<div style="width:56px;height:56px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--card);">📄</div>`;
+    return `<div style="width:64px;text-align:center;position:relative;">
+      <a href="${urlSegura(a.url)}" target="_blank" rel="noopener" title="${escHtml(a.nome)}" style="display:block;">${caixa}</a>
+      <div class="hint-text" style="margin:2px 0 0;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(a.nome)}">${escHtml(a.nome)}</div>
+      <button type="button" class="btn btn-sm btn-ghost no-print" data-exsdel="${tp}|${i}" title="Remover este arquivo" style="position:absolute;top:-8px;right:-4px;padding:0 5px;line-height:18px;">✕</button>
+    </div>`; }).join('')+`</div>`;
+}
+/* Aviso de exames para renovar: abre uma vez por dia no máximo (e sempre aparece no Início → Saúde). */
+// Liga/desliga o controle de exames do animal. Ao desligar, pode (opcionalmente) descartar os arquivos já guardados.
+async function alternarControleExames(h, ligar, perguntarArquivos){
+  h.controleExames = !!ligar;
+  let descartar = false;
+  const ex = h.examesSaude || {};
+  const arqs = [...(ex.AIE&&ex.AIE.arquivos||[]), ...(ex.Mormo&&ex.Mormo.arquivos||[])];
+  if(!ligar && perguntarArquivos && arqs.length){
+    descartar = !!(await showConfirm('Controle desligado. Descartar também os '+arqs.length+' arquivo(s) de exame guardados deste animal? (Se escolher "Manter", eles continuam guardados.)', { danger:true, okLabel:'Descartar', cancelLabel:'Manter' }));
+    if(descartar){ ['AIE','Mormo'].forEach(tp=>{ if(ex[tp]) ex[tp].arquivos = []; }); }
+  }
+  await storeSet('horses_list', horses);
+  if(descartar) await descartarArquivosExame(h, arqs);
+  atualizarAlertaExames();
+}
+/* ---- Alerta vermelho de exames (canto de cima, ao lado do alerta amarelo do estoque) ----
+   Aparece quando QUALQUER animal com controle ligado precisa refazer AIE/Mormo: falta 5 dias ou menos, já venceu ou não tem exame.
+   Tocar abre a lista de Animais só com esses animais já marcados (dá para "Editar em lote": registrar exame novo ou parar de controlar). */
+let alertaExameIds = [];
+function resumoExamesAnimal(h){
+  const part = tp=>{ const e=(h.examesSaude||{})[tp]; if(!e||!e.data) return tp+': sem exame'; const r=diasParaVencerExameSaude(e); return tp+': '+(r<0?'vencido há '+(-r)+' d':(r===0?'vence hoje':'vence em '+r+' d')); };
+  return part('AIE')+' · '+part('Mormo');
+}
+function atualizarAlertaExames(){
+  const itens = examesSaudeParaRenovar();
+  const vistos = new Set(); alertaExameIds = [];
+  itens.forEach(x=>{ if(!vistos.has(x.h.id)){ vistos.add(x.h.id); alertaExameIds.push(x.h.id); } });
+  let el = document.getElementById('alertaExameBtn');
+  if(!el){
+    el = document.createElement('button');
+    el.id = 'alertaExameBtn'; el.type = 'button';
+    el.style.cssText = 'position:fixed;top:14px;right:14px;z-index:250;display:none;align-items:center;justify-content:center;'
+      + 'min-width:34px;height:34px;padding:0 6px;border-radius:17px;background:#C0392B;color:#fff;border:none;font-size:13px;font-weight:700;line-height:1;'
+      + 'box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;';
+    document.body.appendChild(el);
+    el.addEventListener('click', abrirAnimaisComExameParaRefazer);
+  }
+  if(alertaExameIds.length===0){ el.style.display='none'; return; }
+  // fica ao lado do alerta amarelo do estoque (quando ele está na tela), sem cobrir um ao outro
+  const amarelo = document.getElementById('alertaMedicamentoBtn');
+  el.style.right = (amarelo && amarelo.style.display!=='none') ? '58px' : '14px';
+  el.textContent = '🩺 '+alertaExameIds.length;
+  el.title = alertaExameIds.length+' animal(is) com exame de AIE/Mormo para refazer (falta 5 dias ou menos, vencido ou sem exame) — clique para ver';
+  el.style.display = 'flex';
+}
+function abrirAnimaisComExameParaRefazer(){
+  if(alertaExameIds.length===0) return;
+  const lista = alertaExameIds.map(id=>horses.find(h=>h.id===id)).filter(Boolean).map(h=>({id:h.id, nome:h.nome}));
+  abrirAnimaisNoFront('Exames para refazer', lista, { mostrarExames:true });
 }
 function renderAnimalTimeline(h){
   const { de, ate } = timelineCalcularRange();
@@ -23350,7 +23629,13 @@ function renderAnimalTimeline(h){
         </div>
         <div class="hint-text" style="margin:0 0 12px;">Clique duas vezes num chip de categoria pra abrir a busca dentro dela.</div>
         ${timelineBuscaAberta ? `<div class="field" style="margin-bottom:12px;"><input type="text" id="tlBusca" placeholder="Buscar dentro de ${timelineFiltro==='todos'?'todos os eventos':'“'+({manejo:'Manejos',treino:'Atividade Esportiva',visita:'Visitas',filho:'Filhos'}[timelineFiltro]||timelineFiltro)+'”'}..." value="${escHtml(timelineBuscaTexto)}"></div>` : ''}
-        ${filtrados.length===0 ? '<div class="hint-text">Nenhum evento encontrado nesse período (ou pra esse filtro/busca).</div>' :
+        ${filtrados.length===0 ? (()=>{
+          const noHistorico = (timelineFiltro==='todos' ? todosSemPeriodo : todosSemPeriodo.filter(e=>e.tipo===timelineFiltro)).length;
+          const periodoTxt = { '20d':'nos últimos 20 dias', '3m':'nos últimos 3 meses', '6m':'nos últimos 6 meses', '1a':'no último ano', 'custom':'no período escolhido' }[timelinePeriodoPreset] || 'neste período';
+          if(noHistorico>0 && !(timelineBuscaAberta && timelineBuscaTexto.trim()) && timelinePeriodoPreset!=='tudo')
+            return `<div class="hint-text">Nada ${periodoTxt}, mas este animal tem <strong>${noHistorico}</strong> evento(s) mais antigo(s) neste filtro. <span class="chip" data-tperiodo="tudo" style="font-size:11px;padding:4px 10px;margin-left:6px;">Ver tudo</span></div>`;
+          return '<div class="hint-text">Nenhum evento encontrado nesse período (ou pra esse filtro/busca).</div>';
+        })() :
           `<div class="timeline">${filtrados.map(e=>`
             <div class="timeline-item">
               <div class="timeline-dot">${TIMELINE_ICON[e.tipo]||'•'}</div>
@@ -23641,6 +23926,7 @@ document.getElementById('btnArSalvar').addEventListener('click', ()=>{
   aregSalvarEmSegundoPlano([registro.animalId], ()=>{ if(document.getElementById('overlayLinhaDoTempoVisual').classList.contains('show')) renderLinhaDoTempoVisual(); });
   closeModal('overlayAnimalRegistro');
 });
+document.getElementById('btnFtTamanhoMaximo').addEventListener('click', ()=>{ const u=document.getElementById('ftFotoGrande').src; if(/^https:\/\//i.test(u)) window.open(u, '_blank', 'noopener'); else { const w=window.open('', '_blank'); if(w){ w.document.write('<title>Foto</title><body style="margin:0;background:#111"><img src="'+u+'" style="max-width:100%;display:block;margin:auto">'); w.document.close(); } } });
 document.getElementById('btnFtAbrirArquivo').addEventListener('click', ()=>{ if(ftArquivoUrl) window.open(ftArquivoUrl, '_blank', 'noopener'); });
 document.getElementById('btnFtEditar').addEventListener('click', ()=>{
   const id = ftRegistroId; if(!id) return;
