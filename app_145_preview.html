@@ -8613,9 +8613,9 @@ function renderInicioSaude(host){
     .sort((a,b)=> (a.aie<a.mormo?a.aie:a.mormo).localeCompare(b.aie<b.mormo?b.aie:b.mormo));
   const aRenovar = examesSaudeParaRenovar();
   const nRenovar = new Set(aRenovar.map(x=>x.h.id)).size;
-  // Sempre visível (mesmo vazio), para o Gustavo saber onde fica. Mostra só os animais COM controle ligado.
-  const secRenovar = `<div style="margin-top:16px;">
-    <div style="font-size:10.5px;color:${nRenovar?'var(--burgundy)':'var(--text-faint)'};text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame${nRenovar?' ('+nRenovar+')':''}</div>
+  // Só aparece quando há animal para refazer exame (vazio = o quadro nem aparece). Mostra só animais COM controle ligado.
+  const secRenovar = aRenovar.length===0 ? '' : `<div style="margin-top:16px;">
+    <div style="font-size:10.5px;color:var(--burgundy);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px;">Refazer exame (${nRenovar})</div>
     <div data-exlista></div>
   </div>`;
   const secExames = `<div style="margin-top:16px;">
@@ -23547,7 +23547,7 @@ function renderListaRenovar(host){
   const grupos = [...porAnimal.values()];
   const sel = host._exSel || (host._exSel = new Set());
   [...sel].forEach(id=>{ if(!porAnimal.has(id)) sel.delete(id); });
-  if(!grupos.length){ host.innerHTML = '<div class="hint-text">Nenhum exame para refazer agora (só aparecem aqui os animais com o controle de exames ligado: faltando 5 dias ou menos, vencidos ou sem exame).</div>'; return 0; }
+  if(!grupos.length){ host.innerHTML = '<div class="hint-text">Nenhum exame para refazer agora.</div>'; return 0; }
   const cor = x=> x.vencido ? 'var(--burgundy)' : 'var(--warn)';
   host.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;"><input type="checkbox" data-exall> Marcar todos</label>
