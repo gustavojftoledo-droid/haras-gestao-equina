@@ -10850,13 +10850,16 @@ async function perguntarPublicarManejo(registro){
   if(!ladoPrestador() || registro.tipo!=='Casco') return;
   const alvos = (registro.animais||[]).map(a=>({ a, h:horses.find(x=>x.id===a.id) })).filter(x=>x.h && x.h.clienteVinculo && !x.h.clienteVinculo.semAcesso);
   if(alvos.length===0) return;
-  const jaComDeslocamento = new Set();
-  const linhas = alvos.map(({a,h})=>{
+  // Deslocamento: como no programa principal, é UM valor do lançamento, dividido igualmente entre os animais dele (cada animal leva a sua parte).
+  const qtdAnimais = Math.max(1, (registro.animais||[]).length);
+  const desTotal = Math.round((Number(registro.deslocamento)||0)*100);
+  const parteBase = Math.floor(desTotal/qtdAnimais), sobra = desTotal - parteBase*qtdAnimais; // centavos que sobram vão para o 1º animal
+  const linhas = alvos.map(({a,h},i)=>{
     const v = Math.round(((Number(a.valorBase)||0)+(Number(a.valorExtra)||0))*100);
     const tipoCasco = a.tipo || registro.subtipoCasco || 'Casqueamento';
     const itens = [{ tipo:'servico', nome:tipoCasco, categoria:/^(ferrad|repreg|reposi)/i.test(tipoCasco)?'ferrageamento':'casqueamento', valorCentavos:v, obs:a.extra||'' }];
-    const desl = Math.round((Number(registro.deslocamento)||0)*100);
-    if(desl>0 && !jaComDeslocamento.has(h.clienteVinculo.vinculoId)){ jaComDeslocamento.add(h.clienteVinculo.vinculoId); itens.push({ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:desl, obs:'' }); }
+    const desl = parteBase + (i===0 ? sobra : 0);
+    if(desl>0) itens.push({ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:desl, obs:'parte do deslocamento ('+fmtCentavos(desTotal)+' dividido por '+qtdAnimais+')' });
     return { h, itens, total: totalCobradoSolic(itens) };
   });
   const resumo = linhas.map(l=>'• '+l.h.nome+' — '+resumoItensSolic(l.itens)+' · '+fmtCentavos(l.total)).join('\n');
