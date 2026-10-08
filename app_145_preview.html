@@ -5063,7 +5063,7 @@ async function trazerAnimaisDosClientes(){
   if(mudou>0) await storeSet('horses_list', horses);
   return mudou;
 }
-function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
+function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais ativos' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
 function desenharPrestadores(){
   // cada assinatura só vê o lado que é dela (tipo definido pelo dono): proprietário autoriza; prestador recebe convites
   document.getElementById('prestSecMeus').style.display = ladoProprietario() ? '' : 'none';
@@ -5101,7 +5101,7 @@ function garantirModalPrestador(){
     <div class="modal-head"><div class="modal-title" id="pr_titulo">Convidar prestador</div><button class="modal-close" data-close="overlayPrestador">✕</button></div>
     <div class="field" id="pr_emailBox"><label>E-mail do administrador da assinatura do prestador</label><input type="email" id="pr_email" maxlength="200" placeholder="ex.: veterinaria@clinica.com"></div>
     <div class="field" style="margin-top:8px;"><label>Animais que ele poderá ver</label>
-      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="todos" id="pr_todos"> Todos os meus animais</label>
+      <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="todos" id="pr_todos"> Todos os meus animais ATIVOS (não inclui Externos, Vendidos nem Falecidos)</label>
       <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:13px;"><input type="radio" name="pr_modo" value="alguns" id="pr_alguns" checked> Só os que eu escolher</label>
     </div>
     <div id="pr_listaBox"><input type="text" id="pr_busca" placeholder="Buscar animal..." style="width:100%;margin:6px 0;"><div id="pr_lista" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px;"></div>
