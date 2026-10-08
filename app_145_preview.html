@@ -5054,8 +5054,9 @@ async function trazerAnimaisDosClientes(){
       const id = 'cli_'+v.id+'_'+a.id; vistos.add(id);
       const nome = a.nome+' ('+(v.donoNome||'cliente')+')';
       const h = horses.find(x=>x.id===id);
-      if(!h){ horses.push({ id, nome, situacao:'E', proprietario:v.donoNome||'', clienteVinculo:{ vinculoId:v.id, animalId:a.id, donoNome:v.donoNome||'' } }); mudou++; }
-      else if(h.nome!==nome || (h.clienteVinculo&&h.clienteVinculo.semAcesso)){ h.nome = nome; h.clienteVinculo = { ...h.clienteVinculo, semAcesso:false }; mudou++; }
+      const leve = { sexo:a.sexo||'', categoria:a.categoria||'', pelagem:a.pelagem||'', raca:a.raca||'' };
+      if(!h){ horses.push({ id, nome, situacao:'E', proprietario:v.donoNome||'', ...leve, clienteVinculo:{ vinculoId:v.id, animalId:a.id, donoNome:v.donoNome||'', inativo:!!a.inativo } }); mudou++; }
+      else if(h.nome!==nome || (h.clienteVinculo&&h.clienteVinculo.semAcesso) || !!h.clienteVinculo.inativo!==!!a.inativo || h.sexo!==leve.sexo || h.categoria!==leve.categoria || h.pelagem!==leve.pelagem || h.raca!==leve.raca){ h.nome = nome; Object.assign(h, leve); h.clienteVinculo = { ...h.clienteVinculo, semAcesso:false, inativo:!!a.inativo }; mudou++; }
     }
   }
   horses.forEach(h=>{ if(h.clienteVinculo && !vistos.has(h.id) && !h.clienteVinculo.semAcesso){ h.clienteVinculo = { ...h.clienteVinculo, semAcesso:true }; mudou++; } });
@@ -7571,7 +7572,7 @@ function desenharBarraClientesPrest(){
   if(!ladoPrestador()){ el.style.display='none'; el.innerHTML=''; return; }
   const internos = new Map(), externos = new Map();
   horses.forEach(h=>{
-    if(h.clienteVinculo){ if(h.clienteVinculo.semAcesso) return; const k=h.clienteVinculo.vinculoId; const o=externos.get(k)||{ nome:h.clienteVinculo.donoNome||'cliente', n:0 }; o.n++; externos.set(k,o); }
+    if(h.clienteVinculo){ if(h.clienteVinculo.semAcesso || h.clienteVinculo.inativo) return; const k=h.clienteVinculo.vinculoId; const o=externos.get(k)||{ nome:h.clienteVinculo.donoNome||'cliente', n:0 }; o.n++; externos.set(k,o); }
     else { const nome=(h.proprietario||'').trim(); if(!nome) return; const k=nome.toLowerCase(); const o=internos.get(k)||{ nome, n:0 }; o.n++; internos.set(k,o); }
   });
   const nInternos = horses.filter(h=>!h.clienteVinculo).length;
@@ -7613,7 +7614,7 @@ function renderHorses(){
     if(grupoFiltroAtivo) return grupoFiltroAtivo.animais.some(a=>a.id===h.id);
     if(ladoPrestador()){
       // Prestador: cliente EXTERNO escolhido → só os cavalos dele (ignora as abas Ativos/Externos); senão só os INTERNOS (opcionalmente de um cliente interno)
-      if(filtroClientePrest.tipo==='ext') return !!h.clienteVinculo && !h.clienteVinculo.semAcesso && h.clienteVinculo.vinculoId===filtroClientePrest.chave;
+      if(filtroClientePrest.tipo==='ext') return !!h.clienteVinculo && !h.clienteVinculo.semAcesso && !h.clienteVinculo.inativo && h.clienteVinculo.vinculoId===filtroClientePrest.chave;
       if(h.clienteVinculo) return false;
       if(filtroClientePrest.tipo==='int' && (h.proprietario||'').trim().toLowerCase()!==filtroClientePrest.chave.toLowerCase()) return false;
     }
@@ -7642,6 +7643,7 @@ function renderHorses(){
       && filtroTem(fm.localizacao, h.localizacao)
       && (fm.doador.size===0 || fm.doador.has(h.doador?'sim':'nao'));
   });
+  if(!sortColumn && ladoPrestador() && filtroClientePrest.tipo==='ext') filtered.sort((x,y)=>(x.nome||'').localeCompare(y.nome||'','pt')); // cliente externo: ordem alfabética
   if(sortColumn){
     filtered.sort((a,b)=>{
       let va=a[sortColumn]||'', vb=b[sortColumn]||'';
@@ -7656,7 +7658,8 @@ function renderHorses(){
     const arrow = th.querySelector('.sort-arrow'); if(arrow) arrow.remove();
     if(th.dataset.sort===sortColumn){ th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${sortDir==='asc'?'▲':'▼'}</span>`); }
   });
-  let statsHtml = `<div class="stat"><div class="stat-num">${baseList.length}</div><div class="stat-label">${{ativos:'Total ativos',todos:'Total (todos internos)',vendidos:'Total vendidos',falecidos:'Total falecidos',externos:'Total externos'}[viewMode]||'Total no plantel'}</div></div>`;
+  const _rotuloExt = (ladoPrestador() && filtroClientePrest.tipo==='ext') ? 'Animais do cliente' : null;
+  let statsHtml = `<div class="stat"><div class="stat-num">${baseList.length}</div><div class="stat-label">${_rotuloExt || {ativos:'Total ativos',todos:'Total (todos internos)',vendidos:'Total vendidos',falecidos:'Total falecidos',externos:'Total externos'}[viewMode]||'Total no plantel'}</div></div>`;
   if(viewMode==='vendidos' && podeVerValoresAnimais()){
     const parseValor = (v)=>{ const m=(v||'').match(/([\d\.]+),(\d{2})/); return m ? parseFloat(m[1].replace(/\./g,'')+'.'+m[2]) : 0; };
     const totalBRL = baseList.filter(h=>(h.valor||'').startsWith('R$')).reduce((s,h)=>s+parseValor(h.valor),0);

@@ -827,6 +827,12 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     const lista = await wSolic({ data: {}, auth: tkF }); assert.equal(lista.enviadas.length, 1);
     const d = await wDecide({ data: { solicitacaoId: r.id, decisao: 'aprovar' }, auth: tkD }); assert.equal(d.status, 'aprovado');
   });
+  test('animais autorizados traz só campos leves (sexo, categoria, inativo), sem valores', async () => {
+    await db.doc('tenants/dono2/dados/horses_list').set({ value: [{ id: 'a1', nome: 'Alfa', sexo: 'MASCULINO', categoria: 'Potro', valor: 'R$ 9', proprietario: 'X' }, { id: 'a2', nome: 'Beta', sexo: 'FEMININO', situacao: 'V' }] });
+    const r = await wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkV() });
+    assert.deepEqual(r.animais.map(a => [a.id, a.sexo, a.categoria, a.inativo]), [['a1', 'MASCULINO', 'Potro', false], ['a2', 'FEMININO', '', true]]);
+    assert.ok(!JSON.stringify(r).includes('R$') && !r.animais[0].proprietario);
+  });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
     await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'resource-exhausted');
