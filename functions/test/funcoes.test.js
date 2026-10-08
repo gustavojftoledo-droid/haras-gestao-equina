@@ -23,7 +23,7 @@ const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
 const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
 const BC = require('../cobranca');
-const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao), wDecide = fft.wrap(F.decidirSolicitacao), wFicha = fft.wrap(F.fichaDoAnimal);
+const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao), wDecide = fft.wrap(F.decidirSolicitacao), wFicha = fft.wrap(F.fichaDoAnimal), wOcultar = fft.wrap(F.ocultarSolicitacao);
 const wConvidar = fft.wrap(F.convidarPrestador), wVincs = fft.wrap(F.listarVinculos), wResp = fft.wrap(F.responderConvite), wAnim = fft.wrap(F.atualizarAnimaisDoVinculo), wRevog = fft.wrap(F.revogarVinculo);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
@@ -859,6 +859,25 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     const r = await wEnviar({ data: ok(), auth: tkV() });
     const lista = await wSolic({ data: {}, auth: tkD });
     assert.deepEqual(lista.recebidas[0].animais.map(a => a.id), ['a1']); assert.equal(r.animais.length, 1);
+  });
+  test('excluir da lista: cada lado esconde só o seu; pendente vira recusado/cancelado; estranho não pode', async () => {
+    const a = await wEnviar({ data: ok(), auth: tkV() }), b = await wEnviar({ data: ok(), auth: tkV() });
+    await wDecide({ data: { solicitacaoId: a.id, decisao: 'aprovar' }, auth: tkD });
+    await rejeita(wOcultar({ data: { solicitacaoId: a.id }, auth: tkV('vet3') }), 'permission-denied');
+    await rejeita(wOcultar({ data: { solicitacaoId: 'curto' }, auth: tkD }), 'invalid-argument');
+    await wOcultar({ data: { solicitacaoId: a.id }, auth: tkD });                                   // dono tira o aprovado da lista dele
+    let d = await wSolic({ data: {}, auth: tkD }), v = await wSolic({ data: {}, auth: tkV() });
+    assert.deepEqual(d.recebidas.map(x => x.id), [b.id]); assert.equal(v.enviadas.length, 2);       // o prestador continua vendo os dois
+    await wOcultar({ data: { solicitacaoId: b.id }, auth: tkD });                                   // dono descarta o pendente
+    const bruto = (await db.doc('solicitacoes/' + b.id).get()).data();
+    assert.equal(bruto.status, 'recusado'); assert.equal(bruto.motivo, 'Descartado pelo proprietário');
+    d = await wSolic({ data: {}, auth: tkD }); assert.equal(d.recebidas.length, 0);
+    v = await wSolic({ data: {}, auth: tkV() }); assert.equal(v.enviadas.find(x => x.id === b.id).status, 'recusado');
+    await wOcultar({ data: { solicitacaoId: a.id }, auth: tkV() });                                 // prestador esconde o dele
+    v = await wSolic({ data: {}, auth: tkV() }); assert.deepEqual(v.enviadas.map(x => x.id), [b.id]);
+    const c = await wEnviar({ data: ok(), auth: tkV() });
+    await wOcultar({ data: { solicitacaoId: c.id }, auth: tkV() });                                 // prestador exclui pendente = cancela
+    assert.equal((await db.doc('solicitacoes/' + c.id).get()).data().status, 'cancelado');
   });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });

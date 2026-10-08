@@ -5165,9 +5165,15 @@ function totalCobradoSolic(it){
 }
 function desenharSolicitacoes(){
   const rec = solicPrest.recebidas||[], env = solicPrest.enviadas||[];
-  const linha = (x, quem)=>`<tr data-solid="${escHtml(x.id)}" style="cursor:pointer;"><td>${fmtDate(x.dataRegistro)}</td><td>${escHtml(quem)}</td><td>${escHtml(x.animalNome||'')}</td><td>${escHtml(resumoItensSolic(x.itens||[]))}</td><td><strong>${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong></td><td style="white-space:nowrap;">${quem===x.prestadorNome?'':''}${x.status==='pendente' && quem===x.donoNome ? `<button type="button" class="btn btn-sm btn-ghost" data-solcancel="${escHtml(x.id)}">Cancelar</button>`:''}</td></tr>`;
-  document.getElementById('prestRecebidasTbody').innerHTML = rec.length===0 ? '<tr><td colspan="6" class="empty">Nenhum registro recebido.</td></tr>' : rec.map(x=>linha(x, x.prestadorNome)).join('');
-  document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome)).join('');
+  const linha = (x, quem, lado)=>{
+    const pend = x.status==='pendente';
+    const acao = lado==='env'
+      ? (pend ? `<button type="button" class="btn btn-sm btn-ghost" data-solcancel="${escHtml(x.id)}">Cancelar</button>` : `<button type="button" class="btn btn-sm btn-ghost" data-solocultar="${escHtml(x.id)}" data-lado="env">Excluir</button>`)
+      : `<button type="button" class="btn btn-sm btn-ghost" data-solocultar="${escHtml(x.id)}" data-lado="rec">${pend?'Descartar':'Excluir'}</button>`;
+    return `<tr data-solid="${escHtml(x.id)}" style="cursor:pointer;"><td>${fmtDate(x.dataRegistro)}</td><td>${escHtml(quem)}</td><td>${escHtml(x.animalNome||'')}</td><td>${escHtml(resumoItensSolic(x.itens||[]))}</td><td><strong>${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong></td><td style="white-space:nowrap;">${acao}</td></tr>`;
+  };
+  document.getElementById('prestRecebidasTbody').innerHTML = rec.length===0 ? '<tr><td colspan="6" class="empty">Nenhum registro recebido.</td></tr>' : rec.map(x=>linha(x, x.prestadorNome, 'rec')).join('');
+  document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome, 'env')).join('');
   document.querySelectorAll('#prestRecebidasTbody tr[data-solid], #prestEnviadasTbody tr[data-solid]').forEach(tr=>tr.addEventListener('click', e=>{
     if(e.target.closest('button')) return;
     const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(!x) return; if(rec.includes(x) && x.status==='pendente') abrirSolicitacaoNoCadastro(x); else abrirDetalheSolicitacao(x, rec.includes(x));
@@ -5176,6 +5182,16 @@ function desenharSolicitacoes(){
     e.stopPropagation();
     if(!(await showConfirm('Cancelar esse envio? O proprietário deixa de vê-lo como pendente.'))) return;
     try{ await chamarFuncao('cancelarSolicitacao', { solicitacaoId:b.dataset.solcancel }); renderPrestadores(); }catch(err){ showAlert('Não consegui cancelar: '+msgErroFuncao(err)); }
+  }));
+  // Excluir da lista: some só para quem excluiu (o outro lado continua vendo o dele). Pendente do proprietário = descartar (vira recusado).
+  document.querySelectorAll('[data-solocultar]').forEach(b=>b.addEventListener('click', async e=>{
+    e.stopPropagation();
+    const x = [...rec, ...env].find(y=>y.id===b.dataset.solocultar); if(!x) return;
+    const descartar = b.dataset.lado==='rec' && x.status==='pendente';
+    const msg = descartar ? 'Descartar este registro que ainda está pendente? Ele será recusado ("Descartado pelo proprietário") e sai da sua lista. O prestador vê que foi recusado.'
+      : 'Tirar este registro da sua lista? Ele some só para você. Nada do que já foi lançado na sua ficha é apagado.';
+    if(!(await showConfirm(msg, {okLabel: descartar?'Descartar':'Excluir', danger:true, titulo: descartar?'Descartar registro':'Excluir da lista'}))) return;
+    try{ await chamarFuncao('ocultarSolicitacao', { solicitacaoId:x.id }); renderPrestadores(); }catch(err){ showAlert('Não consegui excluir: '+msgErroFuncao(err)); }
   }));
 }
 /* ===== APROVAÇÃO NO CADASTRO NORMAL (proprietário) =====
