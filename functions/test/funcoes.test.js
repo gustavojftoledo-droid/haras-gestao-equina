@@ -769,6 +769,18 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     await rejeita(wCancel({ data: { solicitacaoId: r.id }, auth: tkV() }), 'failed-precondition');
     assert.equal((await wSolic({ data: {}, auth: tkV() })).enviadas.find(x => x.id === r.id).motivo, 'valor acima do combinado');
   });
+  test('substituir: nova versão troca a pendente (mesmo id); depois de decidida, vira solicitação nova', async () => {
+    const a = await wEnviar({ data: ok(), auth: tkV() });
+    const b = await wEnviar({ data: ok({ tipoRegistro: 'visita', substituiSolicitacaoId: a.id, itens: [servico({ valorCentavos: 9900 })] }), auth: tkV() });
+    assert.equal(b.id, a.id); assert.equal(b.substituida, true); assert.equal(b.itens[0].valorCentavos, 9900);
+    assert.equal((await db.collection('solicitacoes').get()).size, 1);
+    assert.ok((await db.doc('solicitacoes/' + a.id).get()).data().eventos.some(e => /substitui a pendente/.test(e.acao)));
+    await wDecide({ data: { solicitacaoId: a.id, decisao: 'aprovar' }, auth: tkD });
+    const c = await wEnviar({ data: ok({ substituiSolicitacaoId: a.id }), auth: tkV() });
+    assert.notEqual(c.id, a.id); assert.equal(c.status, 'pendente');
+    const d = await wEnviar({ data: ok({ animalId: 'a2', substituiSolicitacaoId: c.id }), auth: tkV() });   // outro animal: não substitui
+    assert.notEqual(d.id, c.id);
+  });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
     await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'resource-exhausted');

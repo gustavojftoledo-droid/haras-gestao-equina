@@ -39,3 +39,12 @@ As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa p
 
 ## Pontos para o advogado (LGPD)
 É compartilhamento de dados entre dois clientes, autorizado pelo proprietário, revogável e registrado. Os Termos precisam prever: base legal, finalidade, o que o prestador vê (só os animais liberados), retenção do que foi aprovado e dever do prestador de não usar os dados para outro fim.
+
+
+## Redesenho do envio + etapa 3 (decisões do dono, 08/10/2026)
+- O prestador **não usa formulário separado**: usa as **mesmas telas** (Visita veterinária) do programa dele. Os animais **liberados** pelos clientes entram na lista dele como **Externos** ("Alfa (Paulo Toledo)"), ligados ao vínculo; somem dos seletores se o acesso for retirado.
+- Ao salvar uma visita com animal de cliente, o programa **pergunta sempre** "Publicar no programa do cliente?". Vai como **pendente**; corrigir a visita **enquanto pendente substitui** a versão anterior (depois de decidida, a correção vira solicitação nova).
+- Cada linha de produto na visita é **"meu"** (sai do estoque do prestador, preço dele, entra na cobrança) ou **"do cliente"** (só nome + quantidade, **não entra na cobrança dele**, não mexe no estoque dele).
+- O proprietário **aprova** (podendo corrigir valores/quantidades), **recusa** (com motivo, que o prestador vê) e, ao aprovar, o app grava na ficha como **Visita veterinária** (idempotente: leva o id da solicitação). Produto do cliente: baixa no estoque dele e custo pelo preço dele; se não existir ou faltar saldo → **pendência**, sem baixa e sem custo. Produto do prestador → custo "produto do prestador", sem baixa.
+- Alerta na tela ao entrar quando há registros pendentes.
+- **Ainda falta:** Tratamento (protocolo com doses) publicado ao cliente; casqueamento/ferrageamento (manejo de casco); PDF e auditoria (etapa 4).
