@@ -6728,7 +6728,7 @@ function abrirAnimaisPorLocalizacao(loc){
   viewMode = 'ativos';
   document.querySelectorAll('#viewModeChips .chip').forEach(c=>c.classList.toggle('active', c.dataset.mode==='ativos'));
   const hSearch = document.getElementById('hSearch'); if(hSearch) hSearch.value = '';
-  filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set([loc]), doador:new Set() };
+  filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set([loc]), proprietario:new Set(), doador:new Set() };
   irParaView('animais'); // o clique já dispara renderHorses() com o filtro acima já aplicado
 }
 const ATALHOS_NOVO = {
@@ -7441,7 +7441,7 @@ document.getElementById('btnNormalizeCasing').addEventListener('click', async ()
 // Filtros múltiplos da lista de Animais (Sexo/Status/Categoria/Pelagem/Localização) — cada um é um
 // Set, então dá pra marcar várias opções ao mesmo tempo no mesmo filtro (ex: Categoria "3° Ano" +
 // "4° Ano" juntas). Mesmo padrão de chip-toggle já usado nos seletores de animais dos outros módulos.
-let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set(), doador:new Set() };
+let filtrosAnimaisMultiplos = { sexo:new Set(), status:new Set(), categoria:new Set(), pelagem:new Set(), raca:new Set(), localizacao:new Set(), proprietario:new Set(), doador:new Set() };
 // Ordem preferida dos filtros de Animais (definida pelo Gustavo). Valores que existem nos animais mas
 // não estão nesta lista vão pro fim, em ordem alfabética.
 const ORDEM_FILTRO_ANIMAIS = {
@@ -7462,7 +7462,7 @@ function ordenarComPreferencia(campo, valores){
 // vale em todos os aparelhos dela. Uma cópia no aparelho (localStorage) serve de reserva sem internet e pra
 // quem já tinha escolhido antes. Sem escolha guardada, aparecem todas, como sempre foi. Esconder uma linha
 // também LIMPA a seleção dela — nunca fica um filtro ativo e invisível mexendo na lista sem você ver.
-const FILTROS_ANIMAIS_LINHAS = [['sexo','Sexo'],['status','Status'],['categoria','Categoria'],['pelagem','Pelagem'],['raca','Raça'],['localizacao','Localização'],['doador','Doadora de embriões']];
+const FILTROS_ANIMAIS_LINHAS = [['sexo','Sexo'],['status','Status'],['categoria','Categoria'],['pelagem','Pelagem'],['raca','Raça'],['localizacao','Localização'],['proprietario','Proprietário'],['doador','Doadora de embriões']];
 function chaveConfigFiltrosAnimais(){ return 'filtrosAnimais_'+((currentUser && currentUser.id) || 'local'); }
 function filtrosAnimaisVisiveis(){
   const validas = new Set(FILTROS_ANIMAIS_LINHAS.map(x=>x[0]));
@@ -7509,8 +7509,10 @@ function renderFiltrosAnimaisChips(){
   const pelagemOpts = dedupOrdenado('pelagem');
   const racaOpts = dedupOrdenado('raca');
   const localizacaoOpts = dedupOrdenado('localizacao');
+  // Proprietário: o que está no cadastro de proprietários (aux.proprietarios) + o que já está em uso nos animais, sem repetir (ignora maiúscula/minúscula), em ordem alfabética
+  const proprietarioOpts = (()=>{ const vistos = new Map(); [...(aux.proprietarios||[]), ...horses.map(h=>h.proprietario).filter(Boolean)].forEach(v=>{ const k = normVal(v); if(k && !vistos.has(k)) vistos.set(k, v); }); return [...vistos.values()].sort((x,y)=>x.localeCompare(y,'pt')).map(v=>({value:v,label:v})); })();
   const doadorOpts = [{value:'sim',label:'Sim'},{value:'nao',label:'Não'}];
-  const grupos = { sexo:()=>chipGrupo('sexo','Sexo',sexoOpts), status:()=>chipGrupo('status','Status',statusOpts), categoria:()=>chipGrupo('categoria','Categoria',categoriaOpts), pelagem:()=>chipGrupo('pelagem','Pelagem',pelagemOpts), raca:()=>chipGrupo('raca','Raça',racaOpts), localizacao:()=>chipGrupo('localizacao','Localização',localizacaoOpts), doador:()=>chipGrupo('doador','Doadora de embriões',doadorOpts) };
+  const grupos = { sexo:()=>chipGrupo('sexo','Sexo',sexoOpts), status:()=>chipGrupo('status','Status',statusOpts), categoria:()=>chipGrupo('categoria','Categoria',categoriaOpts), pelagem:()=>chipGrupo('pelagem','Pelagem',pelagemOpts), raca:()=>chipGrupo('raca','Raça',racaOpts), localizacao:()=>chipGrupo('localizacao','Localização',localizacaoOpts), proprietario:()=>chipGrupo('proprietario','Proprietário',proprietarioOpts), doador:()=>chipGrupo('doador','Doadora de embriões',doadorOpts) };
   const controle = `<div style="margin-bottom:8px;"><button type="button" class="btn btn-sm btn-ghost" id="btnEscolherFiltrosAnimais">⚙ Escolher filtros</button></div>` +
     (painelFiltrosAnimaisAberto ? `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:10px;background:var(--card);">
       <div class="hint-text" style="margin:0 0 8px;">Marque as linhas de filtro que você quer ver nesta tela. Vale para o seu login em todos os aparelhos (celular, tablet e computador).</div>
@@ -7641,6 +7643,7 @@ function renderHorses(){
       && filtroTem(fm.pelagem, h.pelagem)
       && filtroTem(fm.raca, h.raca)
       && filtroTem(fm.localizacao, h.localizacao)
+      && filtroTem(fm.proprietario, h.proprietario)
       && (fm.doador.size===0 || fm.doador.has(h.doador?'sim':'nao'));
   });
   if(!sortColumn && ladoPrestador() && filtroClientePrest.tipo==='ext') filtered.sort((x,y)=>(x.nome||'').localeCompare(y.nome||'','pt')); // cliente externo: ordem alfabética
