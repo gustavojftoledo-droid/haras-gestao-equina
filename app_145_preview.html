@@ -23962,15 +23962,20 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   showAlert('Usuário salvo.');
   // Usuário novo: oferece já criar o login (e-mail + senha) para a pessoa conseguir entrar — sem passar pelo Firebase.
   if(!editingUsuarioId && HAS_FIRESTORE && currentUser && currentUser.admin){
-    if(await showConfirm('Criar agora o login de '+nome+' ('+email+')? O sistema gera uma senha provisória, que aparece UMA vez para você passar à pessoa.')) await criarLoginDoUsuarioPelaTela(email, false);
+    if(await showConfirm('Criar agora o login de '+nome+' ('+email+')? Você escolhe a senha no próximo passo (ou deixa o sistema gerar uma provisória).')) await criarLoginDoUsuarioPelaTela(email, false);
   }
 });
 // Cria (ou redefine a senha d)o login de alguém da equipe. O servidor só aceita administrador do próprio cliente, usuário já
 // cadastrado na lista e dentro do limite do plano.
 async function criarLoginDoUsuarioPelaTela(email, redefinir){
+  // Quem escolhe a senha é você: digite a que a pessoa vai usar (mínimo 8 caracteres). Em branco = o sistema gera uma provisória.
+  const digitada = await showPrompt('Escolha a senha de '+email+' (mínimo 8 caracteres).\nDeixe em branco se preferir que o sistema gere uma provisória.', 'Senha (mín. 8 caracteres)');
+  if(digitada===null || digitada===undefined) return false;
+  if(digitada!=='' && (digitada.length<8 || digitada.length>100)){ showAlert('A senha precisa ter de 8 a 100 caracteres. Nada foi criado.'); return false; }
   try{
-    const r = await chamarFuncao('criarLoginDoUsuario', { email, redefinir: !!redefinir });
-    if(r.senhaGerada) showAlert((r.redefinida?'Nova senha':'Login criado')+' para '+r.email+'.\n\nSENHA PROVISÓRIA (anote agora — não aparece de novo): '+r.senhaGerada+'\n\nPasse à pessoa o endereço do sistema, o e-mail e essa senha.');
+    const r = await chamarFuncao('criarLoginDoUsuario', { email, redefinir: !!redefinir, ...(digitada ? { senhaProvisoria:digitada } : {}) });
+    if(digitada && (r.criado || r.redefinida)) showAlert((r.redefinida?'Senha trocada':'Login criado')+' para '+r.email+'.\n\nA senha é a que você digitou. Passe à pessoa o endereço do sistema, o e-mail e essa senha.');
+    else if(r.senhaGerada) showAlert((r.redefinida?'Nova senha':'Login criado')+' para '+r.email+'.\n\nSENHA PROVISÓRIA (anote agora — não aparece de novo): '+r.senhaGerada+'\n\nPasse à pessoa o endereço do sistema, o e-mail e essa senha.');
     else if(r.jaExistia) showAlert(r.email+' já tem login. Para gerar uma senha nova, abra o usuário e toque em "🔑 Criar login / nova senha".');
     else showAlert('Login criado para '+r.email+'.');
     return true;
