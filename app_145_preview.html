@@ -5537,21 +5537,21 @@ function garantirModalOnboarding(){
     <div class="form-grid">
       ${campo('ob_ferr','Ferrageamento: avisar após (dias)','ex.: '+ex.freqFerrageamento,'number','min="1" step="1"')}
       ${campo('ob_casq','Casqueamento: avisar após (dias)','ex.: '+ex.freqCasqueamento,'number','min="1" step="1"')}
-      ${campo('ob_verm','Vermífugo: avisar após (meses) — para todos os animais','ex.: '+ex.vermifugoMeses,'number','min="1" step="1"')}
-      ${campo('ob_dent','Cheque dental: avisar após (meses) — para todos os animais','ex.: '+ex.dentalMeses,'number','min="1" step="1"')}
+      ${ehAssinaturaFerrador() ? '' : campo('ob_verm','Vermífugo: avisar após (meses) — para todos os animais','ex.: '+ex.vermifugoMeses,'number','min="1" step="1"')}
+      ${ehAssinaturaFerrador() ? '' : campo('ob_dent','Cheque dental: avisar após (meses) — para todos os animais','ex.: '+ex.dentalMeses,'number','min="1" step="1"')}
     </div>
-    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Vacinas e de quantos em quantos dias repetir</div>
+    ${ehAssinaturaFerrador() ? '' : `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:10px 0 6px;">Vacinas e de quantos em quantos dias repetir</div>
     <div class="form-grid">
       ${ex.vacinas.map(([n,d],i)=>campo('ob_vacn'+i,'Vacina '+(i+1)+' (nome)','ex.: '+n,'text','maxlength="60"')+campo('ob_vacd'+i,'Repetir a cada (dias)','ex.: '+d,'number','min="1" step="1"')).join('')}
-    </div>
+    </div>`}
     <div class="hint-text" id="ob_msg" style="margin:8px 0;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="ob_pular">Pular, configuro depois</button><button type="button" class="btn" id="ob_salvar">Salvar e começar</button></div>
   </div></div>`);
   document.getElementById('ob_exemplos').addEventListener('click', ()=>{
     Object.values(ex.casco).forEach((v,i)=>{ document.getElementById('ob_casco'+i).value = v; });
     document.getElementById('ob_desloc').value = ex.deslocamento; document.getElementById('ob_ferr').value = ex.freqFerrageamento; document.getElementById('ob_casq').value = ex.freqCasqueamento;
-    document.getElementById('ob_verm').value = ex.vermifugoMeses; document.getElementById('ob_dent').value = ex.dentalMeses;
-    ex.vacinas.forEach(([n,d],i)=>{ document.getElementById('ob_vacn'+i).value = n; document.getElementById('ob_vacd'+i).value = d; });
+    if(document.getElementById('ob_verm')){ document.getElementById('ob_verm').value = ex.vermifugoMeses; document.getElementById('ob_dent').value = ex.dentalMeses;
+      ex.vacinas.forEach(([n,d],i)=>{ document.getElementById('ob_vacn'+i).value = n; document.getElementById('ob_vacd'+i).value = d; }); }
   });
   document.getElementById('ob_pular').addEventListener('click', ()=>concluirOnboarding(false));
   document.getElementById('ob_salvar').addEventListener('click', ()=>concluirOnboarding(true));
@@ -5559,7 +5559,7 @@ function garantirModalOnboarding(){
 async function concluirOnboarding(salvar){
   const msg = document.getElementById('ob_msg');
   if(salvar){
-    const num = id => { const v = document.getElementById(id).value; return v==='' ? null : Number(String(v).replace(',','.')); };
+    const num = id => { const el = document.getElementById(id); if(!el) return null; const v = el.value; return v==='' ? null : Number(String(v).replace(',','.')); };
     const ex = ONBOARDING_EXEMPLOS; const casco = {};
     let erroCasco = false;
     Object.keys(ex.casco).forEach((k,i)=>{ const v = num('ob_casco'+i); if(v!==null){ if(!(v>=0)){ msg.textContent = 'Valor inválido em "'+k+'".'; erroCasco = true; } else casco[k] = v; } });
@@ -5576,7 +5576,7 @@ async function concluirOnboarding(salvar){
       if(verm!==null) config.freqPadrao['Vermífugo'] = Math.round(verm);
       if(dent!==null) config.freqPadrao['Dente'] = Math.round(dent);
       if(!config.freqVacinas) config.freqVacinas = {};
-      ex.vacinas.forEach((_,i)=>{ const n = document.getElementById('ob_vacn'+i).value.trim(); const d = pos('ob_vacd'+i,'Vacina '+(i+1)); if(n && d!==null) config.freqVacinas[n] = Math.round(d); });
+      ex.vacinas.forEach((_,i)=>{ const en = document.getElementById('ob_vacn'+i); if(!en) return; const n = en.value.trim(); const d = pos('ob_vacd'+i,'Vacina '+(i+1)); if(n && d!==null) config.freqVacinas[n] = Math.round(d); });
     }catch(e){ if(e===0) return; throw e; }
   }
   config.onboardingFeito = true;
@@ -5587,7 +5587,7 @@ async function concluirOnboarding(salvar){
   renderInicio();
 }
 function verificarOnboardingCliente(){
-  if(!TENANT_ID || ehAssinaturaFerrador() || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
+  if(!TENANT_ID || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
   garantirModalOnboarding(); openModal('overlayOnboarding');
 }
 
@@ -7575,7 +7575,7 @@ function desenharBarraClientesPrest(){
     else { const nome=(h.proprietario||'').trim(); if(!nome) return; const k=nome.toLowerCase(); const o=internos.get(k)||{ nome, n:0 }; o.n++; internos.set(k,o); }
   });
   const nInternos = horses.filter(h=>!h.clienteVinculo).length;
-  const soExternos = ehAssinaturaFerrador();
+  const soExternos = false;
   const chip = (ativo, texto, attrs, ext)=>`<span class="chip ${ativo?'active':''}" ${attrs} style="${ext?'border-style:dashed;background:'+(ativo?'#6b4e00':'#fff7e0')+';color:'+(ativo?'#fff':'#6b4e00')+';':''}">${texto}</span>`;
   const sel = filtroClientePrest;
   // se o cliente escolhido sumiu (acesso retirado / nenhum animal), volta para "Todos"
@@ -23307,7 +23307,7 @@ function naPlanoDoCliente(view){
 }
 function viewsPermitidasBruto(user){
   if(!user) return [];
-  if(ehAssinaturaFerrador()) return ['inicio','animais','manejos','prestadores']; // assinatura de ferrador: super limitada
+  if(ehAssinaturaFerrador()) return ['inicio','calendario','animais','manejos','prestadores']; // assinatura de ferrador: só o que envolve ferração (programação, animais, manejo de casco, clientes)
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
   if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : []), ...(recursoAtivo('integracao_prestadores') ? ['prestadores'] : [])];
@@ -23345,7 +23345,6 @@ function aplicarPermissoesBotoesNovo(){
     const btn = document.getElementById(id);
     if(btn) btn.style.display = temPermissao(modulo,'inserir') ? '' : 'none';
   });
-  if(ehAssinaturaFerrador()){ const nb = document.getElementById('btnNewHorse'); if(nb) nb.style.display = 'none'; } // ferrador não cadastra animais: trabalha nos cavalos dos clientes
 }
 // Restringe o seletor "Tipo de Manejo" (no filtro do histórico e no formulário de novo lançamento) a só
 // os tipos que o usuário logado pode acessar — pra um Ferrador (só Casco liberado), por exemplo, nem
