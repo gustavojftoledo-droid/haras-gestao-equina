@@ -282,8 +282,8 @@ async function listarSolicitacoes({ db, token }){
     db.collection('solicitacoes').where('donoTenantId', '==', eu).get(),
     db.collection('solicitacoes').where('prestadorTenantId', '==', eu).get(),
   ]);
-  const lista = (snap) => snap.docs.map(d => solPublica(d.id, d.data())).sort(ordem).slice(0, MAX_LISTA);
-  return { recebidas: lista(a), enviadas: lista(b) };
+  const lista = (snap, campoOculto) => snap.docs.filter(d => !d.data()[campoOculto]).map(d => solPublica(d.id, d.data())).sort(ordem).slice(0, MAX_LISTA);
+  return { recebidas: lista(a, 'ocultaDono'), enviadas: lista(b, 'ocultaPrestador') };
 }
 
 async function cancelarSolicitacao({ db, token }, data){
@@ -386,5 +386,26 @@ async function fichaDoAnimal({ db, token }, data){
   return { vinculoId: data.vinculoId, donoNome: v.donoNome, animal, manejos: manejosOut, tratamentos: tratamentosOut, treinos: treinosOut };
 }
 
+/* Tirar um registro da LISTA de quem pediu (cada lado só esconde o seu: o outro lado continua vendo o dele).
+   Pendente: o proprietário que exclui está DESCARTANDO (vira "recusado", motivo "Descartado pelo proprietário"); o prestador que exclui está CANCELANDO. */
+async function ocultarSolicitacao({ db, token }, data){
+  if (typeof data.solicitacaoId !== 'string' || !RE_SID.test(data.solicitacaoId)) throw new HttpsError('invalid-argument', 'Solicitação inválida.');
+  const ref = db.collection('solicitacoes').doc(data.solicitacaoId);
+  const s = await ref.get();
+  if (!s.exists) throw new HttpsError('not-found', 'Solicitação não encontrada.');
+  const d = s.data(), eu = assinaturaDoChamador(token);
+  const por = typeof token.email === 'string' ? token.email : '';
+  const novo = { ...d, atualizadoEm: agora() };
+  if (d.donoTenantId === eu) {
+    if (d.status === 'pendente') { novo.status = 'recusado'; novo.motivo = 'Descartado pelo proprietário'; novo.eventos = addEvento(d, por, 'descartado pelo proprietário'); }
+    novo.ocultaDono = true;
+  } else if (d.prestadorTenantId === eu) {
+    if (d.status === 'pendente') { novo.status = 'cancelado'; novo.eventos = addEvento(d, por, 'cancelado pelo prestador'); }
+    novo.ocultaPrestador = true;
+  } else throw new HttpsError('permission-denied', 'Essa solicitação não é da sua assinatura.');
+  await ref.set(novo);
+  return { ok: true };
+}
+
 module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo,
-  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao, fichaDoAnimal };
+  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao, fichaDoAnimal, ocultarSolicitacao };

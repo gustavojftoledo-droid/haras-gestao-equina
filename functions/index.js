@@ -98,3 +98,4 @@ exports.listarSolicitacoes = onCall(async (request) => { I.exigirAdminComRecurso
 exports.cancelarSolicitacao = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.cancelarSolicitacao({ db: db(), token: request.auth.token }, request.data || {}); });
 exports.decidirSolicitacao = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.decidirSolicitacao({ db: db(), token: request.auth.token }, request.data || {}); });
 exports.fichaDoAnimal = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.fichaDoAnimal({ db: db(), token: request.auth.token }, request.data || {}); });
+exports.ocultarSolicitacao = onCall(async (request) => { I.exigirAdminComRecurso(request); return I.ocultarSolicitacao({ db: db(), token: request.auth.token }, request.data || {}); });
