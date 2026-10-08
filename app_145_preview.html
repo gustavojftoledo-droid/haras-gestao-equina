@@ -1158,6 +1158,7 @@
           <span id="editLoteContagemBar"></span>
           <button type="button" class="btn btn-sm" id="btnAbrirEditLote">✏️ Editar em lote</button>
         </div>
+        <div id="barraClientesPrest" style="display:none;margin:0 0 12px;"></div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="hSearch" placeholder="Nome, código, proprietário..."></div>
         </div>
@@ -3639,7 +3640,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayDialog" style="z-index:200;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-title" id="dialogTitle">Título</div>
-    <div id="dialogMessage" style="margin:14px 0 4px;font-size:13.5px;line-height:1.5;white-space:pre-line;"></div>
+    <div id="dialogMessage" style="margin:14px 0 4px;font-size:13.5px;line-height:1.5;"></div>
     <input type="text" id="dialogInput" style="display:none;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;margin:10px 0 4px;font-family:'Inter';font-size:13.5px;">
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
       <button class="btn btn-ghost" id="dialogCancel" type="button">Cancelar</button>
@@ -3791,6 +3792,7 @@ function showConfirm(msg, opts){
   return new Promise(resolve=>{
     document.getElementById('dialogTitle').textContent = opts.titulo || 'Confirmar';
     document.getElementById('dialogMessage').textContent = msg;
+    document.getElementById('dialogMessage').style.whiteSpace = opts.quebraLinhas ? 'pre-line' : '';
     document.getElementById('dialogInput').style.display='none';
     const ok = document.getElementById('dialogOk');
     ok.textContent = opts.okLabel || 'OK';
@@ -6891,9 +6893,10 @@ function createAnimalSelector(hostEl, opts){
     relSelecoes[opts.persistKey] = Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id])=>id);
     storeSet('rel_selecoes', relSelecoes);
   }
+  const usaClientes = ()=> !!opts.incluirDeClientes && ladoPrestador(); // só muda o comportamento para assinatura de prestador
   const isAtivo = h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento;
   function basePool(){
-    if(opts.onlyActive) return horses.filter(h=>isAtivo(h) || (opts.incluirDeClientes && h.clienteVinculo && !h.clienteVinculo.semAcesso));
+    if(opts.onlyActive) return horses.filter(h=>isAtivo(h) || (usaClientes() && h.clienteVinculo && !h.clienteVinculo.semAcesso));
     if(!opts.reportFilter) return horses;
     return horses.filter(h=>{
       if(isAtivo(h)) return true;
@@ -6903,8 +6906,19 @@ function createAnimalSelector(hostEl, opts){
       return false;
     });
   }
+  // Prestador: animais INTERNOS dele podem ser marcados juntos (todos os clientes dele); animais de um cliente EXTERNO (que liberou os cavalos
+  // pelo programa) só um cliente por vez, e nunca misturados com internos — para não lançar nada em cavalo de dono errado.
+  const grupoDoAnimal = h=> (h && h.clienteVinculo) ? ('ext:'+h.clienteVinculo.vinculoId) : 'int';
+  function travaDeCliente(){
+    if(!usaClientes()) return null;
+    const id = Object.keys(state.selected).find(k=>state.selected[k] && state.selected[k].checked);
+    const h = id ? horses.find(x=>x.id===id) : null;
+    return h ? grupoDoAnimal(h) : null;
+  }
   function relevantAnimals(){
+    const trava = travaDeCliente();
     return basePool().filter(h=>{
+      if(trava && grupoDoAnimal(h)!==trava) return false;
       const t = state.search.toLowerCase();
       const matchSearch = !t || (h.nome||'').toLowerCase().includes(t) || (h.apelido||'').toLowerCase().includes(t);
       const matchCat = state.categorias.size===0 || state.categorias.has(h.categoria);
@@ -6925,8 +6939,11 @@ function createAnimalSelector(hostEl, opts){
     const locs = localizacoesDisponiveis();
     const props = proprietariosDisponiveis();
     const nSel = Object.values(state.selected).filter(s=>s.checked).length;
+    const _trava = travaDeCliente();
+    const _avisoCliente = (usaClientes() && _trava) ? `<div class="selector-hint" style="background:#fff7e0;color:#6b4e00;">${_trava==='int' ? 'Você marcou animais seus (internos): os animais de clientes externos ficam ocultos até limpar a seleção.' : '🔗 Você marcou animais do cliente <strong>'+escHtml(((horses.find(x=>grupoDoAnimal(x)===_trava)||{}).clienteVinculo||{}).donoNome||'externo')+'</strong>: só os animais dele aparecem. Para lançar em outro cliente, limpe a seleção.'}</div>` : '';
     hostEl.innerHTML = `
       <div class="selector">
+        ${_avisoCliente}
         <div class="selector-toolbar">
           <input type="text" placeholder="Buscar animal..." id="${hostEl.id}_search">
           <button type="button" class="chip" data-cat="__clear">Todas categorias</button>
@@ -6998,8 +7015,8 @@ function createAnimalSelector(hostEl, opts){
         });
       }
     });
-    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ relevantAnimals().forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
-    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
+    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ let _l = relevantAnimals(); if(usaClientes() && !travaDeCliente() && _l.length) _l = _l.filter(h=>grupoDoAnimal(h)===grupoDoAnimal(_l[0])); _l.forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
+    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); if(usaClientes()) draw(); else drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
     hostEl.querySelector(`#${hostEl.id}_onlysel`).addEventListener('click', ()=>{ state.onlySelected = !state.onlySelected; draw(); });
     if(opts.reportFilter){
       hostEl.querySelectorAll('[data-inc]').forEach(chip=>{
@@ -7059,6 +7076,7 @@ function createAnimalSelector(hostEl, opts){
         const jaExistia = !!state.selected[id];
         state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',valorExtra2:'',tipo:mostrarTipo?tipoAtualDefault:''};
         state.selected[id].checked=cb.checked;
+        if(usaClientes()){ persistSelection(); if(opts.onChange) opts.onChange(); draw(); return; }
         if(state.onlySelected) drawBody(); else updateCount();
         persistSelection();
         if(opts.onChange) opts.onChange();
@@ -7496,6 +7514,34 @@ function renderFiltrosAnimaisChips(){
     });
   });
 }
+/* ---- Prestador: barra de clientes na tela Animais ---- */
+let filtroClientePrest = { tipo:'todos', chave:'' }; // todos = só os internos (de todos os clientes dele) | int = um cliente interno | ext = um cliente externo (que liberou os cavalos)
+function desenharBarraClientesPrest(){
+  const el = document.getElementById('barraClientesPrest'); if(!el) return;
+  if(!ladoPrestador()){ el.style.display='none'; el.innerHTML=''; return; }
+  const internos = new Map(), externos = new Map();
+  horses.forEach(h=>{
+    if(h.clienteVinculo){ if(h.clienteVinculo.semAcesso) return; const k=h.clienteVinculo.vinculoId; const o=externos.get(k)||{ nome:h.clienteVinculo.donoNome||'cliente', n:0 }; o.n++; externos.set(k,o); }
+    else { const nome=(h.proprietario||'').trim(); if(!nome) return; const k=nome.toLowerCase(); const o=internos.get(k)||{ nome, n:0 }; o.n++; internos.set(k,o); }
+  });
+  const nInternos = horses.filter(h=>!h.clienteVinculo).length;
+  const chip = (ativo, texto, attrs, ext)=>`<span class="chip ${ativo?'active':''}" ${attrs} style="${ext?'border-style:dashed;background:'+(ativo?'#6b4e00':'#fff7e0')+';color:'+(ativo?'#fff':'#6b4e00')+';':''}">${texto}</span>`;
+  const sel = filtroClientePrest;
+  // se o cliente escolhido sumiu (acesso retirado / nenhum animal), volta para "Todos"
+  if(sel.tipo==='ext' && !externos.has(sel.chave)) filtroClientePrest = { tipo:'todos', chave:'' };
+  if(sel.tipo==='int' && !internos.has(sel.chave.toLowerCase())) filtroClientePrest = { tipo:'todos', chave:'' };
+  const atual = filtroClientePrest;
+  el.style.display='block';
+  el.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">Clientes</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      ${chip(atual.tipo==='todos', 'Todos os meus ('+nInternos+')', 'data-cliprest="todos"', false)}
+      ${[...internos.values()].sort((a,b)=>a.nome.localeCompare(b.nome,'pt')).map(o=>chip(atual.tipo==='int'&&atual.chave.toLowerCase()===o.nome.toLowerCase(), escHtml(o.nome)+' ('+o.n+')', 'data-cliprest="int" data-chave="'+escHtml(o.nome)+'"', false)).join('')}
+      ${externos.size? '<span style="color:var(--muted);font-size:12px;margin:0 4px;">|</span>' : ''}
+      ${[...externos.entries()].sort((a,b)=>a[1].nome.localeCompare(b[1].nome,'pt')).map(([k,o])=>chip(atual.tipo==='ext'&&atual.chave===k, '🔗 '+escHtml(o.nome)+' ('+o.n+') · externo', 'data-cliprest="ext" data-chave="'+escHtml(k)+'" title="Cliente externo: você vê um por vez, em leitura. O que você lançar vai para a aprovação dele."', true)).join('')}
+    </div>
+`;
+  el.querySelectorAll('[data-cliprest]').forEach(c=>c.addEventListener('click', ()=>{ filtroClientePrest = { tipo:c.dataset.cliprest, chave:c.dataset.chave||'' }; renderHorses(); }));
+}
 function renderHorses(){
   renderFiltrosAnimaisChips();
   const banner = document.getElementById('grupoFiltroBanner');
@@ -7510,8 +7556,15 @@ function renderHorses(){
   document.getElementById('viewModeChips').style.opacity = grupoFiltroAtivo ? '0.4' : '1';
   document.getElementById('viewModeChips').style.pointerEvents = grupoFiltroAtivo ? 'none' : 'auto';
   const term=document.getElementById('hSearch').value.toLowerCase();
+  desenharBarraClientesPrest();
   const baseList = horses.filter(h=>{
     if(grupoFiltroAtivo) return grupoFiltroAtivo.animais.some(a=>a.id===h.id);
+    if(ladoPrestador()){
+      // Prestador: cliente EXTERNO escolhido → só os cavalos dele (ignora as abas Ativos/Externos); senão só os INTERNOS (opcionalmente de um cliente interno)
+      if(filtroClientePrest.tipo==='ext') return !!h.clienteVinculo && !h.clienteVinculo.semAcesso && h.clienteVinculo.vinculoId===filtroClientePrest.chave;
+      if(h.clienteVinculo) return false;
+      if(filtroClientePrest.tipo==='int' && (h.proprietario||'').trim().toLowerCase()!==filtroClientePrest.chave.toLowerCase()) return false;
+    }
     switch(viewMode){
       case 'externos': return h.situacao==='E';
       case 'falecidos': return !!h.falecimento;
@@ -19685,7 +19738,7 @@ function renderVisitaCustos(){
       const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>`;
       return `<div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line);">
       <div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:6px;">
-        <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto${ladoPrestador()?' (meu)':''}</option>${(ladoPrestador()||isProdCli)?`<option value="produtoCliente" ${isProdCli?'selected':''}>Produto do cliente</option>`:''}</select>
+        <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option>${(ladoPrestador()||isProdCli)?`<option value="produtoCliente" ${isProdCli?'selected':''}>Produto do cliente</option>`:''}</select>
         ${nomeField}
         ${animalField}
         ${(isProduto||isProdCli) ? `<input type="number" step="0.01" min="0" data-vcfield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="Qtd">` : '<span></span>'}
@@ -20005,7 +20058,7 @@ async function perguntarPublicarVisita(record){
   const linhas = alvos.map(h=>{ const it=itensDaVisitaParaCliente(record, h.id); return { h, it, total: totalCobradoSolic(it) }; });
   const resumo = linhas.map(l=>'• '+l.h.nome+' — '+(l.it.length? (resumoItensSolic(l.it)+' · '+fmtCentavos(l.total)) : 'sem serviços/produtos (não será enviado)')).join('\n');
   const jaTem = alvos.some(h=>record.publicacoes && record.publicacoes[h.id]);
-  if(!(await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente'}))) return;
+  if(!(await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true}))) return;
   record.publicacoes = record.publicacoes || {};
   const falhas = []; let enviados = 0;
   for(const l of linhas){
