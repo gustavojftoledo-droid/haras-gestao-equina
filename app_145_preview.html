@@ -5149,7 +5149,7 @@ async function salvarModalPrestador(){
 
 /* ---- Etapa 2: envio de registro pelo prestador + lista de solicitações (aprovação = etapa 3) ---- */
 const STATUS_SOLIC = { pendente:'Pendente', aprovado:'Aprovado', recusado:'Recusado', cancelado:'Cancelado' };
-const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', outro:'Outro' };
+const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', visita:'Visita veterinária', casco:'Casqueamento / ferrageamento', outro:'Outro' };
 const CATEG_SERVICO_LABEL = { consulta:'Consulta', procedimento:'Procedimento', exame:'Exame (ex.: ultrassom)', casqueamento:'Casqueamento', ferrageamento:'Ferrageamento', deslocamento:'Deslocamento', outro:'Outro' };
 function resumoItensSolic(it){
   const serv = it.filter(x=>x.tipo==='servico').length, mat = it.filter(x=>x.tipo==='material').length, meus = it.filter(x=>x.tipo==='material' && x.produtoDoPrestador).length;
@@ -5174,6 +5174,27 @@ function desenharSolicitacoes(){
   }));
 }
 const TIPOS_QUE_VIRAM_VISITA = ['visita','consulta','procedimento','aplicacao','outro'];
+const TIPOS_APROVAVEIS = [...TIPOS_QUE_VIRAM_VISITA, 'casco'];
+/* Proprietário aprova um registro de CASCO/ferrageamento: grava como Manejo de Casco (mesma estrutura do lançamento manual; idempotente pelo id da solicitação). */
+async function aplicarSolicitacaoComoCasco(x, itens){
+  const ja = manejos.find(m=>m.origem && m.origem.solicitacaoId===x.id);
+  if(ja) return { ok:true, ja:true, pendencias:[] };
+  const animal = horses.find(h=>h.id===x.animalId);
+  if(!animal) return { ok:false, motivo:'O animal não está mais na sua ficha.' };
+  const serv = itens.find(i=>i.tipo==='servico' && i.categoria!=='deslocamento');
+  if(!serv) return { ok:false, motivo:'O registro não traz o serviço de casqueamento/ferrageamento.' };
+  const desl = itens.find(i=>i.tipo==='servico' && i.categoria==='deslocamento');
+  const valor = (serv.valorCentavos||0)/100;
+  if(!(aux.subtipoFerrageamento||[]).some(t=>t.toLowerCase()===serv.nome.toLowerCase())){ aux.subtipoFerrageamento = [...(aux.subtipoFerrageamento||[]), serv.nome]; await storeSet('aux_lists', aux); }
+  const record = { id:'mj_'+Date.now(), data:x.dataRegistro, tipo:'Casco', subtipoCasco:serv.nome, ferrador:x.prestadorNome||'', obs:[x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')'].filter(Boolean).join('\n'),
+    animais:[{ id:animal.id, nome:animal.nome, extra:serv.obs||'', tipo:serv.nome, valorBase:valor }], valor, deslocamento: desl ? (desl.valorCentavos||0)/100 : null,
+    origem:{ solicitacaoId:x.id, prestadorNome:x.prestadorNome||'', enviadoPor:x.enviadoPor||'', tipoRegistro:x.tipoRegistro } };
+  manejos = [...manejos, record];
+  await storeSet('manejos_list', manejos, true);
+  try{ renderManejos(); renderFinanceiro(); }catch(_){}
+  return { ok:true, ja:false, pendencias:[] };
+}
+const aplicarSolicitacao = (x, itens)=> x.tipoRegistro==='casco' ? aplicarSolicitacaoComoCasco(x, itens) : aplicarSolicitacaoComoVisita(x, itens);
 function produtoDoMeuEstoquePorNome(nome){ const n=(nome||'').toString().trim().toLowerCase(); return estoqueProdutos.find(p=>(p.nome||'').trim().toLowerCase()===n); }
 /* Proprietário aprova: grava como VISITA na ficha (mesma estrutura do lançamento manual). Idempotente: o registro leva o id da solicitação, então repetir não duplica.
    Serviço → custo com o valor do prestador. Material "meu" → custo "produto do prestador" SEM baixa. Material do proprietário → baixa no estoque dele e custo pelo preço dele;
@@ -5251,13 +5272,13 @@ function abrirDetalheSolicitacao(x, recebida){
     if(decidir && !meu){ const pr = produtoDoMeuEstoquePorNome(i.nome); nota = pr ? `<div style="font-size:11px;color:var(--green,#2c5);">✔ no seu estoque (saldo ${fmtNum(pr.quantidade||0)} ${escHtml(pr.unidade||'')}) — dá baixa e custa pelo seu preço</div>` : `<div style="font-size:11px;color:var(--burgundy,#8b2a2a);">⚠ não está no seu estoque — fica como pendência (sem baixa e sem custo)</div>`; }
     return `<tr><td>Material</td><td>${escHtml(i.nome)}${meu?' <span style="font-size:11px;font-weight:700;color:var(--burgundy,#8b2a2a);">· produto do prestador</span>':''}${nota}</td><td>${decidir?editavel('qtd',idx,fmtNum(i.quantidade)):escHtml(fmtNum(i.quantidade))} ${escHtml(i.unidade||'')}</td><td>${meu?(decidir?(editavel('vun',idx,centavosParaCampo(i.valorUnitarioCentavos))+' /un'):(fmtCentavos(i.valorUnitarioCentavos)+' /un')):'<span style="color:var(--muted);">do seu estoque</span>'}</td></tr>`;
   }).join('');
-  const aprovavel = TIPOS_QUE_VIRAM_VISITA.includes(x.tipoRegistro);
+  const aprovavel = TIPOS_APROVAVEIS.includes(x.tipoRegistro);
   document.getElementById('sl_corpo').innerHTML = `
     <div class="hint-text" style="margin:0 0 8px;">${escHtml(x.prestadorNome||'')} → ${escHtml(x.donoNome||'')} · registro de ${fmtDate(x.dataRegistro)} · enviado por ${escHtml(x.enviadoPor||'')}<br><strong>Situação: ${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong>${x.motivo?'<br>Motivo da recusa: '+escHtml(x.motivo):''}</div>
     ${x.descricao?`<div style="margin:0 0 8px;white-space:pre-wrap;">${escHtml(x.descricao)}</div>`:''}
     <table class="grid"><thead><tr><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor cobrado pelo prestador</th></tr></thead><tbody>${itens}</tbody></table>
     <div style="margin-top:8px;font-weight:700;">Total cobrado pelo prestador: ${fmtCentavos(totalCobradoSolic(x.itens||[]))}</div>
-    ${decidir?`<div class="hint-text" style="margin-top:8px;">${aprovavel?'Você pode <strong>corrigir os valores e quantidades</strong> acima antes de aprovar. Ao aprovar, entra na ficha do animal como <strong>Visita veterinária</strong>.':'Este tipo de registro (tratamento) ainda não entra sozinho na ficha: por enquanto só dá para recusar ou pedir que o prestador envie como visita.'}</div>
+    ${decidir?`<div class="hint-text" style="margin-top:8px;">${aprovavel?'Você pode <strong>corrigir os valores e quantidades</strong> acima antes de aprovar. Ao aprovar, entra na ficha do animal como <strong>'+(x.tipoRegistro==='casco'?'Manejo de casco (casqueamento/ferrageamento)':'Visita veterinária')+'</strong>.':'Este tipo de registro (tratamento) ainda não entra sozinho na ficha: por enquanto só dá para recusar ou pedir que o prestador envie como visita.'}</div>
     <div class="hint-text" id="sl_msg" style="margin:6px 0;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="sl_recusar">Recusar</button><button type="button" class="btn" id="sl_aprovar" ${aprovavel?'':'disabled'}>Aprovar e lançar na ficha</button></div>`:''}`;
   if(decidir){
@@ -5272,7 +5293,7 @@ function abrirDetalheSolicitacao(x, recebida){
       const msg = document.getElementById('sl_msg'); msg.textContent = '';
       const rev = itensRevisadosDoDetalhe(x); if(rev.erro){ msg.textContent = rev.erro; return; }
       document.getElementById('sl_aprovar').disabled = true; msg.textContent = 'Lançando na ficha...';
-      let ap; try{ ap = await aplicarSolicitacaoComoVisita(x, rev.itens); }catch(e){ console.error(e); msg.textContent = 'Não consegui lançar na ficha: '+((e&&e.message)||'erro')+'. Nada foi confirmado ao prestador.'; document.getElementById('sl_aprovar').disabled = false; return; }
+      let ap; try{ ap = await aplicarSolicitacao(x, rev.itens); }catch(e){ console.error(e); msg.textContent = 'Não consegui lançar na ficha: '+((e&&e.message)||'erro')+'. Nada foi confirmado ao prestador.'; document.getElementById('sl_aprovar').disabled = false; return; }
       if(!ap.ok){ msg.textContent = ap.motivo||'Não foi possível lançar.'; document.getElementById('sl_aprovar').disabled = false; return; }
       try{ await chamarFuncao('decidirSolicitacao', { solicitacaoId:x.id, decisao:'aprovar', itens:rev.itens }); }
       catch(e){ msg.textContent = 'Entrou na ficha, mas não consegui confirmar ao prestador ('+msgErroFuncao(e)+'). Clique em Aprovar de novo: não duplica.'; document.getElementById('sl_aprovar').disabled = false; return; }
@@ -7200,7 +7221,7 @@ function resetSelectorComFront(selector){
 
 const manejoHost = document.getElementById('manejoSelectorHost');
 manejoHost.id='manejoSelectorHost';
-const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Observação', onlyActive:true, extraValor:true, tipoFerragem:true, tipoFerragemCondition:()=>document.getElementById('m_tipo').value==='Casco', onChange:()=>atualizarValorTotalManejo()});
+const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Observação', onlyActive:true, incluirDeClientes:true, extraValor:true, tipoFerragem:true, tipoFerragemCondition:()=>document.getElementById('m_tipo').value==='Casco', onChange:()=>atualizarValorTotalManejo()});
 
 const transporteHost = document.getElementById('transporteSelectorHost');
 transporteHost.id='transporteSelectorHost';
@@ -10756,6 +10777,8 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     selected.forEach(a=>{ a.valorBase = custoPorAnimal; });
   }
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
+  if(registroAnterior && registroAnterior.publicacoes) registro.publicacoes = registroAnterior.publicacoes;
+  if(registroAnterior && registroAnterior.origem) registro.origem = registroAnterior.origem;
   if(tipo==='Casco'){
     registro.subtipoCasco = tipoGeral;
     registro.ferrador = resolverFerradorDigitado(document.getElementById('m_ferrador_sel').value);
@@ -10810,7 +10833,39 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   closeModal('overlayManejo'); renderManejos();
   salvarEmSegundoPlano('manejos_list', manejos, ()=>renderManejos());
   if(avisoBaixa) showAlert('Lançamento salvo'+avisoBaixa+'.');
+  perguntarPublicarManejo(registro).catch(e=>{ console.error('publicar manejo:', e); showAlert('O lançamento foi salvo, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
+/* Prestador (ferrador): manejo de CASCO em cavalo de CLIENTE externo → pergunta se publica no programa dele (pendente; corrigir enquanto pendente substitui). */
+async function perguntarPublicarManejo(registro){
+  if(!ladoPrestador() || registro.tipo!=='Casco') return;
+  const alvos = (registro.animais||[]).map(a=>({ a, h:horses.find(x=>x.id===a.id) })).filter(x=>x.h && x.h.clienteVinculo && !x.h.clienteVinculo.semAcesso);
+  if(alvos.length===0) return;
+  const jaComDeslocamento = new Set();
+  const linhas = alvos.map(({a,h})=>{
+    const v = Math.round(((Number(a.valorBase)||0)+(Number(a.valorExtra)||0))*100);
+    const tipoCasco = a.tipo || registro.subtipoCasco || 'Casqueamento';
+    const itens = [{ tipo:'servico', nome:tipoCasco, categoria:/^(ferrad|repreg|reposi)/i.test(tipoCasco)?'ferrageamento':'casqueamento', valorCentavos:v, obs:a.extra||'' }];
+    const desl = Math.round((Number(registro.deslocamento)||0)*100);
+    if(desl>0 && !jaComDeslocamento.has(h.clienteVinculo.vinculoId)){ jaComDeslocamento.add(h.clienteVinculo.vinculoId); itens.push({ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:desl, obs:'' }); }
+    return { h, itens, total: totalCobradoSolic(itens) };
+  });
+  const resumo = linhas.map(l=>'• '+l.h.nome+' — '+resumoItensSolic(l.itens)+' · '+fmtCentavos(l.total)).join('\n');
+  const jaTem = alvos.some(x=>registro.publicacoes && registro.publicacoes[x.h.id]);
+  const ok = await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true});
+  document.getElementById('dialogMessage').style.whiteSpace = '';
+  if(!ok) return;
+  registro.publicacoes = registro.publicacoes || {};
+  const falhas = []; let enviados = 0;
+  for(const l of linhas){
+    try{
+      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:l.h.clienteVinculo.vinculoId, animalId:l.h.clienteVinculo.animalId, dataRegistro:registro.data, tipoRegistro:'casco',
+        descricao:registro.obs||'', itens:l.itens, substituiSolicitacaoId:registro.publicacoes[l.h.id]||undefined });
+      registro.publicacoes[l.h.id] = r.id; enviados++;
+    }catch(e){ falhas.push(l.h.nome+': '+msgErroFuncao(e)); }
+  }
+  salvarEmSegundoPlano('manejos_list', manejos);
+  showAlert((enviados? ('Publicado para o cliente ('+enviados+' animal(is)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+}
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
 const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf .no-print{display:none !important;} .rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* .grid-compare (Comparação de Formulações) cresce mais larga que o container de propósito, pra rolar na horizontal NA TELA — dentro do PDF isso estourava a largura da folha e cortava as últimas colunas. Aqui força de volta pro mesmo table-layout:fixed/width:100% das outras tabelas do relatório, que já espreme as colunas pra caber certinho. */ .rel-manejo-pdf table.grid.grid-compare{width:100% !important;min-width:0 !important;} /* Cada bloco (1 animal, 1 manejo, 1 visita...) fica inteiro na mesma folha — nunca corta um no meio pra começar o de baixo na próxima. */ .rel-manejo-pdf .report-animal-block,.rel-manejo-pdf .pdf-item-block{page-break-inside:avoid;break-inside:avoid;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
