@@ -23,7 +23,7 @@ const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
 const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
 const BC = require('../cobranca');
-const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao);
+const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao), wDecide = fft.wrap(F.decidirSolicitacao);
 const wConvidar = fft.wrap(F.convidarPrestador), wVincs = fft.wrap(F.listarVinculos), wResp = fft.wrap(F.responderConvite), wAnim = fft.wrap(F.atualizarAnimaisDoVinculo), wRevog = fft.wrap(F.revogarVinculo);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
@@ -749,6 +749,25 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     assert.equal(c.status, 'cancelado');
     await rejeita(wCancel({ data: { solicitacaoId: s.id }, auth: tkV() }), 'failed-precondition');
     assert.equal((await wSolic({ data: {}, auth: tkD })).recebidas[0].status, 'cancelado');
+  });
+  test('decidir: só o proprietário dono da solicitação; recusa pede motivo; aprova com revisão e guarda o original; não decide duas vezes', async () => {
+    const s = await wEnviar({ data: ok(), auth: tkV() });
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'aprovar' }, auth: tkV() }), 'permission-denied');          // prestador não decide
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'aprovar' }, auth: tkV('vet3') }), 'permission-denied');
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'talvez' }, auth: tkD }), 'invalid-argument');
+    await rejeita(wDecide({ data: { solicitacaoId: 'curto', decisao: 'aprovar' }, auth: tkD }), 'invalid-argument');
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'recusar' }, auth: tkD }), 'invalid-argument');             // sem motivo
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'aprovar', itens: [servico({ valorCentavos: -1 })] }, auth: tkD }), 'invalid-argument');
+    const a = await wDecide({ data: { solicitacaoId: s.id, decisao: 'aprovar', itens: [servico({ valorCentavos: 12000 })] }, auth: tkD });
+    assert.equal(a.status, 'aprovado'); assert.equal(a.itens[0].valorCentavos, 12000);
+    const bruto = (await db.doc('solicitacoes/' + s.id).get()).data();
+    assert.equal(bruto.itensOriginais[0].valorCentavos, 15000); assert.ok(bruto.eventos.some(e => /valores revisados/.test(e.acao)));
+    await rejeita(wDecide({ data: { solicitacaoId: s.id, decisao: 'recusar', motivo: 'não pedi' }, auth: tkD }), 'failed-precondition');
+    const r = await wEnviar({ data: ok(), auth: tkV() });
+    const z = await wDecide({ data: { solicitacaoId: r.id, decisao: 'recusar', motivo: 'valor acima do combinado' }, auth: tkD });
+    assert.deepEqual([z.status, z.motivo], ['recusado', 'valor acima do combinado']);
+    await rejeita(wCancel({ data: { solicitacaoId: r.id }, auth: tkV() }), 'failed-precondition');
+    assert.equal((await wSolic({ data: {}, auth: tkV() })).enviadas.find(x => x.id === r.id).motivo, 'valor acima do combinado');
   });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });

@@ -266,5 +266,39 @@ async function cancelarSolicitacao({ db, token }, data){
   return solPublica(ref.id, novo);
 }
 
+/* ---------------- ETAPA 3: o proprietário decide (aprovar, com revisão opcional, ou recusar) ----------------
+   O APP do proprietário grava o registro na ficha dele (mesmo código do lançamento manual, sem duplicar: o registro leva o id da
+   solicitação) e depois confirma aqui. O servidor só muda o estado da solicitação; nunca escreve na ficha do proprietário. */
+async function decidirSolicitacao({ db, token }, data){
+  exigirLado(token, 'proprietario');
+  if (typeof data.solicitacaoId !== 'string' || !RE_SID.test(data.solicitacaoId)) throw new HttpsError('invalid-argument', 'Solicitação inválida.');
+  if (data.decisao !== 'aprovar' && data.decisao !== 'recusar') throw new HttpsError('invalid-argument', 'Decisão inválida (aprovar ou recusar).');
+  const ref = db.collection('solicitacoes').doc(data.solicitacaoId);
+  const s = await ref.get();
+  if (!s.exists) throw new HttpsError('not-found', 'Solicitação não encontrada.');
+  const d = s.data();
+  if (d.donoTenantId !== assinaturaDoChamador(token)) throw new HttpsError('permission-denied', 'Essa solicitação não é para a sua assinatura.');
+  if (d.status !== 'pendente') throw new HttpsError('failed-precondition', 'Essa solicitação já foi decidida (' + d.status + ').');
+  const por = typeof token.email === 'string' ? token.email : '';
+  const novo = { ...d, atualizadoEm: agora() };
+  if (data.decisao === 'recusar') {
+    const motivo = txt(data.motivo, 300);
+    if (motivo.length < 3) throw new HttpsError('invalid-argument', 'Informe o motivo da recusa (aparece para o prestador).');
+    novo.status = 'recusado'; novo.motivo = motivo;
+    novo.eventos = addEvento(d, por, 'recusado pelo proprietário: ' + motivo);
+  } else {
+    let revisado = false;
+    if (data.itens !== undefined) {
+      const itens = limparItens(data.itens);
+      revisado = JSON.stringify(itens) !== JSON.stringify(d.itens || []);
+      if (revisado) { novo.itensOriginais = Array.isArray(d.itensOriginais) ? d.itensOriginais : (d.itens || []); novo.itens = itens; }
+    }
+    novo.status = 'aprovado'; novo.aprovadoEm = agora(); novo.aprovadoPor = por; novo.motivo = '';
+    novo.eventos = addEvento(d, por, revisado ? 'aprovado pelo proprietário (valores revisados)' : 'aprovado pelo proprietário');
+  }
+  await ref.set(novo);
+  return solPublica(ref.id, novo);
+}
+
 module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo,
-  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao };
+  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao };
