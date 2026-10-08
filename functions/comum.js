@@ -19,11 +19,11 @@ const PLANO_PADRAO = 'basico';
 /* Tipo de assinatura (definido SÓ pelo dono, em Clientes → Editar): decide qual lado da integração entre assinaturas o cliente vê.
    proprietario (padrão) = dono de haras/cliente comum: autoriza prestadores e aprova o que chega;
    prestador = veterinária, ferrador etc.: aceita convites e envia registros; ambos = faz as duas coisas. */
-const TIPOS_ASSINATURA = ['proprietario', 'prestador', 'ambos'];
+const TIPOS_ASSINATURA = ['proprietario', 'prestador', 'ambos', 'ferrador']; // ferrador = assinatura mínima: só manejo de casco nos cavalos de clientes que o convidaram
 const TIPO_PADRAO = 'proprietario';
 const ehTipoAssinatura = (t) => typeof t === 'string' && TIPOS_ASSINATURA.includes(t);
 const tipoValido = (t) => ehTipoAssinatura(t) ? t : TIPO_PADRAO;
-const fazLadoProprietario = (t) => tipoValido(t) !== 'prestador';
+const fazLadoProprietario = (t) => ['proprietario', 'ambos'].includes(tipoValido(t));
 const fazLadoPrestador = (t) => tipoValido(t) !== 'proprietario';
 
 /* Novidades liberadas só para alguns clientes ("interruptor por cliente"): lista de chaves curtas guardada em

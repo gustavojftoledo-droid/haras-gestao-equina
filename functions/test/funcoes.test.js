@@ -806,6 +806,27 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     const r = await wEnviar({ data: ok({ tipoRegistro: 'casco', itens: [servico({ nome: 'Ferrado completo', categoria: 'ferrageamento', valorCentavos: 30000 }), servico({ nome: 'Deslocamento', categoria: 'deslocamento', valorCentavos: 5000 })] }), auth: tkV() });
     assert.equal(r.tipoRegistro, 'casco'); assert.equal(r.status, 'pendente'); assert.equal(r.itens[1].categoria, 'deslocamento');
   });
+  test('assinatura de FERRADOR: convidada sem interruptor, só envia casco/ferrageamento/deslocamento, ficha mínima e não convida', async () => {
+    await db.doc('clientes/ferr1').set({ nome: 'Ferrador Um', ativo: true, plano: 'gratuito', tipoAssinatura: 'ferrador' });
+    await conta('f@ferr1.com', { tenantId: 'ferr1', papel: 'admin', modulos: MODULOS, recursos: [], tipoAssinatura: 'ferrador' });   // sem recurso ligado de propósito
+    const tkF = { uid: 'u-f', token: { papel: 'admin', tenantId: 'ferr1', recursos: [], tipoAssinatura: 'ferrador', email: 'f@ferr1.com' } };
+    await wConvidar({ data: { email: 'f@ferr1.com', animaisTodos: true }, auth: tkD });
+    await wResp({ data: { vinculoId: 'dono2__ferr1', aceitar: true }, auth: tkF });
+    const casco = (extra = {}) => ok({ vinculoId: 'dono2__ferr1', tipoRegistro: 'casco', itens: [servico({ nome: 'Ferrado completo', categoria: 'ferrageamento', valorCentavos: 30000 }), servico({ nome: 'Deslocamento', categoria: 'deslocamento', valorCentavos: 5000 })], ...extra });
+    const r = await wEnviar({ data: casco(), auth: tkF });
+    assert.equal(r.status, 'pendente'); assert.equal(r.tipoRegistro, 'casco');
+    await rejeita(wEnviar({ data: casco({ tipoRegistro: 'visita' }), auth: tkF }), 'permission-denied');                        // só casco
+    await rejeita(wEnviar({ data: casco({ itens: [servico({ categoria: 'consulta' })] }), auth: tkF }), 'permission-denied');   // só serviços de casco
+    await rejeita(wEnviar({ data: casco({ itens: [material()] }), auth: tkF }), 'permission-denied');                          // sem material
+    await rejeita(wConvidar({ data: { email: 'vet@vet2.com', animaisTodos: true }, auth: tkF }), 'permission-denied');          // ferrador não autoriza prestadores
+    await db.doc('tenants/dono2/dados/horses_list').set({ value: [{ id: 'a1', nome: 'Alfa', pai: 'Pai X', examesSaude: { AIE: { data: '2026-05-01' } } }] });
+    await db.doc('tenants/dono2/dados/manejos_list').set({ value: [{ id: 'm1', data: '2026-09-01', tipo: 'Casco', subtipoCasco: 'Ferrado completo', animais: [{ id: 'a1' }] }, { id: 'm2', data: '2026-09-02', tipo: 'Vermífugo', animais: [{ id: 'a1' }] }] });
+    const f = await wFicha({ data: { vinculoId: 'dono2__ferr1', animalId: 'a1' }, auth: tkF });
+    assert.equal(f.animal.pai, 'Pai X'); assert.equal(f.animal.examesSaude, undefined);
+    assert.deepEqual(f.manejos.map(m => m.tipo), ['Casco']); assert.deepEqual([f.tratamentos.length, f.treinos.length], [0, 0]);
+    const lista = await wSolic({ data: {}, auth: tkF }); assert.equal(lista.enviadas.length, 1);
+    const d = await wDecide({ data: { solicitacaoId: r.id, decisao: 'aprovar' }, auth: tkD }); assert.equal(d.status, 'aprovado');
+  });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
     await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'resource-exhausted');
