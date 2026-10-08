@@ -38,7 +38,10 @@ async function animaisDoDono(db, tid){
   const caminho = tid === ORIGINAL ? 'harasData/horses_list' : `tenants/${tid}/dados/horses_list`;
   const s = await db.doc(caminho).get();
   const v = s.exists && s.data() && Array.isArray(s.data().value) ? s.data().value : [];
-  return v.filter(h => h && typeof h.id === 'string').map(h => ({ id: h.id, nome: typeof h.nome === 'string' ? h.nome : '' }));
+  // campos leves para a lista do prestador (sexo/categoria/situação); nada de valores nem dados do proprietário
+  const t = (x, n) => typeof x === 'string' ? x.slice(0, n) : '';
+  return v.filter(h => h && typeof h.id === 'string').map(h => ({ id: h.id, nome: typeof h.nome === 'string' ? h.nome : '', sexo: t(h.sexo, 12), categoria: t(h.categoria, 40), pelagem: t(h.pelagem, 40), raca: t(h.raca, 40),
+    inativo: h.situacao === 'V' || !!h.falecimento }));
 }
 /* Valida a escolha de animais: todos, ou uma lista (1+) de ids que existam no cadastro do proprietário. */
 async function validarAnimais(db, dono, data){
