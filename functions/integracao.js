@@ -154,7 +154,7 @@ async function revogarVinculo({ db, token }, data){
    Coleção de servidor `solicitacoes/{id}`. Nada entra na ficha do proprietário aqui: só fica pendente (a aprovação é a etapa 3).
    Itens: 'servico' (leva o VALOR do prestador) e 'material' (estoque/preço do proprietário; só leva valor se o prestador marcou
    "este produto é meu": produtoDoPrestador=true, com valor unitário). Preço de compra/estoque do prestador nunca são enviados. */
-const TIPOS_REGISTRO = ['aplicacao', 'tratamento', 'procedimento', 'consulta', 'visita', 'outro'];
+const TIPOS_REGISTRO = ['aplicacao', 'tratamento', 'procedimento', 'consulta', 'visita', 'casco', 'outro'];
 const CATEGORIAS_SERVICO = ['consulta', 'procedimento', 'exame', 'casqueamento', 'ferrageamento', 'deslocamento', 'outro'];
 const MAX_ITENS = 30, MAX_PENDENTES_POR_VINCULO = 50, MAX_LISTA = 200;
 const MAX_VALOR_CENTAVOS = 100000000;

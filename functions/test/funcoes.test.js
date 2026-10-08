@@ -802,6 +802,10 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     await wRevog({ data: { vinculoId: 'dono2__vet2' }, auth: tkD });
     await rejeita(wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a1' }, auth: tkV() }), 'failed-precondition');   // vínculo encerrado
   });
+  test('registro de casco: serviço de ferrageamento + deslocamento entram como pendente', async () => {
+    const r = await wEnviar({ data: ok({ tipoRegistro: 'casco', itens: [servico({ nome: 'Ferrado completo', categoria: 'ferrageamento', valorCentavos: 30000 }), servico({ nome: 'Deslocamento', categoria: 'deslocamento', valorCentavos: 5000 })] }), auth: tkV() });
+    assert.equal(r.tipoRegistro, 'casco'); assert.equal(r.status, 'pendente'); assert.equal(r.itens[1].categoria, 'deslocamento');
+  });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
     await rejeita(wEnviar({ data: ok(), auth: tkV() }), 'resource-exhausted');
