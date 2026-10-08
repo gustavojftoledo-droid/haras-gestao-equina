@@ -7514,6 +7514,33 @@ function renderFiltrosAnimaisChips(){
     });
   });
 }
+/* ---- Prestador: ficha SÓ-LEITURA do cavalo de um cliente externo (dados vêm ao vivo do programa do cliente, lista fixa, sem valores) ---- */
+function garantirModalFichaExterna(){
+  if(document.getElementById('overlayFichaExterna')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlayFichaExterna"><div class="modal" style="max-width:min(96vw,760px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="fe_titulo">Ficha</div><button class="modal-close" data-close="overlayFichaExterna">✕</button></div>
+    <div id="fe_corpo"></div></div></div>`);
+  document.querySelectorAll('#overlayFichaExterna [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayFichaExterna')));
+  document.getElementById('overlayFichaExterna').addEventListener('click', e=>{ if(e.target.id==='overlayFichaExterna') closeModal('overlayFichaExterna'); });
+}
+async function abrirFichaExterna(h){
+  garantirModalFichaExterna();
+  document.getElementById('fe_titulo').textContent = h.nome||'Ficha';
+  const corpo = document.getElementById('fe_corpo'); corpo.innerHTML = '<div class="hint-text">Carregando a ficha do cliente...</div>';
+  openModal('overlayFichaExterna');
+  let r; try{ r = await chamarFuncao('fichaDoAnimal', { vinculoId:h.clienteVinculo.vinculoId, animalId:h.clienteVinculo.animalId }); }
+  catch(e){ corpo.innerHTML = '<div class="hint-text">Não consegui carregar: '+escHtml(msgErroFuncao(e))+'</div>'; return; }
+  const a = r.animal||{}, tab = (cab, linhas)=> linhas.length ? `<div class="grid-wrap"><table class="grid"><thead><tr>${cab.map(c=>'<th>'+c+'</th>').join('')}</tr></thead><tbody>${linhas.map(l=>'<tr>'+l.map(c=>'<td>'+escHtml(c==null?'':String(c))+'</td>').join('')+'</tr>').join('')}</tbody></table></div>` : '<div class="hint-text">Nenhum registro.</div>';
+  const tit = t=>`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:14px 0 6px;">${t}</div>`;
+  const dado = (rot,v)=> v ? `<div><span style="color:var(--muted);font-size:12px;">${rot}</span><br><strong>${escHtml(v)}</strong></div>` : '';
+  const ex = a.examesSaude||{};
+  corpo.innerHTML = `<div class="hint-text" style="margin:0 0 8px;">🔗 Cavalo do cliente <strong>${escHtml(r.donoNome||'')}</strong> — <strong>somente leitura</strong>. O que você lançar para ele vai como <strong>pendente</strong> para o cliente aprovar.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">${[dado('Apelido',a.apelido),dado('Sexo',a.sexo),dado('Nascimento',a.nascimento?fmtDate(a.nascimento):''),dado('Pelagem',a.pelagem),dado('Raça',a.raca),dado('Categoria',a.categoria),dado('Status',a.status),dado('Localização',a.localizacao),dado('Pai',a.pai),dado('Mãe',a.mae)].join('')}</div>
+    ${Object.keys(ex).length? tit('Exames de saúde')+tab(['Exame','Data','Validade'], Object.entries(ex).map(([t,e])=>[t, e.data?fmtDate(e.data):'', e.validade?fmtDate(e.validade):''])) : ''}
+    ${tit('Manejos (casco, ferrageamento, vermífugo, vacina, dental)')}${tab(['Data','Tipo','Detalhe','Obs.'], (r.manejos||[]).map(m=>[fmtDate(m.data), m.tipo, [m.subtipo, m.ferrador?('ferrador '+m.ferrador):'', m.medicamento].filter(Boolean).join(' · '), m.obs]))}
+    ${tit('Tratamentos')}${tab(['Início','Medicamento','Dose','Aplicações','Obs.'], (r.tratamentos||[]).map(t=>[fmtDate(t.dataInicio), t.medicamento, (t.quantidade||'')+' '+(t.unidade||'')+(t.meio?' ('+t.meio+')':''), (t.aplicacoes||'')+(t.intervaloDias>1?' a cada '+t.intervaloDias+' dias':''), t.obs]))}
+    ${tit('Atividades (treinos recentes)')}${tab(['Data','Tipo','Local'], (r.treinos||[]).map(t=>[fmtDate(t.data), t.tipo, t.local]))}`;
+}
 /* ---- Prestador: barra de clientes na tela Animais ---- */
 let filtroClientePrest = { tipo:'todos', chave:'' }; // todos = só os internos (de todos os clientes dele) | int = um cliente interno | ext = um cliente externo (que liberou os cavalos)
 function desenharBarraClientesPrest(){
@@ -7941,6 +7968,7 @@ function openHorseNew(){
 }
 function openHorseEdit(id){
   const h=horses.find(x=>x.id===id); if(!h) return;
+  if(h.clienteVinculo){ abrirFichaExterna(h); return; } // cavalo de cliente externo: ficha só-leitura
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
@@ -23781,6 +23809,7 @@ document.addEventListener('click', e=>{
   if(btn){ e.stopPropagation(); abrirFichaNovaAba(btn.dataset.eyeid); }
 }, true);
 function abrirPerfilAnimal(id){
+  { const hx = horses.find(x=>x.id===id); if(hx && hx.clienteVinculo){ abrirFichaExterna(hx); return; } }
   guardarPontoDeVolta(); // cobre todo 👁 do app de uma vez — um hook só, "Voltar" funciona em qualquer um
   perfilAnimalId = id;
   timelineFiltro = 'todos';

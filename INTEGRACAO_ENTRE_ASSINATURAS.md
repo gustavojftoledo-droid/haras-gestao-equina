@@ -76,3 +76,6 @@ As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa p
 | Financeiro, custos, estoque, vendas, funcionários, dados pessoais do proprietário | **nunca** | **nunca** | **nunca** |
 
 Pergunta para o dia 23/10: o cliente escolhe, por prestador, quais dessas categorias libera (liga/desliga)? Hoje: tudo dos itens "sim/opcional" fica liberado.
+
+## Passo 2 feito (08/10/2026): ficha só-leitura do cavalo do cliente externo
+Função `fichaDoAnimal` (prestador, vínculo ativo, só animal liberado): lê **ao vivo** o programa do cliente e devolve uma **lista fixa de campos** — dados do animal (nome, apelido, sexo, nascimento, pelagem, raça, categoria, status, localização, pai, mãe, exames de saúde), manejos (casco/ferrageamento, vermífugo, vacina, dental; sem valores), tratamentos, treinos recentes. **Nunca**: valores, custos, financeiro, estoque, vendas, dados do proprietário. No programa do prestador, abrir um cavalo marcado 🔗 mostra essa ficha (nada é copiado nem editável).
