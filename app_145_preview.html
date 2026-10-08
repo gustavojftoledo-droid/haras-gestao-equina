@@ -11473,6 +11473,24 @@ document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', (
   abrirEnvioFornecedores({ comPdf:false, assunto:'Pedido de compra'+(lastPreviaTipoPedido?(' - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido)):''),
     mensagem: lastPreviaMensagemPedido || `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido.\nObrigado.` });
 });
+/* ---- WhatsApp: no COMPUTADOR abre o aplicativo instalado (whatsapp://); no celular segue pelo link normal; se o aplicativo não abrir, aparece um aviso com o atalho para o WhatsApp Web ---- */
+function abrirWhatsApp(numero, mensagem){
+  const texto = encodeURIComponent(mensagem||'');
+  const web = `https://wa.me/${numero}?text=${texto}`;
+  const celular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+  if(celular){ window.open(web, '_blank'); return; }
+  const a = document.createElement('a');
+  a.href = `whatsapp://send?phone=${numero}&text=${texto}`; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+  const antigo = document.getElementById('avisoWhatsApp'); if(antigo) antigo.remove();
+  const aviso = document.createElement('div');
+  aviso.id = 'avisoWhatsApp';
+  aviso.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100001;background:#1f3a2c;color:#fff;padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:13px;display:flex;gap:12px;align-items:center;max-width:92vw;';
+  aviso.innerHTML = `<span>Abrindo o WhatsApp do computador... (na primeira vez o navegador pergunta: marque "Sempre permitir").</span><a href="${web}" target="_blank" rel="noopener" style="color:#ffd27a;font-weight:700;white-space:nowrap;">Não abriu? Usar WhatsApp Web</a><button type="button" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;" aria-label="Fechar">✕</button>`;
+  aviso.querySelector('button').addEventListener('click', ()=>aviso.remove());
+  document.body.appendChild(aviso);
+  setTimeout(()=>{ if(aviso.parentNode) aviso.remove(); }, 15000);
+}
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
   if(marcados.length===0){ showAlert('Marque ao menos um contato.'); return; }
@@ -11484,13 +11502,12 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
   if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); }
   const fila = document.getElementById('envForn_fila');
-  const link = d => `https://wa.me/${d.numero}?text=${encodeURIComponent(mensagem)}`;
   fila.style.display = 'block';
   fila.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">${envForn.comPdf?`PDF "${escHtml(lastPreviaNomeArquivo)}" baixado. `:''}Abra o WhatsApp de cada um (um de cada vez):</div>` +
     destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${escHtml(d.numero)}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
   fila.querySelectorAll('[data-fila]').forEach(b=>b.addEventListener('click',()=>{
     const i = Number(b.dataset.fila);
-    window.open(link(destinos[i]), '_blank');
+    abrirWhatsApp(destinos[i].numero, mensagem);
     fila.querySelector(`[data-filaok="${i}"]`).textContent = '✓ aberto';
   }));
   fila.scrollIntoView({block:'nearest'});
@@ -16871,7 +16888,7 @@ document.getElementById('btnPedidoRapidoWhats').addEventListener('click', ()=>{
   const numero = f('pdr_whats').replace(/\D/g,'');
   if(!numero){ showAlert('Informe o WhatsApp do fornecedor (com DDI, ex: 55...).'); document.getElementById('pdr_whats').focus(); return; }
   salvarContatoFornecedorPedidoRapido();
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(f('pdr_mensagem'))}`, '_blank');
+  abrirWhatsApp(numero, f('pdr_mensagem'));
   closeModal('overlayPedidoRapidoProduto');
 });
 document.getElementById('btnPedidoRapidoEmail').addEventListener('click', ()=>{
