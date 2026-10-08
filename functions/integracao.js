@@ -312,5 +312,51 @@ async function decidirSolicitacao({ db, token }, data){
   return solPublica(ref.id, novo);
 }
 
+/* ---------------- FICHA SÓ-LEITURA do animal liberado (o prestador vê o cavalo do cliente como se fosse dele) ----------------
+   Leitura ao vivo no servidor, com LISTA FIXA de campos: nunca valores, custos, financeiro, estoque, vendas nem dados do proprietário. */
+const CAMPOS_ANIMAL = ['nome', 'apelido', 'sexo', 'nascimento', 'pelagem', 'raca', 'categoria', 'status', 'localizacao', 'pai', 'mae', 'situacao', 'registro', 'microchip'];
+const caminhoDoDono = (dono, key) => dono === ORIGINAL ? `harasData/${key}` : `tenants/${dono}/dados/${key}`;
+async function lerLista(db, dono, key){
+  const s = await db.doc(caminhoDoDono(dono, key)).get();
+  return s.exists && s.data() && Array.isArray(s.data().value) ? s.data().value : [];
+}
+/* treinos podem estar divididos por ano (treinos_indice + treinos_AAAA): lê os dois anos mais recentes (ou o documento único). */
+async function lerTreinos(db, dono){
+  const ri = await db.doc(caminhoDoDono(dono, 'treinos_indice')).get();
+  const idx = ri.exists ? ri.data() && ri.data().value : null;
+  if (idx && typeof idx === 'object' && !Array.isArray(idx) && Number(idx.versao) >= 1 && Array.isArray(idx.docs)) {
+    const docs = [...new Set(idx.docs)].filter(d => typeof d === 'string' && /^[A-Za-z0-9_]{3,40}$/.test(d)).sort().slice(-2);
+    const todos = [];
+    for (const d of docs) todos.push(...await lerLista(db, dono, d));
+    return todos;
+  }
+  return lerLista(db, dono, 'treinos_list');
+}
+const soTexto = (v, max) => typeof v === 'string' ? v.slice(0, max) : '';
+async function fichaDoAnimal({ db, token }, data){
+  const v = await vinculoDoPrestador(db, token, data.vinculoId);
+  const liberados = await animaisLiberados(db, v);
+  if (typeof data.animalId !== 'string' || !liberados.some(a => a.id === data.animalId)) throw new HttpsError('permission-denied', 'Esse animal não está liberado para você.');
+  const id = data.animalId, dono = v.donoTenantId;
+  const [horses, manejos, tratamentos] = await Promise.all([lerLista(db, dono, 'horses_list'), lerLista(db, dono, 'manejos_list'), lerLista(db, dono, 'tratamentos_list')]);
+  const treinos = await lerTreinos(db, dono);
+  const h = horses.find(x => x && x.id === id);
+  if (!h) throw new HttpsError('not-found', 'Animal não encontrado no cadastro do proprietário.');
+  const animal = {}; CAMPOS_ANIMAL.forEach(k => { if (h[k] !== undefined && h[k] !== null && typeof h[k] !== 'object') animal[k] = soTexto(String(h[k]), 120); });
+  if (h.examesSaude && typeof h.examesSaude === 'object') {
+    animal.examesSaude = {}; Object.keys(h.examesSaude).slice(0, 10).forEach(t => { const e = h.examesSaude[t]; if (e && typeof e === 'object') animal.examesSaude[soTexto(t, 40)] = { data: soTexto(e.data, 10), validade: soTexto(e.validade, 10), resultado: soTexto(e.resultado, 60) }; });
+  }
+  const doAnimal = (arr) => (Array.isArray(arr) ? arr : []).filter(x => x && Array.isArray(x.animais) && x.animais.some(a => a && a.id === id));
+  const porData = (a, b) => String(b.data || b.dataInicio || '').localeCompare(String(a.data || a.dataInicio || ''));
+  const manejosOut = doAnimal(manejos).sort(porData).slice(0, 40).map(m => {
+    const a = m.animais.find(x => x && x.id === id) || {};
+    return { data: soTexto(m.data, 10), tipo: soTexto(m.tipo, 30), subtipo: soTexto(a.tipo || m.subtipoCasco, 60), ferrador: soTexto(m.ferrador, 80), medicamento: soTexto(m.medicamentoNome, 80), obs: soTexto([m.obs, a.extra].filter(Boolean).join(' — '), 300) };
+  });
+  const tratamentosOut = doAnimal(tratamentos).sort(porData).slice(0, 15).map(t => ({ medicamento: soTexto(t.medicamentoNome, 80), quantidade: Number(t.quantidade) || 0, unidade: soTexto(t.unidade, 20), meio: soTexto(t.meioAplicacao, 40),
+    dataInicio: soTexto(t.dataInicio, 10), aplicacoes: Number(t.diasTratamento) || 0, intervaloDias: Number(t.intervaloDias) || 1, obs: soTexto(t.obs, 300) }));
+  const treinosOut = doAnimal(treinos).sort(porData).slice(0, 15).map(t => ({ data: soTexto(t.data, 10), tipo: soTexto(t.tipo, 40), local: soTexto(t.local, 60) }));
+  return { vinculoId: data.vinculoId, donoNome: v.donoNome, animal, manejos: manejosOut, tratamentos: tratamentosOut, treinos: treinosOut };
+}
+
 module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo,
-  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao };
+  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao, fichaDoAnimal };

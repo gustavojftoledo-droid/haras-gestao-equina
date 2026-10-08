@@ -23,7 +23,7 @@ const CL = require('../clientes');
 const wLogin = fft.wrap(F.criarLoginDoUsuario);
 const wPagar = fft.wrap(F.registrarPagamento), wExcPag = fft.wrap(F.excluirPagamento), wListPag = fft.wrap(F.listarPagamentos);
 const BC = require('../cobranca');
-const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao), wDecide = fft.wrap(F.decidirSolicitacao);
+const wAutor = fft.wrap(F.animaisAutorizados), wEnviar = fft.wrap(F.enviarSolicitacao), wSolic = fft.wrap(F.listarSolicitacoes), wCancel = fft.wrap(F.cancelarSolicitacao), wDecide = fft.wrap(F.decidirSolicitacao), wFicha = fft.wrap(F.fichaDoAnimal);
 const wConvidar = fft.wrap(F.convidarPrestador), wVincs = fft.wrap(F.listarVinculos), wResp = fft.wrap(F.responderConvite), wAnim = fft.wrap(F.atualizarAnimaisDoVinculo), wRevog = fft.wrap(F.revogarVinculo);
 
 const perm = (...mods) => { const p = {}; mods.forEach(m => p[m] = { ver: true, inserir: false, editar: false, excluir: false }); return p; };
@@ -780,6 +780,27 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     assert.notEqual(c.id, a.id); assert.equal(c.status, 'pendente');
     const d = await wEnviar({ data: ok({ animalId: 'a2', substituiSolicitacaoId: c.id }), auth: tkV() });   // outro animal: não substitui
     assert.notEqual(d.id, c.id);
+  });
+  test('ficha só-leitura: só animal liberado; lista fixa de campos; sem valores nem dados do proprietário', async () => {
+    await db.doc('tenants/dono2/dados/horses_list').set({ value: [{ id: 'a1', nome: 'Alfa', pai: 'Pai X', mae: 'Mae Y', sexo: 'MASCULINO', valor: 'R$ 50.000,00', compradoDe: 'Fulano', proprietario: 'Paulo', examesSaude: { AIE: { data: '2026-05-01', validade: '2026-11-01' } } }, { id: 'a2', nome: 'Beta' }, { id: 'a3', nome: 'Gama' }] });
+    await db.doc('tenants/dono2/dados/manejos_list').set({ value: [
+      { id: 'm1', data: '2026-09-01', tipo: 'Casco', subtipoCasco: 'Ferrado completo', ferrador: 'Zé', valor: 300, deslocamento: 50, obs: 'ok', animais: [{ id: 'a1', nome: 'Alfa', valorBase: 300, extra: 'pé esq.' }] },
+      { id: 'm2', data: '2026-09-02', tipo: 'Vermífugo', medicamentoNome: 'Ivermectina', valor: 10, animais: [{ id: 'a2', nome: 'Beta' }] }] });
+    await db.doc('tenants/dono2/dados/tratamentos_list').set({ value: [{ id: 't1', medicamentoNome: 'Dexa', quantidade: 5, unidade: 'ml', dataInicio: '2026-10-01', diasTratamento: 3, intervaloDias: 1, animais: [{ id: 'a1' }] }] });
+    await db.doc('tenants/dono2/dados/treinos_indice').set({ value: { versao: 1, docs: ['treinos_2025', 'treinos_2026'] } });
+    await db.doc('tenants/dono2/dados/treinos_2026').set({ value: [{ id: 'tr1', data: '2026-10-02', tipo: 'Treino', local: 'Pista', animais: [{ id: 'a1' }, { id: 'a2' }], valorExtra: '99' }] });
+    const f = await wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a1' }, auth: tkV() });
+    assert.equal(f.animal.nome, 'Alfa'); assert.equal(f.animal.pai, 'Pai X'); assert.equal(f.animal.examesSaude.AIE.validade, '2026-11-01');
+    assert.equal(f.animal.valor, undefined); assert.equal(f.animal.compradoDe, undefined); assert.equal(f.animal.proprietario, undefined);
+    assert.deepEqual(f.manejos.map(m => [m.tipo, m.subtipo, m.valor, m.deslocamento]), [['Casco', 'Ferrado completo', undefined, undefined]]);
+    assert.equal(f.manejos[0].obs, 'ok — pé esq.');
+    assert.equal(f.tratamentos[0].medicamento, 'Dexa'); assert.equal(f.treinos.length, 1); assert.equal(f.treinos[0].local, 'Pista');
+    assert.ok(!JSON.stringify(f).includes('R$')); assert.ok(!JSON.stringify(f).includes('Fulano'));
+    await rejeita(wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a3' }, auth: tkV() }), 'permission-denied');   // não liberado
+    await rejeita(wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a1' }, auth: tkV('vet3') }), 'permission-denied');
+    await rejeita(wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a1' }, auth: tkD }), 'permission-denied');      // proprietário não usa isso
+    await wRevog({ data: { vinculoId: 'dono2__vet2' }, auth: tkD });
+    await rejeita(wFicha({ data: { vinculoId: 'dono2__vet2', animalId: 'a1' }, auth: tkV() }), 'failed-precondition');   // vínculo encerrado
   });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });
