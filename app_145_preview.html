@@ -2504,6 +2504,7 @@
 <div class="overlay" id="overlayManejo">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="mModalTitle">Novo Lançamento de Manejo</div><button class="modal-close" data-close="overlayManejo">✕</button></div>
+    <div id="aprovBanner_manejo" style="display:none;"></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozManejo">🎤 Ditar por voz</button><span class="hint-text" id="manejo_vozStatus" style="display:none;margin:0;flex:1;"></span></div>
     <div class="form-grid cols3" style="margin-bottom:16px;">
       <div class="field"><label>Data</label><input type="date" id="m_data" required></div>
@@ -2862,6 +2863,7 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
 <div class="overlay" id="overlayVisita">
   <div class="modal wide">
     <div class="modal-head"><div class="modal-title" id="vsModalTitle">Nova Visita</div><button class="modal-close" data-close="overlayVisita">✕</button></div>
+    <div id="aprovBanner_visita" style="display:none;"></div>
     <div class="form-grid">
       <div class="field"><label>Data da visita</label><input type="date" id="vs_data"></div>
       <div class="field"><label>Veterinário / Responsável</label><div class="field-plus"><select id="vs_veterinario_sel" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="veterinario">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="veterinario" data-selid="vs_veterinario_sel" title="Excluir valor selecionado">🗑</button></div></div>
@@ -5168,13 +5170,93 @@ function desenharSolicitacoes(){
   document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome)).join('');
   document.querySelectorAll('#prestRecebidasTbody tr[data-solid], #prestEnviadasTbody tr[data-solid]').forEach(tr=>tr.addEventListener('click', e=>{
     if(e.target.closest('button')) return;
-    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(x) abrirDetalheSolicitacao(x, rec.includes(x));
+    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(!x) return; if(rec.includes(x) && x.status==='pendente') abrirSolicitacaoNoCadastro(x); else abrirDetalheSolicitacao(x, rec.includes(x));
   }));
   document.querySelectorAll('[data-solcancel]').forEach(b=>b.addEventListener('click', async e=>{
     e.stopPropagation();
     if(!(await showConfirm('Cancelar esse envio? O proprietário deixa de vê-lo como pendente.'))) return;
     try{ await chamarFuncao('cancelarSolicitacao', { solicitacaoId:b.dataset.solcancel }); renderPrestadores(); }catch(err){ showAlert('Não consegui cancelar: '+msgErroFuncao(err)); }
   }));
+}
+/* ===== APROVAÇÃO NO CADASTRO NORMAL (proprietário) =====
+   O registro de um prestador abre no MESMO cadastro do programa (Manejo de casco / Visita), já preenchido; o proprietário confere, pode mudar qualquer campo
+   e clica em "Aprovar e salvar" (o salvar é o do programa de sempre) — ou em "Recusar". Idempotente: o registro leva o id da solicitação. */
+let aprovacaoPendente = null; // { x } enquanto o proprietário confere um registro de prestador
+const origemDaSolicitacao = x => ({ solicitacaoId:x.id, prestadorNome:x.prestadorNome||'', enviadoPor:x.enviadoPor||'', tipoRegistro:x.tipoRegistro });
+function aprovacaoLimpar(){
+  aprovacaoPendente = null;
+  ['manejo','visita'].forEach(k=>{ const b = document.getElementById('aprovBanner_'+k); if(b){ b.style.display='none'; b.innerHTML=''; } });
+  [['btnSaveManejo'],['btnSaveVisita']].forEach(([id])=>{ const bt = document.getElementById(id); if(bt && bt.dataset.rotuloOriginal){ bt.innerHTML = bt.dataset.rotuloOriginal; delete bt.dataset.rotuloOriginal; } });
+}
+function aprovacaoMostrar(k, x){
+  const b = document.getElementById('aprovBanner_'+k), bt = document.getElementById(k==='manejo'?'btnSaveManejo':'btnSaveVisita');
+  if(bt && !bt.dataset.rotuloOriginal){ bt.dataset.rotuloOriginal = bt.innerHTML; bt.textContent = 'Aprovar e salvar'; }
+  b.style.cssText = 'display:block;background:#fff7e0;color:#6b4e00;border:1px solid #e3c36b;border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:13px;';
+  b.innerHTML = `🔗 Registro enviado por <strong>${escHtml(x.prestadorNome||'prestador')}</strong> (${escHtml(x.enviadoPor||'')}) — confira abaixo. Pode mudar qualquer campo. Clique em <strong>Aprovar e salvar</strong> para lançar na ficha, ou
+    <button type="button" class="btn btn-sm btn-danger" id="aprovRecusar_${k}" style="margin-left:6px;">Recusar este registro</button>`;
+  document.getElementById('aprovRecusar_'+k).addEventListener('click', ()=>recusarSolicitacaoNoCadastro(x, k));
+}
+async function recusarSolicitacaoNoCadastro(x, k){
+  const motivo = await showPrompt('Por que está recusando? (o prestador vê esse motivo)', 'Ex.: valor acima do combinado');
+  if(motivo===null || motivo===undefined) return;
+  if(String(motivo).trim().length<3){ showAlert('Escreva o motivo da recusa.'); return; }
+  try{ await chamarFuncao('decidirSolicitacao', { solicitacaoId:x.id, decisao:'recusar', motivo:String(motivo).trim() }); closeModal(k==='manejo'?'overlayManejo':'overlayVisita'); aprovacaoLimpar(); showAlert('Registro recusado.'); renderPrestadores(); }
+  catch(e){ showAlert('Não consegui recusar: '+msgErroFuncao(e)); }
+}
+async function concluirAprovacao(x){
+  try{
+    if(x.tipoRegistro==='casco'){ const sv = (x.itens||[]).find(i=>i.tipo==='servico' && i.categoria!=='deslocamento'); if(sv && !(aux.subtipoFerrageamento||[]).some(t=>t.toLowerCase()===sv.nome.toLowerCase())){ aux.subtipoFerrageamento = [...(aux.subtipoFerrageamento||[]), sv.nome]; await storeSet('aux_lists', aux); } }
+    else { aux.servicoVeterinario = aux.servicoVeterinario || []; let mudou = false; (x.itens||[]).filter(i=>i.tipo==='servico'||i.produtoDoPrestador).forEach(i=>{ const n = i.tipo==='servico' ? i.nome : (i.nome+' (produto do prestador)'); if(!aux.servicoVeterinario.includes(n)){ aux.servicoVeterinario.push(n); mudou = true; } }); if(mudou) await storeSet('aux_lists', aux); }
+  }catch(e){ console.warn('catálogo:', e); }
+  try{ await chamarFuncao('decidirSolicitacao', { solicitacaoId:x.id, decisao:'aprovar' }); showAlert('Aprovado e lançado na ficha de '+(x.animalNome||'')+'.'); }
+  catch(e){ showAlert('Entrou na ficha, mas não consegui confirmar ao prestador ('+msgErroFuncao(e)+'). Abra o registro em Prestadores e confirme de novo: não duplica.'); }
+  renderPrestadores();
+}
+const esperar = ms => new Promise(r=>setTimeout(r,ms));
+async function abrirSolicitacaoNoCadastro(x){
+  // já lançado antes (confirmação ao servidor falhou)? só confirma
+  const jaM = manejos.find(m=>m.origem && m.origem.solicitacaoId===x.id), jaV = visitas.find(v=>v.origem && v.origem.solicitacaoId===x.id);
+  if(jaM || jaV){ await concluirAprovacao(x); return; }
+  const animal = horses.find(h=>h.id===x.animalId);
+  if(!animal){ showAlert('O animal desse registro não está mais na sua ficha.'); return; }
+  if(x.tipoRegistro==='casco'){
+    const serv = (x.itens||[]).find(i=>i.tipo==='servico' && i.categoria!=='deslocamento'), desl = (x.itens||[]).find(i=>i.tipo==='servico' && i.categoria==='deslocamento');
+    if(!serv){ abrirDetalheSolicitacao(x, true); return; }
+    document.getElementById('btnNewManejo').click(); await esperar(80);
+    aprovacaoPendente = { x };
+    document.getElementById('mModalTitle').textContent = 'Conferir ferração — '+(x.prestadorNome||'prestador');
+    document.getElementById('m_data').value = x.dataRegistro;
+    document.getElementById('m_tipo').value = 'Casco'; document.getElementById('m_tipo').dispatchEvent(new Event('change'));
+    const sel = document.getElementById('m_subtipoCasco'); if(![...sel.options].some(o=>o.value===serv.nome)) sel.add(new Option(serv.nome, serv.nome)); sel.value = serv.nome;
+    document.getElementById('m_ferrador_sel').value = x.prestadorNome||'';
+    document.getElementById('m_valor').value = (serv.valorCentavos||0)/100;
+    document.getElementById('m_deslocamento').value = desl ? (desl.valorCentavos||0)/100 : '';
+    document.getElementById('m_obs').value = [x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')'].filter(Boolean).join('\n');
+    atualizarCamposCascoVisibilidade();
+    manejoSelector.setSelected([{ id:animal.id, nome:animal.nome, extra:serv.obs||'', tipo:serv.nome, valorBase:(serv.valorCentavos||0)/100 }]);
+    atualizarValorTotalManejo();
+    aprovacaoMostrar('manejo', x);
+    return;
+  }
+  if(!TIPOS_QUE_VIRAM_VISITA.includes(x.tipoRegistro)){ abrirDetalheSolicitacao(x, true); return; }
+  // Visita / consulta / procedimento / aplicação / outro → cadastro de Visita
+  document.getElementById('btnNewVisita').click(); await esperar(80);
+  aprovacaoPendente = { x };
+  document.getElementById('vsModalTitle').textContent = 'Conferir visita — '+(x.prestadorNome||'prestador');
+  document.getElementById('vs_data').value = x.dataRegistro;
+  const vsel = document.getElementById('vs_veterinario_sel'); if(x.prestadorNome && ![...vsel.options].some(o=>o.value===x.prestadorNome)) vsel.add(new Option(x.prestadorNome, x.prestadorNome)); vsel.value = x.prestadorNome||'';
+  aux.servicoVeterinario = aux.servicoVeterinario || [];
+  const custos = [], pend = [];
+  (x.itens||[]).forEach(it=>{
+    if(it.tipo==='servico'){ if(!aux.servicoVeterinario.includes(it.nome)) aux.servicoVeterinario.push(it.nome); custos.push({ tipo:'servico', nome:it.nome, animalId:animal.id, valor:(it.valorCentavos||0)/100, obs:it.obs||'' }); }
+    else if(it.produtoDoPrestador){ const n = it.nome+' (produto do prestador)'; if(!aux.servicoVeterinario.includes(n)) aux.servicoVeterinario.push(n); custos.push({ tipo:'servico', nome:n, animalId:animal.id, valor:Math.round((it.quantidade||0)*(it.valorUnitarioCentavos||0))/100, obs:String(it.quantidade).replace('.',',')+' '+(it.unidade||'un')+' × '+fmtCentavos(it.valorUnitarioCentavos)+' · não baixa o seu estoque' }); }
+    else { const pr = produtoDoMeuEstoquePorNome(it.nome); if(pr) custos.push({ tipo:'produto', produtoId:pr.id, produtoNome:pr.nome, animalId:animal.id, quantidade:it.quantidade, valor:Math.round((custoUnitarioProduto(pr)||0)*it.quantidade*100)/100, obs:it.obs||'' }); else pend.push(it.nome+' ('+String(it.quantidade).replace('.',',')+' '+(it.unidade||'')+')'); }
+  });
+  document.getElementById('vs_obsGeral').value = [x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')', pend.length?('PENDÊNCIA DE ESTOQUE (sem baixa e sem custo, produto não cadastrado no seu estoque): '+pend.join('; ')):''].filter(Boolean).join('\n');
+  visitaSelector.setSelected([{ id:animal.id }]); visitaSelector.draw();
+  visitaCustosState = custos; renderVisitaCustos();
+  visitaDocsState = []; renderVisitaDocs();
+  aprovacaoMostrar('visita', x);
 }
 const TIPOS_QUE_VIRAM_VISITA = ['visita','consulta','procedimento','aplicacao','outro'];
 const TIPOS_APROVAVEIS = [...TIPOS_QUE_VIRAM_VISITA, 'casco'];
@@ -10621,6 +10703,7 @@ function preencherValorRefCasco(){
 // campo "Valor - por animal" geral); se esse tipo não tiver referência salva, cai pro valor digitado no
 // campo geral do lançamento.
 function valorBaseParaTipo(tipo){
+  if(aprovacaoPendente) return Number(document.getElementById('m_valor').value)||0; // conferindo registro de prestador: vale o valor que ele mandou (editável no campo)
   const ref = config.valoresCasco && config.valoresCasco[tipo];
   if(ref!==undefined && ref!==null && ref!=='') return Number(ref);
   return Number(document.getElementById('m_valor').value)||0;
@@ -10659,6 +10742,7 @@ document.getElementById('m_subtipoCasco').addEventListener('change', ()=>{
 document.getElementById('m_valor').addEventListener('input', atualizarValorTotalManejo);
 document.getElementById('m_valorDente').addEventListener('input', atualizarValorTotalManejo);
 document.getElementById('btnNewManejo').addEventListener('click', async ()=>{
+  aprovacaoLimpar();
   editingManejoId = null;
   document.getElementById('mModalTitle').textContent='Novo Lançamento de Manejo';
   document.getElementById('btnDeleteManejoModal').style.display='none';
@@ -10688,6 +10772,7 @@ document.getElementById('btnNewManejo').addEventListener('click', async ()=>{
 // Abre um lançamento já existente pra edição — chamado ao clicar numa linha do histórico de Manejos.
 function openManejoEdit(id){
   const m = manejos.find(x=>x.id===id); if(!m) return;
+  aprovacaoLimpar();
   editingManejoId = id;
   document.getElementById('mModalTitle').textContent = 'Editar Lançamento — '+fmtDate(m.data);
   document.getElementById('btnDeleteManejoModal').style.display='inline-block';
@@ -10789,6 +10874,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
   if(registroAnterior && registroAnterior.publicacoes) registro.publicacoes = registroAnterior.publicacoes;
   if(registroAnterior && registroAnterior.origem) registro.origem = registroAnterior.origem;
+  if(aprovacaoPendente) registro.origem = origemDaSolicitacao(aprovacaoPendente.x);
   if(tipo==='Casco'){
     registro.subtipoCasco = tipoGeral;
     registro.ferrador = resolverFerradorDigitado(document.getElementById('m_ferrador_sel').value);
@@ -10843,6 +10929,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   closeModal('overlayManejo'); renderManejos();
   salvarEmSegundoPlano('manejos_list', manejos, ()=>renderManejos());
   if(avisoBaixa) showAlert('Lançamento salvo'+avisoBaixa+'.');
+  if(aprovacaoPendente){ const ap = aprovacaoPendente; aprovacaoLimpar(); concluirAprovacao(ap.x); }
   perguntarPublicarManejo(registro).catch(e=>{ console.error('publicar manejo:', e); showAlert('O lançamento foi salvo, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
 /* Prestador (ferrador): manejo de CASCO em cavalo de CLIENTE externo → pergunta se publica no programa dele (pendente; corrigir enquanto pendente substitui). */
@@ -20051,6 +20138,7 @@ document.getElementById('vs_fotoFile').addEventListener('change', async e=>{
 });
 
 document.getElementById('btnNewVisita').addEventListener('click', ()=>{
+  aprovacaoLimpar();
   editingVisitaId = null;
   document.getElementById('vsModalTitle').textContent = 'Nova Visita';
   document.getElementById('vs_data').value = toISODate(new Date());
@@ -20064,6 +20152,7 @@ document.getElementById('btnNewVisita').addEventListener('click', ()=>{
 });
 function openVisitaEdit(id){
   const v = visitas.find(x=>x.id===id); if(!v) return;
+  aprovacaoLimpar();
   editingVisitaId = id;
   document.getElementById('vsModalTitle').textContent = 'Editar Visita';
   document.getElementById('vs_data').value = v.data||'';
@@ -20108,6 +20197,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
     custos: custosValidos, documentos: docsValidos
   };
   { const antes = editingVisitaId ? visitas.find(v=>v.id===editingVisitaId) : null; if(antes && antes.publicacoes) record.publicacoes = antes.publicacoes; if(antes && antes.origem) record.origem = antes.origem; }
+  if(aprovacaoPendente) record.origem = origemDaSolicitacao(aprovacaoPendente.x);
   // Baixa automática dos Produtos no estoque — só em visita NOVA, pra não repetir a baixa toda vez que
   // reabrir e salvar de novo (mesma regra já usada em Manejos de Vacina/Vermífugo).
   if(!editingVisitaId){
@@ -20135,6 +20225,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
   closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
   salvarEmSegundoPlano('visitas_list', visitas, ()=>{ renderVisitas(); renderFinanceiro(); });
+  if(aprovacaoPendente){ const ap = aprovacaoPendente; aprovacaoLimpar(); concluirAprovacao(ap.x); }
   perguntarPublicarVisita(record).catch(e=>{ console.error('publicar visita:', e); showAlert('A visita foi salva, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
 /* Prestador: visita com animal de CLIENTE → pergunta se publica no programa dele (vai como PENDENTE; corrigir enquanto pendente substitui). */
