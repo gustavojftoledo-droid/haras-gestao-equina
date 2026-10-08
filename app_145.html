@@ -4875,7 +4875,7 @@ function desenharClientes(){
     const ativo = c.ativo!==false, cons = c.consentimentoDados;
     return `<tr data-cid="${escHtml(c.id)}">
       <td><strong>${escHtml(c.nome||c.id)}</strong><div style="font-size:11px;color:var(--muted);">${escHtml(c.id)}${c.emailAdmin?' · '+escHtml(c.emailAdmin):''}</div></td>
-      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}${c.tipoAssinatura&&c.tipoAssinatura!=='proprietario'?` <span style="font-size:11px;font-weight:700;color:var(--brass);">· ${c.tipoAssinatura==='prestador'?'Prestador':'Proprietário + Prestador'}</span>`:''}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
+      <td>${escHtml(PLANO_LABEL[c.plano]||c.plano||'—')}${c.tipoAssinatura&&c.tipoAssinatura!=='proprietario'?` <span style="font-size:11px;font-weight:700;color:var(--brass);">· ${c.tipoAssinatura==='prestador'?'Prestador':(c.tipoAssinatura==='ferrador'?'Ferrador':'Proprietário + Prestador')}</span>`:''}<div style="font-size:11px;color:var(--muted);">${(Array.isArray(c.recursos)&&c.recursos.length)?('<div style="font-size:11px;color:var(--brass);">novidades: '+c.recursos.map(escHtml).join(', ')+'</div>'):''}${c.limites?(c.limites.modulos.length+' módulos · '+c.limites.maxFotos+' foto(s) · '+(c.limites.maxUsuarios>0?c.limites.maxUsuarios+' usuários':'usuários ilimitados')+' · '):''}${fmtBytesCli(c.limiteBytes)}</div></td>
       <td><span style="font-weight:600;color:${ativo?'var(--ok,#2f6b3a)':'var(--burgundy,#8b2a2a)'};">${ativo?'Ativo':'Bloqueado'}</span></td>
       <td>${Number(c.contas)||0}${c.limites&&c.limites.maxUsuarios>0?(' / '+c.limites.maxUsuarios):''}</td>
       <td>${fmtDataHoraCli(c.ultimoAcesso)}</td>
@@ -4977,7 +4977,7 @@ function abrirEditarCliente(id){
   document.getElementById('ce_titulo').textContent = 'Editar — '+(c.nome||c.id);
   document.getElementById('ce_nome').value = c.nome||'';
   document.getElementById('ce_plano').value = ['gratuito','basico','pro'].includes(c.plano) ? c.plano : 'basico';
-  document.getElementById('ce_tipo').value = ['proprietario','prestador','ambos'].includes(c.tipoAssinatura) ? c.tipoAssinatura : 'proprietario';
+  document.getElementById('ce_tipo').value = ['proprietario','prestador','ambos','ferrador'].includes(c.tipoAssinatura) ? c.tipoAssinatura : 'proprietario';
   document.getElementById('ce_limite').value = ((Number(c.limiteBytes)||1073741824)/1073741824).toFixed(3).replace(/\.?0+$/,'');
   const seletivos = Object.entries(RECURSOS_APP).filter(([,d])=>d.liberacao==='selecionados');
   const marcados = new Set(Array.isArray(c.recursos) ? c.recursos : []);
