@@ -5188,13 +5188,14 @@ function aprovacaoLimpar(){
   ['manejo','visita'].forEach(k=>{ const b = document.getElementById('aprovBanner_'+k); if(b){ b.style.display='none'; b.innerHTML=''; } });
   [['btnSaveManejo'],['btnSaveVisita']].forEach(([id])=>{ const bt = document.getElementById(id); if(bt && bt.dataset.rotuloOriginal){ bt.innerHTML = bt.dataset.rotuloOriginal; delete bt.dataset.rotuloOriginal; } });
 }
-function aprovacaoMostrar(k, x){
+function aprovacaoMostrar(k, x, aviso){
   const b = document.getElementById('aprovBanner_'+k), bt = document.getElementById(k==='manejo'?'btnSaveManejo':'btnSaveVisita');
   if(bt && !bt.dataset.rotuloOriginal){ bt.dataset.rotuloOriginal = bt.innerHTML; bt.textContent = 'Aprovar e salvar'; }
   b.style.cssText = 'display:block;background:#fff7e0;color:#6b4e00;border:1px solid #e3c36b;border-radius:8px;padding:10px 14px;margin:0 0 12px;font-size:13px;';
-  b.innerHTML = `🔗 Registro enviado por <strong>${escHtml(x.prestadorNome||'prestador')}</strong> (${escHtml(x.enviadoPor||'')}) — confira abaixo. Pode mudar qualquer campo. Clique em <strong>Aprovar e salvar</strong> para lançar na ficha, ou
+  b.innerHTML = `🔗 Registro enviado por <strong>${escHtml(x.prestadorNome||'prestador')}</strong> (${escHtml(x.enviadoPor||'')}) — confira abaixo. Pode mudar qualquer campo. Clique em <strong>Aprovar e salvar</strong> para lançar na ficha (todos os animais de uma vez), ou
     <button type="button" class="btn btn-sm btn-danger" id="aprovRecusar_${k}" style="margin-left:6px;">Recusar este registro</button>`;
   document.getElementById('aprovRecusar_'+k).addEventListener('click', ()=>recusarSolicitacaoNoCadastro(x, k));
+  if(aviso){ b.insertAdjacentHTML('beforeend', '<div style="margin-top:6px;font-weight:700;color:#8b2a2a;">'+escHtml(aviso.trim())+'</div>'); }
 }
 async function recusarSolicitacaoNoCadastro(x, k){
   const motivo = await showPrompt('Por que está recusando? (o prestador vê esse motivo)', 'Ex.: valor acima do combinado');
@@ -5213,33 +5214,42 @@ async function concluirAprovacao(x){
   renderPrestadores();
 }
 const esperar = ms => new Promise(r=>setTimeout(r,ms));
+const animaisDoRegistro = x => (Array.isArray(x.animais) && x.animais.length) ? x.animais : [{ id:x.animalId, nome:x.animalNome, itens:x.itens||[] }];
 async function abrirSolicitacaoNoCadastro(x){
   // já lançado antes (confirmação ao servidor falhou)? só confirma
   const jaM = manejos.find(m=>m.origem && m.origem.solicitacaoId===x.id), jaV = visitas.find(v=>v.origem && v.origem.solicitacaoId===x.id);
   if(jaM || jaV){ await concluirAprovacao(x); return; }
-  const animal = horses.find(h=>h.id===x.animalId);
-  if(!animal){ showAlert('O animal desse registro não está mais na sua ficha.'); return; }
+  const doRegistro = animaisDoRegistro(x);
+  const meus = doRegistro.filter(a=>horses.some(h=>h.id===a.id));
+  if(meus.length===0){ showAlert('Os animais desse registro não estão mais na sua ficha.'); return; }
+  const faltando = doRegistro.length - meus.length;
+  const aviso = faltando>0 ? ('\nATENÇÃO: '+faltando+' animal(is) desse registro não está(ão) mais na sua ficha e ficou(aram) de fora.') : '';
   if(x.tipoRegistro==='casco'){
-    const serv = (x.itens||[]).find(i=>i.tipo==='servico' && i.categoria!=='deslocamento'), desl = (x.itens||[]).find(i=>i.tipo==='servico' && i.categoria==='deslocamento');
-    if(!serv){ abrirDetalheSolicitacao(x, true); return; }
+    const servDe = a => (a.itens||[]).find(i=>i.tipo==='servico' && i.categoria!=='deslocamento');
+    if(meus.some(a=>!servDe(a))){ abrirDetalheSolicitacao(x, true); return; }
+    const desl = [...(x.itensComuns||[]), ...doRegistro.flatMap(a=>a.itens||[])].filter(i=>i.tipo==='servico' && i.categoria==='deslocamento').reduce((t,i)=>t+(i.valorCentavos||0),0);
     document.getElementById('btnNewManejo').click(); await esperar(80);
-    aprovacaoPendente = { x };
+    const primeiro = servDe(meus[0]);
+    aprovacaoPendente = { x, valores:{}, tipos:{} };
+    meus.forEach(a=>{ const sv = servDe(a); aprovacaoPendente.valores[a.id] = (sv.valorCentavos||0)/100; aprovacaoPendente.tipos[a.id] = sv.nome; });
     document.getElementById('mModalTitle').textContent = 'Conferir ferração — '+(x.prestadorNome||'prestador');
     document.getElementById('m_data').value = x.dataRegistro;
     document.getElementById('m_tipo').value = 'Casco'; document.getElementById('m_tipo').dispatchEvent(new Event('change'));
-    const sel = document.getElementById('m_subtipoCasco'); if(![...sel.options].some(o=>o.value===serv.nome)) sel.add(new Option(serv.nome, serv.nome)); sel.value = serv.nome;
+    const sel = document.getElementById('m_subtipoCasco');
+    meus.forEach(a=>{ const n = servDe(a).nome; if(![...sel.options].some(o=>o.value===n)) sel.add(new Option(n, n)); });
+    sel.value = primeiro.nome;
     document.getElementById('m_ferrador_sel').value = x.prestadorNome||'';
-    document.getElementById('m_valor').value = (serv.valorCentavos||0)/100;
-    document.getElementById('m_deslocamento').value = desl ? (desl.valorCentavos||0)/100 : '';
+    document.getElementById('m_valor').value = (primeiro.valorCentavos||0)/100;
+    document.getElementById('m_deslocamento').value = desl ? desl/100 : '';
     document.getElementById('m_obs').value = [x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')'].filter(Boolean).join('\n');
     atualizarCamposCascoVisibilidade();
-    manejoSelector.setSelected([{ id:animal.id, nome:animal.nome, extra:serv.obs||'', tipo:serv.nome, valorBase:(serv.valorCentavos||0)/100 }]);
+    manejoSelector.setSelected(meus.map(a=>{ const sv = servDe(a); return { id:a.id, nome:a.nome, extra:sv.obs||'', tipo:sv.nome, valorBase:(sv.valorCentavos||0)/100 }; }));
     atualizarValorTotalManejo();
-    aprovacaoMostrar('manejo', x);
+    aprovacaoMostrar('manejo', x, aviso);
     return;
   }
   if(!TIPOS_QUE_VIRAM_VISITA.includes(x.tipoRegistro)){ abrirDetalheSolicitacao(x, true); return; }
-  // Visita / consulta / procedimento / aplicação / outro → cadastro de Visita
+  // Visita / consulta / procedimento / aplicação / outro → cadastro de Visita (todos os animais do registro juntos)
   document.getElementById('btnNewVisita').click(); await esperar(80);
   aprovacaoPendente = { x };
   document.getElementById('vsModalTitle').textContent = 'Conferir visita — '+(x.prestadorNome||'prestador');
@@ -5247,16 +5257,18 @@ async function abrirSolicitacaoNoCadastro(x){
   const vsel = document.getElementById('vs_veterinario_sel'); if(x.prestadorNome && ![...vsel.options].some(o=>o.value===x.prestadorNome)) vsel.add(new Option(x.prestadorNome, x.prestadorNome)); vsel.value = x.prestadorNome||'';
   aux.servicoVeterinario = aux.servicoVeterinario || [];
   const custos = [], pend = [];
-  (x.itens||[]).forEach(it=>{
-    if(it.tipo==='servico'){ if(!aux.servicoVeterinario.includes(it.nome)) aux.servicoVeterinario.push(it.nome); custos.push({ tipo:'servico', nome:it.nome, animalId:animal.id, valor:(it.valorCentavos||0)/100, obs:it.obs||'' }); }
-    else if(it.produtoDoPrestador){ const n = it.nome+' (produto do prestador)'; if(!aux.servicoVeterinario.includes(n)) aux.servicoVeterinario.push(n); custos.push({ tipo:'servico', nome:n, animalId:animal.id, valor:Math.round((it.quantidade||0)*(it.valorUnitarioCentavos||0))/100, obs:String(it.quantidade).replace('.',',')+' '+(it.unidade||'un')+' × '+fmtCentavos(it.valorUnitarioCentavos)+' · não baixa o seu estoque' }); }
-    else { const pr = produtoDoMeuEstoquePorNome(it.nome); if(pr) custos.push({ tipo:'produto', produtoId:pr.id, produtoNome:pr.nome, animalId:animal.id, quantidade:it.quantidade, valor:Math.round((custoUnitarioProduto(pr)||0)*it.quantidade*100)/100, obs:it.obs||'' }); else pend.push(it.nome+' ('+String(it.quantidade).replace('.',',')+' '+(it.unidade||'')+')'); }
+  meus.forEach(an=>{
+    (an.itens||[]).forEach(it=>{
+      if(it.tipo==='servico'){ if(!aux.servicoVeterinario.includes(it.nome)) aux.servicoVeterinario.push(it.nome); custos.push({ tipo:'servico', nome:it.nome, animalId:an.id, valor:(it.valorCentavos||0)/100, obs:it.obs||'' }); }
+      else if(it.produtoDoPrestador){ const n = it.nome+' (produto do prestador)'; if(!aux.servicoVeterinario.includes(n)) aux.servicoVeterinario.push(n); custos.push({ tipo:'servico', nome:n, animalId:an.id, valor:Math.round((it.quantidade||0)*(it.valorUnitarioCentavos||0))/100, obs:String(it.quantidade).replace('.',',')+' '+(it.unidade||'un')+' × '+fmtCentavos(it.valorUnitarioCentavos)+' · não baixa o seu estoque' }); }
+      else { const pr = produtoDoMeuEstoquePorNome(it.nome); if(pr) custos.push({ tipo:'produto', produtoId:pr.id, produtoNome:pr.nome, animalId:an.id, quantidade:it.quantidade, valor:Math.round((custoUnitarioProduto(pr)||0)*it.quantidade*100)/100, obs:it.obs||'' }); else pend.push(an.nome+': '+it.nome+' ('+String(it.quantidade).replace('.',',')+' '+(it.unidade||'')+')'); }
+    });
   });
   document.getElementById('vs_obsGeral').value = [x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')', pend.length?('PENDÊNCIA DE ESTOQUE (sem baixa e sem custo, produto não cadastrado no seu estoque): '+pend.join('; ')):''].filter(Boolean).join('\n');
-  visitaSelector.setSelected([{ id:animal.id }]); visitaSelector.draw();
+  visitaSelector.setSelected(meus.map(an=>({ id:an.id }))); visitaSelector.draw();
   visitaCustosState = custos; renderVisitaCustos();
   visitaDocsState = []; renderVisitaDocs();
-  aprovacaoMostrar('visita', x);
+  aprovacaoMostrar('visita', x, aviso);
 }
 const TIPOS_QUE_VIRAM_VISITA = ['visita','consulta','procedimento','aplicacao','outro'];
 const TIPOS_APROVAVEIS = [...TIPOS_QUE_VIRAM_VISITA, 'casco'];
@@ -10835,6 +10847,8 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
       const temValorSalvo = antes && antes.valorBase!==undefined && antes.valorBase!==null && antes.valorBase!=='';
       if(antes && temValorSalvo && antes.tipo===a.tipo){
         a.valorBase = antes.valorBase;
+      } else if(aprovacaoPendente && aprovacaoPendente.valores && aprovacaoPendente.valores[a.id]!==undefined && aprovacaoPendente.tipos[a.id]===a.tipo){
+        a.valorBase = aprovacaoPendente.valores[a.id]; // conferindo registro de prestador: cada animal mantém o valor que ele mandou (se você trocar o tipo do animal, recalcula)
       } else {
         a.valorBase = valorBaseParaTipo(a.tipo);
       }
@@ -10872,7 +10886,7 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     selected.forEach(a=>{ a.valorBase = custoPorAnimal; });
   }
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
-  if(registroAnterior && registroAnterior.publicacoes) registro.publicacoes = registroAnterior.publicacoes;
+  if(registroAnterior && registroAnterior.publicacoesCli) registro.publicacoesCli = registroAnterior.publicacoesCli;
   if(registroAnterior && registroAnterior.origem) registro.origem = registroAnterior.origem;
   if(aprovacaoPendente) registro.origem = origemDaSolicitacao(aprovacaoPendente.x);
   if(tipo==='Casco'){
@@ -10933,38 +10947,54 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   perguntarPublicarManejo(registro).catch(e=>{ console.error('publicar manejo:', e); showAlert('O lançamento foi salvo, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
 /* Prestador (ferrador): manejo de CASCO em cavalo de CLIENTE externo → pergunta se publica no programa dele (pendente; corrigir enquanto pendente substitui). */
-async function perguntarPublicarManejo(registro){
-  if(!ladoPrestador() || registro.tipo!=='Casco') return;
-  const alvos = (registro.animais||[]).map(a=>({ a, h:horses.find(x=>x.id===a.id) })).filter(x=>x.h && x.h.clienteVinculo && !x.h.clienteVinculo.semAcesso);
-  if(alvos.length===0) return;
-  // Deslocamento: como no programa principal, é UM valor do lançamento, dividido igualmente entre os animais dele (cada animal leva a sua parte).
-  const qtdAnimais = Math.max(1, (registro.animais||[]).length);
-  const desTotal = Math.round((Number(registro.deslocamento)||0)*100);
-  const parteBase = Math.floor(desTotal/qtdAnimais), sobra = desTotal - parteBase*qtdAnimais; // centavos que sobram vão para o 1º animal
-  const linhas = alvos.map(({a,h},i)=>{
-    const v = Math.round(((Number(a.valorBase)||0)+(Number(a.valorExtra)||0))*100);
-    const tipoCasco = a.tipo || registro.subtipoCasco || 'Casqueamento';
-    const itens = [{ tipo:'servico', nome:tipoCasco, categoria:/^(ferrad|repreg|reposi)/i.test(tipoCasco)?'ferrageamento':'casqueamento', valorCentavos:v, obs:a.extra||'' }];
-    const desl = parteBase + (i===0 ? sobra : 0);
-    if(desl>0) itens.push({ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:desl, obs:'parte do deslocamento ('+fmtCentavos(desTotal)+' dividido por '+qtdAnimais+')' });
-    return { h, itens, total: totalCobradoSolic(itens) };
+/* Prestador: UM lançamento com animais de um cliente EXTERNO vai como UM registro pendente por cliente (todos os animais juntos + itens comuns, como o deslocamento);
+   corrigir o lançamento enquanto pendente substitui a versão anterior. cfg: { tipoRegistro, data, descricao, itensDoAnimal(a,h), comunsDoGrupo(qtdNoGrupo, qtdTotal), salvar() } */
+async function publicarLancamentoAosClientes(registro, cfg){
+  if(!ladoPrestador()) return;
+  const grupos = new Map();
+  (registro.animais||[]).forEach(a=>{
+    const h = horses.find(x=>x.id===a.id);
+    if(h && h.clienteVinculo && !h.clienteVinculo.semAcesso){
+      const k = h.clienteVinculo.vinculoId;
+      if(!grupos.has(k)) grupos.set(k, { vid:k, dono:h.clienteVinculo.donoNome||'cliente', itens:[] });
+      grupos.get(k).itens.push({ a, h, it:cfg.itensDoAnimal(a,h) });
+    }
   });
-  const resumo = linhas.map(l=>'• '+l.h.nome+' — '+resumoItensSolic(l.itens)+' · '+fmtCentavos(l.total)).join('\n');
-  const jaTem = alvos.some(x=>registro.publicacoes && registro.publicacoes[x.h.id]);
-  const ok = await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true});
+  if(grupos.size===0) return;
+  const totalAnimais = Math.max(1, (registro.animais||[]).length);
+  const lista = [...grupos.values()].map(g=>{
+    g.comuns = cfg.comunsDoGrupo ? cfg.comunsDoGrupo(g.itens.length, totalAnimais) : [];
+    g.total = totalCobradoSolic([...g.itens.flatMap(x=>x.it), ...g.comuns]);
+    g.vazio = g.itens.every(x=>x.it.length===0) && g.comuns.length===0;
+    g.nomes = g.itens.map(x=>x.h.nome.replace(/ \([^)]*\)$/,'')).join(', ');
+    return g;
+  });
+  const resumo = lista.map(g=>'• '+g.dono+' — '+g.itens.length+' animal(is): '+g.nomes+' · '+(g.vazio?'sem serviços/produtos (não será enviado)':fmtCentavos(g.total))).join('\n');
+  registro.publicacoesCli = registro.publicacoesCli || {};
+  const jaTem = lista.some(g=>registro.publicacoesCli[g.vid]);
+  const ok = await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como UM registro PENDENTE por cliente: ele aprova tudo de uma vez antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true});
   document.getElementById('dialogMessage').style.whiteSpace = '';
   if(!ok) return;
-  registro.publicacoes = registro.publicacoes || {};
   const falhas = []; let enviados = 0;
-  for(const l of linhas){
+  for(const g of lista){
+    if(g.vazio) continue;
     try{
-      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:l.h.clienteVinculo.vinculoId, animalId:l.h.clienteVinculo.animalId, dataRegistro:registro.data, tipoRegistro:'casco',
-        descricao:registro.obs||'', itens:l.itens, substituiSolicitacaoId:registro.publicacoes[l.h.id]||undefined });
-      registro.publicacoes[l.h.id] = r.id; enviados++;
-    }catch(e){ falhas.push(l.h.nome+': '+msgErroFuncao(e)); }
+      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:g.vid, dataRegistro:cfg.data, tipoRegistro:cfg.tipoRegistro, descricao:cfg.descricao||'',
+        animais:g.itens.map(x=>({ id:x.h.clienteVinculo.animalId, itens:x.it })), itensComuns:g.comuns, substituiSolicitacaoId:registro.publicacoesCli[g.vid]||undefined });
+      registro.publicacoesCli[g.vid] = r.id; enviados++;
+    }catch(e){ falhas.push(g.dono+': '+msgErroFuncao(e)); }
   }
-  salvarEmSegundoPlano('manejos_list', manejos);
-  showAlert((enviados? ('Publicado para o cliente ('+enviados+' animal(is)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+  cfg.salvar();
+  showAlert((enviados? ('Publicado para o cliente ('+enviados+' registro(s)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+}
+async function perguntarPublicarManejo(registro){
+  if(registro.tipo!=='Casco') return;
+  const desTotal = Math.round((Number(registro.deslocamento)||0)*100);
+  return publicarLancamentoAosClientes(registro, { tipoRegistro:'casco', data:registro.data, descricao:registro.obs||'',
+    itensDoAnimal:(a)=>{ const v = Math.round(((Number(a.valorBase)||0)+(Number(a.valorExtra)||0))*100); const t = a.tipo || registro.subtipoCasco || 'Casqueamento';
+      return [{ tipo:'servico', nome:t, categoria:/^(ferrad|repreg|reposi)/i.test(t)?'ferrageamento':'casqueamento', valorCentavos:v, obs:a.extra||'' }]; },
+    comunsDoGrupo:(k,n)=>{ const d = Math.floor(desTotal*k/n); return d>0 ? [{ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:d, obs:'' }] : []; },
+    salvar:()=>salvarEmSegundoPlano('manejos_list', manejos) });
 }
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
@@ -20196,7 +20226,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
     animais: animaisSel.map(a=>({ id:a.id, nome:a.nome, obs:a.extra||'' })),
     custos: custosValidos, documentos: docsValidos
   };
-  { const antes = editingVisitaId ? visitas.find(v=>v.id===editingVisitaId) : null; if(antes && antes.publicacoes) record.publicacoes = antes.publicacoes; if(antes && antes.origem) record.origem = antes.origem; }
+  { const antes = editingVisitaId ? visitas.find(v=>v.id===editingVisitaId) : null; if(antes && antes.publicacoesCli) record.publicacoesCli = antes.publicacoesCli; if(antes && antes.origem) record.origem = antes.origem; }
   if(aprovacaoPendente) record.origem = origemDaSolicitacao(aprovacaoPendente.x);
   // Baixa automática dos Produtos no estoque — só em visita NOVA, pra não repetir a baixa toda vez que
   // reabrir e salvar de novo (mesma regra já usada em Manejos de Vacina/Vermífugo).
@@ -20239,25 +20269,9 @@ function itensDaVisitaParaCliente(record, animalId){
   return itens;
 }
 async function perguntarPublicarVisita(record){
-  if(!ladoPrestador()) return;
-  const alvos = (record.animais||[]).map(a=>horses.find(h=>h.id===a.id)).filter(h=>h && h.clienteVinculo && !h.clienteVinculo.semAcesso);
-  if(alvos.length===0) return;
-  const linhas = alvos.map(h=>{ const it=itensDaVisitaParaCliente(record, h.id); return { h, it, total: totalCobradoSolic(it) }; });
-  const resumo = linhas.map(l=>'• '+l.h.nome+' — '+(l.it.length? (resumoItensSolic(l.it)+' · '+fmtCentavos(l.total)) : 'sem serviços/produtos (não será enviado)')).join('\n');
-  const jaTem = alvos.some(h=>record.publicacoes && record.publicacoes[h.id]);
-  if(!(await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true}))) return;
-  record.publicacoes = record.publicacoes || {};
-  const falhas = []; let enviados = 0;
-  for(const l of linhas){
-    if(l.it.length===0) continue;
-    try{
-      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:l.h.clienteVinculo.vinculoId, animalId:l.h.clienteVinculo.animalId, dataRegistro:record.data, tipoRegistro:'visita',
-        descricao:[record.obsGeral, ((record.animais||[]).find(a=>a.id===l.h.id)||{}).obs].filter(Boolean).join(' — '), itens:l.it, substituiSolicitacaoId:record.publicacoes[l.h.id]||undefined });
-      record.publicacoes[l.h.id] = r.id; enviados++;
-    }catch(e){ falhas.push(l.h.nome+': '+msgErroFuncao(e)); }
-  }
-  salvarEmSegundoPlano('visitas_list', visitas);
-  showAlert((enviados? ('Publicado para o cliente ('+enviados+' animal(is)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+  return publicarLancamentoAosClientes(record, { tipoRegistro:'visita', data:record.data, descricao:record.obsGeral||'',
+    itensDoAnimal:(a,h)=>itensDaVisitaParaCliente(record, a.id),
+    salvar:()=>salvarEmSegundoPlano('visitas_list', visitas) });
 }
 document.getElementById('btnDeleteVisita').addEventListener('click', async ()=>{
   if(!editingVisitaId || !(await showConfirm('Excluir esta visita? O histórico de baixas de produto já feitas no estoque não é desfeito.'))) return;

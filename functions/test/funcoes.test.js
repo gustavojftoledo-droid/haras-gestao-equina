@@ -778,8 +778,8 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     await wDecide({ data: { solicitacaoId: a.id, decisao: 'aprovar' }, auth: tkD });
     const c = await wEnviar({ data: ok({ substituiSolicitacaoId: a.id }), auth: tkV() });
     assert.notEqual(c.id, a.id); assert.equal(c.status, 'pendente');
-    const d = await wEnviar({ data: ok({ animalId: 'a2', substituiSolicitacaoId: c.id }), auth: tkV() });   // outro animal: não substitui
-    assert.notEqual(d.id, c.id);
+    const d = await wEnviar({ data: ok({ animalId: 'a2', substituiSolicitacaoId: c.id }), auth: tkV() });   // mesmo vínculo e ainda pendente: a versão nova do lançamento substitui
+    assert.equal(d.id, c.id);
   });
   test('ficha só-leitura: só animal liberado; lista fixa de campos; sem valores nem dados do proprietário', async () => {
     await db.doc('tenants/dono2/dados/horses_list').set({ value: [{ id: 'a1', nome: 'Alfa', pai: 'Pai X', mae: 'Mae Y', sexo: 'MASCULINO', valor: 'R$ 50.000,00', compradoDe: 'Fulano', proprietario: 'Paulo', examesSaude: { AIE: { data: '2026-05-01', validade: '2026-11-01' } } }, { id: 'a2', nome: 'Beta' }, { id: 'a3', nome: 'Gama' }] });
@@ -840,6 +840,25 @@ describe('integração entre assinaturas — etapa 2 (envio pelo prestador)', ()
     await rejeita(wEnviar({ data: ok({ animalId: 'a2' }), auth: tkV() }), 'permission-denied');          // vendido não está liberado por "Todos"
     await wAnim({ data: { vinculoId: 'dono2__vet2', animais: ['a2'] }, auth: tkD });                      // o dono escolheu o vendido de propósito
     assert.deepEqual((await wAutor({ data: { vinculoId: 'dono2__vet2' }, auth: tkV() })).animais.map(a => [a.id, a.inativo]), [['a2', false]]);
+  });
+  test('UM registro com vários animais (um lançamento só) + itens comuns (deslocamento); aprovar uma vez', async () => {
+    const r = await wEnviar({ data: { vinculoId: 'dono2__vet2', dataRegistro: hoje(), tipoRegistro: 'casco', descricao: '',
+      animais: [{ id: 'a1', itens: [servico({ nome: 'Ferrado completo', categoria: 'ferrageamento', valorCentavos: 30000 })] }, { id: 'a2', itens: [servico({ nome: 'Casqueado mãos', categoria: 'casqueamento', valorCentavos: 8000 })] }],
+      itensComuns: [servico({ nome: 'Deslocamento', categoria: 'deslocamento', valorCentavos: 5000 })] }, auth: tkV() });
+    assert.equal(r.animais.length, 2); assert.deepEqual(r.animais.map(a => a.nome), ['Alfa', 'Beta']); assert.equal(r.itensComuns[0].valorCentavos, 5000);
+    assert.equal(r.animalNome, 'Alfa, Beta'); assert.equal(r.itens.length, 3);
+    assert.equal((await db.collection('solicitacoes').get()).size, 1);                                   // um registro só, não um por animal
+    const lista = await wSolic({ data: {}, auth: tkD }); assert.equal(lista.recebidas.length, 1); assert.equal(lista.recebidas[0].animais.length, 2);
+    await rejeita(wEnviar({ data: { vinculoId: 'dono2__vet2', dataRegistro: hoje(), animais: [{ id: 'a1', itens: [servico()] }, { id: 'a3', itens: [servico()] }] }, auth: tkV() }), 'permission-denied');   // a3 não liberado: nada é criado
+    await rejeita(wEnviar({ data: { vinculoId: 'dono2__vet2', dataRegistro: hoje(), animais: [{ id: 'a1', itens: [servico()] }, { id: 'a1', itens: [servico()] }] }, auth: tkV() }), 'invalid-argument');   // repetido
+    await rejeita(wEnviar({ data: { vinculoId: 'dono2__vet2', dataRegistro: hoje(), animais: [{ id: 'a1', itens: [] }] }, auth: tkV() }), 'invalid-argument');   // nenhum item
+    const d = await wDecide({ data: { solicitacaoId: r.id, decisao: 'aprovar' }, auth: tkD }); assert.equal(d.status, 'aprovado');
+    await rejeita(wDecide({ data: { solicitacaoId: r.id, decisao: 'aprovar' }, auth: tkD }), 'failed-precondition');
+  });
+  test('registro antigo (um animal) continua aparecendo como lista de 1 animal', async () => {
+    const r = await wEnviar({ data: ok(), auth: tkV() });
+    const lista = await wSolic({ data: {}, auth: tkD });
+    assert.deepEqual(lista.recebidas[0].animais.map(a => a.id), ['a1']); assert.equal(r.animais.length, 1);
   });
   test('limite de pendentes por vínculo', async () => {
     for (let i = 0; i < 50; i++) await db.collection('solicitacoes').add({ vinculoId: 'dono2__vet2', donoTenantId: 'dono2', prestadorTenantId: 'vet2', status: 'pendente', itens: [], criadoEm: new Date().toISOString() });

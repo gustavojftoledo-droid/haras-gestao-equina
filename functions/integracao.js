@@ -167,7 +167,8 @@ const dataOk = (d) => { if (typeof d !== 'string' || !RE_DATA.test(d)) return fa
 const txt = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 const inteiro = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
 
-function limparItens(brutos){
+function limparItens(brutos, permiteVazio){
+  if (permiteVazio && (brutos === undefined || (Array.isArray(brutos) && brutos.length === 0))) return [];
   if (!Array.isArray(brutos) || brutos.length < 1) throw new HttpsError('invalid-argument', 'Inclua ao menos um item (serviço ou material).');
   if (brutos.length > MAX_ITENS) throw new HttpsError('invalid-argument', 'Itens demais em um envio (máximo ' + MAX_ITENS + ').');
   return brutos.map((it, i) => {
@@ -217,29 +218,44 @@ async function animaisAutorizados({ db, token }, data){
   return { vinculoId: data.vinculoId, donoNome: v.donoNome, animais: (await animaisLiberados(db, v)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) };
 }
 
+const MAX_ANIMAIS_REGISTRO = 80;
+/* Um registro = UM lançamento: vários animais do mesmo cliente de uma vez (cada um com seus itens) + itens comuns ao lançamento (ex.: deslocamento).
+   Entrada: { animais: [{ id, itens }], itensComuns } — ou o formato antigo de um animal só: { animalId, itens }. */
 async function enviarSolicitacao({ db, token }, data){
   const v = await vinculoDoPrestador(db, token, data.vinculoId);
-  const animais = await animaisLiberados(db, v);
-  const animal = animais.find(a => a.id === data.animalId);
-  if (!animal) throw new HttpsError('permission-denied', 'Esse animal não está liberado para você.');
+  const liberados = await animaisLiberados(db, v);
   if (!dataOk(data.dataRegistro)) throw new HttpsError('invalid-argument', 'Data do registro inválida (AAAA-MM-DD).');
   const amanha = new Date(Date.now() + 36 * 3600000).toISOString().slice(0, 10);
   if (data.dataRegistro > amanha) throw new HttpsError('invalid-argument', 'A data do registro não pode ser no futuro.');
   const tipoRegistro = data.tipoRegistro === undefined || data.tipoRegistro === '' ? 'outro' : data.tipoRegistro;
   if (!TIPOS_REGISTRO.includes(tipoRegistro)) throw new HttpsError('invalid-argument', 'Tipo de registro inválido.');
-  const itens = limparItens(data.itens);
+  const entrada = Array.isArray(data.animais) ? data.animais : [{ id: data.animalId, itens: data.itens }];
+  if (entrada.length < 1 || entrada.length > MAX_ANIMAIS_REGISTRO) throw new HttpsError('invalid-argument', 'Informe de 1 a ' + MAX_ANIMAIS_REGISTRO + ' animais.');
+  const vistos = new Set(), animaisOut = [];
+  for (const e of entrada) {
+    const animal = e && liberados.find(a => a.id === e.id);
+    if (!animal) throw new HttpsError('permission-denied', 'Esse animal não está liberado para você.');
+    if (vistos.has(animal.id)) throw new HttpsError('invalid-argument', 'Animal repetido no registro.');
+    vistos.add(animal.id);
+    animaisOut.push({ id: animal.id, nome: animal.nome, itens: limparItens(e.itens, entrada.length > 1 || Array.isArray(data.itensComuns)) });
+  }
+  const itensComuns = Array.isArray(data.itensComuns) && data.itensComuns.length ? limparItens(data.itensComuns) : [];
+  const todosItens = [...animaisOut.flatMap(a => a.itens), ...itensComuns];
+  if (todosItens.length < 1) throw new HttpsError('invalid-argument', 'Inclua ao menos um item (serviço ou material).');
   if (tipoDoChamador(token) === 'ferrador') {
     if (tipoRegistro !== 'casco') throw new HttpsError('permission-denied', 'A assinatura de ferrador só registra casqueamento/ferrageamento.');
-    if (itens.some(i => i.tipo !== 'servico' || !['casqueamento', 'ferrageamento', 'deslocamento'].includes(i.categoria))) throw new HttpsError('permission-denied', 'A assinatura de ferrador só envia serviços de casqueamento, ferrageamento e deslocamento.');
+    if (todosItens.some(i => i.tipo !== 'servico' || !['casqueamento', 'ferrageamento', 'deslocamento'].includes(i.categoria))) throw new HttpsError('permission-denied', 'A assinatura de ferrador só envia serviços de casqueamento, ferrageamento e deslocamento.');
   }
   const por = typeof token.email === 'string' ? token.email : '';
-  // Correção de um registro já enviado: se a versão antiga ainda está PENDENTE (e é deste prestador, vínculo e animal), a nova a substitui.
+  const nomes = animaisOut.map(a => a.nome).join(', ').slice(0, 300);
+  const corpo = { dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), animais: animaisOut, itensComuns, itens: todosItens, animalId: animaisOut[0].id, animalNome: nomes };
+  // Correção de um registro já enviado: se a versão antiga ainda está PENDENTE (e é deste prestador e deste vínculo), a nova a substitui.
   if (typeof data.substituiSolicitacaoId === 'string' && RE_SID.test(data.substituiSolicitacaoId)) {
     const antigaRef = db.collection('solicitacoes').doc(data.substituiSolicitacaoId);
     const antiga = await antigaRef.get();
     const a = antiga.exists ? antiga.data() : null;
-    if (a && a.status === 'pendente' && a.prestadorTenantId === v.prestadorTenantId && a.vinculoId === data.vinculoId && a.animalId === animal.id) {
-      const novaVersao = { ...a, dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), itens, atualizadoEm: agora(), enviadoPor: por,
+    if (a && a.status === 'pendente' && a.prestadorTenantId === v.prestadorTenantId && a.vinculoId === data.vinculoId) {
+      const novaVersao = { ...a, ...corpo, atualizadoEm: agora(), enviadoPor: por,
         eventos: [...(a.eventos || []).slice(-(MAX_EVENTOS - 1)), { em: agora(), por, acao: 'versão atualizada pelo prestador (substitui a pendente)' }] };
       await antigaRef.set(novaVersao);
       return { id: antigaRef.id, substituida: true, ...novaVersao };
@@ -249,13 +265,13 @@ async function enviarSolicitacao({ db, token }, data){
   if (pend.size >= MAX_PENDENTES_POR_VINCULO) throw new HttpsError('resource-exhausted', 'Há solicitações pendentes demais para esse proprietário. Aguarde a aprovação.');
   const ref = db.collection('solicitacoes').doc();
   const doc = { vinculoId: data.vinculoId, donoTenantId: v.donoTenantId, donoNome: v.donoNome, prestadorTenantId: v.prestadorTenantId, prestadorNome: v.prestadorNome,
-    enviadoPor: por, animalId: animal.id, animalNome: animal.nome, dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), itens,
-    status: 'pendente', criadoEm: agora(), atualizadoEm: agora(), eventos: [{ em: agora(), por, acao: 'enviado ao proprietário' }] };
+    enviadoPor: por, ...corpo, status: 'pendente', criadoEm: agora(), atualizadoEm: agora(), eventos: [{ em: agora(), por, acao: 'enviado ao proprietário' }] };
   await ref.set(doc);
   return { id: ref.id, ...doc };
 }
 
 const solPublica = (id, d) => ({ id, vinculoId: d.vinculoId, donoNome: d.donoNome, prestadorNome: d.prestadorNome, enviadoPor: d.enviadoPor, animalId: d.animalId, animalNome: d.animalNome,
+  animais: Array.isArray(d.animais) ? d.animais : [{ id: d.animalId, nome: d.animalNome, itens: Array.isArray(d.itens) ? d.itens : [] }], itensComuns: Array.isArray(d.itensComuns) ? d.itensComuns : [],
   dataRegistro: d.dataRegistro, tipoRegistro: d.tipoRegistro, descricao: d.descricao || '', itens: Array.isArray(d.itens) ? d.itens : [], status: d.status,
   criadoEm: d.criadoEm || null, atualizadoEm: d.atualizadoEm || null, motivo: d.motivo || '' });
 
@@ -307,6 +323,7 @@ async function decidirSolicitacao({ db, token }, data){
     novo.eventos = addEvento(d, por, 'recusado pelo proprietário: ' + motivo);
   } else {
     let revisado = false;
+    if (data.itens !== undefined && Array.isArray(d.animais) && d.animais.length > 1) throw new HttpsError('invalid-argument', 'Revisão de valores só vale para registro de um animal; ajuste no cadastro e aprove.');
     if (data.itens !== undefined) {
       const itens = limparItens(data.itens);
       revisado = JSON.stringify(itens) !== JSON.stringify(d.itens || []);
