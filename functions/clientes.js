@@ -52,7 +52,7 @@ async function criarCliente({ auth, db, FieldValue }, data){
     throw new HttpsError('invalid-argument', 'A senha provisória precisa ter de 8 a 100 caracteres.');
   if (data.plano !== undefined && !ehPlano(data.plano)) throw new HttpsError('invalid-argument', 'Plano inválido (gratuito, basico ou pro).');
   const lim = limitesDoPlano(data.plano); // sem plano informado = básico
-  if (data.tipoAssinatura !== undefined && !ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador ou ambos).');
+  if (data.tipoAssinatura !== undefined && !ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador, ambos ou ferrador).');
   const tipo = tipoValido(data.tipoAssinatura);
   let recursos = [];
   if (data.recursos !== undefined) { try { recursos = normalizarRecursos(data.recursos); } catch (e) { throw new HttpsError('invalid-argument', 'Lista de novidades inválida.'); } }
@@ -287,7 +287,7 @@ async function atualizarCliente({ auth, db, emailDono }, data){
     upd.consentimentoDados = { aceito: c.aceito, versao: c.versao, data: new Date().toISOString(), por: typeof emailDono === 'string' ? emailDono : '' };
   }
   if (data.tipoAssinatura !== undefined) {
-    if (!ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador ou ambos).');
+    if (!ehTipoAssinatura(data.tipoAssinatura)) throw new HttpsError('invalid-argument', 'Tipo de assinatura inválido (proprietario, prestador, ambos ou ferrador).');
     upd.tipoAssinatura = data.tipoAssinatura;
   }
   if (data.recursos !== undefined) {

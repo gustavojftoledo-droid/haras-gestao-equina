@@ -1060,7 +1060,7 @@
       <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Prestador</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestRecebidasTbody"></tbody></table></div></div>
       <div id="prestSecEnviadas"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:18px 0 6px;">Registros que eu enviei</div>
       <div class="grid-wrap"><table class="grid"><thead><tr><th>Data</th><th>Proprietário</th><th>Animal</th><th>Itens</th><th>Situação</th><th></th></tr></thead><tbody id="prestEnviadasTbody"></tbody></table></div></div>
-      <div class="hint-text" style="margin-top:12px;">Os registros enviados ficam <strong>pendentes</strong>. A aprovação pelo proprietário (e a entrada na ficha do animal) vem na próxima etapa.</div>
+      <div class="hint-text" style="margin-top:12px;">Os registros enviados ficam <strong>pendentes</strong> até o proprietário aprovar, recusar ou corrigir os valores. Ao aprovar, entram na ficha do animal como Visita veterinária.</div>
     </div>
 
     <div class="view" id="view-clientes">
@@ -1158,6 +1158,7 @@
           <span id="editLoteContagemBar"></span>
           <button type="button" class="btn btn-sm" id="btnAbrirEditLote">✏️ Editar em lote</button>
         </div>
+        <div id="barraClientesPrest" style="display:none;margin:0 0 12px;"></div>
         <div class="filters">
           <div class="f grow"><label>Buscar</label><input type="text" id="hSearch" placeholder="Nome, código, proprietário..."></div>
         </div>
@@ -3791,6 +3792,7 @@ function showConfirm(msg, opts){
   return new Promise(resolve=>{
     document.getElementById('dialogTitle').textContent = opts.titulo || 'Confirmar';
     document.getElementById('dialogMessage').textContent = msg;
+    document.getElementById('dialogMessage').style.whiteSpace = opts.quebraLinhas ? 'pre-line' : '';
     document.getElementById('dialogInput').style.display='none';
     const ok = document.getElementById('dialogOk');
     ok.textContent = opts.okLabel || 'OK';
@@ -4039,10 +4041,12 @@ const RECURSOS_APP = {
   // exemplo de uso futuro:  nova_tela_x: { nome:'Nome que aparece no painel', liberacao:'selecionados' },
 };
 // Lados da integração entre assinaturas. O haras original (sem cliente) é só proprietário.
-const ladoProprietario = ()=> CLAIM_TIPO!=='prestador';
+const ladoProprietario = ()=> CLAIM_TIPO!=='prestador' && CLAIM_TIPO!=='ferrador';
+const ehAssinaturaFerrador = ()=> !!TENANT_ID && CLAIM_TIPO==='ferrador'; // assinatura mínima: só manejo de casco nos cavalos de clientes que convidaram
 const ladoPrestador = ()=> !!TENANT_ID && CLAIM_TIPO!=='proprietario';
 function recursoAtivo(chave){
   if(!TENANT_ID) return true;
+  if(chave==='integracao_prestadores' && CLAIM_TIPO==='ferrador') return true; // a assinatura de ferrador já nasce com a integração
   const def = RECURSOS_APP[chave];
   if(!def) return false;
   if(def.liberacao==='todos') return true;
@@ -4073,7 +4077,7 @@ async function resolverTenantDoUsuario(authUser){
   CLAIM_MODULOS = (TENANT_ID && Array.isArray(claims.modulos)) ? claims.modulos.filter(m=>typeof m==='string') : null;
   MAX_USUARIOS = (TENANT_ID && Number.isInteger(Number(claims.maxUsuarios)) && Number(claims.maxUsuarios)>0) ? Number(claims.maxUsuarios) : 0;
   PLANO_ATUAL = (TENANT_ID && typeof claims.plano==='string') ? claims.plano : '';
-  CLAIM_TIPO = (TENANT_ID && ['proprietario','prestador','ambos'].includes(claims.tipoAssinatura)) ? claims.tipoAssinatura : 'proprietario';
+  CLAIM_TIPO = (TENANT_ID && ['proprietario','prestador','ambos','ferrador'].includes(claims.tipoAssinatura)) ? claims.tipoAssinatura : 'proprietario';
   CLAIM_RECURSOS = (TENANT_ID && Array.isArray(claims.recursos)) ? claims.recursos.filter(r=>typeof r==='string') : [];
   try{ if(currentUser && typeof aplicarPermissoes==='function') aplicarPermissoes(); }catch(_){}
   const mf = Number(claims.maxFotos);
@@ -4921,7 +4925,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome do cliente (haras/empresa)</label><input type="text" id="cn_nome" maxlength="100"></div>
     <div class="field"><label>E-mail do administrador</label><input type="email" id="cn_email" maxlength="200"></div>
     <div class="field"><label>Nome do administrador (opcional)</label><input type="text" id="cn_nomeAdmin" maxlength="100"></div>
-    <div class="field"><label>Tipo de assinatura</label><select id="cn_tipo"><option value="proprietario" selected>Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
+    <div class="field"><label>Tipo de assinatura</label><select id="cn_tipo"><option value="proprietario" selected>Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option><option value="ferrador">Ferrador (assinatura mínima: só manejo de casco nos cavalos de clientes)</option></select></div>
     <div class="field"><label>Plano</label><select id="cn_plano"><option value="gratuito">Gratuito</option><option value="basico" selected>Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">Pro: espaço acima do limite é cobrado do cliente (cláusula nos Termos de Uso).</div>
     <div class="field"><label>Senha provisória (opcional — se vazio, o sistema cria uma)</label><input type="text" id="cn_senha" maxlength="100" autocomplete="off"></div>
@@ -4933,7 +4937,7 @@ function garantirModaisClientes(){
     <div class="field"><label>Nome</label><input type="text" id="ce_nome" maxlength="100"></div>
     <div class="field"><label>Plano</label><select id="ce_plano"><option value="gratuito">Gratuito</option><option value="basico">Básico</option><option value="pro">Pro</option></select></div>
     <div class="hint-text" style="margin:-4px 0 8px;">No plano <strong>Pro</strong>, o espaço usado <strong>acima do limite</strong> é cobrado do cliente (cláusula nos Termos de Uso).</div>
-    <div class="field"><label>Tipo de assinatura</label><select id="ce_tipo"><option value="proprietario">Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option></select></div>
+    <div class="field"><label>Tipo de assinatura</label><select id="ce_tipo"><option value="proprietario">Proprietário (haras / cliente comum)</option><option value="prestador">Prestador de serviço (veterinária, ferrador...)</option><option value="ambos">Ambos</option><option value="ferrador">Ferrador (assinatura mínima: só manejo de casco nos cavalos de clientes)</option></select></div>
     <div class="field"><label>Limite de dados (GB)</label><input type="number" id="ce_limite" min="0.001" max="100" step="0.1"></div>
     <div class="field"><label>Novidades liberadas só para este cliente</label><div id="ce_recursos" style="display:flex;flex-direction:column;gap:6px;"></div></div>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;"><input type="checkbox" id="ce_consent"> O cliente aceitou o uso dos dados (termo versão <input type="text" id="ce_versao" maxlength="40" style="width:70px;" placeholder="1.0">)</label>
@@ -5027,6 +5031,36 @@ async function renderPrestadores(){
   try{ vinculosPrest = await chamarFuncao('listarVinculos'); msg.textContent = ''; try{ solicPrest = await chamarFuncao('listarSolicitacoes'); }catch(_){ solicPrest = { recebidas:[], enviadas:[] }; } }
   catch(e){ msg.textContent = 'Não consegui carregar: '+msgErroFuncao(e); vinculosPrest = { comoProprietario:[], comoPrestador:[] }; }
   desenharPrestadores();
+  if(ladoPrestador()) trazerAnimaisDosClientes().then(n=>{ if(n>0) msg.textContent = 'Animais dos clientes atualizados no seu programa ('+n+' novo(s)/alterado(s)).'; }).catch(e=>console.warn('trazer animais:', e));
+}
+/* Proprietário (administrador) com a integração liberada: ao entrar, avisa na tela se há registros de prestadores pendentes. */
+async function avisarSolicitacoesPendentes(){
+  try{
+    if(!currentUser || !currentUser.admin || !recursoAtivo('integracao_prestadores') || !ladoProprietario()) return;
+    const r = await chamarFuncao('listarSolicitacoes');
+    const n = (r.recebidas||[]).filter(x=>x.status==='pendente').length;
+    if(n>0) showAlert('Você tem '+n+' registro(s) de prestador aguardando a sua aprovação. Abra o menu Prestadores.');
+  }catch(e){ console.warn('pendentes:', e); }
+}
+/* Prestador: os animais LIBERADOS pelos clientes entram na lista dele como Externos ("Alfa (Cliente)"), ligados ao vínculo —
+   assim ele usa as telas normais (Visita, Tratamento). Não entram nas contagens do plantel (Externo). Perdeu o acesso = fica marcado e some dos seletores. */
+async function trazerAnimaisDosClientes(){
+  if(!ladoPrestador()) return 0;
+  const ativos = (vinculosPrest.comoPrestador||[]).filter(v=>v.status==='ativo');
+  let mudou = 0; const vistos = new Set();
+  for(const v of ativos){
+    let r; try{ r = await chamarFuncao('animaisAutorizados', { vinculoId:v.id }); }catch(e){ continue; }
+    for(const a of (r.animais||[])){
+      const id = 'cli_'+v.id+'_'+a.id; vistos.add(id);
+      const nome = a.nome+' ('+(v.donoNome||'cliente')+')';
+      const h = horses.find(x=>x.id===id);
+      if(!h){ horses.push({ id, nome, situacao:'E', proprietario:v.donoNome||'', clienteVinculo:{ vinculoId:v.id, animalId:a.id, donoNome:v.donoNome||'' } }); mudou++; }
+      else if(h.nome!==nome || (h.clienteVinculo&&h.clienteVinculo.semAcesso)){ h.nome = nome; h.clienteVinculo = { ...h.clienteVinculo, semAcesso:false }; mudou++; }
+    }
+  }
+  horses.forEach(h=>{ if(h.clienteVinculo && !vistos.has(h.id) && !h.clienteVinculo.semAcesso){ h.clienteVinculo = { ...h.clienteVinculo, semAcesso:true }; mudou++; } });
+  if(mudou>0) await storeSet('horses_list', horses);
+  return mudou;
 }
 function textoAnimaisVinculo(v){ return v.animaisTodos ? 'Todos os animais' : ((v.animaisIds||[]).length ? (v.animaisIds.length+' animal(is)') : '—'); }
 function desenharPrestadores(){
@@ -5044,7 +5078,7 @@ function desenharPrestadores(){
   document.getElementById('prestComoTbody').innerHTML = como.length===0 ? '<tr><td colspan="4" class="empty">Ninguém autorizou você ainda.</td></tr>'
     : como.map(v=>`<tr><td><strong>${escHtml(v.donoNome||v.donoTenantId)}</strong></td><td>${escHtml(STATUS_VINCULO[v.status]||v.status)}</td>
       <td>${v.status==='ativo'?escHtml(textoAnimaisVinculo(v)):'—'}</td>
-      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`<button type="button" class="btn btn-sm" data-prestenviar="${escHtml(v.id)}">Enviar registro</button> <button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
+      <td style="white-space:nowrap;">${v.status==='pendente'?`<button type="button" class="btn btn-sm" data-prestaceitar="${escHtml(v.id)}">Aceitar</button> <button type="button" class="btn btn-sm btn-ghost" data-prestrecusar="${escHtml(v.id)}">Recusar</button>`:(v.status==='ativo'?`${ehAssinaturaFerrador()?'':`<button type="button" class="btn btn-sm" data-prestenviar="${escHtml(v.id)}">Enviar registro</button> `}<button type="button" class="btn btn-sm btn-danger" data-prestrevogar="${escHtml(v.id)}">Encerrar</button>`:'')}</td></tr>`).join('');
   desenharSolicitacoes();
   document.querySelectorAll('[data-prestenviar]').forEach(b=>b.addEventListener('click', ()=>abrirEnvioRegistro(como.find(v=>v.id===b.dataset.prestenviar))));
   document.querySelectorAll('[data-prestanim]').forEach(b=>b.addEventListener('click', ()=>abrirModalPrestador(meus.find(v=>v.id===b.dataset.prestanim))));
@@ -5117,7 +5151,7 @@ async function salvarModalPrestador(){
 
 /* ---- Etapa 2: envio de registro pelo prestador + lista de solicitações (aprovação = etapa 3) ---- */
 const STATUS_SOLIC = { pendente:'Pendente', aprovado:'Aprovado', recusado:'Recusado', cancelado:'Cancelado' };
-const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', outro:'Outro' };
+const TIPO_REGISTRO_LABEL = { aplicacao:'Aplicação', tratamento:'Tratamento', procedimento:'Procedimento', consulta:'Consulta', visita:'Visita veterinária', casco:'Casqueamento / ferrageamento', outro:'Outro' };
 const CATEG_SERVICO_LABEL = { consulta:'Consulta', procedimento:'Procedimento', exame:'Exame (ex.: ultrassom)', casqueamento:'Casqueamento', ferrageamento:'Ferrageamento', deslocamento:'Deslocamento', outro:'Outro' };
 function resumoItensSolic(it){
   const serv = it.filter(x=>x.tipo==='servico').length, mat = it.filter(x=>x.tipo==='material').length, meus = it.filter(x=>x.tipo==='material' && x.produtoDoPrestador).length;
@@ -5133,7 +5167,7 @@ function desenharSolicitacoes(){
   document.getElementById('prestEnviadasTbody').innerHTML = env.length===0 ? '<tr><td colspan="6" class="empty">Você ainda não enviou registros.</td></tr>' : env.map(x=>linha(x, x.donoNome)).join('');
   document.querySelectorAll('#prestRecebidasTbody tr[data-solid], #prestEnviadasTbody tr[data-solid]').forEach(tr=>tr.addEventListener('click', e=>{
     if(e.target.closest('button')) return;
-    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(x) abrirDetalheSolicitacao(x);
+    const x = [...rec, ...env].find(y=>y.id===tr.dataset.solid); if(x) abrirDetalheSolicitacao(x, rec.includes(x));
   }));
   document.querySelectorAll('[data-solcancel]').forEach(b=>b.addEventListener('click', async e=>{
     e.stopPropagation();
@@ -5141,21 +5175,135 @@ function desenharSolicitacoes(){
     try{ await chamarFuncao('cancelarSolicitacao', { solicitacaoId:b.dataset.solcancel }); renderPrestadores(); }catch(err){ showAlert('Não consegui cancelar: '+msgErroFuncao(err)); }
   }));
 }
-function abrirDetalheSolicitacao(x){
+const TIPOS_QUE_VIRAM_VISITA = ['visita','consulta','procedimento','aplicacao','outro'];
+const TIPOS_APROVAVEIS = [...TIPOS_QUE_VIRAM_VISITA, 'casco'];
+/* Proprietário aprova um registro de CASCO/ferrageamento: grava como Manejo de Casco (mesma estrutura do lançamento manual; idempotente pelo id da solicitação). */
+async function aplicarSolicitacaoComoCasco(x, itens){
+  const ja = manejos.find(m=>m.origem && m.origem.solicitacaoId===x.id);
+  if(ja) return { ok:true, ja:true, pendencias:[] };
+  const animal = horses.find(h=>h.id===x.animalId);
+  if(!animal) return { ok:false, motivo:'O animal não está mais na sua ficha.' };
+  const serv = itens.find(i=>i.tipo==='servico' && i.categoria!=='deslocamento');
+  if(!serv) return { ok:false, motivo:'O registro não traz o serviço de casqueamento/ferrageamento.' };
+  const desl = itens.find(i=>i.tipo==='servico' && i.categoria==='deslocamento');
+  const valor = (serv.valorCentavos||0)/100;
+  if(!(aux.subtipoFerrageamento||[]).some(t=>t.toLowerCase()===serv.nome.toLowerCase())){ aux.subtipoFerrageamento = [...(aux.subtipoFerrageamento||[]), serv.nome]; await storeSet('aux_lists', aux); }
+  const record = { id:'mj_'+Date.now(), data:x.dataRegistro, tipo:'Casco', subtipoCasco:serv.nome, ferrador:x.prestadorNome||'', obs:[x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')'].filter(Boolean).join('\n'),
+    animais:[{ id:animal.id, nome:animal.nome, extra:serv.obs||'', tipo:serv.nome, valorBase:valor }], valor, deslocamento: desl ? (desl.valorCentavos||0)/100 : null,
+    origem:{ solicitacaoId:x.id, prestadorNome:x.prestadorNome||'', enviadoPor:x.enviadoPor||'', tipoRegistro:x.tipoRegistro } };
+  manejos = [...manejos, record];
+  await storeSet('manejos_list', manejos, true);
+  try{ renderManejos(); renderFinanceiro(); }catch(_){}
+  return { ok:true, ja:false, pendencias:[] };
+}
+const aplicarSolicitacao = (x, itens)=> x.tipoRegistro==='casco' ? aplicarSolicitacaoComoCasco(x, itens) : aplicarSolicitacaoComoVisita(x, itens);
+function produtoDoMeuEstoquePorNome(nome){ const n=(nome||'').toString().trim().toLowerCase(); return estoqueProdutos.find(p=>(p.nome||'').trim().toLowerCase()===n); }
+/* Proprietário aprova: grava como VISITA na ficha (mesma estrutura do lançamento manual). Idempotente: o registro leva o id da solicitação, então repetir não duplica.
+   Serviço → custo com o valor do prestador. Material "meu" → custo "produto do prestador" SEM baixa. Material do proprietário → baixa no estoque dele e custo pelo preço dele;
+   se não existir no estoque (ou faltar saldo) → sem baixa e sem custo, anotado como pendência. */
+async function aplicarSolicitacaoComoVisita(x, itens){
+  const ja = visitas.find(v=>v.origem && v.origem.solicitacaoId===x.id);
+  if(ja) return { ok:true, ja:true, pendencias:ja.pendenciasEstoque||[] };
+  const animal = horses.find(h=>h.id===x.animalId);
+  if(!animal) return { ok:false, motivo:'O animal não está mais na sua ficha.' };
+  const novoId = ()=>'vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  const custos = [], pendencias = [], baixas = [];
+  itens.forEach(it=>{
+    if(it.tipo==='servico'){
+      custos.push({ id:novoId(), tipo:'servico', nome:it.nome, animalId:animal.id, valor:(it.valorCentavos||0)/100, obs:['Serviço do prestador ('+(x.prestadorNome||'')+')', CATEG_SERVICO_LABEL[it.categoria]&&it.categoria!=='outro'?CATEG_SERVICO_LABEL[it.categoria]:'', it.obs].filter(Boolean).join(' · ') });
+    }else if(it.produtoDoPrestador){
+      const total = Math.round((it.quantidade||0)*(it.valorUnitarioCentavos||0));
+      custos.push({ id:novoId(), tipo:'servico', nome:it.nome+' (produto do prestador)', animalId:animal.id, valor:total/100, obs:[String(it.quantidade).replace('.',',')+' '+(it.unidade||'un')+' × '+fmtCentavos(it.valorUnitarioCentavos), 'não baixa o seu estoque', it.obs].filter(Boolean).join(' · ') });
+    }else{
+      const prod = produtoDoMeuEstoquePorNome(it.nome);
+      if(!prod){ pendencias.push({ nome:it.nome, quantidade:it.quantidade, unidade:it.unidade||'', motivo:'não existe no seu estoque' }); return; }
+      const valor = Math.round((custoUnitarioProduto(prod)||0)*it.quantidade*100)/100;
+      custos.push({ id:novoId(), tipo:'produto', produtoId:prod.id, produtoNome:prod.nome, animalId:animal.id, quantidade:it.quantidade, valor, obs:it.obs||'' });
+      baixas.push({ produtoId:prod.id, quantidade:it.quantidade });
+    }
+  });
+  // baixa: soma por produto; se faltar saldo em algum, NENHUMA baixa é feita e o item vira pendência (sem custo)
+  const soma = {}; baixas.forEach(b=>{ soma[b.produtoId]=(soma[b.produtoId]||0)+b.quantidade; });
+  const faltando = checarEstoqueParaBaixa(Object.entries(soma).map(([produtoId,quantidade])=>({produtoId,quantidade})));
+  let custosFinais = custos;
+  if(faltando.length>0){
+    const semSaldo = new Set(faltando.map(f=>f.nome));
+    custosFinais = custos.filter(c=>{ if(c.tipo==='produto' && semSaldo.has(c.produtoNome)){ pendencias.push({ nome:c.produtoNome, quantidade:c.quantidade, unidade:'', motivo:'saldo insuficiente no seu estoque' }); return false; } return true; });
+  }
+  const dataV = x.dataRegistro;
+  for(const c of custosFinais.filter(c=>c.tipo==='produto')){
+    await registrarMovimento(c.produtoId, 'saida', c.quantidade, 'veterinaria', 'Visita veterinária (prestador '+(x.prestadorNome||'')+') — '+animal.nome, dataV, undefined, [{id:animal.id, nome:animal.nome}]);
+  }
+  const record = { id:'vs_'+Date.now(), data:dataV, veterinario:x.prestadorNome||'', obsGeral:[x.descricao, 'Enviado por '+(x.enviadoPor||'prestador')+' ('+(x.prestadorNome||'')+')'].filter(Boolean).join('\n'),
+    animais:[{ id:animal.id, nome:animal.nome, obs:'' }], custos:custosFinais, documentos:[],
+    origem:{ solicitacaoId:x.id, prestadorNome:x.prestadorNome||'', enviadoPor:x.enviadoPor||'', tipoRegistro:x.tipoRegistro }, pendenciasEstoque:pendencias };
+  visitas = [...visitas, record];
+  await storeSet('visitas_list', visitas, true);
+  try{ renderVisitas(); renderFinanceiro(); renderEstoque(); }catch(_){}
+  return { ok:true, ja:false, pendencias };
+}
+function itensRevisadosDoDetalhe(x){
+  const out = [];
+  for(const [idx,it] of (x.itens||[]).entries()){
+    const c = {...it};
+    const campo = (k)=>{ const el=document.querySelector(`#sl_corpo [data-slitem="${idx}"][data-slf="${k}"]`); return el?el.value:null; };
+    if(it.tipo==='servico'){ const v = reaisParaCentavos(campo('valor')); if(!Number.isFinite(v)||v<0) return { erro:'Informe o valor de "'+it.nome+'".' }; c.valorCentavos = v; }
+    else{
+      const q = Number(String(campo('qtd')||'').replace(',','.')); if(!(q>0)) return { erro:'Quantidade inválida em "'+it.nome+'".' }; c.quantidade = q;
+      if(it.produtoDoPrestador){ const v = reaisParaCentavos(campo('vun')); if(!Number.isFinite(v)||v<0) return { erro:'Informe o valor por unidade de "'+it.nome+'".' }; c.valorUnitarioCentavos = v; }
+    }
+    out.push(c);
+  }
+  return { itens:out };
+}
+function abrirDetalheSolicitacao(x, recebida){
   if(!document.getElementById('overlaySolicitacao')){
-    document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlaySolicitacao"><div class="modal" style="max-width:min(96vw,620px);max-height:92vh;overflow:auto;"><div class="modal-head"><div class="modal-title" id="sl_titulo">Registro</div><button class="modal-close" data-close="overlaySolicitacao">✕</button></div><div id="sl_corpo"></div></div></div>`);
+    document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlaySolicitacao"><div class="modal" style="max-width:min(96vw,680px);max-height:92vh;overflow:auto;"><div class="modal-head"><div class="modal-title" id="sl_titulo">Registro</div><button class="modal-close" data-close="overlaySolicitacao">✕</button></div><div id="sl_corpo"></div></div></div>`);
     document.querySelectorAll('#overlaySolicitacao [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlaySolicitacao')));
     document.getElementById('overlaySolicitacao').addEventListener('click', e=>{ if(e.target.id==='overlaySolicitacao') closeModal('overlaySolicitacao'); });
   }
   document.getElementById('sl_titulo').textContent = (TIPO_REGISTRO_LABEL[x.tipoRegistro]||'Registro')+' — '+(x.animalNome||'');
-  const itens = (x.itens||[]).map(i=> i.tipo==='servico'
-    ? `<tr><td>Serviço</td><td>${escHtml(i.nome)}<div style="font-size:11px;color:var(--muted);">${escHtml(CATEG_SERVICO_LABEL[i.categoria]||'')}</div></td><td>—</td><td>${fmtCentavos(i.valorCentavos)}</td></tr>`
-    : `<tr><td>Material</td><td>${escHtml(i.nome)}${i.produtoDoPrestador?' <span style="font-size:11px;font-weight:700;color:var(--burgundy,#8b2a2a);">· produto do prestador</span>':''}</td><td>${escHtml(String(i.quantidade).replace('.',','))} ${escHtml(i.unidade||'')}</td><td>${i.produtoDoPrestador?(fmtCentavos(i.valorUnitarioCentavos)+' /un · '+fmtCentavos(Math.round(i.quantidade*i.valorUnitarioCentavos))):'<span style="color:var(--muted);">estoque e preço do proprietário</span>'}</td></tr>`).join('');
+  const decidir = !!recebida && x.status==='pendente';
+  const editavel = (k,idx,val,ph)=>`<input type="text" inputmode="decimal" data-slitem="${idx}" data-slf="${k}" value="${escHtml(val)}" ${ph?`placeholder="${ph}"`:''} style="width:90px;">`;
+  const fmtNum = v=>String(v).replace('.',',');
+  const centavosParaCampo = c=>(Number(c||0)/100).toFixed(2).replace('.',',');
+  const itens = (x.itens||[]).map((i,idx)=>{
+    if(i.tipo==='servico') return `<tr><td>Serviço</td><td>${escHtml(i.nome)}<div style="font-size:11px;color:var(--muted);">${escHtml(CATEG_SERVICO_LABEL[i.categoria]||'')}</div></td><td>—</td><td>${decidir?editavel('valor',idx,centavosParaCampo(i.valorCentavos)):fmtCentavos(i.valorCentavos)}</td></tr>`;
+    const meu = !!i.produtoDoPrestador;
+    let nota = '';
+    if(decidir && !meu){ const pr = produtoDoMeuEstoquePorNome(i.nome); nota = pr ? `<div style="font-size:11px;color:var(--green,#2c5);">✔ no seu estoque (saldo ${fmtNum(pr.quantidade||0)} ${escHtml(pr.unidade||'')}) — dá baixa e custa pelo seu preço</div>` : `<div style="font-size:11px;color:var(--burgundy,#8b2a2a);">⚠ não está no seu estoque — fica como pendência (sem baixa e sem custo)</div>`; }
+    return `<tr><td>Material</td><td>${escHtml(i.nome)}${meu?' <span style="font-size:11px;font-weight:700;color:var(--burgundy,#8b2a2a);">· produto do prestador</span>':''}${nota}</td><td>${decidir?editavel('qtd',idx,fmtNum(i.quantidade)):escHtml(fmtNum(i.quantidade))} ${escHtml(i.unidade||'')}</td><td>${meu?(decidir?(editavel('vun',idx,centavosParaCampo(i.valorUnitarioCentavos))+' /un'):(fmtCentavos(i.valorUnitarioCentavos)+' /un')):'<span style="color:var(--muted);">do seu estoque</span>'}</td></tr>`;
+  }).join('');
+  const aprovavel = TIPOS_APROVAVEIS.includes(x.tipoRegistro);
   document.getElementById('sl_corpo').innerHTML = `
-    <div class="hint-text" style="margin:0 0 8px;">${escHtml(x.prestadorNome||'')} → ${escHtml(x.donoNome||'')} · registro de ${fmtDate(x.dataRegistro)} · enviado por ${escHtml(x.enviadoPor||'')}<br><strong>Situação: ${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong>${x.motivo?(' — '+escHtml(x.motivo)):''}</div>
+    <div class="hint-text" style="margin:0 0 8px;">${escHtml(x.prestadorNome||'')} → ${escHtml(x.donoNome||'')} · registro de ${fmtDate(x.dataRegistro)} · enviado por ${escHtml(x.enviadoPor||'')}<br><strong>Situação: ${escHtml(STATUS_SOLIC[x.status]||x.status)}</strong>${x.motivo?'<br>Motivo da recusa: '+escHtml(x.motivo):''}</div>
     ${x.descricao?`<div style="margin:0 0 8px;white-space:pre-wrap;">${escHtml(x.descricao)}</div>`:''}
     <table class="grid"><thead><tr><th>Tipo</th><th>Item</th><th>Quantidade</th><th>Valor cobrado pelo prestador</th></tr></thead><tbody>${itens}</tbody></table>
-    <div style="margin-top:8px;font-weight:700;">Total cobrado pelo prestador: ${fmtCentavos(totalCobradoSolic(x.itens||[]))}</div>`;
+    <div style="margin-top:8px;font-weight:700;">Total cobrado pelo prestador: ${fmtCentavos(totalCobradoSolic(x.itens||[]))}</div>
+    ${decidir?`<div class="hint-text" style="margin-top:8px;">${aprovavel?'Você pode <strong>corrigir os valores e quantidades</strong> acima antes de aprovar. Ao aprovar, entra na ficha do animal como <strong>'+(x.tipoRegistro==='casco'?'Manejo de casco (casqueamento/ferrageamento)':'Visita veterinária')+'</strong>.':'Este tipo de registro (tratamento) ainda não entra sozinho na ficha: por enquanto só dá para recusar ou pedir que o prestador envie como visita.'}</div>
+    <div class="hint-text" id="sl_msg" style="margin:6px 0;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"><button type="button" class="btn btn-ghost" id="sl_recusar">Recusar</button><button type="button" class="btn" id="sl_aprovar" ${aprovavel?'':'disabled'}>Aprovar e lançar na ficha</button></div>`:''}`;
+  if(decidir){
+    document.getElementById('sl_recusar').addEventListener('click', async ()=>{
+      const motivo = await showPrompt('Por que está recusando? (o prestador vê esse motivo)', 'Ex.: valor acima do combinado');
+      if(motivo===null || motivo===undefined) return;
+      if(String(motivo).trim().length<3){ document.getElementById('sl_msg').textContent = 'Escreva o motivo da recusa.'; return; }
+      try{ await chamarFuncao('decidirSolicitacao', { solicitacaoId:x.id, decisao:'recusar', motivo:String(motivo).trim() }); closeModal('overlaySolicitacao'); showAlert('Registro recusado.'); renderPrestadores(); }
+      catch(e){ document.getElementById('sl_msg').textContent = 'Não consegui recusar: '+msgErroFuncao(e); }
+    });
+    document.getElementById('sl_aprovar').addEventListener('click', async ()=>{
+      const msg = document.getElementById('sl_msg'); msg.textContent = '';
+      const rev = itensRevisadosDoDetalhe(x); if(rev.erro){ msg.textContent = rev.erro; return; }
+      document.getElementById('sl_aprovar').disabled = true; msg.textContent = 'Lançando na ficha...';
+      let ap; try{ ap = await aplicarSolicitacao(x, rev.itens); }catch(e){ console.error(e); msg.textContent = 'Não consegui lançar na ficha: '+((e&&e.message)||'erro')+'. Nada foi confirmado ao prestador.'; document.getElementById('sl_aprovar').disabled = false; return; }
+      if(!ap.ok){ msg.textContent = ap.motivo||'Não foi possível lançar.'; document.getElementById('sl_aprovar').disabled = false; return; }
+      try{ await chamarFuncao('decidirSolicitacao', { solicitacaoId:x.id, decisao:'aprovar', itens:rev.itens }); }
+      catch(e){ msg.textContent = 'Entrou na ficha, mas não consegui confirmar ao prestador ('+msgErroFuncao(e)+'). Clique em Aprovar de novo: não duplica.'; document.getElementById('sl_aprovar').disabled = false; return; }
+      closeModal('overlaySolicitacao');
+      showAlert('Aprovado e lançado na ficha de '+(x.animalNome||'')+'.'+((ap.pendencias||[]).length? (' Atenção, pendência de estoque: '+ap.pendencias.map(p=>p.nome+' ('+p.motivo+')').join('; ')+'.') : ''));
+      renderPrestadores();
+    });
+  }
   openModal('overlaySolicitacao');
 }
 let _envioVinculo = null, _envioSeq = 0;
@@ -5439,7 +5587,7 @@ async function concluirOnboarding(salvar){
   renderInicio();
 }
 function verificarOnboardingCliente(){
-  if(!TENANT_ID || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
+  if(!TENANT_ID || ehAssinaturaFerrador() || !currentUser || !currentUser.admin || config.onboardingFeito===true || !configLidoOk) return;
   garantirModalOnboarding(); openModal('overlayOnboarding');
 }
 
@@ -6768,9 +6916,10 @@ function createAnimalSelector(hostEl, opts){
     relSelecoes[opts.persistKey] = Object.entries(state.selected).filter(([id,s])=>s.checked).map(([id])=>id);
     storeSet('rel_selecoes', relSelecoes);
   }
+  const usaClientes = ()=> !!opts.incluirDeClientes && ladoPrestador(); // só muda o comportamento para assinatura de prestador
   const isAtivo = h=> h.situacao!=='E' && h.situacao!=='V' && !h.falecimento;
   function basePool(){
-    if(opts.onlyActive) return horses.filter(isAtivo);
+    if(opts.onlyActive) return horses.filter(h=>isAtivo(h) || (usaClientes() && h.clienteVinculo && !h.clienteVinculo.semAcesso));
     if(!opts.reportFilter) return horses;
     return horses.filter(h=>{
       if(isAtivo(h)) return true;
@@ -6780,8 +6929,19 @@ function createAnimalSelector(hostEl, opts){
       return false;
     });
   }
+  // Prestador: animais INTERNOS dele podem ser marcados juntos (todos os clientes dele); animais de um cliente EXTERNO (que liberou os cavalos
+  // pelo programa) só um cliente por vez, e nunca misturados com internos — para não lançar nada em cavalo de dono errado.
+  const grupoDoAnimal = h=> (h && h.clienteVinculo) ? ('ext:'+h.clienteVinculo.vinculoId) : 'int';
+  function travaDeCliente(){
+    if(!usaClientes()) return null;
+    const id = Object.keys(state.selected).find(k=>state.selected[k] && state.selected[k].checked);
+    const h = id ? horses.find(x=>x.id===id) : null;
+    return h ? grupoDoAnimal(h) : null;
+  }
   function relevantAnimals(){
+    const trava = travaDeCliente();
     return basePool().filter(h=>{
+      if(trava && grupoDoAnimal(h)!==trava) return false;
       const t = state.search.toLowerCase();
       const matchSearch = !t || (h.nome||'').toLowerCase().includes(t) || (h.apelido||'').toLowerCase().includes(t);
       const matchCat = state.categorias.size===0 || state.categorias.has(h.categoria);
@@ -6802,8 +6962,11 @@ function createAnimalSelector(hostEl, opts){
     const locs = localizacoesDisponiveis();
     const props = proprietariosDisponiveis();
     const nSel = Object.values(state.selected).filter(s=>s.checked).length;
+    const _trava = travaDeCliente();
+    const _avisoCliente = (usaClientes() && _trava) ? `<div class="selector-hint" style="background:#fff7e0;color:#6b4e00;">${_trava==='int' ? 'Você marcou animais seus (internos): os animais de clientes externos ficam ocultos até limpar a seleção.' : '🔗 Você marcou animais do cliente <strong>'+escHtml(((horses.find(x=>grupoDoAnimal(x)===_trava)||{}).clienteVinculo||{}).donoNome||'externo')+'</strong>: só os animais dele aparecem. Para lançar em outro cliente, limpe a seleção.'}</div>` : '';
     hostEl.innerHTML = `
       <div class="selector">
+        ${_avisoCliente}
         <div class="selector-toolbar">
           <input type="text" placeholder="Buscar animal..." id="${hostEl.id}_search">
           <button type="button" class="chip" data-cat="__clear">Todas categorias</button>
@@ -6875,8 +7038,8 @@ function createAnimalSelector(hostEl, opts){
         });
       }
     });
-    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ relevantAnimals().forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
-    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
+    hostEl.querySelector(`#${hostEl.id}_all`).addEventListener('click', ()=>{ let _l = relevantAnimals(); if(usaClientes() && !travaDeCliente() && _l.length) _l = _l.filter(h=>grupoDoAnimal(h)===grupoDoAnimal(_l[0])); _l.forEach(h=>{ state.selected[h.id]=state.selected[h.id]||{checked:false,extra:''}; state.selected[h.id].checked=true; }); drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
+    hostEl.querySelector(`#${hostEl.id}_none`).addEventListener('click', ()=>{ Object.keys(state.selected).forEach(k=>state.selected[k].checked=false); if(usaClientes()) draw(); else drawBody(); persistSelection(); if(opts.onChange) opts.onChange(); });
     hostEl.querySelector(`#${hostEl.id}_onlysel`).addEventListener('click', ()=>{ state.onlySelected = !state.onlySelected; draw(); });
     if(opts.reportFilter){
       hostEl.querySelectorAll('[data-inc]').forEach(chip=>{
@@ -6936,6 +7099,7 @@ function createAnimalSelector(hostEl, opts){
         const jaExistia = !!state.selected[id];
         state.selected[id]=state.selected[id]||{checked:false,extra:'',valorExtra:'',valorExtra2:'',tipo:mostrarTipo?tipoAtualDefault:''};
         state.selected[id].checked=cb.checked;
+        if(usaClientes()){ persistSelection(); if(opts.onChange) opts.onChange(); draw(); return; }
         if(state.onlySelected) drawBody(); else updateCount();
         persistSelection();
         if(opts.onChange) opts.onChange();
@@ -7059,7 +7223,7 @@ function resetSelectorComFront(selector){
 
 const manejoHost = document.getElementById('manejoSelectorHost');
 manejoHost.id='manejoSelectorHost';
-const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Observação', onlyActive:true, extraValor:true, tipoFerragem:true, tipoFerragemCondition:()=>document.getElementById('m_tipo').value==='Casco', onChange:()=>atualizarValorTotalManejo()});
+const manejoSelector = createAnimalSelector(manejoHost, {extraPlaceholder:'Observação', onlyActive:true, incluirDeClientes:true, extraValor:true, tipoFerragem:true, tipoFerragemCondition:()=>document.getElementById('m_tipo').value==='Casco', onChange:()=>atualizarValorTotalManejo()});
 
 const transporteHost = document.getElementById('transporteSelectorHost');
 transporteHost.id='transporteSelectorHost';
@@ -7373,6 +7537,63 @@ function renderFiltrosAnimaisChips(){
     });
   });
 }
+/* ---- Prestador: ficha SÓ-LEITURA do cavalo de um cliente externo (dados vêm ao vivo do programa do cliente, lista fixa, sem valores) ---- */
+function garantirModalFichaExterna(){
+  if(document.getElementById('overlayFichaExterna')) return;
+  document.body.insertAdjacentHTML('beforeend', `<div class="overlay" id="overlayFichaExterna"><div class="modal" style="max-width:min(96vw,760px);max-height:92vh;overflow:auto;">
+    <div class="modal-head"><div class="modal-title" id="fe_titulo">Ficha</div><button class="modal-close" data-close="overlayFichaExterna">✕</button></div>
+    <div id="fe_corpo"></div></div></div>`);
+  document.querySelectorAll('#overlayFichaExterna [data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal('overlayFichaExterna')));
+  document.getElementById('overlayFichaExterna').addEventListener('click', e=>{ if(e.target.id==='overlayFichaExterna') closeModal('overlayFichaExterna'); });
+}
+async function abrirFichaExterna(h){
+  garantirModalFichaExterna();
+  document.getElementById('fe_titulo').textContent = h.nome||'Ficha';
+  const corpo = document.getElementById('fe_corpo'); corpo.innerHTML = '<div class="hint-text">Carregando a ficha do cliente...</div>';
+  openModal('overlayFichaExterna');
+  let r; try{ r = await chamarFuncao('fichaDoAnimal', { vinculoId:h.clienteVinculo.vinculoId, animalId:h.clienteVinculo.animalId }); }
+  catch(e){ corpo.innerHTML = '<div class="hint-text">Não consegui carregar: '+escHtml(msgErroFuncao(e))+'</div>'; return; }
+  const a = r.animal||{}, tab = (cab, linhas)=> linhas.length ? `<div class="grid-wrap"><table class="grid"><thead><tr>${cab.map(c=>'<th>'+c+'</th>').join('')}</tr></thead><tbody>${linhas.map(l=>'<tr>'+l.map(c=>'<td>'+escHtml(c==null?'':String(c))+'</td>').join('')+'</tr>').join('')}</tbody></table></div>` : '<div class="hint-text">Nenhum registro.</div>';
+  const tit = t=>`<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin:14px 0 6px;">${t}</div>`;
+  const dado = (rot,v)=> v ? `<div><span style="color:var(--muted);font-size:12px;">${rot}</span><br><strong>${escHtml(v)}</strong></div>` : '';
+  const ex = a.examesSaude||{};
+  corpo.innerHTML = `<div class="hint-text" style="margin:0 0 8px;">🔗 Cavalo do cliente <strong>${escHtml(r.donoNome||'')}</strong> — <strong>somente leitura</strong>. O que você lançar para ele vai como <strong>pendente</strong> para o cliente aprovar.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">${[dado('Apelido',a.apelido),dado('Sexo',a.sexo),dado('Nascimento',a.nascimento?fmtDate(a.nascimento):''),dado('Pelagem',a.pelagem),dado('Raça',a.raca),dado('Categoria',a.categoria),dado('Status',a.status),dado('Localização',a.localizacao),dado('Pai',a.pai),dado('Mãe',a.mae)].join('')}</div>
+    ${Object.keys(ex).length? tit('Exames de saúde')+tab(['Exame','Data','Validade'], Object.entries(ex).map(([t,e])=>[t, e.data?fmtDate(e.data):'', e.validade?fmtDate(e.validade):''])) : ''}
+    ${tit('Manejos (casco, ferrageamento, vermífugo, vacina, dental)')}${tab(['Data','Tipo','Detalhe','Obs.'], (r.manejos||[]).map(m=>[fmtDate(m.data), m.tipo, [m.subtipo, m.ferrador?('ferrador '+m.ferrador):'', m.medicamento].filter(Boolean).join(' · '), m.obs]))}
+    ${tit('Tratamentos')}${tab(['Início','Medicamento','Dose','Aplicações','Obs.'], (r.tratamentos||[]).map(t=>[fmtDate(t.dataInicio), t.medicamento, (t.quantidade||'')+' '+(t.unidade||'')+(t.meio?' ('+t.meio+')':''), (t.aplicacoes||'')+(t.intervaloDias>1?' a cada '+t.intervaloDias+' dias':''), t.obs]))}
+    ${tit('Atividades (treinos recentes)')}${tab(['Data','Tipo','Local'], (r.treinos||[]).map(t=>[fmtDate(t.data), t.tipo, t.local]))}`;
+}
+/* ---- Prestador: barra de clientes na tela Animais ---- */
+let filtroClientePrest = { tipo:'todos', chave:'' }; // todos = só os internos (de todos os clientes dele) | int = um cliente interno | ext = um cliente externo (que liberou os cavalos)
+function desenharBarraClientesPrest(){
+  const el = document.getElementById('barraClientesPrest'); if(!el) return;
+  if(!ladoPrestador()){ el.style.display='none'; el.innerHTML=''; return; }
+  const internos = new Map(), externos = new Map();
+  horses.forEach(h=>{
+    if(h.clienteVinculo){ if(h.clienteVinculo.semAcesso) return; const k=h.clienteVinculo.vinculoId; const o=externos.get(k)||{ nome:h.clienteVinculo.donoNome||'cliente', n:0 }; o.n++; externos.set(k,o); }
+    else { const nome=(h.proprietario||'').trim(); if(!nome) return; const k=nome.toLowerCase(); const o=internos.get(k)||{ nome, n:0 }; o.n++; internos.set(k,o); }
+  });
+  const nInternos = horses.filter(h=>!h.clienteVinculo).length;
+  const soExternos = ehAssinaturaFerrador();
+  const chip = (ativo, texto, attrs, ext)=>`<span class="chip ${ativo?'active':''}" ${attrs} style="${ext?'border-style:dashed;background:'+(ativo?'#6b4e00':'#fff7e0')+';color:'+(ativo?'#fff':'#6b4e00')+';':''}">${texto}</span>`;
+  const sel = filtroClientePrest;
+  // se o cliente escolhido sumiu (acesso retirado / nenhum animal), volta para "Todos"
+  if(sel.tipo==='ext' && !externos.has(sel.chave)) filtroClientePrest = { tipo:'todos', chave:'' };
+  if(sel.tipo==='int' && !internos.has(sel.chave.toLowerCase())) filtroClientePrest = { tipo:'todos', chave:'' };
+  if(soExternos && filtroClientePrest.tipo!=='ext' && externos.size){ filtroClientePrest = { tipo:'ext', chave:[...externos.keys()][0] }; } // ferrador abre direto no 1º cliente
+  const atual = filtroClientePrest;
+  el.style.display='block';
+  el.innerHTML = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">Clientes</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      ${soExternos ? '' : chip(atual.tipo==='todos', 'Todos os meus ('+nInternos+')', 'data-cliprest="todos"', false)}
+      ${soExternos ? '' : [...internos.values()].sort((a,b)=>a.nome.localeCompare(b.nome,'pt')).map(o=>chip(atual.tipo==='int'&&atual.chave.toLowerCase()===o.nome.toLowerCase(), escHtml(o.nome)+' ('+o.n+')', 'data-cliprest="int" data-chave="'+escHtml(o.nome)+'"', false)).join('')}
+      ${externos.size? '<span style="color:var(--muted);font-size:12px;margin:0 4px;">|</span>' : ''}
+      ${[...externos.entries()].sort((a,b)=>a[1].nome.localeCompare(b[1].nome,'pt')).map(([k,o])=>chip(atual.tipo==='ext'&&atual.chave===k, '🔗 '+escHtml(o.nome)+' ('+o.n+') · externo', 'data-cliprest="ext" data-chave="'+escHtml(k)+'" title="Cliente externo: você vê um por vez, em leitura. O que você lançar vai para a aprovação dele."', true)).join('')}
+    </div>
+`;
+  el.querySelectorAll('[data-cliprest]').forEach(c=>c.addEventListener('click', ()=>{ filtroClientePrest = { tipo:c.dataset.cliprest, chave:c.dataset.chave||'' }; renderHorses(); }));
+}
 function renderHorses(){
   renderFiltrosAnimaisChips();
   const banner = document.getElementById('grupoFiltroBanner');
@@ -7387,8 +7608,15 @@ function renderHorses(){
   document.getElementById('viewModeChips').style.opacity = grupoFiltroAtivo ? '0.4' : '1';
   document.getElementById('viewModeChips').style.pointerEvents = grupoFiltroAtivo ? 'none' : 'auto';
   const term=document.getElementById('hSearch').value.toLowerCase();
+  desenharBarraClientesPrest();
   const baseList = horses.filter(h=>{
     if(grupoFiltroAtivo) return grupoFiltroAtivo.animais.some(a=>a.id===h.id);
+    if(ladoPrestador()){
+      // Prestador: cliente EXTERNO escolhido → só os cavalos dele (ignora as abas Ativos/Externos); senão só os INTERNOS (opcionalmente de um cliente interno)
+      if(filtroClientePrest.tipo==='ext') return !!h.clienteVinculo && !h.clienteVinculo.semAcesso && h.clienteVinculo.vinculoId===filtroClientePrest.chave;
+      if(h.clienteVinculo) return false;
+      if(filtroClientePrest.tipo==='int' && (h.proprietario||'').trim().toLowerCase()!==filtroClientePrest.chave.toLowerCase()) return false;
+    }
     switch(viewMode){
       case 'externos': return h.situacao==='E';
       case 'falecidos': return !!h.falecimento;
@@ -7765,6 +7993,7 @@ function openHorseNew(){
 }
 function openHorseEdit(id){
   const h=horses.find(x=>x.id===id); if(!h) return;
+  if(h.clienteVinculo){ abrirFichaExterna(h); return; } // cavalo de cliente externo: ficha só-leitura
   editingHorseId=id;
   document.getElementById('hModalTitle').textContent=h.nome||'Editar Animal';
   document.getElementById('btnDeleteHorse').style.display='inline-block';
@@ -10552,6 +10781,8 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
     selected.forEach(a=>{ a.valorBase = custoPorAnimal; });
   }
   const registro = { id: editingManejoId || ('mj_'+Date.now()), data, tipo, obs:document.getElementById('m_obs').value, animais: selected };
+  if(registroAnterior && registroAnterior.publicacoes) registro.publicacoes = registroAnterior.publicacoes;
+  if(registroAnterior && registroAnterior.origem) registro.origem = registroAnterior.origem;
   if(tipo==='Casco'){
     registro.subtipoCasco = tipoGeral;
     registro.ferrador = resolverFerradorDigitado(document.getElementById('m_ferrador_sel').value);
@@ -10606,7 +10837,39 @@ document.getElementById('btnSaveManejo').addEventListener('click', async ()=>{
   closeModal('overlayManejo'); renderManejos();
   salvarEmSegundoPlano('manejos_list', manejos, ()=>renderManejos());
   if(avisoBaixa) showAlert('Lançamento salvo'+avisoBaixa+'.');
+  perguntarPublicarManejo(registro).catch(e=>{ console.error('publicar manejo:', e); showAlert('O lançamento foi salvo, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
+/* Prestador (ferrador): manejo de CASCO em cavalo de CLIENTE externo → pergunta se publica no programa dele (pendente; corrigir enquanto pendente substitui). */
+async function perguntarPublicarManejo(registro){
+  if(!ladoPrestador() || registro.tipo!=='Casco') return;
+  const alvos = (registro.animais||[]).map(a=>({ a, h:horses.find(x=>x.id===a.id) })).filter(x=>x.h && x.h.clienteVinculo && !x.h.clienteVinculo.semAcesso);
+  if(alvos.length===0) return;
+  const jaComDeslocamento = new Set();
+  const linhas = alvos.map(({a,h})=>{
+    const v = Math.round(((Number(a.valorBase)||0)+(Number(a.valorExtra)||0))*100);
+    const tipoCasco = a.tipo || registro.subtipoCasco || 'Casqueamento';
+    const itens = [{ tipo:'servico', nome:tipoCasco, categoria:/^(ferrad|repreg|reposi)/i.test(tipoCasco)?'ferrageamento':'casqueamento', valorCentavos:v, obs:a.extra||'' }];
+    const desl = Math.round((Number(registro.deslocamento)||0)*100);
+    if(desl>0 && !jaComDeslocamento.has(h.clienteVinculo.vinculoId)){ jaComDeslocamento.add(h.clienteVinculo.vinculoId); itens.push({ tipo:'servico', nome:'Deslocamento', categoria:'deslocamento', valorCentavos:desl, obs:'' }); }
+    return { h, itens, total: totalCobradoSolic(itens) };
+  });
+  const resumo = linhas.map(l=>'• '+l.h.nome+' — '+resumoItensSolic(l.itens)+' · '+fmtCentavos(l.total)).join('\n');
+  const jaTem = alvos.some(x=>registro.publicacoes && registro.publicacoes[x.h.id]);
+  const ok = await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true});
+  document.getElementById('dialogMessage').style.whiteSpace = '';
+  if(!ok) return;
+  registro.publicacoes = registro.publicacoes || {};
+  const falhas = []; let enviados = 0;
+  for(const l of linhas){
+    try{
+      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:l.h.clienteVinculo.vinculoId, animalId:l.h.clienteVinculo.animalId, dataRegistro:registro.data, tipoRegistro:'casco',
+        descricao:registro.obs||'', itens:l.itens, substituiSolicitacaoId:registro.publicacoes[l.h.id]||undefined });
+      registro.publicacoes[l.h.id] = r.id; enviados++;
+    }catch(e){ falhas.push(l.h.nome+': '+msgErroFuncao(e)); }
+  }
+  salvarEmSegundoPlano('manejos_list', manejos);
+  showAlert((enviados? ('Publicado para o cliente ('+enviados+' animal(is)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+}
 // Relatório de visualização de UM lançamento específico — mostra de onde vem cada parte do valor total
 // (animal por animal: tipo aplicado, valor base, valor extra e subtotal), pra conferir a cobrança.
 const RELATORIO_MANEJO_ESTILO = `.rel-manejo-pdf .no-print{display:none !important;} .rel-manejo-pdf{font-family:Arial,sans-serif;padding:24px;color:#222;background:#fff;box-sizing:border-box;} .rel-manejo-pdf *{box-sizing:border-box;} .rel-manejo-pdf h1{font-size:18px;margin-bottom:2px;} .rel-manejo-pdf h2{font-size:15px;margin:26px 0 2px;border-top:1px solid #ddd;padding-top:16px;} .rel-manejo-pdf .sub{color:#555;margin-bottom:14px;font-size:13px;} .rel-manejo-pdf table{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;} .rel-manejo-pdf th,.rel-manejo-pdf td{border:1px solid #ccc;padding:6px;text-align:left;font-size:11.5px;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:normal;} .rel-manejo-pdf th{background:#f2f2f2;} .rel-manejo-pdf td.num,.rel-manejo-pdf th.num{text-align:right;} .rel-manejo-pdf tfoot td{font-weight:700;background:#f8f8f8;} .rel-manejo-pdf .obs{color:#666;font-size:11px;} .rel-manejo-pdf ul.animais-simples{margin:8px 0 0;padding-left:20px;font-size:13px;} .rel-manejo-pdf .report-card{max-width:100%;overflow:hidden;} .rel-manejo-pdf .matrix-wrap{max-width:100%;overflow:hidden;} .rel-manejo-pdf img{max-width:100%;} /* .grid-wrap na tela usa max-height:calc(100vh - Npx) pra rolar em vez de estourar a página — dentro do PDF isso corta a tabela na altura da tela (sem barra de rolagem numa imagem estática, o resto simplesmente some). O PDF nunca deve limitar altura: o conteúdo continua na página de baixo. */ .rel-manejo-pdf .grid-wrap{max-height:none !important;overflow:visible !important;} /* .grid-compare (Comparação de Formulações) cresce mais larga que o container de propósito, pra rolar na horizontal NA TELA — dentro do PDF isso estourava a largura da folha e cortava as últimas colunas. Aqui força de volta pro mesmo table-layout:fixed/width:100% das outras tabelas do relatório, que já espreme as colunas pra caber certinho. */ .rel-manejo-pdf table.grid.grid-compare{width:100% !important;min-width:0 !important;} /* Cada bloco (1 animal, 1 manejo, 1 visita...) fica inteiro na mesma folha — nunca corta um no meio pra começar o de baixo na próxima. */ .rel-manejo-pdf .report-animal-block,.rel-manejo-pdf .pdf-item-block{page-break-inside:avoid;break-inside:avoid;} /* html2canvas não aplica @media print — some aqui o que só devia sumir na hora de imprimir/exportar (ex: placeholder de foto "em breve"). */ .rel-manejo-pdf .no-print{display:none !important;} /* muitas colunas: fonte e espaçamento menores pra caber na folha */ .rel-manejo-pdf table.compacta th,.rel-manejo-pdf table.compacta td{font-size:9px;padding:3px;line-height:1.15;} .rel-manejo-pdf table.mais-compacta th,.rel-manejo-pdf table.mais-compacta td{font-size:7.5px;padding:2px;line-height:1.1;}
@@ -19323,7 +19586,7 @@ document.getElementById('btnAddTratamentoUtensilio').addEventListener('click', (
   renderTratamentoUtensilios();
 });
 const tratamentoHost = document.getElementById('tratamentoSelectorHost');
-const tratamentoSelector = createAnimalSelector(tratamentoHost, {onlyActive:true});
+const tratamentoSelector = createAnimalSelector(tratamentoHost, {onlyActive:true, incluirDeClientes:true});
 
 function fillTratamentoMedicamentoSelect(currentNome){
   refreshDatalists(); // garante que o datalist de medicamentos está com os produtos mais recentes do Estoque
@@ -19535,7 +19798,7 @@ bindSaveShortcut('overlayTratamento','btnSaveTratamento');
 
 /* ================= VISITAS (Veterinária) ================= */
 const visitaHost = document.getElementById('visitaSelectorHost');
-const visitaSelector = createAnimalSelector(visitaHost, {extraLabel:'Observação', extraPlaceholder:'Observação sobre esse animal (opcional)', onlyActive:true, onChange:()=>{ renderVisitaCustos(); renderVisitaDocs(); }});
+const visitaSelector = createAnimalSelector(visitaHost, {extraLabel:'Observação', extraPlaceholder:'Observação sobre esse animal (opcional)', onlyActive:true, incluirDeClientes:true, onChange:()=>{ renderVisitaCustos(); renderVisitaDocs(); }});
 
 /* ---- Serviços e Produtos da visita ---- */
 // Cada linha de custo é de UM animal específico (uma visita pode revisar vários cavalos, cada um com
@@ -19553,18 +19816,20 @@ function renderVisitaCustos(){
       <div>Tipo</div><div>Serviço / Produto</div><div>Animal</div><div>Qtd</div><div>Valor</div><div></div>
     </div>` +
     visitaCustosState.map((it,idx)=>{
-      const isProduto = it.tipo==='produto';
-      const nomeField = isProduto
+      const isProduto = it.tipo==='produto', isProdCli = it.tipo==='produtoCliente';
+      const nomeField = isProdCli
+        ? `<input type="text" data-vcfield="nomeLivre" data-idx="${idx}" value="${escHtml(it.nome||'')}" maxlength="120" placeholder="Nome do produto do cliente">`
+        : isProduto
         ? `<select data-vcfield="produtoId" data-idx="${idx}"><option value="">Selecione...</option>${estoqueProdutos.map(p=>`<option value="${p.id}" ${it.produtoId===p.id?'selected':''}>${escHtml(p.nome)}</option>`).join('')}</select>`
         : `<select data-vcfield="nome" data-idx="${idx}"><option value="">Selecione...</option>${(aux.servicoVeterinario||[]).map(s=>`<option value="${s}" ${it.nome===s?'selected':''}>${s}</option>`).join('')}</select>`;
       const animalField = `<select data-vcfield="animalId" data-idx="${idx}"><option value="">—</option>${animaisOpts.map(a=>`<option value="${a.id}" ${it.animalId===a.id?'selected':''}>${escHtml(a.nome)}</option>`).join('')}</select>`;
       return `<div style="margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line);">
       <div style="display:grid;grid-template-columns:${cols};gap:6px;align-items:center;margin-bottom:6px;">
-        <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option></select>
+        <select data-vcfield="tipo" data-idx="${idx}"><option value="servico" ${!isProduto?'selected':''}>Serviço</option><option value="produto" ${isProduto?'selected':''}>Produto</option>${(ladoPrestador()||isProdCli)?`<option value="produtoCliente" ${isProdCli?'selected':''}>Produto do cliente</option>`:''}</select>
         ${nomeField}
         ${animalField}
-        ${isProduto ? `<input type="number" step="0.01" min="0" data-vcfield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="Qtd">` : '<span></span>'}
-        <input type="number" step="0.01" min="0" data-vcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00" ${isProduto?'readonly title="Calculado pelo produto x quantidade"':''}>
+        ${(isProduto||isProdCli) ? `<input type="number" step="0.01" min="0" data-vcfield="quantidade" data-idx="${idx}" value="${it.quantidade||''}" placeholder="Qtd">` : '<span></span>'}
+        ${isProdCli ? `<input type="text" value="" placeholder="sem cobrança" readonly title="Produto do cliente: sai do estoque dele e não entra na sua cobrança">` : `<input type="number" step="0.01" min="0" data-vcfield="valor" data-idx="${idx}" value="${it.valor||''}" placeholder="0,00" ${isProduto?'readonly title="Calculado pelo produto x quantidade"':''}>`}
         <button type="button" class="btn btn-sm btn-danger" data-vcremove="${idx}" title="Remover">✕</button>
       </div>
       <input type="text" data-vcfield="obs" data-idx="${idx}" value="${escHtml(it.obs||'')}" placeholder="Observação (opcional)" style="width:100%;">
@@ -19576,6 +19841,9 @@ function renderVisitaCustos(){
       visitaCustosState[idx] = { tipo: sel.value, animalId: visitaCustosState[idx].animalId||'', obs: visitaCustosState[idx].obs||'' };
       renderVisitaCustos();
     });
+  });
+  host.querySelectorAll('[data-vcfield="nomeLivre"]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ visitaCustosState[Number(inp.dataset.idx)].nome = inp.value; });
   });
   host.querySelectorAll('[data-vcfield="obs"]').forEach(inp=>{
     inp.addEventListener('input', ()=>{ visitaCustosState[Number(inp.dataset.idx)].obs = inp.value; });
@@ -19606,6 +19874,7 @@ function renderVisitaCustos(){
     inp.addEventListener('input', ()=>{
       const idx=Number(inp.dataset.idx);
       visitaCustosState[idx].quantidade = inp.value;
+      if(visitaCustosState[idx].tipo==='produtoCliente') return;
       const p = estoqueProdutos.find(x=>x.id===visitaCustosState[idx].produtoId);
       const qtd = Number(inp.value)||0;
       visitaCustosState[idx].valor = (p && qtd>0) ? Math.round((custoUnitarioProduto(p)||0)*qtd*100)/100 : '';
@@ -19811,6 +20080,9 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
     if(c.tipo==='produto'){
       if(!c.produtoId || !c.animalId || !(Number(c.quantidade)>0)) { showAlert('Complete todas as linhas de Produto (produto, animal e quantidade) ou remova as incompletas.'); return; }
       custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'produto', produtoId:c.produtoId, produtoNome:c.produtoNome, animalId:c.animalId, quantidade:Number(c.quantidade), valor:Number(c.valor)||0, obs:(c.obs||'').trim() });
+    } else if(c.tipo==='produtoCliente'){
+      if(!(c.nome||'').trim() || !c.animalId || !(Number(c.quantidade)>0)) { showAlert('Complete todas as linhas de Produto do cliente (nome, animal e quantidade) ou remova as incompletas.'); return; }
+      custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'produtoCliente', nome:c.nome.trim(), animalId:c.animalId, quantidade:Number(c.quantidade), obs:(c.obs||'').trim() });
     } else {
       if(!c.nome || !c.animalId || !(Number(c.valor)>0)) { showAlert('Complete todas as linhas de Serviço (serviço, animal e valor) ou remova as incompletas.'); return; }
       custosValidos.push({ id:c.id||('vc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)), tipo:'servico', nome:c.nome, animalId:c.animalId, valor:Number(c.valor), obs:(c.obs||'').trim() });
@@ -19826,6 +20098,7 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
     animais: animaisSel.map(a=>({ id:a.id, nome:a.nome, obs:a.extra||'' })),
     custos: custosValidos, documentos: docsValidos
   };
+  { const antes = editingVisitaId ? visitas.find(v=>v.id===editingVisitaId) : null; if(antes && antes.publicacoes) record.publicacoes = antes.publicacoes; if(antes && antes.origem) record.origem = antes.origem; }
   // Baixa automática dos Produtos no estoque — só em visita NOVA, pra não repetir a baixa toda vez que
   // reabrir e salvar de novo (mesma regra já usada em Manejos de Vacina/Vermífugo).
   if(!editingVisitaId){
@@ -19853,7 +20126,39 @@ document.getElementById('btnSaveVisita').addEventListener('click', async ()=>{
   visitas = editingVisitaId ? visitas.map(v=>v.id===editingVisitaId?record:v) : [...visitas, record];
   closeModal('overlayVisita'); renderVisitas(); renderFinanceiro();
   salvarEmSegundoPlano('visitas_list', visitas, ()=>{ renderVisitas(); renderFinanceiro(); });
+  perguntarPublicarVisita(record).catch(e=>{ console.error('publicar visita:', e); showAlert('A visita foi salva, mas não consegui publicar no programa do cliente: '+msgErroFuncao(e)); });
 });
+/* Prestador: visita com animal de CLIENTE → pergunta se publica no programa dele (vai como PENDENTE; corrigir enquanto pendente substitui). */
+function itensDaVisitaParaCliente(record, animalId){
+  const itens = [];
+  (record.custos||[]).filter(c=>c.animalId===animalId).forEach(c=>{
+    if(c.tipo==='servico') itens.push({ tipo:'servico', nome:c.nome, categoria:'outro', valorCentavos:Math.round((Number(c.valor)||0)*100), obs:c.obs||'' });
+    else if(c.tipo==='produto'){ const q=Number(c.quantidade)||0; const pe=estoqueProdutos.find(x=>x.id===c.produtoId); itens.push({ tipo:'material', nome:c.produtoNome||'Produto', quantidade:q, unidade:(pe&&pe.unidade)||'', produtoDoPrestador:true, valorUnitarioCentavos:q>0?Math.round((Number(c.valor)||0)*100/q):0, obs:c.obs||'' }); }
+    else if(c.tipo==='produtoCliente') itens.push({ tipo:'material', nome:c.nome, quantidade:Number(c.quantidade)||0, unidade:'', produtoDoPrestador:false, obs:c.obs||'' });
+  });
+  return itens;
+}
+async function perguntarPublicarVisita(record){
+  if(!ladoPrestador()) return;
+  const alvos = (record.animais||[]).map(a=>horses.find(h=>h.id===a.id)).filter(h=>h && h.clienteVinculo && !h.clienteVinculo.semAcesso);
+  if(alvos.length===0) return;
+  const linhas = alvos.map(h=>{ const it=itensDaVisitaParaCliente(record, h.id); return { h, it, total: totalCobradoSolic(it) }; });
+  const resumo = linhas.map(l=>'• '+l.h.nome+' — '+(l.it.length? (resumoItensSolic(l.it)+' · '+fmtCentavos(l.total)) : 'sem serviços/produtos (não será enviado)')).join('\n');
+  const jaTem = alvos.some(h=>record.publicacoes && record.publicacoes[h.id]);
+  if(!(await showConfirm('Publicar no programa do cliente?\n\n'+resumo+'\n\nVai como PENDENTE: o cliente aprova antes de entrar na ficha.'+(jaTem?' Se a versão anterior ainda estiver pendente, esta a substitui.':''), {titulo:'Publicar para o cliente', quebraLinhas:true}))) return;
+  record.publicacoes = record.publicacoes || {};
+  const falhas = []; let enviados = 0;
+  for(const l of linhas){
+    if(l.it.length===0) continue;
+    try{
+      const r = await chamarFuncao('enviarSolicitacao', { vinculoId:l.h.clienteVinculo.vinculoId, animalId:l.h.clienteVinculo.animalId, dataRegistro:record.data, tipoRegistro:'visita',
+        descricao:[record.obsGeral, ((record.animais||[]).find(a=>a.id===l.h.id)||{}).obs].filter(Boolean).join(' — '), itens:l.it, substituiSolicitacaoId:record.publicacoes[l.h.id]||undefined });
+      record.publicacoes[l.h.id] = r.id; enviados++;
+    }catch(e){ falhas.push(l.h.nome+': '+msgErroFuncao(e)); }
+  }
+  salvarEmSegundoPlano('visitas_list', visitas);
+  showAlert((enviados? ('Publicado para o cliente ('+enviados+' animal(is)), pendente de aprovação. ') : '')+(falhas.length? ('Não consegui enviar: '+falhas.join(' | ')) : ''));
+}
 document.getElementById('btnDeleteVisita').addEventListener('click', async ()=>{
   if(!editingVisitaId || !(await showConfirm('Excluir esta visita? O histórico de baixas de produto já feitas no estoque não é desfeito.'))) return;
   visitas = visitas.filter(v=>v.id!==editingVisitaId);
@@ -23002,6 +23307,7 @@ function naPlanoDoCliente(view){
 }
 function viewsPermitidasBruto(user){
   if(!user) return [];
+  if(ehAssinaturaFerrador()) return ['inicio','animais','manejos','prestadores']; // assinatura de ferrador: super limitada
   // Dietas e Piquetes não têm módulo de permissão próprio — continuam governados pela mesma
   // permissão de Estoque de sempre.
   if(user.admin) return ['inicio','calendario', ...MODULOS_PERMISSAO, 'dietas', 'piquetes', 'auditoria', 'filtrosanimais', ...(DONO ? ['clientes'] : []), ...(recursoAtivo('integracao_prestadores') ? ['prestadores'] : [])];
@@ -23013,6 +23319,7 @@ function viewsPermitidasBruto(user){
 // de um Ferrador, que só deve ver/mexer em lançamentos do tipo Casco.
 function manejoTiposPermitidos(user){
   if(!user) return [];
+  if(ehAssinaturaFerrador()) return ['Casco'];
   if(user.admin) return MANEJO_TIPOS_OPCOES.slice();
   const p = user.permissoes && user.permissoes.manejos;
   if(!p || !p.ver) return [];
@@ -23038,6 +23345,7 @@ function aplicarPermissoesBotoesNovo(){
     const btn = document.getElementById(id);
     if(btn) btn.style.display = temPermissao(modulo,'inserir') ? '' : 'none';
   });
+  if(ehAssinaturaFerrador()){ const nb = document.getElementById('btnNewHorse'); if(nb) nb.style.display = 'none'; } // ferrador não cadastra animais: trabalha nos cavalos dos clientes
 }
 // Restringe o seletor "Tipo de Manejo" (no filtro do histórico e no formulário de novo lançamento) a só
 // os tipos que o usuário logado pode acessar — pra um Ferrador (só Casco liberado), por exemplo, nem
@@ -23563,6 +23871,7 @@ document.addEventListener('click', e=>{
   if(btn){ e.stopPropagation(); abrirFichaNovaAba(btn.dataset.eyeid); }
 }, true);
 function abrirPerfilAnimal(id){
+  { const hx = horses.find(x=>x.id===id); if(hx && hx.clienteVinculo){ abrirFichaExterna(hx); return; } }
   guardarPontoDeVolta(); // cobre todo 👁 do app de uma vez — um hook só, "Voltar" funciona em qualquer um
   perfilAnimalId = id;
   timelineFiltro = 'todos';
@@ -25431,6 +25740,7 @@ function iniciarAppLogado(authUser){
     relFichaSelector.restoreFromSaved();
     entrarNoApp();
     setTimeout(verificarOnboardingCliente, 600); // cliente novo: assistente do 1º login (só administrador, uma vez)
+    setTimeout(avisarSolicitacoesPendentes, 2500); // proprietário: registros de prestadores aguardando aprovação
     // Se essa aba foi aberta por um ícone 👁 (URL com ?animal=ID), já entra direto na ficha desse animal.
     const paramAnimal = new URLSearchParams(location.search).get('animal');
     if(paramAnimal && horses.some(h=>h.id===paramAnimal)){

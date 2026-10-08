@@ -16,7 +16,7 @@ function exigirAdminComRecurso(request){
   if (!request.auth) throw new HttpsError('unauthenticated', 'Entre na sua conta para continuar.');
   const t = request.auth.token || {};
   if (t.papel !== 'admin') throw new HttpsError('permission-denied', 'Só o administrador da assinatura pode fazer isso.');
-  if (t.tenantId && !(Array.isArray(t.recursos) && t.recursos.includes(RECURSO)))
+  if (t.tenantId && t.tipoAssinatura !== 'ferrador' && !(Array.isArray(t.recursos) && t.recursos.includes(RECURSO)))
     throw new HttpsError('permission-denied', 'Esse recurso ainda não foi liberado para a sua assinatura.');
 }
 const assinaturaDoChamador = (token) => token.tenantId || ORIGINAL;
@@ -73,7 +73,7 @@ async function convidarPrestador({ auth, db, token }, data){
     throw new HttpsError('not-found', 'Não encontramos uma assinatura de prestador com esse e-mail. Peça para o prestador ter uma assinatura e informar o e-mail do administrador dela.');
   const prestador = c.tenantId;
   if (prestador === dono) throw new HttpsError('invalid-argument', 'Você não pode se convidar.');
-  if (!(Array.isArray(c.recursos) && c.recursos.includes(RECURSO)))
+  if (c.tipoAssinatura !== 'ferrador' && !(Array.isArray(c.recursos) && c.recursos.includes(RECURSO)))   // assinatura de ferrador já nasce com a integração
     throw new HttpsError('failed-precondition', 'Essa assinatura ainda não tem o recurso de prestadores liberado.');
   const escolha = await validarAnimais(db, dono, data);
   const vid = `${dono}__${prestador}`;
@@ -225,6 +225,10 @@ async function enviarSolicitacao({ db, token }, data){
   const tipoRegistro = data.tipoRegistro === undefined || data.tipoRegistro === '' ? 'outro' : data.tipoRegistro;
   if (!TIPOS_REGISTRO.includes(tipoRegistro)) throw new HttpsError('invalid-argument', 'Tipo de registro inválido.');
   const itens = limparItens(data.itens);
+  if (tipoDoChamador(token) === 'ferrador') {
+    if (tipoRegistro !== 'casco') throw new HttpsError('permission-denied', 'A assinatura de ferrador só registra casqueamento/ferrageamento.');
+    if (itens.some(i => i.tipo !== 'servico' || !['casqueamento', 'ferrageamento', 'deslocamento'].includes(i.categoria))) throw new HttpsError('permission-denied', 'A assinatura de ferrador só envia serviços de casqueamento, ferrageamento e deslocamento.');
+  }
   const por = typeof token.email === 'string' ? token.email : '';
   // Correção de um registro já enviado: se a versão antiga ainda está PENDENTE (e é deste prestador, vínculo e animal), a nova a substitui.
   if (typeof data.substituiSolicitacaoId === 'string' && RE_SID.test(data.substituiSolicitacaoId)) {
@@ -355,6 +359,10 @@ async function fichaDoAnimal({ db, token }, data){
   const tratamentosOut = doAnimal(tratamentos).sort(porData).slice(0, 15).map(t => ({ medicamento: soTexto(t.medicamentoNome, 80), quantidade: Number(t.quantidade) || 0, unidade: soTexto(t.unidade, 20), meio: soTexto(t.meioAplicacao, 40),
     dataInicio: soTexto(t.dataInicio, 10), aplicacoes: Number(t.diasTratamento) || 0, intervaloDias: Number(t.intervaloDias) || 1, obs: soTexto(t.obs, 300) }));
   const treinosOut = doAnimal(treinos).sort(porData).slice(0, 15).map(t => ({ data: soTexto(t.data, 10), tipo: soTexto(t.tipo, 40), local: soTexto(t.local, 60) }));
+  if (tipoDoChamador(token) === 'ferrador') { // ferrador: só dados do animal (sem exames) e manejos de casco
+    delete animal.examesSaude;
+    return { vinculoId: data.vinculoId, donoNome: v.donoNome, animal, manejos: manejosOut.filter(m => m.tipo === 'Casco'), tratamentos: [], treinos: [] };
+  }
   return { vinculoId: data.vinculoId, donoNome: v.donoNome, animal, manejos: manejosOut, tratamentos: tratamentosOut, treinos: treinosOut };
 }
 
