@@ -154,7 +154,7 @@ async function revogarVinculo({ db, token }, data){
    Coleção de servidor `solicitacoes/{id}`. Nada entra na ficha do proprietário aqui: só fica pendente (a aprovação é a etapa 3).
    Itens: 'servico' (leva o VALOR do prestador) e 'material' (estoque/preço do proprietário; só leva valor se o prestador marcou
    "este produto é meu": produtoDoPrestador=true, com valor unitário). Preço de compra/estoque do prestador nunca são enviados. */
-const TIPOS_REGISTRO = ['aplicacao', 'tratamento', 'procedimento', 'consulta', 'outro'];
+const TIPOS_REGISTRO = ['aplicacao', 'tratamento', 'procedimento', 'consulta', 'visita', 'outro'];
 const CATEGORIAS_SERVICO = ['consulta', 'procedimento', 'exame', 'casqueamento', 'ferrageamento', 'deslocamento', 'outro'];
 const MAX_ITENS = 30, MAX_PENDENTES_POR_VINCULO = 50, MAX_LISTA = 200;
 const MAX_VALOR_CENTAVOS = 100000000;
@@ -225,9 +225,21 @@ async function enviarSolicitacao({ db, token }, data){
   const tipoRegistro = data.tipoRegistro === undefined || data.tipoRegistro === '' ? 'outro' : data.tipoRegistro;
   if (!TIPOS_REGISTRO.includes(tipoRegistro)) throw new HttpsError('invalid-argument', 'Tipo de registro inválido.');
   const itens = limparItens(data.itens);
+  const por = typeof token.email === 'string' ? token.email : '';
+  // Correção de um registro já enviado: se a versão antiga ainda está PENDENTE (e é deste prestador, vínculo e animal), a nova a substitui.
+  if (typeof data.substituiSolicitacaoId === 'string' && RE_SID.test(data.substituiSolicitacaoId)) {
+    const antigaRef = db.collection('solicitacoes').doc(data.substituiSolicitacaoId);
+    const antiga = await antigaRef.get();
+    const a = antiga.exists ? antiga.data() : null;
+    if (a && a.status === 'pendente' && a.prestadorTenantId === v.prestadorTenantId && a.vinculoId === data.vinculoId && a.animalId === animal.id) {
+      const novaVersao = { ...a, dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), itens, atualizadoEm: agora(), enviadoPor: por,
+        eventos: [...(a.eventos || []).slice(-(MAX_EVENTOS - 1)), { em: agora(), por, acao: 'versão atualizada pelo prestador (substitui a pendente)' }] };
+      await antigaRef.set(novaVersao);
+      return { id: antigaRef.id, substituida: true, ...novaVersao };
+    }
+  }
   const pend = await db.collection('solicitacoes').where('vinculoId', '==', data.vinculoId).where('status', '==', 'pendente').get();
   if (pend.size >= MAX_PENDENTES_POR_VINCULO) throw new HttpsError('resource-exhausted', 'Há solicitações pendentes demais para esse proprietário. Aguarde a aprovação.');
-  const por = typeof token.email === 'string' ? token.email : '';
   const ref = db.collection('solicitacoes').doc();
   const doc = { vinculoId: data.vinculoId, donoTenantId: v.donoTenantId, donoNome: v.donoNome, prestadorTenantId: v.prestadorTenantId, prestadorNome: v.prestadorNome,
     enviadoPor: por, animalId: animal.id, animalNome: animal.nome, dataRegistro: data.dataRegistro, tipoRegistro, descricao: txt(data.descricao, 1000), itens,
@@ -266,5 +278,39 @@ async function cancelarSolicitacao({ db, token }, data){
   return solPublica(ref.id, novo);
 }
 
+/* ---------------- ETAPA 3: o proprietário decide (aprovar, com revisão opcional, ou recusar) ----------------
+   O APP do proprietário grava o registro na ficha dele (mesmo código do lançamento manual, sem duplicar: o registro leva o id da
+   solicitação) e depois confirma aqui. O servidor só muda o estado da solicitação; nunca escreve na ficha do proprietário. */
+async function decidirSolicitacao({ db, token }, data){
+  exigirLado(token, 'proprietario');
+  if (typeof data.solicitacaoId !== 'string' || !RE_SID.test(data.solicitacaoId)) throw new HttpsError('invalid-argument', 'Solicitação inválida.');
+  if (data.decisao !== 'aprovar' && data.decisao !== 'recusar') throw new HttpsError('invalid-argument', 'Decisão inválida (aprovar ou recusar).');
+  const ref = db.collection('solicitacoes').doc(data.solicitacaoId);
+  const s = await ref.get();
+  if (!s.exists) throw new HttpsError('not-found', 'Solicitação não encontrada.');
+  const d = s.data();
+  if (d.donoTenantId !== assinaturaDoChamador(token)) throw new HttpsError('permission-denied', 'Essa solicitação não é para a sua assinatura.');
+  if (d.status !== 'pendente') throw new HttpsError('failed-precondition', 'Essa solicitação já foi decidida (' + d.status + ').');
+  const por = typeof token.email === 'string' ? token.email : '';
+  const novo = { ...d, atualizadoEm: agora() };
+  if (data.decisao === 'recusar') {
+    const motivo = txt(data.motivo, 300);
+    if (motivo.length < 3) throw new HttpsError('invalid-argument', 'Informe o motivo da recusa (aparece para o prestador).');
+    novo.status = 'recusado'; novo.motivo = motivo;
+    novo.eventos = addEvento(d, por, 'recusado pelo proprietário: ' + motivo);
+  } else {
+    let revisado = false;
+    if (data.itens !== undefined) {
+      const itens = limparItens(data.itens);
+      revisado = JSON.stringify(itens) !== JSON.stringify(d.itens || []);
+      if (revisado) { novo.itensOriginais = Array.isArray(d.itensOriginais) ? d.itensOriginais : (d.itens || []); novo.itens = itens; }
+    }
+    novo.status = 'aprovado'; novo.aprovadoEm = agora(); novo.aprovadoPor = por; novo.motivo = '';
+    novo.eventos = addEvento(d, por, revisado ? 'aprovado pelo proprietário (valores revisados)' : 'aprovado pelo proprietário');
+  }
+  await ref.set(novo);
+  return solPublica(ref.id, novo);
+}
+
 module.exports = { ORIGINAL, RECURSO, exigirAdminComRecurso, convidarPrestador, listarVinculos, responderConvite, atualizarAnimaisDoVinculo, revogarVinculo,
-  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao };
+  animaisAutorizados, enviarSolicitacao, listarSolicitacoes, cancelarSolicitacao, decidirSolicitacao };
