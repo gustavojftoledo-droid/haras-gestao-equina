@@ -83,11 +83,11 @@ Função `fichaDoAnimal` (prestador, vínculo ativo, só animal liberado): lê *
 ## Casco / ferrageamento publicados ao cliente (08/10/2026)
 Manejo de **Casco** em cavalo de cliente externo (seletor com a trava de um cliente por vez): ao salvar, o programa pergunta "Publicar no programa do cliente?" (resumo + total). Um registro **pendente por animal**: serviço (tipo de ferrageamento/casqueamento, valor do prestador + extra do animal) e, **uma vez por cliente**, o deslocamento. Corrigir enquanto pendente substitui. O proprietário aprova (podendo corrigir os valores), e entra como **Manejo de Casco** na ficha (idempotente; o tipo de ferrageamento novo entra no catálogo dele; o ferrador fica com o nome do prestador). Falta: Tratamento e demais manejos (vermífugo, vacina, dental), PDF e auditoria.
 
-## Assinatura de FERRADOR (08/10/2026) — tipo `ferrador`
-Quarto tipo de assinatura (além de proprietário, prestador e ambos), **super limitada, definida só pelo dono** (Clientes → Novo/Editar → Tipo de assinatura = "Ferrador"):
-- **Menu**: só Início, Animais, Manejos e Prestadores. Sem Estoque, Financeiro, Treinos, Veterinária etc.
-- **Animais**: só os cavalos dos clientes que o convidaram (barra de clientes, um cliente por vez, etiqueta externo); não cadastra animal.
-- **Manejos**: só o tipo **Casco**. Ao salvar em cavalo de cliente: "Publicar no programa do cliente?" → pendente → o cliente aprova.
-- **Ficha só-leitura** do cavalo: dados do animal e manejos de casco (sem exames, tratamentos nem treinos).
-- **Servidor** (não só tela): envio só aceita `tipoRegistro: casco` com serviços de casqueamento/ferrageamento/deslocamento (sem material, sem visita); não convida prestadores; a assinatura **já nasce com a integração ligada** (não precisa do interruptor).
-- Sem assistente de boas-vindas.
+## Assinatura de FERRADOR (08/10/2026) — tipo `ferrador` (revisada no mesmo dia)
+O ferrador **também presta serviço e contrata o programa para controlar e cobrar os clientes dele**. Por isso é uma assinatura **focada em ferração**, não "só enviar":
+- **Menu**: Início, Calendário, Animais, Manejos (só o tipo **Casco**) e Prestadores. Sem Estoque, Financeiro, Treinos, Veterinária etc.
+- **Tudo que envolve ferração do programa original**: programação de manejo de casco (avisos), histórico, valores de referência (casqueamento/ferrageamento por tipo + deslocamento), relatórios de cobrança por cliente/proprietário.
+- **Boas-vindas** (primeiro acesso) só com valores do ferrador e "avisar após X dias" de ferrageamento/casqueamento.
+- **Animais próprios** (clientes dele, sem o programa): cadastra normalmente, com o nome do proprietário; aparecem em "Todos os meus" e na barra por cliente (todos juntos, sem problema).
+- **Cavalos de clientes que usam o programa** (e o convidaram): aparecem com etiqueta externo, um cliente por vez, ficha só-leitura (dados do animal e manejos de casco); manejo de casco neles pergunta "Publicar no programa do cliente?" e só entra lá com a aprovação do cliente.
+- **Servidor** (não só tela): o envio ao cliente só aceita casco (casqueamento/ferrageamento/deslocamento), sem visita nem material; não convida prestadores; a assinatura já nasce com a integração ligada.
