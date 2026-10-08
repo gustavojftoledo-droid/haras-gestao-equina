@@ -48,3 +48,31 @@ As regras do Firestore **continuam fechadas entre clientes**. Toda troca passa p
 - O proprietário **aprova** (podendo corrigir valores/quantidades), **recusa** (com motivo, que o prestador vê) e, ao aprovar, o app grava na ficha como **Visita veterinária** (idempotente: leva o id da solicitação). Produto do cliente: baixa no estoque dele e custo pelo preço dele; se não existir ou faltar saldo → **pendência**, sem baixa e sem custo. Produto do prestador → custo "produto do prestador", sem baixa.
 - Alerta na tela ao entrar quando há registros pendentes.
 - **Ainda falta:** Tratamento (protocolo com doses) publicado ao cliente; casqueamento/ferrageamento (manejo de casco); PDF e auditoria (etapa 4).
+
+
+## Decisões do dono em 08/10/2026 (valem daqui para frente)
+1. **Aprovação do cliente é SEMPRE obrigatória.** Tudo que vier de uma assinatura externa (prestador que recebeu a visibilidade dos cavalos) só entra no sistema do cliente depois que o **cliente aprova** (ou corrige/recusa). Nunca entra direto.
+2. **Cavalos de proprietário que NÃO usa o programa** (clientes do prestador, cadastrados por ele) são **cavalos internos do prestador**: ele pode ver todos de uma vez, de todos esses clientes. Eles entram na mesma barra de clientes.
+3. **Cavalos liberados por um cliente que usa o programa**: o prestador vê **um cliente por vez** (barra de clientes; Animais começa vazio até escolher o cliente), e as telas de lançamento (Visita, Tratamento, Manejo) só deixam escolher animais **de um único cliente** por vez, para nunca misturar donos.
+4. O prestador vê o cavalo do cliente **como se fosse dele** (nome, pai, mãe, atividade, manejos de casco/ferrageamento, vermífugo, vacina etc.), em **leitura**, sempre atualizado; o que ele lança (medicamento, tratamento, serviço, manejo) vai como pendente.
+5. **Por enquanto, tudo liberado** (visibilidade total dos dados de interesse do serviço), porque o prestador de teste é do próprio dono, para ver se tudo funciona. **Revisar em 23/10/2026** (alerta agendado): reduzir o que cada tipo de prestador vê.
+
+## LEMBRETE — o que cada tipo de prestador poderia ter e ver (para decidir em 23/10/2026)
+**No programa do prestador (o que ele poderia ter):** lista de clientes; animais dos clientes (leitura) e os animais internos dele; visitas, tratamentos, manejos e serviços que ele lança; o estoque DELE (medicamentos/materiais com o preço que ele quiser); tabela de valores de serviço dele; cobrança por cliente (custo por animal/proprietário); relatórios dos atendimentos dele. Nunca: nada que seja do estoque, financeiro ou funcionários do cliente.
+
+**O que poderia enxergar do cavalo do cliente (sugestão por tipo):**
+| Dado do cavalo | Veterinário | Ferrador | Zootecnista / nutrição |
+|---|---|---|---|
+| Nome, apelido, sexo, nascimento, pelagem, raça, categoria | sim | sim | sim |
+| Pai e mãe | sim | opcional | sim |
+| Atividade / treino (nível de trabalho) | sim | sim | sim |
+| Casco e ferrageamento (últimos/próximos) | opcional | **sim** | não |
+| Vermífugo, vacina, dental (datas) | **sim** | não | opcional |
+| Tratamentos em curso, exames válidos | **sim** | não | opcional |
+| Reprodução (cobertura, prenhez, gestação) | **sim** | não | opcional |
+| Dieta e peso / escore corporal | opcional | não | **sim** |
+| Fotos e linha do tempo | opcional | opcional | opcional |
+| Localização (piquete/propriedade) | opcional | opcional | opcional |
+| Financeiro, custos, estoque, vendas, funcionários, dados pessoais do proprietário | **nunca** | **nunca** | **nunca** |
+
+Pergunta para o dia 23/10: o cliente escolhe, por prestador, quais dessas categorias libera (liga/desliga)? Hoje: tudo dos itens "sim/opcional" fica liberado.
