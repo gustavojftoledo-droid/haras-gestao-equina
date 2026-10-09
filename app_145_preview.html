@@ -15226,6 +15226,8 @@ function moverNaoDoHarasParaCatalogo(){
   return marcados;
 }
 function situacaoEstoque(p){
+  // Ração que não é do haras (nem foi organizada ainda) nunca gera alerta: Início, Estoque, cartões e filtros mostram o mesmo.
+  if(p.tipo==='Alimento' && !ehAlimentoDoHaras(p.nome)) return null;
   const qtd = Number(p.quantidade)||0;
   if(qtd<=0) return 'zerado';
   if(p.alertaModo==='projetado'){
