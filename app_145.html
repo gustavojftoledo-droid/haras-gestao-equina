@@ -11473,6 +11473,24 @@ document.getElementById('btnAbrirPedidoCompraEnvio').addEventListener('click', (
   abrirEnvioFornecedores({ comPdf:false, assunto:'Pedido de compra'+(lastPreviaTipoPedido?(' - '+(TIPO_PRODUTO_LABEL[lastPreviaTipoPedido]||lastPreviaTipoPedido)):''),
     mensagem: lastPreviaMensagemPedido || `${saudacaoPorHorario()}, tudo bem?\nSegue o pedido.\nObrigado.` });
 });
+/* ---- WhatsApp: no COMPUTADOR abre o aplicativo instalado (whatsapp://); no celular segue pelo link normal; se o aplicativo não abrir, aparece um aviso com o atalho para o WhatsApp Web ---- */
+function abrirWhatsApp(numero, mensagem){
+  const texto = encodeURIComponent(mensagem||'');
+  const web = `https://wa.me/${numero}?text=${texto}`;
+  const celular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
+  if(celular){ window.open(web, '_blank'); return; }
+  const a = document.createElement('a');
+  a.href = `whatsapp://send?phone=${numero}&text=${texto}`; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+  const antigo = document.getElementById('avisoWhatsApp'); if(antigo) antigo.remove();
+  const aviso = document.createElement('div');
+  aviso.id = 'avisoWhatsApp';
+  aviso.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100001;background:#1f3a2c;color:#fff;padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:13px;display:flex;gap:12px;align-items:center;max-width:92vw;';
+  aviso.innerHTML = `<span>Abrindo o WhatsApp do computador... (na primeira vez o navegador pergunta: marque "Sempre permitir").</span><a href="${web}" target="_blank" rel="noopener" style="color:#ffd27a;font-weight:700;white-space:nowrap;">Não abriu? Usar WhatsApp Web</a><button type="button" style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;" aria-label="Fechar">✕</button>`;
+  aviso.querySelector('button').addEventListener('click', ()=>aviso.remove());
+  document.body.appendChild(aviso);
+  setTimeout(()=>{ if(aviso.parentNode) aviso.remove(); }, 15000);
+}
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
   if(marcados.length===0){ showAlert('Marque ao menos um contato.'); return; }
@@ -11484,13 +11502,12 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   // o WhatsApp primeiro rouba esse foco e faz a geração falhar (ver aviso em baixarRelatorioManejoPDF).
   if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); }
   const fila = document.getElementById('envForn_fila');
-  const link = d => `https://wa.me/${d.numero}?text=${encodeURIComponent(mensagem)}`;
   fila.style.display = 'block';
   fila.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">${envForn.comPdf?`PDF "${escHtml(lastPreviaNomeArquivo)}" baixado. `:''}Abra o WhatsApp de cada um (um de cada vez):</div>` +
     destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${escHtml(d.numero)}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
   fila.querySelectorAll('[data-fila]').forEach(b=>b.addEventListener('click',()=>{
     const i = Number(b.dataset.fila);
-    window.open(link(destinos[i]), '_blank');
+    abrirWhatsApp(destinos[i].numero, mensagem);
     fila.querySelector(`[data-filaok="${i}"]`).textContent = '✓ aberto';
   }));
   fila.scrollIntoView({block:'nearest'});
@@ -16875,7 +16892,7 @@ document.getElementById('btnPedidoRapidoWhats').addEventListener('click', ()=>{
   const numero = f('pdr_whats').replace(/\D/g,'');
   if(!numero){ showAlert('Informe o WhatsApp do fornecedor (com DDI, ex: 55...).'); document.getElementById('pdr_whats').focus(); return; }
   salvarContatoFornecedorPedidoRapido();
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(f('pdr_mensagem'))}`, '_blank');
+  abrirWhatsApp(numero, f('pdr_mensagem'));
   closeModal('overlayPedidoRapidoProduto');
 });
 document.getElementById('btnPedidoRapidoEmail').addEventListener('click', ()=>{
@@ -23933,15 +23950,20 @@ document.getElementById('usuarioForm').addEventListener('submit', async e=>{
   showAlert('Usuário salvo.');
   // Usuário novo: oferece já criar o login (e-mail + senha) para a pessoa conseguir entrar — sem passar pelo Firebase.
   if(!editingUsuarioId && HAS_FIRESTORE && currentUser && currentUser.admin){
-    if(await showConfirm('Criar agora o login de '+nome+' ('+email+')? O sistema gera uma senha provisória, que aparece UMA vez para você passar à pessoa.')) await criarLoginDoUsuarioPelaTela(email, false);
+    if(await showConfirm('Criar agora o login de '+nome+' ('+email+')? Você escolhe a senha no próximo passo (ou deixa o sistema gerar uma provisória).')) await criarLoginDoUsuarioPelaTela(email, false);
   }
 });
 // Cria (ou redefine a senha d)o login de alguém da equipe. O servidor só aceita administrador do próprio cliente, usuário já
 // cadastrado na lista e dentro do limite do plano.
 async function criarLoginDoUsuarioPelaTela(email, redefinir){
+  // Quem escolhe a senha é você: digite a que a pessoa vai usar (mínimo 8 caracteres). Em branco = o sistema gera uma provisória.
+  const digitada = await showPrompt('Escolha a senha de '+email+' (mínimo 8 caracteres).\nDeixe em branco se preferir que o sistema gere uma provisória.', 'Senha (mín. 8 caracteres)');
+  if(digitada===null || digitada===undefined) return false;
+  if(digitada!=='' && (digitada.length<8 || digitada.length>100)){ showAlert('A senha precisa ter de 8 a 100 caracteres. Nada foi criado.'); return false; }
   try{
-    const r = await chamarFuncao('criarLoginDoUsuario', { email, redefinir: !!redefinir });
-    if(r.senhaGerada) showAlert((r.redefinida?'Nova senha':'Login criado')+' para '+r.email+'.\n\nSENHA PROVISÓRIA (anote agora — não aparece de novo): '+r.senhaGerada+'\n\nPasse à pessoa o endereço do sistema, o e-mail e essa senha.');
+    const r = await chamarFuncao('criarLoginDoUsuario', { email, redefinir: !!redefinir, ...(digitada ? { senhaProvisoria:digitada } : {}) });
+    if(digitada && (r.criado || r.redefinida)) showAlert((r.redefinida?'Senha trocada':'Login criado')+' para '+r.email+'.\n\nA senha é a que você digitou. Passe à pessoa o endereço do sistema, o e-mail e essa senha.');
+    else if(r.senhaGerada) showAlert((r.redefinida?'Nova senha':'Login criado')+' para '+r.email+'.\n\nSENHA PROVISÓRIA (anote agora — não aparece de novo): '+r.senhaGerada+'\n\nPasse à pessoa o endereço do sistema, o e-mail e essa senha.');
     else if(r.jaExistia) showAlert(r.email+' já tem login. Para gerar uma senha nova, abra o usuário e toque em "🔑 Criar login / nova senha".');
     else showAlert('Login criado para '+r.email+'.');
     return true;
