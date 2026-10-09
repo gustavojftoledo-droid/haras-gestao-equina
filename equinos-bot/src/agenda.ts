@@ -195,12 +195,23 @@ export function dosesPendentesTratamento(t: any, hoje: string): { data: string; 
   return out;
 }
 
+// Mesma lista do app (ALIMENTOS_DO_HARAS): só estes alimentos ficam no Estoque do haras.
+const ALIMENTOS_DO_HARAS = ["feno", "equitage 15 laminados", "equitage laminados",
+  "hectare 15 laminados", "hectare laminados", "sal mineral"];
+function ehAlimentoDoHaras(nome: any): boolean {
+  const n = String(nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  return ALIMENTOS_DO_HARAS.some((alvo) => n.includes(alvo));
+}
+
 // ---- Estoque (mesma regra do situacaoEstoque do app) ----
 export function situacaoEstoque(
   p: any,
   movimentos: any[],
   hoje: string,
 ): "zerado" | "perto" | null {
+  // Ração de catálogo (Consultoria) e ração que não é do haras não geram alerta de estoque.
+  if (p.catalogoConsultoria) return null;
+  if (p.tipo === "Alimento" && !ehAlimentoDoHaras(p.nome)) return null;
   const qtd = Number(p.quantidade) || 0;
   if (qtd <= 0) return "zerado";
   if (p.alertaModo === "projetado") {

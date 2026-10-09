@@ -115,6 +115,14 @@ test("dosesPendentesTratamento: pula concluídas e excluídas", () => {
   assert.deepEqual(doses[0], { data: "2026-09-07", periodo: "manha" });
 });
 
+test("situacaoEstoque: ração de catálogo ou fora da lista do haras não alerta", () => {
+  assert.equal(situacaoEstoque({ id: "r1", tipo: "Alimento", nome: "Proequi X", quantidade: 0 }, [], HOJE), null);
+  assert.equal(situacaoEstoque({ id: "r2", tipo: "Alimento", nome: "Feno", quantidade: 0 }, [], HOJE), "zerado");
+  assert.equal(situacaoEstoque({ id: "r3", tipo: "Alimento", nome: "Equitage Laminados", quantidade: 0 }, [], HOJE), "zerado");
+  assert.equal(situacaoEstoque({ id: "r4", tipo: "Alimento", nome: "Feno", quantidade: 0, catalogoConsultoria: true }, [], HOJE), null);
+  assert.equal(situacaoEstoque({ id: "r5", tipo: "Medicamento", nome: "Ivermectina", quantidade: 0 }, [], HOJE), "zerado");
+});
+
 test("situacaoEstoque: mínimo fixo e zerado", () => {
   assert.equal(situacaoEstoque({ id: "p1", quantidade: 0 }, [], HOJE), "zerado");
   assert.equal(situacaoEstoque({ id: "p1", quantidade: 2, minimo: 5 }, [], HOJE), "perto");

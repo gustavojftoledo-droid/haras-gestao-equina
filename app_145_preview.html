@@ -9412,7 +9412,7 @@ function abrirListaInicio(tipo){
       }
     }
   } else if(tipo==='estoque'){
-    const itens = estoqueProdutos.filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
+    const itens = produtosParaAlerta().filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
       .sort((a,b)=>{
         const ordem = {zerado:0, perto:1};
         const diff = ordem[situacaoEstoque(a)] - ordem[situacaoEstoque(b)];
@@ -9556,8 +9556,8 @@ function renderInicioHero(){
   const chips = [];
   chips.push({texto:`${atrasadas} tarefa(s) atrasada(s)`, bg:'var(--alert-bg)', cor:'var(--alert-ink)', icone:'calendario', onClick:()=>abrirListaInicio('atrasadas')});
   if(acessos.includes('estoque')){
-    const zerados = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='zerado').length;
-    const pertoMin = produtosDoEstoque().filter(p=>situacaoEstoque(p)==='perto').length;
+    const zerados = produtosParaAlerta().filter(p=>situacaoEstoque(p)==='zerado').length;
+    const pertoMin = produtosParaAlerta().filter(p=>situacaoEstoque(p)==='perto').length;
     chips.push({texto:`${zerados+pertoMin} alerta(s) de estoque`, bg:'var(--warn-bg)', cor:'var(--warn-ink)', icone:'caixa', onClick:()=>abrirListaInicio('estoque')});
   }
   // O chip de folha de pagamento (confirmada/pendente) saiu daqui a pedido do Gustavo — nada
@@ -9993,7 +9993,7 @@ function renderInicioReproducao(host){
 // agora com barra de progresso (quantidade sobre o mínimo cadastrado) — e o rodapé mostra a última
 // baixa de estoque de verdade (não um exemplo), lida de estoqueMovimentos.
 function renderInicioEstoque(host){
-  const criticos = estoqueProdutos.filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
+  const criticos = produtosParaAlerta().filter(p=>['zerado','perto'].includes(situacaoEstoque(p)))
     .sort((a,b)=>{ const ordem={zerado:0,perto:1}; const d=ordem[situacaoEstoque(a)]-ordem[situacaoEstoque(b)]; return d!==0?d:(a.nome||'').localeCompare(b.nome||'','pt'); })
     .slice(0,10);
   const medidores = criticos.length===0 ? '<div class="hint-text">Nenhum produto em alerta agora.</div>' : criticos.map(p=>{
@@ -15192,6 +15192,10 @@ function calcProjecaoConsumo(p){
 function ehCatalogoConsultoria(p){ return !!(p && p.catalogoConsultoria); }
 function produtosDoEstoque(){ return estoqueProdutos.filter(p=>!ehCatalogoConsultoria(p)); }
 function produtosDoCatalogo(){ return estoqueProdutos.filter(ehCatalogoConsultoria); }
+// Produtos que podem gerar ALERTA de estoque (lista do Início, "O que está acabando"): só o que é do
+// Estoque de verdade. Fora: o que está no catálogo da Consultoria e ração (Alimento) que não é do haras
+// (feno, Equitage 15 Laminados, Equitage Laminados, sal mineral), mesmo que ainda não tenha sido organizada.
+function produtosParaAlerta(){ return produtosDoEstoque().filter(p=>p.tipo!=='Alimento' || ehAlimentoDoHaras(p.nome)); }
 // Fica no Estoque quem casar com um destes nomes; todo o resto que for Alimento vai pro catálogo.
 // Comparação sem acento e sem caixa, por "contém" — nome cadastrado com variação ainda casa.
 // "Hectare" era o nome antigo das duas rações laminadas, hoje Equitage. Os dois ficam na lista pra
