@@ -2448,6 +2448,7 @@
       <div class="field"><label>Data</label><input type="date" id="fin_data"></div>
       <div class="field"><label>Tipo</label><select id="fin_tipo"><option value="saida">Saída</option><option value="entrada">Entrada</option></select></div>
       <div class="field full"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="fin_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="finCategoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="finCategoria" data-selid="fin_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="finCategoria" data-selid="fin_categoria" title="Excluir valor selecionado">🗑</button></div></div>
+      <div class="field full"><label>Subcategoria (opcional)</label><input type="text" id="fin_subcategoria" list="dl_fin_subcat" maxlength="60" placeholder="Ex: Frete de sêmen, Coleta de sêmen, Transferência de embrião"><datalist id="dl_fin_subcat"></datalist></div>
       <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
@@ -22399,9 +22400,17 @@ todosLancamentosFinanceiro = memoRajada(todosLancamentosFinanceiro);
 const CATEGORIAS_REPRODUCAO_FIN = ['Sêmen','Serviço de Cobertura','Receptora','Transferência'];
 function catFin(l){ return CATEGORIAS_REPRODUCAO_FIN.includes(l.categoria) ? 'Reprodução' : (l.categoria||''); }
 function subCatFin(l){
+  if(l.subcategoria) return l.subcategoria; // escolhida à mão no lançamento (qualquer categoria) ou vinda da Reprodução
   if(!CATEGORIAS_REPRODUCAO_FIN.includes(l.categoria)) return '';
   if(l.subcategoria) return l.subcategoria;
   return l.categoria==='Serviço de Cobertura' ? 'Serviço' : l.categoria;
+}
+function atualizarSugestoesSubcategoria(){
+  const dl = document.getElementById('dl_fin_subcat'); if(!dl) return;
+  const base = ['Frete de sêmen','Coleta de sêmen','Transferência de embrião','Aluguel de receptora','Deslocamento'];
+  const usadas = todosLancamentosFinanceiro().map(subCatFin).filter(Boolean);
+  const todas = [...new Set([...base, ...usadas])].sort((a,b)=>a.localeCompare(b,'pt'));
+  dl.innerHTML = todas.map(v=>`<option value="${escHtml(v)}"></option>`).join('');
 }
 function catFinCompleta(l){ const c = catFin(l), sc = subCatFin(l); return sc ? c+' › '+sc : c; }
 
@@ -22930,6 +22939,7 @@ function openLancamentoNew(){
   document.getElementById('fin_data').value = toISODate(new Date());
   document.getElementById('fin_tipo').value = 'saida';
   document.getElementById('fin_descricao').value = '';
+  document.getElementById('fin_subcategoria').value = ''; atualizarSugestoesSubcategoria();
   document.getElementById('fin_valor').value = '';
   document.getElementById('fin_moeda').value = 'BRL';
   populateAuxSelects();
@@ -22949,6 +22959,7 @@ function openLancamentoEdit(id){
   document.getElementById('fin_data').value = l.data||'';
   document.getElementById('fin_tipo').value = l.tipo||'saida';
   document.getElementById('fin_descricao').value = l.descricao||'';
+  document.getElementById('fin_subcategoria').value = l.subcategoria||''; atualizarSugestoesSubcategoria();
   document.getElementById('fin_valor').value = (l.valor!==undefined && l.valor!==null) ? l.valor : '';
   document.getElementById('fin_moeda').value = l.moeda==='USD' ? 'USD' : 'BRL';
   populateAuxSelects();
@@ -22985,6 +22996,7 @@ function openLancamentoDeFuncionario(func, modo){
   document.getElementById('fin_data').value = toISODate(new Date());
   document.getElementById('fin_tipo').value = 'saida';
   document.getElementById('fin_descricao').value = (ehSalario?'Salário — ':'Custo — ')+func.nome;
+  document.getElementById('fin_subcategoria').value = ''; atualizarSugestoesSubcategoria();
   document.getElementById('fin_valor').value = (ehSalario && func.ultimoSalarioValor!==undefined && func.ultimoSalarioValor!==null) ? func.ultimoSalarioValor : '';
   document.getElementById('fin_moeda').value = func.ultimoSalarioMoeda==='USD' ? 'USD' : 'BRL';
   populateAuxSelects();
@@ -23305,6 +23317,7 @@ document.getElementById('btnSaveLancamento').addEventListener('click', async ()=
   const registro = {
     id: editingLancamentoId || ('fn_'+Date.now()),
     data, tipo: f('fin_tipo'), categoria, descricao: f('fin_descricao').trim(), valor,
+    ...(f('fin_subcategoria').trim() ? {subcategoria: f('fin_subcategoria').trim()} : {}),
     moeda,
     origemFuncionarioId,
     ...(origemAnimalId ? {origemAnimalId} : {}),
