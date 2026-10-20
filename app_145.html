@@ -22400,10 +22400,16 @@ function subCatFin(l){
 }
 function atualizarSugestoesSubcategoria(){
   const dl = document.getElementById('dl_fin_subcat'); if(!dl) return;
-  const base = ['Frete de sêmen','Coleta de sêmen','Transferência de embrião','Aluguel de receptora','Deslocamento'];
-  const usadas = todosLancamentosFinanceiro().map(subCatFin).filter(Boolean);
+  // Subcategoria SEMPRE ligada à categoria escolhida: só sugere o que já foi usado NESSA categoria
+  // (Salário nunca mostra as de Reprodução). Sem categoria escolhida, não sugere nada.
+  const catSel = (document.getElementById('fin_categoria')||{}).value || '';
+  const base = catSel==='Reprodução' ? ['Frete de sêmen','Coleta de sêmen','Transferência de embrião','Aluguel de receptora','Deslocamento'] : [];
+  const usadas = catSel ? todosLancamentosFinanceiro().filter(l=>catFin(l)===catSel || l.categoria===catSel).map(subCatFin).filter(Boolean) : [];
   const todas = [...new Set([...base, ...usadas])].sort((a,b)=>a.localeCompare(b,'pt'));
   dl.innerHTML = todas.map(v=>`<option value="${escHtml(v)}"></option>`).join('');
+  finSubcatsDaCategoria = new Set(todas);
+  const inSub = document.getElementById('fin_subcategoria');
+  if(inSub) inSub.placeholder = catSel ? (todas.length ? 'Toque para ver as de '+catSel+' ou digite uma nova' : 'Nenhuma ainda em '+catSel+' — digite para criar') : 'Escolha a categoria primeiro';
   // Descrições já usadas (mais recentes primeiro): ao digitar "deslocamento" o navegador sugere "Deslocamento veterinário".
   finDescricoesUsadas = new Map();
   lancamentos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).forEach(l=>{
@@ -22414,6 +22420,16 @@ function atualizarSugestoesSubcategoria(){
   if(dd) dd.innerHTML = [...finDescricoesUsadas.keys()].slice(0,300).map(v=>`<option value="${escHtml(v)}"></option>`).join('');
 }
 let finDescricoesUsadas = new Map();
+let finSubcatsDaCategoria = new Set();
+// Trocou a categoria: a lista de subcategorias passa a ser a dela, e uma subcategoria que não pertence à nova categoria é limpa.
+document.getElementById('fin_categoria').addEventListener('change', ()=>{
+  const inSub = document.getElementById('fin_subcategoria');
+  const anterior = inSub.value.trim();
+  atualizarSugestoesSubcategoria();
+  if(anterior && !finSubcatsDaCategoria.has(anterior)) inSub.value = '';
+});
+// Ao entrar no campo, a lista reflete a categoria escolhida agora (inclusive uma categoria recém-criada com o botão +).
+document.getElementById('fin_subcategoria').addEventListener('focus', atualizarSugestoesSubcategoria);
 // Ao escolher uma descrição que já foi usada, sugere a mesma categoria e subcategoria (só se esses campos ainda estiverem vazios).
 document.getElementById('fin_descricao').addEventListener('change', ()=>{
   if(editingLancamentoId) return;
@@ -22421,6 +22437,7 @@ document.getElementById('fin_descricao').addEventListener('change', ()=>{
   const selCat = document.getElementById('fin_categoria'), inSub = document.getElementById('fin_subcategoria');
   if(!selCat.value && ant.categoria && [...selCat.options].some(o=>o.value===ant.categoria)) selCat.value = ant.categoria;
   if(!inSub.value && ant.subcategoria) inSub.value = ant.subcategoria;
+  atualizarSugestoesSubcategoria();
 });
 function catFinCompleta(l){ const c = catFin(l), sc = subCatFin(l); return sc ? c+' › '+sc : c; }
 
@@ -22972,7 +22989,7 @@ function openLancamentoNew(){
   document.getElementById('fin_valor').value = '';
   document.getElementById('fin_moeda').value = 'BRL';
   populateAuxSelects();
-  document.getElementById('fin_categoria').value = '';
+  document.getElementById('fin_categoria').value = ''; atualizarSugestoesSubcategoria();
   document.getElementById('fin_temAnimais').checked = false;
   document.getElementById('finAnimalWrap').style.display = 'none';
   finAnimalSelector.reset();
@@ -22992,7 +23009,7 @@ function openLancamentoEdit(id){
   document.getElementById('fin_valor').value = (l.valor!==undefined && l.valor!==null) ? l.valor : '';
   document.getElementById('fin_moeda').value = l.moeda==='USD' ? 'USD' : 'BRL';
   populateAuxSelects();
-  document.getElementById('fin_categoria').value = l.categoria||'';
+  document.getElementById('fin_categoria').value = l.categoria||''; atualizarSugestoesSubcategoria();
   const temAnimais = !!(l.rateio && l.rateio.length>0);
   document.getElementById('fin_temAnimais').checked = temAnimais;
   document.getElementById('finAnimalWrap').style.display = temAnimais ? 'block' : 'none';
@@ -23031,7 +23048,7 @@ function openLancamentoDeFuncionario(func, modo){
   populateAuxSelects();
   const categoria = ehSalario ? 'Salário' : 'Funcionários';
   if(!aux.finCategoria.includes(categoria)){ aux.finCategoria.push(categoria); storeSet('aux_lists', aux); populateAuxSelects(); }
-  document.getElementById('fin_categoria').value = categoria;
+  document.getElementById('fin_categoria').value = categoria; atualizarSugestoesSubcategoria();
   document.getElementById('fin_temAnimais').checked = false;
   document.getElementById('finAnimalWrap').style.display = 'none';
   finAnimalSelector.reset();
