@@ -2449,8 +2449,8 @@
       <div class="field"><label>Data</label><input type="date" id="fin_data"></div>
       <div class="field"><label>Tipo</label><select id="fin_tipo"><option value="saida">Saída</option><option value="entrada">Entrada</option></select></div>
       <div class="field full"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="fin_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="finCategoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="finCategoria" data-selid="fin_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="finCategoria" data-selid="fin_categoria" title="Excluir valor selecionado">🗑</button></div></div>
-      <div class="field full"><label>Subcategoria (opcional)</label><input type="text" id="fin_subcategoria" list="dl_fin_subcat" maxlength="60" placeholder="Ex: Frete de sêmen, Coleta de sêmen, Transferência de embrião"><datalist id="dl_fin_subcat"></datalist></div>
-      <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
+      <div class="field full"><label>Subcategoria (opcional)</label><input type="text" id="fin_subcategoria" list="dl_fin_subcat" maxlength="60" placeholder="Ex: Frete de sêmen, Coleta de sêmen, Transferência de embrião"><datalist id="dl_fin_subcat"></datalist><datalist id="dl_fin_desc"></datalist></div>
+      <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" list="dl_fin_desc" autocomplete="off" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
     <div class="hint-text" id="fin_vozStatus" style="display:none;margin:-6px 0 12px;"></div>
@@ -22420,7 +22420,24 @@ function atualizarSugestoesSubcategoria(){
   const usadas = todosLancamentosFinanceiro().map(subCatFin).filter(Boolean);
   const todas = [...new Set([...base, ...usadas])].sort((a,b)=>a.localeCompare(b,'pt'));
   dl.innerHTML = todas.map(v=>`<option value="${escHtml(v)}"></option>`).join('');
+  // Descrições já usadas (mais recentes primeiro): ao digitar "deslocamento" o navegador sugere "Deslocamento veterinário".
+  finDescricoesUsadas = new Map();
+  lancamentos.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||'')).forEach(l=>{
+    const d = (l.descricao||'').trim(); if(!d || finDescricoesUsadas.has(d)) return;
+    finDescricoesUsadas.set(d, { categoria:l.categoria||'', subcategoria:l.subcategoria||'' });
+  });
+  const dd = document.getElementById('dl_fin_desc');
+  if(dd) dd.innerHTML = [...finDescricoesUsadas.keys()].slice(0,300).map(v=>`<option value="${escHtml(v)}"></option>`).join('');
 }
+let finDescricoesUsadas = new Map();
+// Ao escolher uma descrição que já foi usada, sugere a mesma categoria e subcategoria (só se esses campos ainda estiverem vazios).
+document.getElementById('fin_descricao').addEventListener('change', ()=>{
+  if(editingLancamentoId) return;
+  const ant = finDescricoesUsadas.get(document.getElementById('fin_descricao').value.trim()); if(!ant) return;
+  const selCat = document.getElementById('fin_categoria'), inSub = document.getElementById('fin_subcategoria');
+  if(!selCat.value && ant.categoria && [...selCat.options].some(o=>o.value===ant.categoria)) selCat.value = ant.categoria;
+  if(!inSub.value && ant.subcategoria) inSub.value = ant.subcategoria;
+});
 function catFinCompleta(l){ const c = catFin(l), sc = subCatFin(l); return sc ? c+' › '+sc : c; }
 
 // Painel fixo "Resumo do mês" — independente dos filtros da lista abaixo, sempre mostra o mês
