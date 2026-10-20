@@ -4471,6 +4471,17 @@ function avisarEspacoDoc(key, val){
 // storeSet = storeSetCore + confirmação do cache da Linha do Tempo por animal (só depois que a gravação
 // DEU CERTO a "foto" usada pela fusão e o cache em memória avançam — gravação que falha não perde a diferença).
 const aregFusoes = {};
+// O Firestore recusa gravar qualquer campo com valor "undefined" (erro "Unsupported field value: undefined") e,
+// com isso, o lançamento inteiro deixava de salvar. Antes de gravar, tira esses campos (não muda nada que já tinha valor).
+function semUndefined(v){
+  if(Array.isArray(v)) return v.map(semUndefined);
+  if(v && typeof v==='object' && Object.getPrototypeOf(v)===Object.prototype){
+    const o = {};
+    Object.keys(v).forEach(k=>{ if(v[k]!==undefined) o[k] = semUndefined(v[k]); });
+    return o;
+  }
+  return v;
+}
 async function storeSet(key,val,userDeleted){
   const ok = await storeSetCore(key,val,userDeleted);
   if(ehChaveAreg(key)){ const f = aregFusoes[key]; delete aregFusoes[key]; if(ok && f) aregConfirmarGravacao(key, f); }
@@ -4568,7 +4579,7 @@ async function storeSetCore(key,val,userDeleted){
         const snap = await db.collection(colecaoDados()).doc(key).get();
         if(snap.exists){ const existing = snap.data().value; if(Array.isArray(existing)&&existing.length>0){ showAlert('Gravação bloqueada: isso apagaria dados existentes.'); return false; } }
       }
-      await db.collection(colecaoDados()).doc(key).set({ value: val, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+      await db.collection(colecaoDados()).doc(key).set({ value: semUndefined(val), atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
       return true;
     }catch(e){
       console.error('Firestore set failed for', key, e);
@@ -4710,7 +4721,7 @@ function aregAdicionar(regs){
 }
 // ---- gravação "crua" (sem fusão/auditoria) usada só pela migração/reversão, que sabem o que estão fazendo ----
 async function aregGravarBruto(key, valor){
-  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){ await db.collection(colecaoDados()).doc(key).set({ value: valor, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); return; }
+  if(!HAS_CLOUD_STORAGE && HAS_FIRESTORE){ await db.collection(colecaoDados()).doc(key).set({ value: semUndefined(valor), atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); return; }
   if(!HAS_CLOUD_STORAGE){ localStorage.setItem(LS_PREFIX+key, JSON.stringify(valor)); return; }
   await window.storage.set(key, JSON.stringify(valor), false);
 }
@@ -5710,7 +5721,7 @@ function partIndiceValido(v){ return !!(v && typeof v==='object' && !Array.isArr
 function partCanon(arr){ return JSON.stringify((Array.isArray(arr)?arr:[]).slice().sort((a,b)=>String(a&&a.id).localeCompare(String(b&&b.id)))); }
 function partAgrupar(key, lista){ const g = new Map(); (lista||[]).forEach(r=>{ const d = PART_CFG[key].doc(r); if(!g.has(d)) g.set(d, []); g.get(d).push(r); }); return g; }
 function partMaiorGrupoBytes(key, val){ let m = 0; partAgrupar(key, val).forEach(a=>{ m = Math.max(m, tamanhoDocBytes(a)); }); return m; }
-async function partGravarBruto(doc, valor){ await db.collection(colecaoDados()).doc(doc).set({ value: valor, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); }
+async function partGravarBruto(doc, valor){ await db.collection(colecaoDados()).doc(doc).set({ value: semUndefined(valor), atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() }); }
 // Lê o recibo e (se já dividido) todos os documentos do período, juntando numa lista só. Falhou qualquer leitura = falha total.
 async function partLer(key){
   const cfg = PART_CFG[key], st = partSt(key);
@@ -5855,7 +5866,7 @@ async function histMensalGarantir(){
         if(mes===ultimoFechado) conteudo = { ...conteudo, produtosNaEpoca:estoqueProdutos, dietasNaEpoca:dietas };
         if(tamanhoDocBytes(conteudo) > LIMITE_DOC_BYTES*0.95){ delete conteudo.produtosNaEpoca; delete conteudo.dietasNaEpoca; }
         if(tamanhoDocBytes(conteudo) > LIMITE_DOC_BYTES*0.95){ console.warn('Cópia mensal de '+mes+' grande demais para um documento; não criada.'); continue; }
-        await ref.set({ value: conteudo, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+        await ref.set({ value: semUndefined(conteudo), atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
         criados++;
       }
       try{ localStorage.setItem(marca, '1'); }catch(_){}
