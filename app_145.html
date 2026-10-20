@@ -13430,6 +13430,7 @@ function renderNascCobExtras(){
 // "Esta cobertura" = custo geral até o nascimento confirmado, depois do potro (ver lancamentoEmGestacao);
 // destino "animal" = vai direto pra esse animal.
 let nascServicos = [];
+let nascSvEditando = -1; // posição do serviço que está sendo alterado no painel (-1 = adicionando um novo)
 function renderNascServicos(){
   const host = document.getElementById('n_servicosHost');
   const fmt = v => 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
@@ -13437,15 +13438,17 @@ function renderNascServicos(){
     const h = sv.animalId ? horses.find(x=>x.id===sv.animalId) : null;
     const dest = sv.animalId ? ('→ '+escHtml(h?h.nome:'animal')) : '→ esta cobertura / potro';
     return `<div style="display:flex;gap:8px;align-items:center;font-size:13px;">
-      <span style="flex:1;">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${sv.data?('· '+fmtDate(sv.data)+' '):''}${dest}</span></span>
+      <span style="flex:1;cursor:pointer;" data-svedit="${i}" title="Toque para alterar este serviço">${escHtml(sv.desc||'Serviço')} <span style="color:var(--muted);">${sv.data?('· '+fmtDate(sv.data)+' '):''}${dest}</span></span>
       <strong>${fmt(sv.valor)}</strong>
+      <button type="button" class="btn btn-sm btn-ghost" data-svedit="${i}" title="Alterar">✎ Alterar</button>
       <button type="button" class="btn btn-sm btn-ghost" data-svdel="${i}" title="Remover">✕</button>
     </div>`;
   }).join('') + (nascServicos.length>1 ? `<div style="text-align:right;font-size:12px;color:var(--muted);">Total: <strong>${fmt(nascServicos.reduce((a,x)=>a+(Number(x.valor)||0),0))}</strong></div>` : '');
-  host.querySelectorAll('[data-svdel]').forEach(el=>el.addEventListener('click',()=>{ nascServicos.splice(+el.dataset.svdel,1); renderNascServicos(); }));
+  host.querySelectorAll('[data-svdel]').forEach(el=>el.addEventListener('click',()=>{ nascServicos.splice(+el.dataset.svdel,1); fecharPainelServico(); renderNascServicos(); }));
+  host.querySelectorAll('[data-svedit]').forEach(el=>el.addEventListener('click',()=>abrirPainelServico(+el.dataset.svedit)));
   atualizarVisibilidadeServicos();
 }
-function fecharPainelServico(){ document.getElementById('n_svPainel').style.display='none'; atualizarVisibilidadeServicos(); }
+function fecharPainelServico(){ nascSvEditando = -1; document.getElementById('n_svPainel').style.display='none'; atualizarVisibilidadeServicos(); }
 function atualizarVisibilidadeServicos(){
   const painelAberto = document.getElementById('n_svPainel').style.display==='block';
   document.getElementById('n_servicosField').style.display = (nascServicos.length>0 || painelAberto) ? 'flex' : 'none';
@@ -13453,9 +13456,12 @@ function atualizarVisibilidadeServicos(){
 // Chamada direto do onclick do botão (não depende de nenhum listener registrado antes). Abre o painel
 // PRIMEIRO e só depois monta a lista de animais, dentro de try/catch — assim um animal com dado estranho
 // nunca impede o painel de abrir.
-function abrirPainelServico(){
-  document.getElementById('n_svDesc').value=''; document.getElementById('n_svValor').value='';
-  document.getElementById('n_svData').value = document.getElementById('n_datacob').value || toISODate(new Date());
+function abrirPainelServico(idx){
+  nascSvEditando = (typeof idx==='number' && idx>=0 && nascServicos[idx]) ? idx : -1;
+  const sv = nascSvEditando>=0 ? nascServicos[nascSvEditando] : null;
+  document.getElementById('n_svDesc').value = sv ? (sv.desc||'') : ''; document.getElementById('n_svValor').value = sv ? sv.valor : '';
+  document.getElementById('n_svData').value = sv ? (sv.data||'') : (document.getElementById('n_datacob').value || toISODate(new Date()));
+  document.getElementById('n_svOk').textContent = sv ? 'Salvar alteração' : 'Adicionar';
   document.getElementById('n_svPainel').style.display='block';
   atualizarVisibilidadeServicos();
   const sel = document.getElementById('n_svDestino');
@@ -13466,13 +13472,15 @@ function abrirPainelServico(){
       .map(h=>`<option value="${escHtml(h.id)}">Animal: ${escHtml(h.nome)}</option>`).join('');
   }catch(e){ console.error('Lista de animais do serviço:', e); }
   sel.innerHTML = opcoes;
+  if(sv) sel.value = sv.animalId || '';
   document.getElementById('n_svDesc').focus();
 }
 function adicionarServicoDoPainel(){
   const desc = document.getElementById('n_svDesc').value.trim();
   const valor = Number(document.getElementById('n_svValor').value)||0;
   if(!desc || !(valor>0)){ showAlert('Informe o serviço e um valor maior que zero.'); return; }
-  nascServicos.push({ desc, valor, data: document.getElementById('n_svData').value||'', animalId: document.getElementById('n_svDestino').value||'' });
+  const novo = { desc, valor, data: document.getElementById('n_svData').value||'', animalId: document.getElementById('n_svDestino').value||'' };
+  if(nascSvEditando>=0 && nascServicos[nascSvEditando]) nascServicos[nascSvEditando] = novo; else nascServicos.push(novo);
   renderNascServicos(); fecharPainelServico();
 }
 document.getElementById('btnAddCobExtra').addEventListener('click',()=>{ nascCobExtras.push({data:'',obs:''}); renderNascCobExtras(); });
