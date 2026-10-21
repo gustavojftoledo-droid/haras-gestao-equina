@@ -11518,6 +11518,19 @@ function abrirWhatsApp(numero, mensagem){
   document.body.appendChild(aviso);
   setTimeout(()=>{ if(aviso.parentNode) aviso.remove(); }, 15000);
 }
+// E-mail: abre o APLICATIVO de e-mail do aparelho (mailto:) já com destinatários, assunto e mensagem — não depende do
+// Gmail na web. Vários destinatários vão em cópia oculta (um não vê o outro).
+function abrirEmailNoAplicativo({ para, bcc, assunto, corpo }){
+  const lista = v => (Array.isArray(v) ? v : (v ? [v] : [])).map(x=>String(x).trim()).filter(Boolean).join(',');
+  const partes = [];
+  if(lista(bcc)) partes.push('bcc='+encodeURIComponent(lista(bcc)));
+  if(assunto) partes.push('subject='+encodeURIComponent(assunto));
+  if(corpo) partes.push('body='+encodeURIComponent(String(corpo).replace(/\r?\n/g,'\r\n')));
+  const url = 'mailto:'+encodeURIComponent(lista(para)).replace(/%2C/g,',').replace(/%40/g,'@')+(partes.length?('?'+partes.join('&')):'');
+  const a = document.createElement('a');
+  a.href = url; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+}
 // Cada WhatsApp sai com o nome de quem recebe: a saudação da 1ª linha ("Bom dia." ou "Bom dia, tudo bem?") vira
 // "Bom dia, Eduardo." / "Bom dia, Eduardo, tudo bem?". Mensagem que não começa com saudação, ou o e-mail (que vai
 // num só para todos, em cópia oculta), não muda. Também vale "{nome}" escrito no meio da mensagem.
@@ -11562,7 +11575,7 @@ document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const mensagem = f('pce_mensagem');
   if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`); }
   // Todos em cópia oculta (bcc): cada farmácia recebe o pedido sem ver as outras.
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(emails.join(','))}&su=${encodeURIComponent(envForn.assunto)}&body=${encodeURIComponent(mensagem)}`, '_blank');
+  abrirEmailNoAplicativo({ bcc: emails, assunto: envForn.assunto, corpo: mensagem });
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
