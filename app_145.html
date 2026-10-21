@@ -11504,9 +11504,10 @@ function abrirWhatsApp(numero, mensagem){
 }
 // E-mail: abre o APLICATIVO de e-mail do aparelho (mailto:) já com destinatários, assunto e mensagem — não depende do
 // Gmail na web. Vários destinatários vão em cópia oculta (um não vê o outro).
-function abrirEmailNoAplicativo({ para, bcc, assunto, corpo }){
+function abrirEmailNoAplicativo({ para, cc, bcc, assunto, corpo }){
   const lista = v => (Array.isArray(v) ? v : (v ? [v] : [])).map(x=>String(x).trim()).filter(Boolean).join(',');
   const partes = [];
+  if(lista(cc)) partes.push('cc='+encodeURIComponent(lista(cc)));
   if(lista(bcc)) partes.push('bcc='+encodeURIComponent(lista(bcc)));
   if(assunto) partes.push('subject='+encodeURIComponent(assunto));
   if(corpo) partes.push('body='+encodeURIComponent(String(corpo).replace(/\r?\n/g,'\r\n')));
@@ -11559,7 +11560,12 @@ document.getElementById('btnPceEmail').addEventListener('click', async ()=>{
   const mensagem = f('pce_mensagem');
   if(envForn.comPdf){ await baixarRelatorioManejoPDF(lastPreviaHtmlConteudo, lastPreviaNomeArquivo, lastPreviaOptsPdf); showAlert(`PDF "${lastPreviaNomeArquivo}" baixado. Abrindo e-mail...`); }
   // Todos em cópia oculta (bcc): cada farmácia recebe o pedido sem ver as outras.
-  abrirEmailNoAplicativo({ bcc: emails, assunto: envForn.assunto, corpo: mensagem });
+  // Seu e-mail (o de quem está logado) vai sempre junto. Um fornecedor só: ele vai em "Para" e você em cópia (Cc).
+  // Vários: você fica em "Para" e os fornecedores em cópia oculta (Cco), para um não ver o e-mail do outro.
+  const meuEmail = ((window.firebase && firebase.auth && firebase.auth().currentUser) || {}).email || (typeof currentUser!=='undefined' && currentUser && currentUser.email) || '';
+  const semMeu = emails.filter(e=>e.toLowerCase()!==String(meuEmail).toLowerCase());
+  if(emails.length===1) abrirEmailNoAplicativo({ para: emails[0], cc: (meuEmail && semMeu.length ? meuEmail : ''), assunto: envForn.assunto, corpo: mensagem });
+  else abrirEmailNoAplicativo({ para: meuEmail, bcc: semMeu.length ? semMeu : emails, assunto: envForn.assunto, corpo: mensagem });
 });
 function abrirPreviaRelatorio(htmlConteudo, nomeArquivo, titulo, opts){
   document.getElementById('relatorioPreviaTitulo').textContent = titulo || 'Prévia do Relatório';
