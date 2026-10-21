@@ -16920,7 +16920,16 @@ function abrirPedidoRapidoProduto(produtoId){
   document.getElementById('pdrModalTitle').textContent = 'Pedir mais: '+p.nome;
   const proj = calcProjecaoConsumo(p);
   const sugestao = calcFardosSugeridos(p, proj);
-  document.getElementById('pdr_quantidade').value = sugestao.necessario;
+  let qtdSugerida = sugestao.necessario;
+  // Se o estoque atual já cobre a meta de dias (ex.: feno ou sal com ~23 dias sobrando), o cálculo dá 0. Como você tocou em
+  // "Pedir mais", sugere um pedido de reposição: o consumo de uma meta de dias (20 a 25), em fardos/sacos fechados.
+  if(!(Number(qtdSugerida)>0) && proj.suficiente && proj.consumoSemanal>0){
+    const diasMeta = sugestao.targetDias || 25;
+    const base = Math.ceil((proj.consumoSemanal/7)*diasMeta);
+    const peso = Number(p.pesoSaco)||0;
+    qtdSugerida = Math.max(1, peso>0 ? Math.ceil(base/peso) : base);
+  }
+  document.getElementById('pdr_quantidade').value = qtdSugerida;
   atualizarMensagemPedidoRapido();
   openModal('overlayPedidoRapidoProduto');
 }
