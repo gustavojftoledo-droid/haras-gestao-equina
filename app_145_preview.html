@@ -11309,7 +11309,7 @@ function abrirEnvioFornecedores(opts){
     ? 'Escreva o que você precisa na mensagem (ela já vem pronta, é só trocar o que quiser). O WhatsApp abre um de cada vez: clique no botão de cada contato. O e-mail sai num só, com todos em cópia oculta.'
     : envForn.comPdf
     ? 'Ao clicar, o PDF do pedido baixa sozinho e o WhatsApp/e-mail abre com a mensagem pronta — você só confere, anexa o PDF baixado e manda de lá (nenhum site consegue anexar arquivo sozinho). O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.'
-    : 'O pedido já vai escrito na mensagem — é só conferir e enviar, sem PDF. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez: clique no botão de cada contato.';
+    : 'O pedido já vai escrito na mensagem — é só conferir e enviar, sem PDF. O e-mail vai num só, com todos em cópia oculta (um não vê o outro). O WhatsApp abre um de cada vez, e cada um já sai com o nome de quem recebe ("Bom dia, Fulano."): clique no botão de cada contato.';
   renderEnvioFornecedores();
   openModal('overlayPedidoCompraEnvio');
 }
@@ -11518,6 +11518,20 @@ function abrirWhatsApp(numero, mensagem){
   document.body.appendChild(aviso);
   setTimeout(()=>{ if(aviso.parentNode) aviso.remove(); }, 15000);
 }
+// Cada WhatsApp sai com o nome de quem recebe: a saudação da 1ª linha ("Bom dia." ou "Bom dia, tudo bem?") vira
+// "Bom dia, Eduardo." / "Bom dia, Eduardo, tudo bem?". Mensagem que não começa com saudação, ou o e-mail (que vai
+// num só para todos, em cópia oculta), não muda. Também vale "{nome}" escrito no meio da mensagem.
+function mensagemParaContato(mensagem, nomeContato){
+  const primeiro = String(nomeContato||'').trim().split(/\s+/)[0];
+  if(!primeiro) return mensagem;
+  const linhas = String(mensagem||'').split('\n');
+  const m = /^\s*(bom dia|boa tarde|boa noite)(,?\s*tudo bem)?\s*[.,!?]*\s*$/i.exec(linhas[0]||'');
+  if(m){
+    const saud = m[1].charAt(0).toUpperCase()+m[1].slice(1).toLowerCase();
+    linhas[0] = m[2] ? `${saud}, ${primeiro}, tudo bem?` : `${saud}, ${primeiro}.`;
+  }
+  return linhas.join('\n').replace(/\{nome\}/gi, primeiro);
+}
 document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
   const marcados = fornecedoresMarcados();
   if(marcados.length===0){ showAlert('Marque ao menos um contato.'); return; }
@@ -11534,7 +11548,7 @@ document.getElementById('btnPceWhats').addEventListener('click', async ()=>{
     destinos.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="flex:1;">${escHtml(d.nome)} — +${escHtml(d.numero)}</span><span data-filaok="${i}" style="color:var(--green);font-size:12px;"></span><button type="button" class="btn btn-sm" data-fila="${i}">📱 Abrir WhatsApp</button></div>`).join('');
   fila.querySelectorAll('[data-fila]').forEach(b=>b.addEventListener('click',()=>{
     const i = Number(b.dataset.fila);
-    abrirWhatsApp(destinos[i].numero, mensagem);
+    abrirWhatsApp(destinos[i].numero, mensagemParaContato(mensagem, destinos[i].nome));
     fila.querySelector(`[data-filaok="${i}"]`).textContent = '✓ aberto';
   }));
   fila.scrollIntoView({block:'nearest'});
