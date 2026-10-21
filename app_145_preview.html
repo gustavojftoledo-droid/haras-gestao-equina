@@ -16868,17 +16868,12 @@ function calcConsumoRecente(p, janelaDias){
   const total = movs.reduce((s,m)=>s+(Number(m.quantidade)||0),0);
   return total/(janelaDias/7);
 }
-// Quantidade sugerida pro pedido: cobre entre 20 e 25 dias de consumo (nunca menos, nunca mais).
-// Se o ritmo dos últimos 7 dias estiver mais rápido que a média geral do produto, o consumo está
-// "alto" → pede pra só 20 dias (menos risco de sobrar/vencer). Se estiver mais lento, está "baixo"
-// → pede pra 25 dias (aproveita e compra com mais folga). Ritmo igual à média → meio do intervalo.
-// Se o produto tem "Conteúdo por embalagem" cadastrado (pesoSaco — ex: 30kg por fardo de Feno),
-// a quantidade sugerida e a mensagem já saem em fardos/pacotes fechados, não na unidade base (kg/ml).
+// Quantidade sugerida pro pedido: cobre EXATAMENTE 30 dias de consumo (regra do Gustavo, 21/10/2026): consumo médio diário
+// x 30 dias, menos o que já tem em estoque. Se o produto tem "Conteúdo por embalagem" cadastrado (pesoSaco — ex: 30kg por
+// fardo de Feno), a quantidade sugerida e a mensagem já saem em fardos/sacos fechados, não na unidade base (kg/ml).
 function calcFardosSugeridos(p, proj){
   if(!proj.suficiente || !(proj.consumoSemanal>0)) return {targetDias:null, necessario:''};
-  const ratioBruto = calcConsumoRecente(p,7)/proj.consumoSemanal;
-  const ratio = Math.min(1.5, Math.max(0.5, ratioBruto));
-  const targetDias = Math.round(25 - (ratio-0.5)*5);
+  const targetDias = 30;
   const alvo = (proj.consumoSemanal/7)*targetDias;
   const falta = alvo - (Number(p.quantidade)||0);
   const necessarioBase = falta>0 ? Math.ceil(falta) : 0;
@@ -16920,16 +16915,7 @@ function abrirPedidoRapidoProduto(produtoId){
   document.getElementById('pdrModalTitle').textContent = 'Pedir mais: '+p.nome;
   const proj = calcProjecaoConsumo(p);
   const sugestao = calcFardosSugeridos(p, proj);
-  let qtdSugerida = sugestao.necessario;
-  // Se o estoque atual já cobre a meta de dias (ex.: feno ou sal com ~23 dias sobrando), o cálculo dá 0. Como você tocou em
-  // "Pedir mais", sugere um pedido de reposição: o consumo de uma meta de dias (20 a 25), em fardos/sacos fechados.
-  if(!(Number(qtdSugerida)>0) && proj.suficiente && proj.consumoSemanal>0){
-    const diasMeta = sugestao.targetDias || 25;
-    const base = Math.ceil((proj.consumoSemanal/7)*diasMeta);
-    const peso = Number(p.pesoSaco)||0;
-    qtdSugerida = Math.max(1, peso>0 ? Math.ceil(base/peso) : base);
-  }
-  document.getElementById('pdr_quantidade').value = qtdSugerida;
+  document.getElementById('pdr_quantidade').value = sugestao.necessario;
   atualizarMensagemPedidoRapido();
   openModal('overlayPedidoRapidoProduto');
 }
