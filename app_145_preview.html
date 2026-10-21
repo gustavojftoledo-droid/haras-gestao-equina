@@ -22679,6 +22679,10 @@ function navegarParaOrigemFinanceiro(tipoOrigem, id){
   } else if(tipoOrigem==='vendacobertura'){
     irParaView('nascimentos');
     setTimeout(()=>{ showNascTab('vendacob'); openVendaCobEdit(id); }, 30);
+  } else if(tipoOrigem==='nascimentos'){
+    // Sêmen e serviços da cobertura: abre a Cobertura de origem (onde dá para alterar os serviços).
+    irParaView('nascimentos');
+    setTimeout(()=>{ showNascTab('lista'); openNascEdit(id); }, 30);
   }
 }
 const finFiltroPeriodo = createDateRangePicker(document.getElementById('finFiltroPeriodo'), {onChange: renderFinanceiro});
