@@ -16902,10 +16902,17 @@ function atualizarMensagemPedidoRapido(){
   const prazo = dias!=null ? `dentro de ${dias} dia${dias===1?'':'s'}` : 'em breve';
   const pesoEmbalagem = Number(p.pesoSaco)||0;
   const qtd = f('pdr_quantidade').trim();
-  const nomeEmb = (p.nomeEmbalagem || inferirNomeEmbalagem(p.nome)).trim();
-  const un = pesoEmbalagem>0 ? (' '+nomeEmb+(Number(qtd)===1?'':'s')) : (p.unidade?(' '+p.unidade):'');
-  const linhaQtd = qtd ? `\nVamos precisar de ${qtd}${un}.` : '';
-  document.getElementById('pdr_mensagem').value = `Bom dia. Precisamos de ${p.nome}. O nosso acaba ${prazo}.${linhaQtd}\nObrigado.`;
+  // Embalagem: sempre "saco" (ração) ou "fardo" (feno); "Embalagem" genérica vira "saco". Plural certo (saco→sacos, fardo→fardos).
+  let nomeEmb = (p.nomeEmbalagem || inferirNomeEmbalagem(p.nome)).trim().toLowerCase();
+  if(!nomeEmb || nomeEmb==='embalagem') nomeEmb = 'saco';
+  const plural = n => /m$/.test(n) ? n.slice(0,-1)+'ns' : (/[aeiou]$/.test(n) ? n+'s' : n+'es');
+  const un = pesoEmbalagem>0 ? (' '+(Number(qtd)===1 ? nomeEmb : plural(nomeEmb))) : (p.unidade?(' '+p.unidade):'');
+  const nome = (p.nome||'').toLowerCase();
+  const acaba = /feno/.test(nome) ? 'O nosso feno acaba' : (/sal\b/.test(nome) ? 'O nosso sal acaba' : (p.tipo==='Alimento' ? 'A nossa ração acaba' : 'O nosso estoque acaba'));
+  const linhas = [`${saudacaoPorHorario()}.`, `Precisamos de ${p.nome}.`, `${acaba} ${prazo}.`];
+  if(qtd) linhas.push(`Vamos precisar de ${qtd}${un}.`);
+  linhas.push('Obrigado.');
+  document.getElementById('pdr_mensagem').value = linhas.join('\n');
 }
 function abrirPedidoRapidoProduto(produtoId){
   const p = estoqueProdutos.find(x=>x.id===produtoId); if(!p) return;
