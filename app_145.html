@@ -16942,7 +16942,17 @@ function renderDietas(){
   });
   marcarSetasOrdenacao('dietas', '#view-dietas [data-lista="dietas"]');
   tbody.innerHTML = listaD.map(d=>{
-    const itensResumo = (d.itens||[]).map(it=>`${it.horario}: ${it.produtoNome} ${it.quantidade}${it.unidade?(' '+it.unidade):''}`).join(' • ');
+    // Resumo da dieta por horário, um item por linha: Manhã / Tarde / Noite, com o feno primeiro e depois o resto.
+    const itensResumo = (()=>{
+      const itens = d.itens||[];
+      const horarios = [...HORARIOS_DIETA, ...new Set(itens.map(it=>it.horario).filter(h=>h && !HORARIOS_DIETA.includes(h)))];
+      return horarios.map(h=>{
+        const doHorario = itens.filter(it=>it.horario===h);
+        if(doHorario.length===0) return '';
+        const ordenados = [...doHorario.filter(it=>/feno/i.test(it.produtoNome||'')), ...doHorario.filter(it=>!/feno/i.test(it.produtoNome||''))];
+        return `<div style="margin-bottom:6px;"><div style="font-weight:700;">${escHtml(h)}</div>${ordenados.map(it=>`<div style="padding-left:8px;line-height:1.35;">• ${escHtml(it.produtoNome||'')} <span style="color:var(--muted);">— ${escHtml(String(it.quantidade))}${it.unidade?(' '+escHtml(it.unidade)):''}</span></div>`).join('')}</div>`;
+      }).join('');
+    })();
     const nAnimais = (d.animais||[]).length;
     const hoje = toISODate(new Date());
     const modoTxt = d.modoConsumo==='automatico'
