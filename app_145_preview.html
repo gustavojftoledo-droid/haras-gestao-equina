@@ -2811,14 +2811,12 @@ Estrela	03/07/2026	Adestramento	Picadeiro 1	João	"></textarea>
     <div class="modal-head"><div class="modal-title" id="pdrModalTitle">Pedir mais</div><button class="modal-close" data-close="overlayPedidoRapidoProduto">✕</button></div>
     <div class="form-grid">
       <div class="field full"><label>Quantidade a pedir</label><input type="number" step="0.1" min="0" id="pdr_quantidade"></div>
-      <div class="field"><label>WhatsApp do fornecedor</label><input type="text" id="pdr_whats" placeholder="Ex: 5534999998888 (com DDI 55)"></div>
-      <div class="field"><label>E-mail do fornecedor</label><input type="email" id="pdr_email" placeholder="fornecedor@exemplo.com"></div>
       <div class="field full"><label>Mensagem</label><textarea id="pdr_mensagem" rows="4" spellcheck="true" lang="pt-BR"></textarea></div>
     </div>
-    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">O contato preenchido fica salvo nesse produto pra próxima vez. Nada é enviado sozinho — abre seu WhatsApp/e-mail já com a mensagem pronta, você confere e manda de lá.</div>
+    <div class="hint-text" style="margin-top:-4px;margin-bottom:10px;">No próximo passo você escolhe um ou vários fornecedores (filtrando por classificação) ou cadastra um novo. Nada é enviado sozinho — abre seu WhatsApp/e-mail já com a mensagem pronta, você confere e manda de lá.</div>
     <div class="modal-actions">
       <div></div>
-      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoRapidoProduto">Cancelar</button><button type="button" class="btn btn-ghost" id="btnPedidoRapidoEmail">✉ Abrir E-mail</button><button type="button" class="btn" id="btnPedidoRapidoWhats">📱 Abrir WhatsApp</button></div>
+      <div class="modal-actions-right"><button type="button" class="btn btn-ghost" data-close="overlayPedidoRapidoProduto">Cancelar</button><button type="button" class="btn" id="btnPedidoRapidoEnviar">📤 Escolher fornecedores e enviar</button></div>
     </div>
   </div>
 </div>
@@ -16916,32 +16914,17 @@ function abrirPedidoRapidoProduto(produtoId){
   const proj = calcProjecaoConsumo(p);
   const sugestao = calcFardosSugeridos(p, proj);
   document.getElementById('pdr_quantidade').value = sugestao.necessario;
-  document.getElementById('pdr_whats').value = p.fornecedorWhats || '';
-  document.getElementById('pdr_email').value = p.fornecedorEmail || '';
   atualizarMensagemPedidoRapido();
   openModal('overlayPedidoRapidoProduto');
 }
 document.getElementById('pdr_quantidade').addEventListener('input', atualizarMensagemPedidoRapido);
-function salvarContatoFornecedorPedidoRapido(){
-  const fornecedorWhats = f('pdr_whats').trim(), fornecedorEmail = f('pdr_email').trim();
-  estoqueProdutos = estoqueProdutos.map(x=> x.id===pedidoRapidoProdutoId ? {...x, fornecedorWhats, fornecedorEmail} : x);
-  salvarEmSegundoPlano('estoque_produtos', estoqueProdutos);
-}
-document.getElementById('btnPedidoRapidoWhats').addEventListener('click', ()=>{
-  const numero = f('pdr_whats').replace(/\D/g,'');
-  if(!numero){ showAlert('Informe o WhatsApp do fornecedor (com DDI, ex: 55...).'); document.getElementById('pdr_whats').focus(); return; }
-  salvarContatoFornecedorPedidoRapido();
-  abrirWhatsApp(numero, f('pdr_mensagem'));
-  closeModal('overlayPedidoRapidoProduto');
-});
-document.getElementById('btnPedidoRapidoEmail').addEventListener('click', ()=>{
-  const email = f('pdr_email').trim();
-  if(!email){ showAlert('Informe o e-mail do fornecedor.'); document.getElementById('pdr_email').focus(); return; }
-  salvarContatoFornecedorPedidoRapido();
+// Pedir mais (atalho do medidor de Dietas/Estoque): usa a MESMA janela "Enviar pedido" do Estoque —
+// vários fornecedores marcados, filtro por classificação e "+ Adicionar contato" (com classificação).
+document.getElementById('btnPedidoRapidoEnviar').addEventListener('click', ()=>{
   const p = estoqueProdutos.find(x=>x.id===pedidoRapidoProdutoId);
-  const assunto = 'Pedido de compra - '+(p?p.nome:'');
-  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(assunto)}&body=${encodeURIComponent(f('pdr_mensagem'))}`, '_blank');
+  const mensagem = f('pdr_mensagem');
   closeModal('overlayPedidoRapidoProduto');
+  abrirEnvioFornecedores({ orcamento:false, comPdf:false, assunto:'Pedido de compra - '+(p?p.nome:''), mensagem });
 });
 function renderDietas(){
   const tbody = document.getElementById('dtTbody');
