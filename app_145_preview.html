@@ -2449,7 +2449,7 @@
       <div class="field"><label>Data</label><input type="date" id="fin_data"></div>
       <div class="field"><label>Tipo</label><select id="fin_tipo"><option value="saida">Saída</option><option value="entrada">Entrada</option></select></div>
       <div class="field full"><label>Categoria</label><div style="display:flex;gap:6px;"><select id="fin_categoria" style="flex:1;"></select><button type="button" class="btn btn-sm btn-ghost" data-aux="finCategoria">+</button><button type="button" class="btn btn-sm btn-ghost" data-auxedit="finCategoria" data-selid="fin_categoria" title="Editar valor selecionado">✎</button><button type="button" class="btn btn-sm btn-ghost" data-auxdelete="finCategoria" data-selid="fin_categoria" title="Excluir valor selecionado">🗑</button></div></div>
-      <div class="field full"><label>Subcategoria (opcional)</label><input type="text" id="fin_subcategoria" list="dl_fin_subcat" maxlength="60" placeholder="Ex: Frete de sêmen, Coleta de sêmen, Transferência de embrião"><datalist id="dl_fin_subcat"></datalist><datalist id="dl_fin_desc"></datalist></div>
+      <div class="field full"><label>Subcategoria (opcional)</label><div style="display:flex;gap:6px;"><input type="text" id="fin_subcategoria" list="dl_fin_subcat" maxlength="60" style="flex:1;" placeholder="Ex: Frete de sêmen, Coleta de sêmen, Transferência de embrião"><button type="button" class="btn btn-sm btn-ghost" id="btnSubcatEditar" title="Alterar o nome da subcategoria escolhida">✎</button><button type="button" class="btn btn-sm btn-ghost" id="btnSubcatExcluir" title="Excluir a subcategoria escolhida">🗑</button></div><datalist id="dl_fin_subcat"></datalist><datalist id="dl_fin_desc"></datalist></div>
       <div class="field full"><label>Descrição</label><div style="display:flex;gap:6px;"><input type="text" id="fin_descricao" list="dl_fin_desc" autocomplete="off" placeholder="Ex: Venda da potra Estrela" style="flex:1;"><button type="button" class="btn btn-sm btn-ghost" id="btnVozLancamento" title="Ditar o lançamento por voz">🎤</button></div></div>
       <div class="field"><label>Valor</label><div style="display:flex;gap:6px;"><select id="fin_moeda" style="flex:0 0 78px;"><option value="BRL">R$</option><option value="USD">US$</option></select><input type="number" id="fin_valor" min="0" step="0.01" placeholder="0,00" style="flex:1;"></div></div>
     </div>
@@ -22437,6 +22437,47 @@ function atualizarSugestoesSubcategoria(){
 }
 let finDescricoesUsadas = new Map();
 let finSubcatsDaCategoria = new Set();
+// Alterar / excluir uma subcategoria da categoria escolhida (vale para todos os lançamentos que a usam).
+// Lançamentos manuais: troca/tira o campo. Serviços da Cobertura (Reprodução): a subcategoria é o nome do serviço, então só dá para RENOMEAR aqui.
+function usosDaSubcategoriaFin(cat, sub){
+  const manuais = lancamentos.filter(l=>l.subcategoria===sub && (l.categoria===cat || catFin(l)===cat));
+  const servicos = [];
+  if(cat==='Reprodução') nascimentos.forEach(n=>(Array.isArray(n.servicos)?n.servicos:[]).forEach(sv=>{
+    const d = (sv.desc||'').trim(); const nome = d ? d.charAt(0).toUpperCase()+d.slice(1) : 'Serviço';
+    if(nome===sub) servicos.push(sv);
+  }));
+  return { manuais, servicos };
+}
+function subcategoriaEscolhidaFin(){
+  const cat = document.getElementById('fin_categoria').value, sub = document.getElementById('fin_subcategoria').value.trim();
+  if(!cat || !sub || !finSubcatsDaCategoria.has(sub)){ showAlert('Escolha a categoria e, na lista, a subcategoria que quer alterar ou excluir.'); return null; }
+  const u = usosDaSubcategoriaFin(cat, sub);
+  if(u.manuais.length+u.servicos.length===0){ showAlert('Esta subcategoria é só uma sugestão: ainda não foi usada em nenhum lançamento. Basta digitar o nome que você quer.'); return null; }
+  return { cat, sub, ...u };
+}
+async function salvarMudancaSubcategoriaFin(mexeuServicos){
+  await storeSet('financeiro_lancamentos', lancamentos);
+  if(mexeuServicos) await storeSet('nascimentos_list', nascimentos);
+  atualizarSugestoesSubcategoria(); renderFinanceiro();
+}
+document.getElementById('btnSubcatEditar').addEventListener('click', async ()=>{
+  const e = subcategoriaEscolhidaFin(); if(!e) return;
+  const novo = ((await showPrompt('Novo nome para a subcategoria "'+e.sub+'" ('+(e.manuais.length+e.servicos.length)+' lançamento(s) vão mudar):', 'Novo nome')) || '').trim();
+  if(!novo || novo===e.sub) return;
+  e.manuais.forEach(l=>{ l.subcategoria = novo; });
+  e.servicos.forEach(sv=>{ sv.desc = novo; });
+  document.getElementById('fin_subcategoria').value = novo;
+  await salvarMudancaSubcategoriaFin(e.servicos.length>0);
+});
+document.getElementById('btnSubcatExcluir').addEventListener('click', async ()=>{
+  const e = subcategoriaEscolhidaFin(); if(!e) return;
+  if(e.manuais.length===0){ showAlert('Esta subcategoria vem do nome do serviço na Cobertura, então não dá para excluir daqui. Use o ✎ para renomear, ou altere o serviço na Cobertura.'); return; }
+  const aviso = e.servicos.length>0 ? '\n\nOs '+e.servicos.length+' serviço(s) da Cobertura com esse nome continuam com ela (vêm do nome do serviço).' : '';
+  if(!(await showConfirm('Tirar a subcategoria "'+e.sub+'" de '+e.manuais.length+' lançamento(s)? Os lançamentos continuam; só ficam sem subcategoria.'+aviso, {titulo:'Excluir subcategoria', okLabel:'Excluir', danger:true}))) return;
+  e.manuais.forEach(l=>{ delete l.subcategoria; });
+  document.getElementById('fin_subcategoria').value = '';
+  await salvarMudancaSubcategoriaFin(false);
+});
 // Trocou a categoria: a lista de subcategorias passa a ser a dela, e uma subcategoria que não pertence à nova categoria é limpa.
 document.getElementById('fin_categoria').addEventListener('change', ()=>{
   const inSub = document.getElementById('fin_subcategoria');
