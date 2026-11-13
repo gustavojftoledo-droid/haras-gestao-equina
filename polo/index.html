@@ -77,6 +77,8 @@ function nomeCampo(id){var c=por(db.campos,id);return c?c.nome:'(campo apagado)'
 function nomeMaq(id){var m=por(db.maquinas,id);return m?m.nome:'(sem máquina)'}
 function custoItens(it){return (it||[]).reduce(function(a,i){return a+n(i.qtd)*n(i.custo)},0)}
 function custoReg(r){return custoItens(r.itens)+n(r.extra)}
+function qtdCampo(i,cid,nc){return i.dist?n(i.dist[cid]):n(i.qtd)/nc}
+function custoCampo(r,cid){var nc=r.campos.length;return (r.itens||[]).reduce(function(a,i){return a+qtdCampo(i,cid,nc)*n(i.custo)},0)+n(r.extra)/nc}
 function usos(prodId){var u=[];
   db.manejos.forEach(function(r){(r.itens||[]).forEach(function(i){if(i.prodId===prodId)u.push({data:r.data,qtd:n(i.qtd),de:'Manejo: '+r.tipo+' — '+r.campos.map(nomeCampo).join(', '),id:r.id,k:'manejo'})})});
   db.manutencoes.forEach(function(r){(r.itens||[]).forEach(function(i){if(i.prodId===prodId)u.push({data:r.data,qtd:n(i.qtd),de:'Manutenção: '+nomeMaq(r.maqId),id:r.id,k:'manut'})})});
@@ -105,8 +107,8 @@ function vPainel(){
   db.campos.forEach(function(c){
     var areia=0,herb=0,custo=0;
     db.manejos.filter(doAno).forEach(function(r){if(r.campos.indexOf(c.id)<0)return;var nc=r.campos.length;
-      if(r.tipo==='Areia')(r.itens||[]).forEach(function(i){var p=por(db.produtos,i.prodId);if(p&&p.cat==='Areia')areia+=n(i.qtd)/nc});
-      if(r.tipo==='Herbicida')herb++;custo+=custoReg(r)/nc});
+      if(r.tipo==='Areia')(r.itens||[]).forEach(function(i){var p=por(db.produtos,i.prodId);if(p&&p.cat==='Areia')areia+=qtdCampo(i,c.id,nc)});
+      if(r.tipo==='Herbicida')herb++;custo+=custoCampo(r,c.id)});
     var pc=Math.min(100,areia/META_AREIA*100);
     h+='<div class="card"><div class="row"><h3 class="sp">'+esc(c.nome)+'</h3><button class="b s p" onclick="fil.campo=\''+c.id+'\';fil.tipo=\'\';ir(\'manejos\')">Histórico</button></div>'
      +'<div>'+ultTxt(c.id,'Roçada',8)+'</div><div>'+ultTxt(c.id,'Irrigação',8)+'</div><div>'+ultTxt(c.id,'Roçadeira vertical')+'</div><div>'+ultTxt(c.id,'Adubação')+'</div>'
@@ -121,13 +123,13 @@ function vPainel(){
 // ===== Manejos =====
 function vManejos(){
   var l=db.manejos.filter(function(r){return (!fil.campo||r.campos.indexOf(fil.campo)>=0)&&(!fil.tipo||r.tipo===fil.tipo)&&doAno(r)}).sort(function(a,b){return a.data<b.data?1:-1});
-  var tot=l.reduce(function(a,r){return a+(fil.campo?custoReg(r)/r.campos.length:custoReg(r))},0);
+  var tot=l.reduce(function(a,r){return a+(fil.campo?custoCampo(r,fil.campo):custoReg(r))},0);
   var h='<div class="row"><b class="sp">Manejos</b>'+seletorAno()+'<button class="b" onclick="fManejo()">+ Novo</button></div>'
    +'<div class="row" style="margin-top:8px"><select style="flex:1" onchange="fil.campo=this.value;render()"><option value="">Todos os campos</option>'+db.campos.map(function(c){return '<option value="'+c.id+'"'+(fil.campo===c.id?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select>'
    +'<select style="flex:1" onchange="fil.tipo=this.value;render()"><option value="">Todos os tipos</option>'+TIPOS.map(function(t){return '<option'+(fil.tipo===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></div>'
    +'<div class="mut" style="margin:8px 0">'+l.length+' registro(s) · custo '+(fil.campo?'neste campo: ':'total: ')+'<b>'+brl(tot)+'</b></div>';
   if(!l.length)h+='<div class="card mut">Nenhum manejo neste filtro.</div>';
-  l.forEach(function(r){var its=(r.itens||[]).map(function(i){var p=por(db.produtos,i.prodId);return esc(p?p.nome:'(produto apagado)')+' '+q(n(i.qtd))+' '+esc(p?p.un:'')}).join(' · ');
+  l.forEach(function(r){var its=(r.itens||[]).map(function(i){var p=por(db.produtos,i.prodId);var un=esc(p?p.un:'');return esc(p?p.nome:'(produto apagado)')+' '+q(n(i.qtd))+' '+un+(i.dist?' ('+r.campos.map(function(c){return esc(nomeCampo(c))+': '+q(n(i.dist[c]))}).join(', ')+')':'')}).join(' · ');
     h+='<div class="card"><div class="row"><b class="sp">'+fd(r.data)+' — '+esc(r.tipo)+'</b><span class="tot">'+brl(custoReg(r))+'</span></div>'
      +'<div>'+r.campos.map(function(id){return '<span class="tag">'+esc(nomeCampo(id))+'</span>'}).join(' ')+'</div>'
      +(r.maqId?'<div class="mut">Máquina: '+esc(nomeMaq(r.maqId))+'</div>':'')+(its?'<div class="mut">'+its+'</div>':'')+(r.obs?'<div class="mut">📝 '+esc(r.obs)+'</div>':'')
@@ -137,11 +139,19 @@ var linhas=[];
 function opcoesProd(sel){var h='<option value="">— produto / peça —</option>';
   CATS.forEach(function(c){var l=db.produtos.filter(function(p){return p.cat===c});if(l.length)h+='<optgroup label="'+c+'">'+l.map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.nome)+' ('+q(saldo(p))+' '+esc(p.un)+')</option>'}).join('')+'</optgroup>'});
   return h}
-function pintaLinhas(){$('linhas').innerHTML=linhas.map(function(i,k){
+function camposMarcados(){return [].slice.call(document.querySelectorAll('.f_campo:checked')).map(function(x){return x.value})}
+function liga(k,on){var i=linhas[k];if(on){i.dist={};camposMarcados().forEach(function(c){i.dist[c]=''});somaDist(k)}else delete i.dist;pintaLinhas()}
+function setDist(k,c,v){linhas[k].dist[c]=v;somaDist(k);var e=$('tq'+k);if(e)e.value=linhas[k].qtd;somaForm()}
+function somaDist(k){var i=linhas[k];i.qtd=String(Object.keys(i.dist).reduce(function(a,c){return a+n(i.dist[c])},0)||'')}
+function pintaLinhas(){var cm=camposMarcados();$('linhas').innerHTML=linhas.map(function(i,k){
+  if(i.dist)cm.forEach(function(c){if(!(c in i.dist))i.dist[c]=''});
+  var extra=cm.length>1&&$('f_tipo')&&$('f_tipo').tagName&&document.querySelector('.f_campo')?
+    '<label style="margin:2px 0;display:flex;gap:6px;align-items:center;color:var(--txt)"><input type="checkbox" style="width:auto" '+(i.dist?'checked':'')+' onchange="liga('+k+',this.checked)"> Informar a quantidade de cada campo</label>'
+    +(i.dist?'<div class="chk">'+cm.map(function(c){return '<label>'+esc(nomeCampo(c))+' <input style="width:80px" inputmode="decimal" value="'+esc(i.dist[c])+'" oninput="setDist('+k+',\''+c+'\',this.value)"></label>'}).join('')+'</div>':''):'';
   return '<div class="item"><select onchange="escolheProd('+k+',this.value)">'+opcoesProd(i.prodId)+'</select>'
-   +'<input inputmode="decimal" placeholder="Qtd" value="'+esc(i.qtd)+'" oninput="linhas['+k+'].qtd=this.value;somaForm()">'
+   +'<input id="tq'+k+'" inputmode="decimal" placeholder="Qtd" value="'+esc(i.qtd)+'" '+(i.dist?'readonly':'')+' oninput="linhas['+k+'].qtd=this.value;somaForm()">'
    +'<input inputmode="decimal" placeholder="R$ unid." value="'+esc(i.custo)+'" oninput="linhas['+k+'].custo=this.value;somaForm()">'
-   +'<button class="b d p" onclick="linhas.splice('+k+',1);pintaLinhas();somaForm()">✕</button></div>'}).join('');somaForm()}
+   +'<button class="b d p" onclick="linhas.splice('+k+',1);pintaLinhas();somaForm()">✕</button></div>'+(extra?'<div style="grid-column:1/-1;margin-bottom:8px">'+extra+'</div>':'')}).join('');somaForm()}
 function escolheProd(k,id){linhas[k].prodId=id;var p=por(db.produtos,id);linhas[k].custo=p?String(p.custo||''):'';pintaLinhas()}
 function somaForm(){var e=$('somaf');if(e)e.textContent=brl(custoItens(linhas)+n(($('f_extra')||{}).value))}
 function blocoItens(titulo){return '<label>'+titulo+' <span class="mut">(sai do estoque; o valor vem do cadastro e pode ser ajustado)</span></label><div id="linhas"></div>'
@@ -152,7 +162,7 @@ function fManejo(id){var r=id?por(db.manejos,id):{data:hoje(),tipo:'Roçada',cam
    +'<label>Data</label><input type="date" id="f_data" value="'+r.data+'">'
    +'<label>Tipo</label><select id="f_tipo" onchange="dicaTipo()">'+TIPOS.map(function(t){return '<option'+(t===r.tipo?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'
    +'<div id="dica" class="warn"></div>'
-   +'<label>Campo(s) <span class="mut">(se marcar mais de um, o custo é dividido igual)</span></label><div class="chk">'+db.campos.map(function(c){return '<label><input type="checkbox" class="f_campo" value="'+c.id+'"'+(r.campos.indexOf(c.id)>=0?' checked':'')+'>'+esc(c.nome)+'</label>'}).join('')+'</div>'
+   +'<label>Campo(s) <span class="mut">(se marcar mais de um, o custo é dividido igual)</span></label><div class="chk">'+db.campos.map(function(c){return '<label><input type="checkbox" class="f_campo" onchange="pintaLinhas()" value="'+c.id+'"'+(r.campos.indexOf(c.id)>=0?' checked':'')+'>'+esc(c.nome)+'</label>'}).join('')+'</div>'
    +'<label>Máquina usada (opcional)</label><select id="f_maq"><option value="">— nenhuma —</option>'+db.maquinas.map(function(m){return '<option value="'+m.id+'"'+(m.id===r.maqId?' selected':'')+'>'+esc(m.nome)+'</option>'}).join('')+'</select>'
    +blocoItens('Produtos usados (areia, herbicida, adubo…)')
    +'<label>Outros custos (R$) — mão de obra, combustível</label><input id="f_extra" inputmode="decimal" value="'+esc(r.extra)+'" oninput="somaForm()">'
@@ -164,11 +174,13 @@ function dicaTipo(){var t=$('f_tipo').value;$('dica').textContent=t==='Areia'?'D
 function gravaManejo(id){
   var campos=[].slice.call(document.querySelectorAll('.f_campo:checked')).map(function(x){return x.value});
   if(!campos.length)return alert('Marque pelo menos um campo.');
+  linhas.forEach(function(i){if(i.dist){Object.keys(i.dist).forEach(function(c){if(campos.indexOf(c)<0)delete i.dist[c]});if(Object.keys(i.dist).length<2&&false)delete i.dist;somaDist(linhas.indexOf(i))}});
   var itens=linhas.filter(function(i){return i.prodId&&n(i.qtd)>0});
   if(linhas.some(function(i){return (i.prodId&&!n(i.qtd))||(!i.prodId&&n(i.qtd))}))return alert('Tem item incompleto (produto ou quantidade faltando).');
   var tipo=$('f_tipo').value;
-  if(tipo==='Areia'){var m3=itens.filter(function(i){var p=por(db.produtos,i.prodId);return p&&p.cat==='Areia'}).reduce(function(a,i){return a+n(i.qtd)},0)/campos.length;
-    if(m3&&(m3<AREIA_MIN||m3>AREIA_MAX)&&!confirm('Isso dá '+q(m3)+' m³ por campo, fora do ideal ('+AREIA_MIN+'–'+AREIA_MAX+'). Salvar assim mesmo?'))return}
+  if(tipo==='Areia'){var ar=itens.filter(function(i){var p=por(db.produtos,i.prodId);return p&&p.cat==='Areia'}),bad=null;
+    campos.forEach(function(c){var m3=ar.reduce(function(a,i){return a+qtdCampo(i,c,campos.length)},0);if(m3&&(m3<AREIA_MIN||m3>AREIA_MAX))bad=[c,m3]});
+    if(bad&&!confirm(nomeCampo(bad[0])+' ficou com '+q(bad[1])+' m³, fora do ideal ('+AREIA_MIN+'–'+AREIA_MAX+'). Salvar assim mesmo?'))return}
   var r={id:id||uid(),data:$('f_data').value,tipo:tipo,campos:campos,maqId:$('f_maq').value,itens:itens,extra:$('f_extra').value,obs:$('f_obs').value.trim()};
   if(!r.data)return alert('Escolha a data.');
   if(id)db.manejos[db.manejos.indexOf(por(db.manejos,id))]=r;else db.manejos.push(r);
