@@ -340,6 +340,7 @@
   .chip-man.on{background:var(--gold);color:var(--gold-ink);font-weight:700;}
   .card .chip-man{background:var(--surface-2);color:var(--text-muted);} .card .chip-man.on{background:var(--gold);color:var(--gold-ink);}
   .campo-prods{margin-top:8px;border-top:1px solid rgba(255,255,255,.25);padding-top:6px;}
+  .linha-erro{color:#F2B8B0;cursor:pointer;} .card .linha-erro{color:var(--err-text);} .linha-erro small{font-size:.74rem;opacity:.95;}
   .linha-prod{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;padding:2px 0;}
   .campo-ver{font-size:.72rem;opacity:.7;margin-top:8px;text-align:right;}
   .tag-tipo{background:var(--surface-2);border-radius:6px;padding:1px 7px;font-size:.78rem;font-weight:600;color:var(--header-bg);}
@@ -1092,6 +1093,13 @@ const CAMPOS_INICIO = ['Campo 1','Campo 2','Campo 3','Campo 4'];
 const META_AREIA = 500;
 
 function brl(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function unidadeOk(u){ return !!u && !/^[\d.,\s]+$/.test(String(u)); }
+function linhaProdHtml(p){
+  const ok = unidadeOk(p.un);
+  return `<div class="linha-prod${ok?'':' linha-erro'}" ${p.id?`data-abrirprod="${esc(p.id)}"`:''}>
+    <span>${esc(p.nome)}${ok?'':'<br><small>⚠ A unidade deste produto está errada ("'+esc(p.un)+'"). Toque aqui e corrija (ex.: kg, L, m³).</small>'}</span>
+    <b>${esc(fmtQ(p.qty))} ${ok?esc(p.un):''}</b></div>`;
+}
 function fmtQ(v){ return (Math.round((v||0)*100)/100).toLocaleString('pt-BR'); }
 
 // Manejos antigos não têm "tipo de manejo": descobrimos pelo texto e pelos produtos.
@@ -1139,7 +1147,7 @@ function resumoCampo(local, ano){
       const nome = p ? p.name : '(produto removido)';
       const un = p ? p.unit : '';
       const k = it.productId;
-      if(!prods[k]) prods[k] = {nome, un, qty:0, areia: /areia/i.test(nome)};
+      if(!prods[k]) prods[k] = {id:k, nome, un, qty:0, areia: /areia/i.test(nome)};
       prods[k].qty += it.qty||0;
       if(prods[k].areia) areia += it.qty||0;
     });
@@ -1185,7 +1193,7 @@ function renderInicio(){
     const r = resumoCampo(c, anoSel);
     const pct = Math.min(100, r.areia/META_AREIA*100);
     const chips = TIPOS_INICIO.map(t=>`<span class="chip-man${r.cont[t]?' on':''}">${t==='Roçadeira vertical'?'Vertical':t} ${r.cont[t]}×</span>`).join('');
-    const outros = r.prods.filter(p=>!p.areia).map(p=>`<div class="linha-prod"><span>${esc(p.nome)}</span><b>${esc(fmtQ(p.qty))} ${esc(p.un)}</b></div>`).join('');
+    const outros = r.prods.filter(p=>!p.areia).map(p=>linhaProdHtml({...p, id:null})).join('');
     return `<div class="campo" data-campo="${esc(c)}">
       <div class="campo-linha campo-meio"></div><div class="campo-circ"></div>
       <div class="campo-gol esq"></div><div class="campo-gol dir"></div>
@@ -1208,7 +1216,7 @@ function renderInicio(){
 
 function renderCampoDetalhe(c){
   const r = resumoCampo(c, anoSel);
-  const prods = r.prods.map(p=>`<div class="linha-prod"><span>${esc(p.nome)}</span><b>${esc(fmtQ(p.qty))} ${esc(p.un)}</b></div>`).join('') || '<div class="empty">Nenhum produto usado neste ano.</div>';
+  const prods = r.prods.map(p=>linhaProdHtml(p)).join('') || '<div class="empty">Nenhum produto usado neste ano.</div>';
   const chips = TIPOS_INICIO.map(t=>`<span class="chip-man${r.cont[t]?' on':''}">${t} ${r.cont[t]}×</span>`).join('');
   const lista = r.list.length ? r.list.map(m=>cardManejo(m)).join('') : '<div class="card"><div class="empty">Nenhum manejo neste ano.</div></div>';
   return `
@@ -1235,6 +1243,9 @@ function attachInicioHandlers(){
   if(voltar) voltar.onclick = ()=>{ campoSel = null; render(); };
   const novo = document.getElementById('btn-novo-manejo-campo');
   if(novo) novo.onclick = ()=>{ limparFormManejo(); manCampo = campoSel; currentTab = 'manejos'; render(); window.scrollTo(0,0); };
+  document.querySelectorAll('[data-abrirprod]').forEach(el=>{
+    el.onclick = ()=>{ selectedProductId = el.dataset.abrirprod; currentTab = 'estoque'; campoSel = null; render(); window.scrollTo(0,0); };
+  });
   attachManejoCardHandlers();
 }
 
@@ -1846,6 +1857,7 @@ async function onEntrada(){
     const min = parseFloat(document.getElementById('ent-min-novo').value) || 0;
     const obs = document.getElementById('ent-obs-novo').value.trim();
     if(!nome){ showToast('Informe o nome do produto.', 'err'); return; }
+    if(!unidadeOk(un) && un!=='un'){ showToast('A unidade não pode ser um número. Use kg, L, m³, un...', 'err'); return; }
     const novo = {id: uid('p'), name:nome, category:cat, unit:un, qty:qtd, min:min, obs:obs, valor: parseFloat(document.getElementById('ent-valor-novo').value) || 0};
     data.products.push(novo);
     let mv = null;
@@ -2021,6 +2033,7 @@ async function onSalvarProduto(){
   const valor = parseFloat(document.getElementById('pd-valor').value) || 0;
 
   if(!nome){ showToast('Informe o nome do produto.', 'err'); return; }
+  if(un && !unidadeOk(un)){ showToast('A unidade não pode ser um número. Use kg, L, m³, un...', 'err'); return; }
   if(isNaN(qtd) || qtd<0){ showToast('Informe uma quantidade atual válida.', 'err'); return; }
   if(isNaN(min) || min<0){ showToast('Informe um estoque mínimo válido.', 'err'); return; }
 
