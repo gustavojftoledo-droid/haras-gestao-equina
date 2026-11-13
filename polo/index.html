@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manejo do Polo</title>
+<style>
+:root{--verde:#1C3327;--verde2:#2f5a43;--fundo:#EBE5D6;--card:#fff;--borda:#d8d0bd;--txt:#1C3327;--cinza:#6b7468;--verm:#b3261e;--amar:#b7791f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--txt);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:76px}
+header{background:var(--verde);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:1.15rem}
+main{max-width:760px;margin:0 auto;padding:12px 16px}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--borda);display:flex;z-index:5}
+nav button{flex:1;border:0;background:none;padding:10px 2px;font-size:.78rem;color:var(--cinza)}
+nav button.on{color:var(--verde);font-weight:700;border-top:3px solid var(--verde)}
+nav button span{display:block;font-size:1.3rem}
+.card{background:var(--card);border:1px solid var(--borda);border-radius:12px;padding:12px;margin:10px 0}
+.card h3{margin:0 0 6px;font-size:1.05rem}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.mut{color:var(--cinza);font-size:.88rem}
+.bad{color:var(--verm);font-weight:600}.warn{color:var(--amar);font-weight:600}.ok{color:var(--verde2);font-weight:600}
+button.b{background:var(--verde);color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:.95rem}
+button.b.s{background:#fff;color:var(--verde);border:1px solid var(--verde)}
+button.b.d{background:#fff;color:var(--verm);border:1px solid var(--verm)}
+button.b.p{padding:5px 10px;font-size:.85rem}
+label{display:block;font-size:.85rem;color:var(--cinza);margin:10px 0 3px}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--borda);border-radius:8px;font:inherit;background:#fff}
+.chk{display:flex;flex-wrap:wrap;gap:6px}
+.chk label{display:flex;align-items:center;gap:6px;margin:0;padding:7px 10px;border:1px solid var(--borda);border-radius:8px;color:var(--txt);font-size:.95rem}
+.chk input{width:auto}
+.bar{height:10px;background:#e4ddc9;border-radius:6px;overflow:hidden;margin:4px 0}
+.bar i{display:block;height:100%;background:var(--verde2)}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:20;overflow:auto}
+#modal .box{background:var(--fundo);max-width:560px;margin:20px auto;border-radius:14px;padding:14px 16px}
+.item{display:grid;grid-template-columns:1fr 80px 90px 36px;gap:6px;margin:6px 0;align-items:center}
+.tag{display:inline-block;background:#e4ddc9;border-radius:6px;padding:1px 8px;font-size:.8rem}
+.tot{font-weight:700}
+</style>
+</head>
+<body>
+<header><h1>🐎 Manejo do Polo</h1></header>
+<main id="app"></main>
+<nav id="nav"></nav>
+<div id="modal"><div class="box" id="box"></div></div>
+<script>
+// ===== Dados (ficam neste aparelho; use Mais > Salvar cópia de segurança) =====
+var CHAVE='polo_manejo_v1';
+var TIPOS=['Roçada','Irrigação','Roçadeira vertical','Areia','Herbicida','Adubação','Outro'];
+var CATS=['Peça','Areia','Herbicida','Adubo','Óleo / combustível','Outro'];
+var META_AREIA=500, AREIA_MIN=100, AREIA_MAX=150;
+var db=carregar(), tela='painel', ano=new Date().getFullYear(), fil={campo:'',tipo:''};
+function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4)}
+function semente(){
+  var c=[1,2,3,4].map(function(n){return{id:uid(),nome:'Campo '+n}});
+  var m=[];['Trator 1','Trator 2','Trator 3'].forEach(function(n){m.push({id:uid(),nome:n,tipo:'Trator'})});
+  ['Roçadeira helicoidal 1','Roçadeira helicoidal 2','Roçadeira vertical','Pulverizador','Adubadeira Vincon'].forEach(function(n){m.push({id:uid(),nome:n,tipo:'Implemento'})});
+  var p=[{id:uid(),nome:'Areia',cat:'Areia',un:'m³',custo:0,min:0,entradas:[]},
+         {id:uid(),nome:'Herbicida',cat:'Herbicida',un:'L',custo:0,min:0,entradas:[]},
+         {id:uid(),nome:'Adubo',cat:'Adubo',un:'kg',custo:0,min:0,entradas:[]}];
+  return{campos:c,maquinas:m,produtos:p,manejos:[],manutencoes:[]};
+}
+function carregar(){try{var s=localStorage.getItem(CHAVE);if(s)return JSON.parse(s)}catch(e){}return semente()}
+function salvar(){try{localStorage.setItem(CHAVE,JSON.stringify(db))}catch(e){alert('Não consegui salvar neste aparelho. Faça a cópia de segurança.')}}
+// ===== Utilidades =====
+function $(i){return document.getElementById(i)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function n(v){var x=parseFloat(String(v).replace(',','.'));return isNaN(x)?0:x}
+function brl(v){return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function q(v){return (Math.round(v*100)/100).toLocaleString('pt-BR')}
+function hoje(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function fd(s){return s?s.split('-').reverse().join('/'):''}
+function dias(s){return Math.floor((new Date(hoje())-new Date(s))/864e5)}
+function por(lista,id){return lista.filter(function(x){return x.id===id})[0]}
+function nomeCampo(id){var c=por(db.campos,id);return c?c.nome:'(campo apagado)'}
+function nomeMaq(id){var m=por(db.maquinas,id);return m?m.nome:'(sem máquina)'}
+function custoItens(it){return (it||[]).reduce(function(a,i){return a+n(i.qtd)*n(i.custo)},0)}
+function custoReg(r){return custoItens(r.itens)+n(r.extra)}
+function usos(prodId){var u=[];
+  db.manejos.forEach(function(r){(r.itens||[]).forEach(function(i){if(i.prodId===prodId)u.push({data:r.data,qtd:n(i.qtd),de:'Manejo: '+r.tipo+' — '+r.campos.map(nomeCampo).join(', '),id:r.id,k:'manejo'})})});
+  db.manutencoes.forEach(function(r){(r.itens||[]).forEach(function(i){if(i.prodId===prodId)u.push({data:r.data,qtd:n(i.qtd),de:'Manutenção: '+nomeMaq(r.maqId),id:r.id,k:'manut'})})});
+  return u}
+function saldo(p){return p.entradas.reduce(function(a,e){return a+n(e.qtd)},0)-usos(p.id).reduce(function(a,u){return a+u.qtd},0)}
+function doAno(r){return r.data&&r.data.slice(0,4)==String(ano)}
+function abrir(h){$('box').innerHTML=h;$('modal').style.display='block';$('modal').scrollTop=0}
+function fechar(){$('modal').style.display='none'}
+function avisoNeg(){var l=db.produtos.filter(function(p){return saldo(p)<0}).map(function(p){return p.nome});
+  if(l.length)alert('Atenção: o estoque ficou NEGATIVO em: '+l.join(', ')+'.\nRegistre a entrada (compra) em Estoque.')}
+// ===== Navegação =====
+var ABAS=[['painel','📊','Painel'],['manejos','🌱','Manejos'],['maquinas','🚜','Máquinas'],['estoque','📦','Estoque'],['mais','⚙️','Mais']];
+function ir(t){tela=t;render()}
+function render(){
+  $('nav').innerHTML=ABAS.map(function(a){return '<button class="'+(a[0]===tela?'on':'')+'" onclick="ir(\''+a[0]+'\')"><span>'+a[1]+'</span>'+a[2]+'</button>'}).join('');
+  $('app').innerHTML=({painel:vPainel,manejos:vManejos,maquinas:vMaquinas,estoque:vEstoque,mais:vMais})[tela]();
+  window.scrollTo(0,0)}
+function seletorAno(){var a=[];for(var y=new Date().getFullYear()+1;y>=2020;y--)a.push('<option'+(y===ano?' selected':'')+'>'+y+'</option>');
+  return '<select style="width:auto" onchange="ano=+this.value;render()">'+a.join('')+'</select>'}
+// ===== Painel =====
+function ultimo(campoId,tipo){var l=db.manejos.filter(function(r){return r.tipo===tipo&&r.campos.indexOf(campoId)>=0}).map(function(r){return r.data}).sort();return l[l.length-1]}
+function ultTxt(campoId,tipo,limite){var d=ultimo(campoId,tipo);if(!d)return '<span class="mut">'+tipo+': nunca</span>';
+  var x=dias(d);return tipo+': '+fd(d)+' <span class="'+(limite&&x>limite?'warn':'mut')+'">('+x+' d atrás)</span>'}
+function vPainel(){
+  var h='<div class="row"><b class="sp">Resumo do ano</b>'+seletorAno()+'</div>';
+  db.campos.forEach(function(c){
+    var areia=0,herb=0,custo=0;
+    db.manejos.filter(doAno).forEach(function(r){if(r.campos.indexOf(c.id)<0)return;var nc=r.campos.length;
+      if(r.tipo==='Areia')(r.itens||[]).forEach(function(i){var p=por(db.produtos,i.prodId);if(p&&p.cat==='Areia')areia+=n(i.qtd)/nc});
+      if(r.tipo==='Herbicida')herb++;custo+=custoReg(r)/nc});
+    var pc=Math.min(100,areia/META_AREIA*100);
+    h+='<div class="card"><div class="row"><h3 class="sp">'+esc(c.nome)+'</h3><button class="b s p" onclick="fil.campo=\''+c.id+'\';fil.tipo=\'\';ir(\'manejos\')">Histórico</button></div>'
+     +'<div>'+ultTxt(c.id,'Roçada',8)+'</div><div>'+ultTxt(c.id,'Irrigação',8)+'</div><div>'+ultTxt(c.id,'Roçadeira vertical')+'</div><div>'+ultTxt(c.id,'Adubação')+'</div>'
+     +'<div>Herbicida em '+ano+': <b>'+herb+'x</b></div>'
+     +'<div style="margin-top:6px">Areia em '+ano+': <b>'+q(areia)+' m³</b> de '+META_AREIA+' <span class="mut">(faltam '+q(Math.max(0,META_AREIA-areia))+')</span></div><div class="bar"><i style="width:'+pc+'%"></i></div>'
+     +'<div class="mut">Custo dos manejos em '+ano+': <b>'+brl(custo)+'</b></div></div>'});
+  var baixos=db.produtos.filter(function(p){return saldo(p)<=n(p.min)&&(n(p.min)>0||saldo(p)<0)});
+  if(baixos.length)h+='<div class="card"><h3>⚠️ Estoque baixo</h3>'+baixos.map(function(p){return '<div>'+esc(p.nome)+': <span class="bad">'+q(saldo(p))+' '+esc(p.un)+'</span> <span class="mut">(mínimo '+q(n(p.min))+')</span></div>'}).join('')+'</div>';
+  var cm=db.manutencoes.filter(doAno).reduce(function(a,r){return a+custoReg(r)},0);
+  h+='<div class="card"><h3>Máquinas em '+ano+'</h3>Gasto com manutenção: <b>'+brl(cm)+'</b></div>';
+  return h}
+// ===== Manejos =====
+function vManejos(){
+  var l=db.manejos.filter(function(r){return (!fil.campo||r.campos.indexOf(fil.campo)>=0)&&(!fil.tipo||r.tipo===fil.tipo)&&doAno(r)}).sort(function(a,b){return a.data<b.data?1:-1});
+  var tot=l.reduce(function(a,r){return a+(fil.campo?custoReg(r)/r.campos.length:custoReg(r))},0);
+  var h='<div class="row"><b class="sp">Manejos</b>'+seletorAno()+'<button class="b" onclick="fManejo()">+ Novo</button></div>'
+   +'<div class="row" style="margin-top:8px"><select style="flex:1" onchange="fil.campo=this.value;render()"><option value="">Todos os campos</option>'+db.campos.map(function(c){return '<option value="'+c.id+'"'+(fil.campo===c.id?' selected':'')+'>'+esc(c.nome)+'</option>'}).join('')+'</select>'
+   +'<select style="flex:1" onchange="fil.tipo=this.value;render()"><option value="">Todos os tipos</option>'+TIPOS.map(function(t){return '<option'+(fil.tipo===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></div>'
+   +'<div class="mut" style="margin:8px 0">'+l.length+' registro(s) · custo '+(fil.campo?'neste campo: ':'total: ')+'<b>'+brl(tot)+'</b></div>';
+  if(!l.length)h+='<div class="card mut">Nenhum manejo neste filtro.</div>';
+  l.forEach(function(r){var its=(r.itens||[]).map(function(i){var p=por(db.produtos,i.prodId);return esc(p?p.nome:'(produto apagado)')+' '+q(n(i.qtd))+' '+esc(p?p.un:'')}).join(' · ');
+    h+='<div class="card"><div class="row"><b class="sp">'+fd(r.data)+' — '+esc(r.tipo)+'</b><span class="tot">'+brl(custoReg(r))+'</span></div>'
+     +'<div>'+r.campos.map(function(id){return '<span class="tag">'+esc(nomeCampo(id))+'</span>'}).join(' ')+'</div>'
+     +(r.maqId?'<div class="mut">Máquina: '+esc(nomeMaq(r.maqId))+'</div>':'')+(its?'<div class="mut">'+its+'</div>':'')+(r.obs?'<div class="mut">📝 '+esc(r.obs)+'</div>':'')
+     +'<div class="row" style="margin-top:8px"><button class="b s p" onclick="fManejo(\''+r.id+'\')">✎ Alterar</button><button class="b d p" onclick="apagar(\'manejos\',\''+r.id+'\')">🗑 Apagar</button></div></div>'});
+  return h}
+var linhas=[];
+function opcoesProd(sel){var h='<option value="">— produto / peça —</option>';
+  CATS.forEach(function(c){var l=db.produtos.filter(function(p){return p.cat===c});if(l.length)h+='<optgroup label="'+c+'">'+l.map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc(p.nome)+' ('+q(saldo(p))+' '+esc(p.un)+')</option>'}).join('')+'</optgroup>'});
+  return h}
+function pintaLinhas(){$('linhas').innerHTML=linhas.map(function(i,k){
+  return '<div class="item"><select onchange="escolheProd('+k+',this.value)">'+opcoesProd(i.prodId)+'</select>'
+   +'<input inputmode="decimal" placeholder="Qtd" value="'+esc(i.qtd)+'" oninput="linhas['+k+'].qtd=this.value;somaForm()">'
+   +'<input inputmode="decimal" placeholder="R$ unid." value="'+esc(i.custo)+'" oninput="linhas['+k+'].custo=this.value;somaForm()">'
+   +'<button class="b d p" onclick="linhas.splice('+k+',1);pintaLinhas();somaForm()">✕</button></div>'}).join('');somaForm()}
+function escolheProd(k,id){linhas[k].prodId=id;var p=por(db.produtos,id);linhas[k].custo=p?String(p.custo||''):'';pintaLinhas()}
+function somaForm(){var e=$('somaf');if(e)e.textContent=brl(custoItens(linhas)+n(($('f_extra')||{}).value))}
+function blocoItens(titulo){return '<label>'+titulo+' <span class="mut">(sai do estoque; o valor vem do cadastro e pode ser ajustado)</span></label><div id="linhas"></div>'
+  +'<button class="b s p" onclick="linhas.push({prodId:\'\',qtd:\'\',custo:\'\'});pintaLinhas()">+ Adicionar item</button>'}
+function fManejo(id){var r=id?por(db.manejos,id):{data:hoje(),tipo:'Roçada',campos:[],maqId:'',itens:[],extra:'',obs:''};
+  linhas=JSON.parse(JSON.stringify(r.itens||[]));
+  abrir('<h3>'+(id?'Alterar manejo':'Novo manejo')+'</h3>'
+   +'<label>Data</label><input type="date" id="f_data" value="'+r.data+'">'
+   +'<label>Tipo</label><select id="f_tipo" onchange="dicaTipo()">'+TIPOS.map(function(t){return '<option'+(t===r.tipo?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'
+   +'<div id="dica" class="warn"></div>'
+   +'<label>Campo(s) <span class="mut">(se marcar mais de um, o custo é dividido igual)</span></label><div class="chk">'+db.campos.map(function(c){return '<label><input type="checkbox" class="f_campo" value="'+c.id+'"'+(r.campos.indexOf(c.id)>=0?' checked':'')+'>'+esc(c.nome)+'</label>'}).join('')+'</div>'
+   +'<label>Máquina usada (opcional)</label><select id="f_maq"><option value="">— nenhuma —</option>'+db.maquinas.map(function(m){return '<option value="'+m.id+'"'+(m.id===r.maqId?' selected':'')+'>'+esc(m.nome)+'</option>'}).join('')+'</select>'
+   +blocoItens('Produtos usados (areia, herbicida, adubo…)')
+   +'<label>Outros custos (R$) — mão de obra, combustível</label><input id="f_extra" inputmode="decimal" value="'+esc(r.extra)+'" oninput="somaForm()">'
+   +'<label>Observação</label><textarea id="f_obs" rows="2">'+esc(r.obs)+'</textarea>'
+   +'<p>Custo total: <span class="tot" id="somaf"></span></p>'
+   +'<div class="row"><button class="b" onclick="gravaManejo(\''+(id||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button></div>');
+  pintaLinhas();dicaTipo()}
+function dicaTipo(){var t=$('f_tipo').value;$('dica').textContent=t==='Areia'?'Dica: cada vez entre '+AREIA_MIN+' e '+AREIA_MAX+' m³ por campo. Escolha a "Areia" e digite os m³.':''}
+function gravaManejo(id){
+  var campos=[].slice.call(document.querySelectorAll('.f_campo:checked')).map(function(x){return x.value});
+  if(!campos.length)return alert('Marque pelo menos um campo.');
+  var itens=linhas.filter(function(i){return i.prodId&&n(i.qtd)>0});
+  if(linhas.some(function(i){return (i.prodId&&!n(i.qtd))||(!i.prodId&&n(i.qtd))}))return alert('Tem item incompleto (produto ou quantidade faltando).');
+  var tipo=$('f_tipo').value;
+  if(tipo==='Areia'){var m3=itens.filter(function(i){var p=por(db.produtos,i.prodId);return p&&p.cat==='Areia'}).reduce(function(a,i){return a+n(i.qtd)},0)/campos.length;
+    if(m3&&(m3<AREIA_MIN||m3>AREIA_MAX)&&!confirm('Isso dá '+q(m3)+' m³ por campo, fora do ideal ('+AREIA_MIN+'–'+AREIA_MAX+'). Salvar assim mesmo?'))return}
+  var r={id:id||uid(),data:$('f_data').value,tipo:tipo,campos:campos,maqId:$('f_maq').value,itens:itens,extra:$('f_extra').value,obs:$('f_obs').value.trim()};
+  if(!r.data)return alert('Escolha a data.');
+  if(id)db.manejos[db.manejos.indexOf(por(db.manejos,id))]=r;else db.manejos.push(r);
+  salvar();fechar();render();avisoNeg()}
+function apagar(lista,id){if(!confirm('Apagar este registro? O estoque volta a ficar como antes dele.'))return;
+  db[lista]=db[lista].filter(function(x){return x.id!==id});salvar();fechar();render()}
+// ===== Máquinas e manutenção =====
+function vMaquinas(){
+  var h='<div class="row"><b class="sp">Máquinas</b>'+seletorAno()+'<button class="b s" onclick="fMaquina()">+ Máquina</button></div>';
+  db.maquinas.forEach(function(m){var l=db.manutencoes.filter(function(r){return r.maqId===m.id});
+    var ca=l.filter(doAno).reduce(function(a,r){return a+custoReg(r)},0),ct=l.reduce(function(a,r){return a+custoReg(r)},0);
+    var ult=l.map(function(r){return r.data}).sort().pop();
+    h+='<div class="card"><div class="row"><h3 class="sp">'+esc(m.nome)+'</h3><span class="tag">'+esc(m.tipo)+'</span></div>'
+     +'<div>Gasto em '+ano+': <b>'+brl(ca)+'</b> <span class="mut">· total: '+brl(ct)+'</span></div>'
+     +'<div class="mut">Última manutenção: '+(ult?fd(ult):'nenhuma')+'</div>'
+     +'<div class="row" style="margin-top:8px"><button class="b p" onclick="fManut(\'\',\''+m.id+'\')">+ Manutenção</button><button class="b s p" onclick="histMaq(\''+m.id+'\')">Histórico</button><button class="b s p" onclick="fMaquina(\''+m.id+'\')">✎</button></div></div>'});
+  return h}
+function fMaquina(id){var m=id?por(db.maquinas,id):{nome:'',tipo:'Implemento'};
+  abrir('<h3>'+(id?'Alterar máquina':'Nova máquina')+'</h3><label>Nome</label><input id="m_nome" value="'+esc(m.nome)+'">'
+   +'<label>Tipo</label><select id="m_tipo">'+['Trator','Implemento','Outro'].map(function(t){return '<option'+(t===m.tipo?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'
+   +'<div class="row" style="margin-top:14px"><button class="b" onclick="gravaMaq(\''+(id||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button>'+(id?'<button class="b d" onclick="apagaMaq(\''+id+'\')">🗑 Apagar</button>':'')+'</div>')}
+function gravaMaq(id){var nome=$('m_nome').value.trim();if(!nome)return alert('Digite o nome.');
+  if(id){var m=por(db.maquinas,id);m.nome=nome;m.tipo=$('m_tipo').value}else db.maquinas.push({id:uid(),nome:nome,tipo:$('m_tipo').value});
+  salvar();fechar();render()}
+function apagaMaq(id){var tem=db.manutencoes.some(function(r){return r.maqId===id})||db.manejos.some(function(r){return r.maqId===id});
+  if(tem)return alert('Esta máquina tem histórico. Apague antes as manutenções/manejos dela.');
+  if(!confirm('Apagar a máquina?'))return;db.maquinas=db.maquinas.filter(function(m){return m.id!==id});salvar();fechar();render()}
+function histMaq(id){var m=por(db.maquinas,id);
+  var l=db.manutencoes.filter(function(r){return r.maqId===id}).sort(function(a,b){return a.data<b.data?1:-1});
+  var uso=db.manejos.filter(function(r){return r.maqId===id}).sort(function(a,b){return a.data<b.data?1:-1});
+  var h='<h3>'+esc(m.nome)+'</h3><div class="mut">Custo total: <b>'+brl(l.reduce(function(a,r){return a+custoReg(r)},0))+'</b></div><h3>Manutenções</h3>';
+  if(!l.length)h+='<div class="mut">Nenhuma.</div>';
+  l.forEach(function(r){var its=(r.itens||[]).map(function(i){var p=por(db.produtos,i.prodId);return esc(p?p.nome:'(apagado)')+' '+q(n(i.qtd))+' × '+brl(n(i.custo))}).join('<br>');
+    h+='<div class="card"><div class="row"><b class="sp">'+fd(r.data)+' · '+esc(r.tipo)+'</b><span class="tot">'+brl(custoReg(r))+'</span></div><div>'+esc(r.desc)+'</div>'
+     +(r.horimetro?'<div class="mut">Horímetro: '+esc(r.horimetro)+'</div>':'')+(its?'<div class="mut">'+its+'</div>':'')+(n(r.extra)?'<div class="mut">Mão de obra/serviço: '+brl(n(r.extra))+'</div>':'')
+     +'<div class="row" style="margin-top:6px"><button class="b s p" onclick="fManut(\''+r.id+'\')">✎ Alterar</button><button class="b d p" onclick="apagar(\'manutencoes\',\''+r.id+'\')">🗑 Apagar</button></div></div>'});
+  h+='<h3>Usada em manejos</h3>'+(uso.length?uso.map(function(r){return '<div class="mut">'+fd(r.data)+' — '+esc(r.tipo)+' — '+r.campos.map(nomeCampo).join(', ')+'</div>'}).join(''):'<div class="mut">Nenhum.</div>')
+   +'<div class="row" style="margin-top:12px"><button class="b" onclick="fManut(\'\',\''+id+'\')">+ Manutenção</button><button class="b s" onclick="fechar()">Fechar</button></div>';
+  abrir(h)}
+function fManut(id,maqId){var r=id?por(db.manutencoes,id):{data:hoje(),maqId:maqId||'',tipo:'Preventiva',desc:'',horimetro:'',itens:[],extra:'',obs:''};
+  linhas=JSON.parse(JSON.stringify(r.itens||[]));
+  abrir('<h3>'+(id?'Alterar manutenção':'Nova manutenção')+'</h3>'
+   +'<label>Data</label><input type="date" id="f_data" value="'+r.data+'">'
+   +'<label>Máquina</label><select id="f_maq"><option value="">— escolha —</option>'+db.maquinas.map(function(m){return '<option value="'+m.id+'"'+(m.id===r.maqId?' selected':'')+'>'+esc(m.nome)+'</option>'}).join('')+'</select>'
+   +'<label>Tipo</label><select id="f_tipo">'+['Preventiva','Corretiva (conserto)'].map(function(t){return '<option'+(t===r.tipo?' selected':'')+'>'+t+'</option>'}).join('')+'</select>'
+   +'<label>O que foi feito</label><input id="f_desc" value="'+esc(r.desc)+'" placeholder="ex.: troca de facas">'
+   +'<label>Horímetro (opcional)</label><input id="f_hor" value="'+esc(r.horimetro)+'">'
+   +blocoItens('Peças trocadas')
+   +'<label>Mão de obra / serviço de terceiro (R$)</label><input id="f_extra" inputmode="decimal" value="'+esc(r.extra)+'" oninput="somaForm()">'
+   +'<p>Custo total: <span class="tot" id="somaf"></span></p>'
+   +'<div class="row"><button class="b" onclick="gravaManut(\''+(id||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button></div>');
+  pintaLinhas()}
+function gravaManut(id){var maq=$('f_maq').value;if(!maq)return alert('Escolha a máquina.');
+  if(linhas.some(function(i){return (i.prodId&&!n(i.qtd))||(!i.prodId&&n(i.qtd))}))return alert('Tem peça incompleta (produto ou quantidade faltando).');
+  var r={id:id||uid(),data:$('f_data').value,maqId:maq,tipo:$('f_tipo').value,desc:$('f_desc').value.trim(),horimetro:$('f_hor').value.trim(),itens:linhas.filter(function(i){return i.prodId&&n(i.qtd)>0}),extra:$('f_extra').value};
+  if(!r.data)return alert('Escolha a data.');
+  if(id)db.manutencoes[db.manutencoes.indexOf(por(db.manutencoes,id))]=r;else db.manutencoes.push(r);
+  salvar();fechar();render();avisoNeg()}
+// ===== Estoque =====
+function vEstoque(){var h='<div class="row"><b class="sp">Estoque</b><button class="b" onclick="fProd()">+ Produto / peça</button></div>';
+  CATS.forEach(function(c){var l=db.produtos.filter(function(p){return p.cat===c});if(!l.length)return;h+='<h3 style="margin:14px 0 0">'+c+'</h3>';
+    l.forEach(function(p){var s=saldo(p),b=s<0||(n(p.min)>0&&s<=n(p.min));
+      h+='<div class="card"><div class="row"><b class="sp">'+esc(p.nome)+'</b><span class="'+(b?'bad':'ok')+'">'+q(s)+' '+esc(p.un)+'</span></div>'
+       +'<div class="mut">Valor no cadastro: '+brl(n(p.custo))+' / '+esc(p.un)+(n(p.min)?' · mínimo '+q(n(p.min)):'')+'</div>'
+       +'<div class="row" style="margin-top:8px"><button class="b p" onclick="fEntrada(\''+p.id+'\')">+ Entrada</button><button class="b s p" onclick="extrato(\''+p.id+'\')">Extrato</button><button class="b s p" onclick="fProd(\''+p.id+'\')">✎</button></div></div>'})});
+  return h}
+function fProd(id){var p=id?por(db.produtos,id):{nome:'',cat:'Peça',un:'un',custo:'',min:''};
+  abrir('<h3>'+(id?'Alterar cadastro':'Novo produto / peça')+'</h3><label>Nome</label><input id="p_nome" value="'+esc(p.nome)+'" placeholder="ex.: Faca da roçadeira">'
+   +'<label>Categoria</label><select id="p_cat">'+CATS.map(function(c){return '<option'+(c===p.cat?' selected':'')+'>'+c+'</option>'}).join('')+'</select>'
+   +'<label>Unidade</label><input id="p_un" value="'+esc(p.un)+'" placeholder="un, m³, L, kg…">'
+   +'<label>Valor por unidade (R$)</label><input id="p_custo" inputmode="decimal" value="'+esc(p.custo)+'">'
+   +'<label>Estoque mínimo (avisa quando chegar)</label><input id="p_min" inputmode="decimal" value="'+esc(p.min)+'">'
+   +(id?'':'<label>Estoque inicial (opcional)</label><input id="p_ini" inputmode="decimal">')
+   +'<div class="row" style="margin-top:14px"><button class="b" onclick="gravaProd(\''+(id||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button>'+(id?'<button class="b d" onclick="apagaProd(\''+id+'\')">🗑 Apagar</button>':'')+'</div>')}
+function gravaProd(id){var nome=$('p_nome').value.trim();if(!nome)return alert('Digite o nome.');
+  var d={nome:nome,cat:$('p_cat').value,un:$('p_un').value.trim()||'un',custo:n($('p_custo').value),min:n($('p_min').value)};
+  if(id){Object.assign(por(db.produtos,id),d)}else{d.id=uid();d.entradas=[];if(n($('p_ini').value)>0)d.entradas.push({id:uid(),data:hoje(),qtd:n($('p_ini').value),custo:d.custo,obs:'Estoque inicial'});db.produtos.push(d)}
+  salvar();fechar();render()}
+function apagaProd(id){if(usos(id).length)return alert('Este produto já foi usado em manejos/manutenções. Apague esses registros antes.');
+  if(!confirm('Apagar o produto?'))return;db.produtos=db.produtos.filter(function(p){return p.id!==id});salvar();fechar();render()}
+function fEntrada(id,eid){var p=por(db.produtos,id),e=eid?por(p.entradas,eid):{data:hoje(),qtd:'',custo:p.custo||'',obs:''};
+  abrir('<h3>Entrada — '+esc(p.nome)+'</h3><label>Data</label><input type="date" id="e_data" value="'+e.data+'">'
+   +'<label>Quantidade ('+esc(p.un)+')</label><input id="e_qtd" inputmode="decimal" value="'+esc(e.qtd)+'">'
+   +'<label>Valor por unidade (R$) <span class="mut">— atualiza o valor do cadastro</span></label><input id="e_custo" inputmode="decimal" value="'+esc(e.custo)+'">'
+   +'<label>Observação (fornecedor, nota…)</label><input id="e_obs" value="'+esc(e.obs)+'">'
+   +'<div class="row" style="margin-top:14px"><button class="b" onclick="gravaEntrada(\''+id+'\',\''+(eid||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button></div>')}
+function gravaEntrada(id,eid){var p=por(db.produtos,id);if(!(n($('e_qtd').value)>0))return alert('Digite a quantidade.');
+  var e={id:eid||uid(),data:$('e_data').value,qtd:n($('e_qtd').value),custo:n($('e_custo').value),obs:$('e_obs').value.trim()};
+  if(eid)p.entradas[p.entradas.indexOf(por(p.entradas,eid))]=e;else p.entradas.push(e);
+  if(e.custo>0)p.custo=e.custo;salvar();fechar();render()}
+function extrato(id){var p=por(db.produtos,id),m=[];
+  p.entradas.forEach(function(e){m.push({data:e.data,txt:'➕ Entrada '+q(n(e.qtd))+' '+esc(p.un)+' a '+brl(n(e.custo))+(e.obs?' · '+esc(e.obs):''),btn:'<button class="b s p" onclick="fEntrada(\''+id+'\',\''+e.id+'\')">✎</button> <button class="b d p" onclick="apagaEntrada(\''+id+'\',\''+e.id+'\')">🗑</button>'})});
+  usos(id).forEach(function(u){m.push({data:u.data,txt:'➖ Saída '+q(u.qtd)+' '+esc(p.un)+' · '+esc(u.de),btn:''})});
+  m.sort(function(a,b){return a.data<b.data?1:-1});
+  abrir('<h3>Extrato — '+esc(p.nome)+'</h3><div>Saldo: <b>'+q(saldo(p))+' '+esc(p.un)+'</b></div><div class="mut">Saídas se alteram no manejo/manutenção que as gerou.</div>'
+   +m.map(function(x){return '<div class="card"><b>'+fd(x.data)+'</b> '+x.txt+(x.btn?'<div style="margin-top:6px">'+x.btn+'</div>':'')+'</div>'}).join('')
+   +'<button class="b s" onclick="fechar()">Fechar</button>')}
+function apagaEntrada(id,eid){if(!confirm('Apagar esta entrada?'))return;var p=por(db.produtos,id);p.entradas=p.entradas.filter(function(e){return e.id!==eid});salvar();extrato(id);render()}
+// ===== Mais: campos e cópia de segurança =====
+function vMais(){var h='<h3>Campos</h3>';
+  db.campos.forEach(function(c){h+='<div class="card row"><span class="sp">'+esc(c.nome)+'</span><button class="b s p" onclick="fCampo(\''+c.id+'\')">✎</button></div>'});
+  h+='<button class="b s" onclick="fCampo()">+ Campo</button>'
+   +'<h3 style="margin-top:20px">Cópia de segurança</h3><div class="card"><div class="mut">Os dados ficam só neste aparelho. Salve uma cópia de vez em quando (e antes de trocar de celular/limpar o navegador).</div>'
+   +'<div class="row" style="margin-top:8px"><button class="b" onclick="exportar()">Salvar cópia</button><button class="b s" onclick="$(\'imp\').click()">Restaurar cópia</button></div><input type="file" id="imp" accept=".json" style="display:none" onchange="importar(this)"></div>';
+  return h}
+function fCampo(id){var c=id?por(db.campos,id):{nome:''};
+  abrir('<h3>'+(id?'Alterar campo':'Novo campo')+'</h3><label>Nome</label><input id="c_nome" value="'+esc(c.nome)+'">'
+   +'<div class="row" style="margin-top:14px"><button class="b" onclick="gravaCampo(\''+(id||'')+'\')">Salvar</button><button class="b s" onclick="fechar()">Cancelar</button>'+(id?'<button class="b d" onclick="apagaCampo(\''+id+'\')">🗑 Apagar</button>':'')+'</div>')}
+function gravaCampo(id){var nome=$('c_nome').value.trim();if(!nome)return alert('Digite o nome.');
+  if(id)por(db.campos,id).nome=nome;else db.campos.push({id:uid(),nome:nome});salvar();fechar();render()}
+function apagaCampo(id){if(db.manejos.some(function(r){return r.campos.indexOf(id)>=0}))return alert('Este campo tem manejos registrados. Apague ou altere esses manejos antes.');
+  if(!confirm('Apagar o campo?'))return;db.campos=db.campos.filter(function(c){return c.id!==id});salvar();fechar();render()}
+function exportar(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='manejo-polo-'+hoje()+'.json';a.click()}
+function importar(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);
+  if(!d.campos||!d.manejos||!d.produtos)throw 0;if(!confirm('Isso troca TUDO que está no aparelho pela cópia. Continuar?'))return;db=d;salvar();render()}catch(e){alert('Arquivo inválido.')}};r.readAsText(f)}
+render();
+</script>
+</body>
+</html>
