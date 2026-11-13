@@ -346,6 +346,20 @@
   .card-acoes{display:flex;gap:8px;margin-top:10px;}
   .acao-btn{flex:1;padding:9px 8px;border-radius:8px;border:1px solid var(--header-bg);background:var(--surface);color:var(--header-bg);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer;}
   .acao-btn.perigo{border-color:var(--accent);color:var(--accent);}
+
+  /* ---- Formulário de manejo simples ---- */
+  .passo{font-weight:700;margin:18px 0 8px;font-size:1rem;color:var(--header-bg);}
+  .passo .num{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--header-bg);color:#fff;font-size:.85rem;align-items:center;justify-content:center;margin-right:6px;}
+  .passo .opc{font-weight:400;font-size:.8rem;color:var(--text-muted);}
+  .chips-grande{display:flex;flex-wrap:wrap;gap:8px;}
+  .chips-grande button{padding:12px 16px;border-radius:10px;border:2px solid var(--header-bg);background:var(--surface);color:var(--header-bg);font:inherit;font-weight:600;cursor:pointer;}
+  .chips-grande button.on{background:var(--header-bg);color:#fff;}
+  .item-row2{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .item-row2 select{flex:1;min-width:0;} .item-row2 input{width:92px;}
+  .un-lbl{min-width:26px;font-size:.85rem;color:var(--text-muted);}
+  .links-mini{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;}
+  .links-mini .link{padding:0;}
+  .mais-opc{margin-top:14px;} .mais-opc summary{cursor:pointer;color:var(--header-bg);font-weight:600;}
 </style>
 </head>
 <body>
@@ -425,10 +439,11 @@ let manCat = '';
 let manExtra = '';
 let manEditId = null;
 let manCarrinho = '';
+let manMostrarProd = false;
 let entradaModo = 'existente';
 let manejoItens = [{name:'', qty:''}];
 let manTipo = 'campo';
-let manCampo = 'Campo 1';
+let manCampo = '';
 let manCampoOutro = '';
 let manImplementoId = '';
 let manNovoImplementoAberto = false;
@@ -974,103 +989,103 @@ function renderEntrada(){
 // ---------- MANEJOS (cadastro) ----------
 const CAMPO_OPCOES = ['Campo 1','Campo 2','Campo 3','Campo 4','Sede','Outro'];
 
+const USA_PRODUTO = ['Areia','Herbicida','Adubação','Manutenção preventiva','Conserto'];
+
 function renderManejos(){
-  const catOpts = manTipo==='campo' ? TIPOS_CAMPO : TIPOS_IMPL;
-  if(!catOpts.includes(manCat)) manCat = catOpts[0];
-  const produtosDatalist = manTipo==='campo'
-    ? data.products.filter(p=>p.category!=='Peças' && p.category!=='Implemento')
-    : data.products.filter(p=>p.category!=='Implemento');
-  const nomesProdutos = produtosDatalist.slice().sort((a,b)=>a.name.localeCompare(b.name));
-  const datalistHtml = `<datalist id="produtos-datalist">${nomesProdutos.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist>`;
-  const placeholderProduto = manTipo==='campo' ? 'Nome do insumo/herbicida' : 'Nome da peça';
+  const ehImpl = manTipo==='implemento';
+  const catOpts = ehImpl ? TIPOS_IMPL : TIPOS_CAMPO;
+  const usaProd = USA_PRODUTO.includes(manCat);
+  const temLinha = manejoItens.some(it=>it.name || it.qty);
+  const mostrarProd = usaProd || temLinha || manMostrarProd;
 
-  const itensHtml = manejoItens.map((it, idx)=>`
-    <div class="item-row">
-      <input data-idx="${idx}" class="manejo-nome" list="produtos-datalist" type="text" placeholder="${placeholderProduto}" value="${esc(it.name)}">
-      <input data-idx="${idx}" class="manejo-qtd" type="number" min="0" step="any" placeholder="Qtd" value="${esc(it.qty)}">
-      <button type="button" class="link" data-remove="${idx}">✕</button>
-    </div>
-  `).join('');
+  // 1. O que foi feito
+  const passo1 = `<div class="passo"><span class="num">1</span> O que foi feito?</div>
+    <div class="chips-grande">${catOpts.map(c=>`<button type="button" data-mcat="${esc(c)}" class="${manCat===c?'on':''}">${esc(c)}</button>`).join('')}</div>`;
 
-  const implementos = data.products.filter(p=>p.category==='Implemento').sort((a,b)=>a.name.localeCompare(b.name));
-  const implementoOpts = implementos.map(p=>`<option value="${esc(p.id)}" ${manImplementoId===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  // 2. Onde
+  let passo2;
+  if(!ehImpl){
+    passo2 = `<div class="passo"><span class="num">2</span> Em qual campo?</div>
+      <div class="chips-grande">${CAMPO_OPCOES.map(c=>`<button type="button" data-mcampo="${esc(c)}" class="${manCampo===c?'on':''}">${esc(c)}</button>`).join('')}</div>
+      ${manCampo==='Outro' ? `<input id="man-campo-outro" type="text" placeholder="Qual local? Ex: faixa oeste do Campo 2" value="${esc(manCampoOutro)}" style="margin-top:8px;">` : ''}`;
+  } else {
+    const implementos = data.products.filter(p=>p.category==='Implemento').sort((a,b)=>a.name.localeCompare(b.name));
+    const impSel = findProduct(manImplementoId);
+    const cars = (impSel && impSel.carrinhos) || [];
+    passo2 = `<div class="passo"><span class="num">2</span> Qual máquina?</div>
+      <select id="man-implemento">
+        <option value="">Escolha a máquina</option>
+        ${implementos.map(p=>`<option value="${esc(p.id)}" ${manImplementoId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <div class="links-mini">
+        <button type="button" class="link" id="btn-novo-implemento">+ Nova máquina</button>
+        <button type="button" class="link" id="btn-editar-implemento">Editar</button>
+        <button type="button" class="link" id="btn-excluir-implemento">Excluir</button>
+      </div>
+      ${manNovoImplementoAberto ? `
+        <div class="row2" style="margin-top:8px;"><div><label>Nome da nova máquina</label><input id="man-novo-implemento-nome" type="text" placeholder="Ex: Roçadeira 5" value="${esc(manNovoImplementoNome)}"></div></div>
+        <div style="display:flex;gap:10px;"><button type="button" class="secondary" id="btn-confirmar-novo-implemento">Adicionar</button><button type="button" class="link" id="btn-cancelar-novo-implemento">Cancelar</button></div>` : ''}
+      ${impSel ? `<label>Carrinho (opcional)</label>
+        <select id="man-carrinho"><option value="">— máquina inteira —</option>${cars.map(c=>`<option ${manCarrinho===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+        <div class="links-mini"><button type="button" class="link" id="btn-novo-carrinho">+ Novo carrinho</button><button type="button" class="link" id="btn-excluir-carrinho">Excluir carrinho</button></div>` : ''}`;
+  }
+
+  // 3. Quando
+  const passo3 = `<div class="passo"><span class="num">3</span> Quando?</div>
+    <input id="man-data" type="date" value="${esc(manData)}">`;
+
+  // 4. Produtos (só aparece quando faz sentido; nunca obriga)
+  const prods = data.products.filter(p=> p.category!=='Implemento' && (ehImpl || p.category!=='Peças'))
+    .slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const cats = [...new Set(prods.map(p=>p.category))].sort();
+  const optsProd = (sel)=> `<option value="">Escolha o produto</option>` + cats.map(c=>
+    `<optgroup label="${esc(c)}">${prods.filter(p=>p.category===c).map(p=>`<option value="${esc(p.name)}" ${sel===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}</optgroup>`).join('');
+  let passo4;
+  if(mostrarProd){
+    const linhasHtml = manejoItens.map((it,idx)=>{
+      const pr = data.products.find(x=>x.name===it.name);
+      return `<div class="item-row2">
+        <select class="manejo-nome" data-idx="${idx}">${optsProd(it.name)}</select>
+        <input data-idx="${idx}" class="manejo-qtd" type="number" min="0" step="any" inputmode="decimal" placeholder="Qtd" value="${esc(it.qty)}">
+        <span class="un-lbl">${pr?esc(pr.unit):''}</span>
+        <button type="button" class="link" data-remove="${idx}" title="Tirar">✕</button>
+      </div>`;
+    }).join('');
+    passo4 = `<div class="passo"><span class="num">4</span> ${ehImpl?'Peças trocadas':'Produto usado'} <span class="opc">(se não usou, deixe vazio)</span></div>
+      ${linhasHtml}
+      <button type="button" class="secondary" id="btn-add-item">+ outro produto</button>`;
+  } else {
+    passo4 = `<div class="passo"><span class="num">4</span> Produto <span class="opc">(opcional)</span></div>
+      <button type="button" class="secondary" id="btn-mostrar-prod">+ Usou algum produto?</button>`;
+  }
+
+  const passo5 = `<div class="passo"><span class="num">5</span> Observação <span class="opc">(opcional)</span></div>
+    <textarea id="man-desc" placeholder="Ex: roçada baixa, após a chuva...">${esc(manDesc)}</textarea>
+    <details class="mais-opc" ${manExtra?'open':''}><summary>Mais opções (custo extra)</summary>
+      <label>Outros custos (R$) — mão de obra, serviço de terceiro</label>
+      <input id="man-extra" type="number" min="0" step="any" inputmode="decimal" placeholder="0" value="${esc(manExtra)}">
+    </details>`;
 
   return `
   <div class="card">
     <div class="section-title">${manEditId ? 'Alterar manejo' : 'Novo manejo'}</div>
-
-    <label>Este manejo é sobre</label>
     <div class="toggle-tabs">
-      <button data-tipo="campo" class="${manTipo==='campo'?'active':''}">Campo</button>
-      <button data-tipo="implemento" class="${manTipo==='implemento'?'active':''}">Implemento</button>
+      <button data-tipo="campo" class="${!ehImpl?'active':''}">Campo</button>
+      <button data-tipo="implemento" class="${ehImpl?'active':''}">Máquina</button>
     </div>
-
-    ${manTipo==='campo' ? `
-      <label>Qual campo</label>
-      <select id="man-campo">
-        ${CAMPO_OPCOES.map(c=>`<option value="${esc(c)}" ${manCampo===c?'selected':''}>${esc(c)}</option>`).join('')}
-      </select>
-      <div id="man-campo-outro-wrap" style="display:${manCampo==='Outro'?'block':'none'};">
-        <label>Especifique o local</label>
-        <input id="man-campo-outro" type="text" placeholder="Ex: faixa oeste do Campo 2" value="${esc(manCampoOutro)}">
-      </div>
-    ` : `
-      <label>Qual implemento</label>
-      <select id="man-implemento">
-        <option value="">Selecione o implemento</option>
-        ${implementoOpts}
-      </select>
-      ${(()=>{
-        const impSel = findProduct(manImplementoId);
-        if(!impSel) return '';
-        const cars = impSel.carrinhos || [];
-        return `<label>Carrinho (manutenção por carrinho)</label>
-        <select id="man-carrinho"><option value="">— implemento inteiro —</option>${cars.map(c=>`<option ${manCarrinho===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
-        <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
-          <button type="button" class="link" id="btn-novo-carrinho" style="padding:0;">+ Novo carrinho</button>
-          <button type="button" class="link" id="btn-excluir-carrinho" style="padding:0;">Excluir carrinho</button>
-        </div>`;
-      })()}
-      <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
-        <button type="button" class="link" id="btn-novo-implemento" style="padding:0;">+ Novo implemento</button>
-        <button type="button" class="link" id="btn-editar-implemento" style="padding:0;">Editar</button>
-        <button type="button" class="link" id="btn-excluir-implemento" style="padding:0;">Excluir</button>
-      </div>
-      ${manNovoImplementoAberto ? `
-        <div class="row2" style="margin-top:8px;">
-          <div><label>Nome do novo implemento</label><input id="man-novo-implemento-nome" type="text" placeholder="Ex: Roçadeira 5" value="${esc(manNovoImplementoNome)}"></div>
-        </div>
-        <div style="display:flex;gap:10px;">
-          <button type="button" class="secondary" id="btn-confirmar-novo-implemento">Adicionar implemento</button>
-          <button type="button" class="link" id="btn-cancelar-novo-implemento">Cancelar</button>
-        </div>
-      ` : ''}
-    `}
-
-    <label>Tipo de manejo</label>
-    <select id="man-cat">${catOpts.map(c=>`<option ${manCat===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
-
-    <label>Data</label>
-    <input id="man-data" type="date" value="${esc(manData)}">
-    <label>Descrição do manejo realizado</label>
-    <textarea id="man-desc" placeholder="Ex: aplicação de herbicida pós-emergente, roçada mecânica...">${esc(manDesc)}</textarea>
-
-    <div class="section-title">Produtos utilizados (saída de estoque)</div>
-    <div id="manejo-itens">${itensHtml}</div>
-    ${datalistHtml}
-    <button type="button" class="secondary" id="btn-add-item">+ adicionar produto</button>
-    <label>Outros custos (R$) — mão de obra, serviço de terceiro (opcional)</label>
-    <input id="man-extra" type="number" min="0" step="any" placeholder="0" value="${esc(manExtra)}">
-
-    <button class="primary" id="btn-manejo">${manEditId ? 'Salvar alteração' : 'Registrar manejo e dar baixa'}</button>
+    ${passo1}
+    ${passo2}
+    ${passo3}
+    ${passo4}
+    ${passo5}
+    <button class="primary" id="btn-manejo" style="margin-top:16px;">${manEditId ? 'Salvar alteração' : 'Salvar manejo'}</button>
     ${manEditId ? '<button class="link" id="btn-cancelar-edicao" style="margin-top:6px;">Cancelar alteração</button>' : ''}
     <button class="report-btn" id="btn-report-manejos">Gerar relatório de manejos (PDF)</button>
   </div>`;
 }
 
-
 // ---------- INÍCIO (campos desenhados) ----------
-const TIPOS_CAMPO = ['Areia','Roçadeira vertical','Herbicida','Adubação','Roçada','Irrigação','Outro'];
+const TIPOS_CAMPO = ['Roçada','Irrigação','Roçadeira vertical','Areia','Herbicida','Adubação','Outro'];
 const TIPOS_IMPL = ['Manutenção preventiva','Conserto'];
 const TIPOS_INICIO = ['Areia','Roçadeira vertical','Herbicida','Adubação'];
 const CAMPOS_INICIO = ['Campo 1','Campo 2','Campo 3','Campo 4'];
@@ -1573,36 +1588,26 @@ function attachHandlers(){
   }
 
   if(currentTab==='manejos'){
-    const captureFormState = ()=>{
-      const campoEl = document.getElementById('man-campo');
-      if(campoEl) manCampo = campoEl.value;
-      const outroEl = document.getElementById('man-campo-outro');
-      if(outroEl) manCampoOutro = outroEl.value;
-      const implEl = document.getElementById('man-implemento');
-      if(implEl) manImplementoId = implEl.value;
-      manData = document.getElementById('man-data').value;
-      manDesc = document.getElementById('man-desc').value;
-      const carEl = document.getElementById('man-carrinho');
-      if(carEl) manCarrinho = carEl.value;
-      manCat = document.getElementById('man-cat').value;
-      manExtra = document.getElementById('man-extra').value;
-    };
+    const captureFormState = ()=>{};
 
     document.querySelectorAll('[data-tipo]').forEach(b=>{
       b.onclick = ()=>{
         captureFormState();
         manTipo = b.dataset.tipo;
         manCat = '';
+        manMostrarProd = false;
         render();
       };
     });
 
-    const campoEl = document.getElementById('man-campo');
-    if(campoEl) campoEl.onchange = (e)=>{
-      manCampo = e.target.value;
-      const wrap = document.getElementById('man-campo-outro-wrap');
-      wrap.style.display = manCampo==='Outro' ? 'block' : 'none';
-    };
+    document.querySelectorAll('[data-mcat]').forEach(b=>{
+      b.onclick = ()=>{ manCat = b.dataset.mcat; render(); };
+    });
+    document.querySelectorAll('[data-mcampo]').forEach(b=>{
+      b.onclick = ()=>{ manCampo = b.dataset.mcampo; render(); };
+    });
+    const btnMostrar = document.getElementById('btn-mostrar-prod');
+    if(btnMostrar) btnMostrar.onclick = ()=>{ manMostrarProd = true; render(); };
     const outroEl = document.getElementById('man-campo-outro');
     if(outroEl) outroEl.oninput = ()=>{ manCampoOutro = outroEl.value; };
     const implEl = document.getElementById('man-implemento');
@@ -1636,7 +1641,6 @@ function attachHandlers(){
     };
     document.getElementById('man-data').onchange = (e)=>{ manData = e.target.value; };
     document.getElementById('man-desc').oninput = (e)=>{ manDesc = e.target.value; };
-    document.getElementById('man-cat').onchange = (e)=>{ manCat = e.target.value; };
     document.getElementById('man-extra').oninput = (e)=>{ manExtra = e.target.value; };
     const btnCancelEd = document.getElementById('btn-cancelar-edicao');
     if(btnCancelEd) btnCancelEd.onclick = ()=>{ limparFormManejo(); render(); };
@@ -1696,21 +1700,20 @@ function attachHandlers(){
       logAudit('implemento_excluido', impl.name);
     };
 
-    document.getElementById('btn-add-item').onclick = ()=>{
-      captureFormState();
+    const btnAddItem = document.getElementById('btn-add-item');
+    if(btnAddItem) btnAddItem.onclick = ()=>{
       manejoItens.push({name:'', qty:''});
       render();
     };
     document.querySelectorAll('[data-remove]').forEach(b=>{
       b.onclick = ()=>{
-        captureFormState();
         const idx = parseInt(b.dataset.remove);
-        if(manejoItens.length>1) manejoItens.splice(idx,1);
+        if(manejoItens.length>1) manejoItens.splice(idx,1); else manejoItens = [{name:'', qty:''}];
         render();
       };
     });
     document.querySelectorAll('.manejo-nome').forEach(inp=>{
-      inp.oninput = ()=>{ manejoItens[parseInt(inp.dataset.idx)].name = inp.value; };
+      inp.onchange = ()=>{ manejoItens[parseInt(inp.dataset.idx)].name = inp.value; render(); };
     });
     document.querySelectorAll('.manejo-qtd').forEach(inp=>{
       inp.oninput = ()=>{ manejoItens[parseInt(inp.dataset.idx)].qty = inp.value; };
@@ -1861,7 +1864,8 @@ async function onEntrada(){
 function limparFormManejo(){
   manejoItens = [{name:'', qty:''}];
   manTipo = 'campo';
-  manCampo = 'Campo 1';
+  manCampo = '';
+  manMostrarProd = false;
   manCampoOutro = '';
   manImplementoId = '';
   manDesc = '';
@@ -1885,6 +1889,7 @@ function editarManejo(id){
   manData = new Date(m.date).toISOString().slice(0,10);
   manDesc = m.descricao || '';
   manCat = tipoManejo(m);
+  manMostrarProd = (m.itens||[]).length>0;
   manExtra = m.extra ? String(m.extra) : '';
   manCarrinho = m.carrinho || '';
   manejoItens = (m.itens||[]).map(it=>{ const p = findProduct(it.productId); return {name: p?p.name:'', qty: String(it.qty)}; });
@@ -1898,34 +1903,31 @@ async function onManejo(){
   let local = '';
   let implementoId = '';
 
+  if(!manCat){ showToast('Escolha o que foi feito (passo 1).', 'err'); return; }
   if(manTipo==='campo'){
-    const campoSelV = document.getElementById('man-campo').value;
-    const campoOutroEl = document.getElementById('man-campo-outro');
-    const campoOutro = campoOutroEl ? campoOutroEl.value.trim() : '';
-    if(campoSelV==='Outro' && !campoOutro){ showToast('Especifique o local do campo selecionado como "Outro".', 'err'); return; }
-    local = campoSelV==='Outro' ? campoOutro : campoSelV;
+    if(!manCampo){ showToast('Escolha o campo (passo 2).', 'err'); return; }
+    const campoOutro = (manCampoOutro||'').trim();
+    if(manCampo==='Outro' && !campoOutro){ showToast('Diga qual é o local (passo 2).', 'err'); return; }
+    local = manCampo==='Outro' ? campoOutro : manCampo;
   } else {
-    implementoId = document.getElementById('man-implemento').value;
-    if(!implementoId){ showToast('Selecione qual implemento.', 'err'); return; }
+    implementoId = manImplementoId;
+    if(!implementoId){ showToast('Escolha a máquina (passo 2).', 'err'); return; }
     const implProd = findProduct(implementoId);
-    if(!implProd){ showToast('Implemento inválido, selecione novamente.', 'err'); return; }
+    if(!implProd){ showToast('Máquina inválida, escolha de novo.', 'err'); return; }
     local = implProd.name;
   }
 
-  const dataStr = document.getElementById('man-data').value;
-  const desc = document.getElementById('man-desc').value.trim();
-  const categoria = document.getElementById('man-cat').value;
-  const carEl3 = document.getElementById('man-carrinho');
-  const carrinho = (manTipo==='implemento' && carEl3) ? carEl3.value : '';
-  const extra = parseFloat(document.getElementById('man-extra').value) || 0;
+  const dataStr = manData;
+  const desc = (manDesc||'').trim();
+  const categoria = manCat;
+  const extra = parseFloat(manExtra) || 0;
+  const carrinho = manTipo==='implemento' ? manCarrinho : '';
 
+  const incompleta = manejoItens.find(it=> it.name && !(parseFloat(it.qty) > 0));
+  if(incompleta){ showToast(`Falta a quantidade de "${incompleta.name}". Preencha ou tire o produto.`, 'err'); return; }
   const linhas = manejoItens
     .map((it,idx)=>({...it, idx}))
     .filter(it=> it.name.trim() && parseFloat(it.qty) > 0);
-
-  // Roçada, irrigação e roçadeira vertical podem ser registradas sem produto.
-  const semProdutoOk = ['Roçada','Irrigação','Roçadeira vertical','Outro','Manutenção preventiva','Conserto'].includes(categoria);
-  if(linhas.length===0 && !semProdutoOk){ showToast('Adicione ao menos um produto utilizado com quantidade.', 'err'); return; }
 
   const antigo = manEditId ? data.manejos.find(x=>x.id===manEditId) : null;
   const devolver = {};
