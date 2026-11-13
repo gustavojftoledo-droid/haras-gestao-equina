@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=cfd82ffd-b212-41bb-8fe8-ba10cc4e5c15
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mata Chica Estoque</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Cpath d='M50,3 L90,16 L90,50 C90,76 72,90 50,97 C28,90 10,76 10,50 L10,16 Z'/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path='url(%23c)'%3E%3Crect width='100' height='100' fill='%23122A52'/%3E%3Crect y='66' width='100' height='34' fill='%23A6192E'/%3E%3C/g%3E%3Ctext x='50' y='46' font-family='Georgia,serif' font-size='26' font-weight='700' fill='%23fff' text-anchor='middle'%3EMC%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#F7F4EC;
+    --surface:#FFFFFF;
+    --surface-2:#F1ECDD;
+    --header-bg:#122A52;
+    --header-text:#F7F4EC;
+    --nav-bg:#2C4E82;
+    --nav-text:#F7F4EC;
+    --nav-active-bg:rgba(0,0,0,.10);
+    --accent:#A6192E;
+    --accent-press:#8C1327;
+    --accent-ink:#8C1327;
+    --warn:#A9781F;
+    --gold:#E7CDA0;
+    --gold-ink:#122A52;
+    --text:#1C2333;
+    --text-muted:#6B6555;
+    --border:#E1DCCB;
+    --ok-bg:#E4EEE0;
+    --ok-text:#2E6B3E;
+    --err-bg:#F6DEDA;
+    --err-text:#8C1327;
+    --shadow:rgba(20,20,10,.16);
+    --shadow-soft:rgba(20,20,10,.10);
+    --dot-ok:#2E6B3E;
+    --dot-warn:#A9781F;
+    --dot-err:#A6192E;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0D1526;
+      --surface:#16213C;
+      --surface-2:#1C2A4A;
+      --header-bg:#0A1120;
+      --header-text:#F0EBDC;
+      --nav-bg:#1C2E52;
+      --nav-text:#F0EBDC;
+      --nav-active-bg:rgba(255,255,255,.09);
+      --accent:#D3576A;
+      --accent-press:#B23C50;
+      --accent-ink:#F2AAB6;
+      --warn:#DCAE55;
+      --gold:#7A5C2E;
+      --gold-ink:#F2EEE0;
+      --text:#EAE4D4;
+      --text-muted:#A29B87;
+      --border:#2B3B5E;
+      --ok-bg:#15301F;
+      --ok-text:#7ECB98;
+      --err-bg:#3A1620;
+      --err-text:#F2A6B2;
+      --shadow:rgba(0,0,0,.55);
+      --shadow-soft:rgba(0,0,0,.4);
+      --dot-ok:#7ECB98;
+      --dot-warn:#DCAE55;
+      --dot-err:#E27C8D;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D1526;
+    --surface:#16213C;
+    --surface-2:#1C2A4A;
+    --header-bg:#0A1120;
+    --header-text:#F0EBDC;
+    --nav-bg:#1C2E52;
+    --nav-text:#F0EBDC;
+    --nav-active-bg:rgba(255,255,255,.09);
+    --accent:#D3576A;
+    --accent-press:#B23C50;
+    --accent-ink:#F2AAB6;
+    --warn:#DCAE55;
+    --gold:#7A5C2E;
+    --gold-ink:#F2EEE0;
+    --text:#EAE4D4;
+    --text-muted:#A29B87;
+    --border:#2B3B5E;
+    --ok-bg:#15301F;
+    --ok-text:#7ECB98;
+    --err-bg:#3A1620;
+    --err-text:#F2A6B2;
+    --shadow:rgba(0,0,0,.55);
+    --shadow-soft:rgba(0,0,0,.4);
+    --dot-ok:#7ECB98;
+    --dot-warn:#DCAE55;
+    --dot-err:#E27C8D;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:40px;
+  }
+  header{
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:16px 16px 14px;
+    position:sticky;
+    top:0;
+    z-index:20;
+    box-shadow:0 2px 8px var(--shadow);
+  }
+  .header-inner{display:flex;align-items:center;gap:12px;max-width:900px;margin:0 auto;}
+  .crest{flex-shrink:0;}
+  header h1{margin:0;font-size:1.3rem;letter-spacing:.09em;font-weight:700;font-family:Georgia,'Times New Roman',serif;}
+  header .sub{font-size:.74rem;opacity:.85;letter-spacing:.03em;margin-top:2px;}
+  header .sub2{font-size:.63rem;opacity:.6;text-transform:uppercase;letter-spacing:.09em;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--dot-warn);flex-shrink:0;}
+  .sync-status.ok .sync-dot{background:var(--dot-ok);}
+  .sync-status.err .sync-dot{background:var(--dot-err);}
+  .sync-status{display:flex;align-items:center;gap:5px;}
+  .stripe{
+    height:5px;
+    margin:14px -16px -14px -16px;
+    background:linear-gradient(to right,#122A52 33.3%,#fff 33.3%,#fff 66.6%,#A6192E 66.6%);
+  }
+  nav{
+    display:flex;
+    overflow-x:auto;
+    background:var(--nav-bg);
+    position:sticky;
+    top:56px;
+    z-index:19;
+    box-shadow:0 2px 6px var(--shadow-soft);
+  }
+  nav button{
+    flex:1;
+    min-width:84px;
+    background:transparent;
+    border:none;
+    color:var(--nav-text);
+    padding:11px 6px;
+    font-size:.78rem;
+    font-weight:600;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+    white-space:nowrap;
+    opacity:.75;
+  }
+  nav button.active{opacity:1;border-bottom:3px solid var(--accent);background:var(--nav-active-bg);}
+  nav button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
+  }
+  main{max-width:640px;margin:0 auto;padding:16px;}
+  main.wide{max-width:900px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+  .prod-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:10px;text-align:left;}
+  .prod-item:last-child{border-bottom:none;}
+  .prod-name{font-weight:600;font-size:.94rem;}
+  .prod-cat{font-size:.68rem;color:var(--nav-bg);color:color-mix(in srgb, var(--text-muted) 40%, var(--accent) 0%);color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .prod-qty{font-weight:700;font-size:1.05rem;min-width:78px;text-align:right;font-variant-numeric:tabular-nums;}
+  .prod-qty.baixo{color:var(--warn);}
+  .prod-qty.zerado{color:var(--accent);}
+  .tag-baixo{font-size:.62rem;background:var(--warn);color:#fff;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+  .tag-zerado{font-size:.62rem;background:var(--accent);color:#fff;padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+  .section-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:700;margin:18px 0 6px;text-align:left;}
+  .section-title:first-child{margin-top:0;}
+  label{display:block;font-size:.75rem;font-weight:600;color:var(--text-muted);margin:10px 0 4px;text-align:left;}
+  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:.9rem;font-family:inherit;background:var(--surface);color:var(--text);}
+  textarea{resize:vertical;min-height:52px;}
+  .row2{display:flex;gap:10px;}
+  .row2 > div{flex:1;}
+  button.primary{margin-top:14px;width:100%;background:var(--accent);color:#fff;border:none;padding:11px;border-radius:7px;font-size:.92rem;font-weight:700;cursor:pointer;letter-spacing:.02em;}
+  button.primary:active{background:var(--accent-press);}
+  button.primary.danger{background:var(--accent-press);}
+  button.secondary{background:none;border:1px solid var(--nav-bg);color:var(--nav-bg);padding:7px 10px;border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;}
+  :root[data-theme="dark"] button.secondary, @media (prefers-color-scheme:dark){ button.secondary{color:var(--text);border-color:var(--border);} }
+  button.report-btn{background:var(--header-bg);color:#fff;border:none;padding:9px 12px;border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;margin-top:4px;}
+  button.link{background:none;border:none;color:var(--accent-ink);font-size:.78rem;font-weight:600;cursor:pointer;padding:4px;}
+  .del-btn{background:none;border:none;color:var(--accent-ink);font-size:.95rem;cursor:pointer;padding:2px 6px;line-height:1;}
+  .item-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--border);}
+  .item-row select{flex:2;}
+  .item-row input{flex:1;}
+  .toggle-tabs{display:flex;gap:8px;margin-bottom:10px;}
+  .toggle-tabs button{flex:1;padding:8px;border-radius:7px;border:1px solid var(--nav-bg);background:var(--surface);color:var(--nav-bg);font-weight:600;font-size:.82rem;cursor:pointer;}
+  .toggle-tabs button.active{background:var(--nav-bg);color:#fff;}
+  .hist-item{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);font-size:.84rem;text-align:left;gap:8px;}
+  .hist-item:last-child{border-bottom:none;}
+  .hist-top{display:flex;justify-content:space-between;font-weight:600;gap:8px;}
+  .hist-entrada{color:var(--ok-text);}
+  .hist-saida{color:var(--accent-ink);}
+  .hist-meta{color:var(--text-muted);font-size:.75rem;margin-top:2px;}
+  .empty{text-align:center;color:var(--text-muted);font-size:.85rem;padding:24px 10px;}
+  .manejo-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;padding:0;margin-bottom:10px;overflow:hidden;}
+  .manejo-btn{width:100%;text-align:left;background:none;border:none;padding:12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--text);}
+  .manejo-head{display:flex;flex-direction:column;gap:2px;}
+  .manejo-local{font-weight:700;font-size:.9rem;}
+  .manejo-date{font-size:.72rem;color:var(--nav-bg);}
+  :root[data-theme="dark"] .manejo-date{color:var(--warn);}
+  @media (prefers-color-scheme:dark){ .manejo-date{color:var(--warn);} }
+  .manejo-body{padding:0 12px 12px;}
+  .manejo-desc{font-size:.85rem;margin:0 0 6px;color:var(--text);text-align:left;}
+  .manejo-itens{font-size:.78rem;color:var(--text-muted);text-align:left;}
+  .manejo-itens span{display:block;padding:1px 0;}
+  .manejo-top-row{display:flex;align-items:center;gap:6px;}
+  .badge-count{background:var(--gold);color:var(--gold-ink);font-size:.68rem;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap;}
+  .filter-chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;}
+  .filter-chips button{white-space:nowrap;padding:6px 12px;border-radius:20px;border:1px solid var(--nav-bg);background:var(--surface);color:var(--nav-bg);font-size:.76rem;font-weight:600;cursor:pointer;}
+  .filter-chips button.active{background:var(--nav-bg);color:#fff;}
+  .loading,.conn-msg{text-align:center;padding:40px 16px;color:var(--text-muted);}
+  .conn-msg .conn-title{font-weight:700;color:var(--text);margin-bottom:6px;font-size:1rem;}
+  .spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);margin:0 auto 14px;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion:reduce){ .spinner{animation-duration:2.4s;} }
+
+  .estoque-layout{display:flex;gap:16px;align-items:flex-start;}
+  .estoque-list{flex:1;min-width:0;}
+  .estoque-side{width:230px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+  @media (max-width:680px){
+    .estoque-layout{flex-direction:column;}
+    .estoque-side{width:100%;flex-direction:row;}
+  }
+  .alert-box{
+    border-radius:10px;
+    padding:14px;
+    cursor:pointer;
+    color:#fff;
+    border:none;
+    text-align:left;
+    flex:1;
+  }
+  .alert-box.baixo{background:var(--warn);}
+  .alert-box.zerado{background:var(--accent);}
+  .alert-box .num{font-size:1.6rem;font-weight:800;display:block;font-variant-numeric:tabular-nums;}
+  .alert-box .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;opacity:.92;}
+  .drawer{margin-top:12px;}
+  .drawer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .drawer-title{font-weight:700;font-size:.85rem;}
+
+  .search-row{display:flex;gap:8px;margin-bottom:12px;}
+  .search-row input{flex:1;}
+
+  input[type="checkbox"]{width:auto;accent-color:var(--accent);flex-shrink:0;}
+  .rel-row{cursor:pointer;}
+  .rel-row:hover{background:var(--surface-2);margin:0 -8px;padding:10px 8px;border-radius:6px;}
+  .rel-left{display:flex;align-items:center;gap:10px;}
+  .rel-bar{position:sticky;bottom:12px;z-index:5;}
+  .rel-bar-row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .rel-bar-row button.primary{margin-top:0;width:auto;padding:10px 18px;}
+  .rel-pedido-qtd{width:100px;flex-shrink:0;}
+
+  .prod-item.clickable{cursor:pointer;}
+  .prod-item.clickable:hover{background:var(--surface-2);margin:0 -8px;padding:10px 8px;border-radius:6px;}
+  .back-link{background:none;border:none;color:var(--nav-bg);font-size:.8rem;font-weight:700;cursor:pointer;padding:4px 0;margin-bottom:10px;}
+  :root[data-theme="dark"] .back-link{color:var(--text);}
+  @media (prefers-color-scheme:dark){ .back-link{color:var(--text);} }
+  .detail-heading{margin:2px 0 4px;font-size:1.15rem;font-family:Georgia,'Times New Roman',serif;}
+
+  .backup-bar{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    flex-wrap:wrap;
+    padding:8px 16px;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  .backup-btn{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--nav-bg);
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:.74rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  :root[data-theme="dark"] .backup-btn{color:var(--text);}
+  @media (prefers-color-scheme:dark){ .backup-btn{color:var(--text);} }
+  .backup-btn:hover{background:var(--surface-2);}
+  .auth-email{font-size:.78rem;color:var(--text-muted);align-self:center;}
+
+  .login-wrap{display:flex;justify-content:center;padding:36px 16px;}
+  .login-card{max-width:360px;width:100%;}
+  .login-title{font-family:Georgia,'Times New Roman',serif;font-size:1.2rem;margin:0 0 4px;}
+  .login-sub{color:var(--text-muted);font-size:.85rem;margin:0 0 18px;}
+  .login-error{background:var(--err-bg);color:var(--err-text);border-radius:7px;padding:8px 10px;font-size:.82rem;margin-bottom:12px;}
+  .login-hint{color:var(--text-muted);font-size:.74rem;margin-top:6px;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(10,14,25,.55);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;z-index:100;
+  }
+  .modal-box{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:20px;max-width:380px;width:100%;box-shadow:0 12px 32px var(--shadow);
+  }
+  .modal-msg{margin:0 0 16px;font-size:.9rem;color:var(--text);line-height:1.45;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .modal-actions button{width:auto;margin-top:0;padding:8px 16px;}
+
+  .toast-wrap{position:fixed;left:0;right:0;bottom:18px;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;pointer-events:none;}
+  .toast{
+    max-width:90vw;padding:10px 16px;border-radius:8px;font-size:.84rem;font-weight:600;
+    box-shadow:0 6px 18px var(--shadow);opacity:0;transform:translateY(8px);
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  @media (prefers-reduced-motion:reduce){ .toast{transition:none;} }
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.ok{background:var(--ok-bg);color:var(--ok-text);}
+  .toast.err{background:var(--err-bg);color:var(--err-text);}
+
+  .pdf-spinner{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;margin-right:7px;vertical-align:-2px;animation:spin .8s linear infinite;}
+
+  /* ---- Início: campos desenhados ---- */
+  .ini-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 6px;}
+  .ini-nota{font-size:.82rem;color:var(--text-muted);margin-bottom:12px;}
+  .ano-sel{width:auto;padding:6px 10px;}
+  .campo-grid{display:grid;grid-template-columns:1fr;gap:16px;}
+  @media (min-width:820px){ .campo-grid{grid-template-columns:1fr 1fr;} }
+  .campo{position:relative;min-height:270px;border-radius:10px;border:4px solid #fff;cursor:pointer;overflow:hidden;
+    box-shadow:0 0 0 2px #2E6B3E,0 4px 14px var(--shadow);
+    background:repeating-linear-gradient(90deg,#3E7F3C 0 34px,#468A43 34px 68px);display:flex;align-items:center;justify-content:center;padding:26px 30px;}
+  .campo-linha.campo-meio{position:absolute;top:0;bottom:0;left:50%;width:3px;background:rgba(255,255,255,.85);}
+  .campo-circ{position:absolute;top:50%;left:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border:3px solid rgba(255,255,255,.85);border-radius:50%;}
+  .campo-gol{position:absolute;top:50%;width:12px;height:70px;margin-top:-35px;background:rgba(255,255,255,.9);border-radius:3px;}
+  .campo-gol.esq{left:0;} .campo-gol.dir{right:0;}
+  .campo-painel{position:relative;z-index:2;width:100%;max-width:330px;background:rgba(18,42,82,.88);color:#F7F4EC;border-radius:12px;padding:12px 14px;}
+  .campo-nome{font-family:Georgia,'Times New Roman',serif;font-size:1.25rem;font-weight:700;letter-spacing:.03em;margin-bottom:6px;border-bottom:2px solid var(--accent);padding-bottom:4px;}
+  .campo-areia{display:flex;justify-content:space-between;align-items:baseline;font-size:.92rem;}
+  .campo-areia b{font-size:1.15rem;color:var(--gold);}
+  .campo-bar{height:8px;background:rgba(255,255,255,.2);border-radius:5px;overflow:hidden;margin:4px 0 2px;}
+  .campo-bar i{display:block;height:100%;background:var(--gold);}
+  .campo-meta{font-size:.72rem;opacity:.75;margin-bottom:8px;}
+  .campo-chips{display:flex;flex-wrap:wrap;gap:5px;}
+  .chip-man{font-size:.74rem;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.14);color:#F7F4EC;}
+  .chip-man.on{background:var(--gold);color:var(--gold-ink);font-weight:700;}
+  .card .chip-man{background:var(--surface-2);color:var(--text-muted);} .card .chip-man.on{background:var(--gold);color:var(--gold-ink);}
+  .campo-prods{margin-top:8px;border-top:1px solid rgba(255,255,255,.25);padding-top:6px;}
+  .linha-prod{display:flex;justify-content:space-between;gap:10px;font-size:.85rem;padding:2px 0;}
+  .campo-ver{font-size:.72rem;opacity:.7;margin-top:8px;text-align:right;}
+  .tag-tipo{background:var(--surface-2);border-radius:6px;padding:1px 7px;font-size:.78rem;font-weight:600;color:var(--header-bg);}
+  .card-acoes{display:flex;gap:8px;margin-top:10px;}
+  .acao-btn{flex:1;padding:9px 8px;border-radius:8px;border:1px solid var(--header-bg);background:var(--surface);color:var(--header-bg);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer;}
+  .acao-btn.perigo{border-color:var(--accent);color:var(--accent);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <svg class="crest" width="46" height="46" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Brasão Mata Chica Polo Club">
+      <defs>
+        <clipPath id="shieldClip">
+          <path d="M50,3 L90,16 L90,50 C90,76 72,90 50,97 C28,90 10,76 10,50 L10,16 Z"/>
+        </clipPath>
+      </defs>
+      <g clip-path="url(#shieldClip)">
+        <rect x="0" y="0" width="100" height="100" fill="#122A52"/>
+        <rect x="0" y="66" width="100" height="34" fill="#A6192E"/>
+      </g>
+      <path d="M50,3 L90,16 L90,50 C90,76 72,90 50,97 C28,90 10,76 10,50 L10,16 Z" fill="none" stroke="#fff" stroke-width="3"/>
+      <text x="50" y="46" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="700" fill="#fff" text-anchor="middle">MC</text>
+      <line x1="27" y1="56" x2="73" y2="56" stroke="#fff" stroke-width="1.5"/>
+    </svg>
+    <div>
+      <h1>MATA CHICA</h1>
+      <div class="sub">Polo Club · Estoque de Campo</div>
+      <div class="sub2">
+        <span>4 Campos · Sede</span>
+        <span>·</span>
+        <span class="sync-status" id="sync-status"><span class="sync-dot"></span><span id="sync-text">Conectando…</span></span>
+      </div>
+    </div>
+  </div>
+  <div class="stripe"></div>
+</header>
+
+<nav id="nav"></nav>
+
+<div class="backup-bar" id="auth-bar" style="display:none;">
+  <span class="auth-email" id="auth-email"></span>
+  <button class="backup-btn" id="btn-logout">Sair</button>
+</div>
+
+<div class="backup-bar" id="backup-bar" style="display:none;">
+  <button class="backup-btn" id="btn-exportar-backup">⬇ Exportar backup</button>
+  <button class="backup-btn" id="btn-importar-backup">⬆ Importar backup</button>
+  <input type="file" id="input-importar-backup" accept="application/json,.json" style="display:none;">
+</div>
+
+<main id="main">
+  <div class="loading">Carregando estoque...</div>
+</main>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBlVM_av_58-voSkU5mhcYefIt-4s6ri8g",
+  authDomain: "mata-chica-polo.firebaseapp.com",
+  projectId: "mata-chica-polo",
+  storageBucket: "mata-chica-polo.firebasestorage.app",
+  messagingSenderId: "343249325478",
+  appId: "1:343249325478:web:fa529cdd70c4b5b80f1367",
+  measurementId: "G-YT7DNQW5H7"
+};
+
+let fsDb = null;
+let dbState = 'connecting'; // connecting | unavailable | ready
+let loadedProducts = false, loadedMovements = false, loadedManejos = false, loadedAudit = false;
+
+let data = { products: [], movements: [], manejos: [], audit: [] };
+let currentTab = 'inicio';
+let anoSel = new Date().getFullYear();
+let campoSel = null;
+let manCat = '';
+let manExtra = '';
+let manEditId = null;
+let entradaModo = 'existente';
+let manejoItens = [{name:'', qty:''}];
+let manTipo = 'campo';
+let manCampo = 'Campo 1';
+let manCampoOutro = '';
+let manImplementoId = '';
+let manNovoImplementoAberto = false;
+let manNovoImplementoNome = '';
+let manData = new Date().toISOString().slice(0,10);
+let manDesc = '';
+let filtroCategoria = 'Todas';
+let estoqueBusca = '';
+let estoqueDrawer = null;
+let estoqueMostrarEntrada = false;
+let selectedProductId = null;
+let entBusca = '';
+let movBusca = '';
+let histSearch = '';
+let histTipoFiltro = 'Todos';
+let histLocalSelecionado = null; // {local, tipo}
+let relSelecionados = new Set();
+let relFiltroCategoria = 'Todas';
+let relFiltroBaixo = 'nao';
+let relBusca = '';
+let relModo = 'estoque';
+let relPedidoQtd = {};
+let relPedidoObs = '';
+let audBusca = '';
+let audFiltroUsuario = 'Todos';
+
+let authState = 'loading'; // loading | unavailable | loggedOut | loggedIn
+let authUser = null;
+let authError = '';
+let authBusy = false;
+let firestoreListenersAttached = false;
+let loginEmail = '';
+let loginLembrar = false;
+
+function uid(prefix){ return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){
+  return String(s===undefined||s===null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function dataReady(){ return loadedProducts && loadedMovements && loadedManejos && loadedAudit; }
+
+// ---------- FIREBASE / AUTH / DB SYNC ----------
+function initApp(){
+  if(!window.firebase || !window.firebase.initializeApp){
+    dbState = 'unavailable';
+    authState = 'unavailable';
+    render();
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    fsDb = firebase.firestore();
+    // A persistência é decidida na hora do login, pelo checkbox "Manter conectado".
+  }catch(e){
+    console.error('Erro ao iniciar Firebase', e);
+    dbState = 'unavailable';
+    authState = 'unavailable';
+    render();
+    return;
+  }
+  dbState = 'ready';
+
+  firebase.auth().onAuthStateChanged(user=>{
+    authUser = user;
+    if(user){
+      authState = 'loggedIn';
+      authError = '';
+      if(!firestoreListenersAttached){
+        attachFirestoreListeners();
+        firestoreListenersAttached = true;
+      }
+    } else {
+      authState = 'loggedOut';
+    }
+    render();
+  }, err=>{
+    console.error('auth state error', err);
+    authState = 'unavailable';
+    render();
+  });
+}
+
+function attachFirestoreListeners(){
+  fsDb.collection('products').onSnapshot(snap=>{
+    data.products = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    loadedProducts = true;
+    render();
+  }, err=>{ console.error('products snapshot', err); showToast('Erro ao sincronizar produtos.', 'err'); });
+
+  fsDb.collection('movements').onSnapshot(snap=>{
+    data.movements = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    loadedMovements = true;
+    render();
+  }, err=>{ console.error('movements snapshot', err); showToast('Erro ao sincronizar movimentações.', 'err'); });
+
+  fsDb.collection('manejos').onSnapshot(snap=>{
+    data.manejos = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    loadedManejos = true;
+    render();
+  }, err=>{ console.error('manejos snapshot', err); showToast('Erro ao sincronizar manejos.', 'err'); });
+
+  fsDb.collection('audit').onSnapshot(snap=>{
+    data.audit = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    loadedAudit = true;
+    render();
+  }, err=>{ console.error('audit snapshot', err); loadedAudit = true; render(); });
+}
+
+async function logAudit(acao, detalhes){
+  if(!fsDb) return;
+  const entry = {
+    date: new Date().toISOString(),
+    userEmail: (authUser && authUser.email) || '(desconhecido)',
+    acao,
+    detalhes: detalhes || ''
+  };
+  try{ await fsDb.collection('audit').doc(uid('aud')).set(entry); }
+  catch(e){ console.error('Erro ao registrar auditoria', e); }
+}
+
+async function doLogin(email, senha, lembrar){
+  authError = '';
+  authBusy = true;
+  render();
+  try{
+    await firebase.auth().setPersistence(lembrar ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.NONE);
+    await firebase.auth().signInWithEmailAndPassword(email, senha);
+    // onAuthStateChanged cuida do resto
+  }catch(e){
+    console.error('login error', e.code, e.message);
+    const map = {
+      'auth/invalid-email': 'E-mail inválido.',
+      'auth/user-disabled': 'Este usuário foi desativado.',
+      'auth/user-not-found': 'E-mail ou senha incorretos.',
+      'auth/wrong-password': 'E-mail ou senha incorretos.',
+      'auth/invalid-credential': 'E-mail ou senha incorretos.',
+      'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente de novo.',
+      'auth/network-request-failed': 'Sem conexão com a internet.'
+    };
+    authError = map[e.code] || 'Não foi possível entrar. Tente novamente.';
+  }
+  authBusy = false;
+  render();
+}
+
+async function doLogout(){
+  try{ await firebase.auth().signOut(); }
+  catch(e){ console.error('logout error', e); }
+}
+
+async function persistProduct(p){
+  if(!fsDb) return;
+  const {id, ...body} = p;
+  try{ await fsDb.collection('products').doc(id).set(body); }
+  catch(e){ console.error('Erro ao salvar produto', e); showToast('Não foi possível salvar o produto.', 'err'); }
+}
+async function persistMovement(m){
+  if(!fsDb) return;
+  const {id, ...body} = m;
+  try{ await fsDb.collection('movements').doc(id).set(body); }
+  catch(e){ console.error('Erro ao salvar movimentação', e); showToast('Não foi possível salvar a movimentação.', 'err'); }
+}
+async function persistManejo(mj){
+  if(!fsDb) return;
+  const {id, ...body} = mj;
+  try{ await fsDb.collection('manejos').doc(id).set(body); }
+  catch(e){ console.error('Erro ao salvar manejo', e); showToast('Não foi possível salvar o manejo.', 'err'); }
+}
+async function deleteProductRemote(id){
+  if(!fsDb) return;
+  try{ await fsDb.collection('products').doc(id).delete(); }catch(e){ console.error(e); }
+}
+async function deleteMovementRemote(id){
+  if(!fsDb) return;
+  try{ await fsDb.collection('movements').doc(id).delete(); }catch(e){ console.error(e); }
+}
+async function deleteManejoRemote(id){
+  if(!fsDb) return;
+  try{ await fsDb.collection('manejos').doc(id).delete(); }catch(e){ console.error(e); }
+}
+
+function categorias(){
+  const set = new Set(data.products.map(p=>p.category));
+  return ['Todas', ...set];
+}
+function findProduct(id){ return data.products.find(p=>p.id===id); }
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDateOnly(iso){ return new Date(iso).toLocaleDateString('pt-BR'); }
+
+const TABS = [
+  {id:'inicio', label:'Início'},
+  {id:'estoque', label:'Estoque'},
+  {id:'manejos', label:'Manejos'},
+  {id:'movimentacao', label:'Movimentação Geral'},
+  {id:'historico', label:'Histórico'},
+  {id:'relatorios', label:'Relatórios'},
+  {id:'auditoria', label:'Auditoria'},
+];
+
+function renderNav(){
+  const nav = document.getElementById('nav');
+  if(authState!=='loggedIn'){ nav.innerHTML = ''; return; }
+  nav.innerHTML = TABS.map(t=>
+    `<button data-tab="${t.id}" class="${currentTab===t.id?'active':''}">${t.label}</button>`
+  ).join('');
+  nav.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{ currentTab = b.dataset.tab; campoSel = null; if(currentTab!=='estoque'){ estoqueDrawer=null; selectedProductId=null; estoqueMostrarEntrada=false; } render(); };
+  });
+}
+
+function renderSyncStatus(){
+  const el = document.getElementById('sync-status');
+  const txt = document.getElementById('sync-text');
+  if(!el) return;
+  if(authState!=='loggedIn'){ el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.className = 'sync-status';
+  if(dbState==='unavailable'){ el.classList.add('err'); txt.textContent = 'Sem conexão'; }
+  else if(dbState==='ready' && dataReady()){ el.classList.add('ok'); txt.textContent = 'Sincronizado'; }
+  else { txt.textContent = 'Conectando…'; }
+}
+
+function renderChromeBars(){
+  const authBar = document.getElementById('auth-bar');
+  const backupBar = document.getElementById('backup-bar');
+  if(authState==='loggedIn'){
+    authBar.style.display = '';
+    backupBar.style.display = '';
+    const emailEl = document.getElementById('auth-email');
+    if(emailEl) emailEl.textContent = authUser && authUser.email ? authUser.email : '';
+    const logoutBtn = document.getElementById('btn-logout');
+    if(logoutBtn) logoutBtn.onclick = doLogout;
+  } else {
+    authBar.style.display = 'none';
+    backupBar.style.display = 'none';
+  }
+}
+
+function renderLogin(){
+  return `
+  <div class="login-wrap">
+    <div class="card login-card">
+      <div class="login-title">Entrar</div>
+      <div class="login-sub">Acesso restrito — Mata Chica Polo Club</div>
+      ${authError ? `<div class="login-error">${esc(authError)}</div>` : ''}
+      <label>E-mail</label>
+      <input id="login-email" type="email" autocomplete="username" placeholder="seuemail@exemplo.com" value="${esc(loginEmail)}" ${authBusy?'disabled':''}>
+      <label>Senha</label>
+      <input id="login-senha" type="password" autocomplete="current-password" placeholder="Sua senha" ${authBusy?'disabled':''}>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-top:12px;">
+        <input type="checkbox" id="login-lembrar" style="width:auto;" ${loginLembrar?'checked':''} ${authBusy?'disabled':''}>
+        <span>Manter conectado neste aparelho</span>
+      </label>
+      <div class="login-hint">Só marque em aparelho pessoal. Sem marcar, sempre vai pedir e-mail e senha de novo.</div>
+      <button class="primary" id="btn-login" ${authBusy?'disabled':''} style="margin-top:14px;">${authBusy?'Entrando...':'Entrar'}</button>
+    </div>
+  </div>`;
+}
+
+function attachLoginHandlers(){
+  const emailEl = document.getElementById('login-email');
+  if(emailEl) emailEl.oninput = ()=>{ loginEmail = emailEl.value; };
+  const lembrarEl = document.getElementById('login-lembrar');
+  if(lembrarEl) lembrarEl.onchange = ()=>{ loginLembrar = lembrarEl.checked; };
+
+  const form = ()=>{
+    const email = document.getElementById('login-email').value.trim();
+    const senha = document.getElementById('login-senha').value;
+    const lembrar = document.getElementById('login-lembrar').checked;
+    loginEmail = email;
+    loginLembrar = lembrar;
+    if(!email || !senha){ authError = 'Preencha e-mail e senha.'; render(); return; }
+    doLogin(email, senha, lembrar);
+  };
+  const btn = document.getElementById('btn-login');
+  if(btn) btn.onclick = form;
+  const senhaEl = document.getElementById('login-senha');
+  if(senhaEl) senhaEl.onkeydown = (e)=>{ if(e.key==='Enter') form(); };
+  if(emailEl) emailEl.onkeydown = (e)=>{ if(e.key==='Enter') form(); };
+}
+
+function render(){
+  const main0 = document.getElementById('main');
+  const active = document.activeElement;
+  let restoreId = null, restoreStart = null, restoreEnd = null;
+  if(active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA') && active.id && main0 && main0.contains(active)){
+    restoreId = active.id;
+    try{ restoreStart = active.selectionStart; restoreEnd = active.selectionEnd; }catch(e){}
+  }
+
+  renderNav();
+  renderSyncStatus();
+  renderChromeBars();
+  const main = document.getElementById('main');
+
+  if(dbState==='unavailable' || authState==='unavailable'){
+    main.className = '';
+    main.innerHTML = `<div class="conn-msg">
+      <div class="conn-title">Sem conexão com o estoque compartilhado</div>
+      <div>Não foi possível carregar o banco de dados. Verifique sua internet e recarregue a página.</div>
+    </div>`;
+    return;
+  }
+  if(authState==='loading'){
+    main.className = '';
+    main.innerHTML = `<div class="loading"><div class="spinner"></div>Conectando...</div>`;
+    return;
+  }
+  if(authState==='loggedOut'){
+    main.className = '';
+    main.innerHTML = renderLogin();
+    attachLoginHandlers();
+    if(restoreId){
+      const el = document.getElementById(restoreId);
+      if(el){
+        el.focus();
+        if(typeof restoreStart==='number' && el.setSelectionRange){
+          try{ el.setSelectionRange(restoreStart, restoreEnd); }catch(e){}
+        }
+      }
+    }
+    return;
+  }
+  if(!dataReady()){
+    main.className = '';
+    main.innerHTML = `<div class="loading"><div class="spinner"></div>Carregando estoque...</div>`;
+    return;
+  }
+
+  main.className = (currentTab==='inicio' || currentTab==='estoque' || currentTab==='relatorios') ? 'wide' : '';
+  if(currentTab==='inicio') main.innerHTML = renderInicio();
+  else if(currentTab==='estoque') main.innerHTML = renderEstoque();
+  else if(currentTab==='manejos') main.innerHTML = renderManejos();
+  else if(currentTab==='movimentacao') main.innerHTML = renderMovimentacao();
+  else if(currentTab==='historico') main.innerHTML = renderHistorico();
+  else if(currentTab==='relatorios') main.innerHTML = renderRelatorios();
+  else if(currentTab==='auditoria') main.innerHTML = renderAuditoria();
+  attachHandlers();
+
+  if(restoreId){
+    const el = document.getElementById(restoreId);
+    if(el){
+      el.focus();
+      if(typeof restoreStart==='number' && el.setSelectionRange){
+        try{ el.setSelectionRange(restoreStart, restoreEnd); }catch(e){}
+      }
+    }
+  }
+}
+
+// ---------- ESTOQUE ----------
+function renderEstoque(){
+  if(estoqueMostrarEntrada){
+    return `<button class="back-link" id="btn-entrada-voltar">← Voltar ao estoque</button>` + renderEntrada();
+  }
+  if(selectedProductId){
+    const p = findProduct(selectedProductId);
+    if(p) return renderProductDetail(p);
+    selectedProductId = null;
+  }
+  const cats = categorias();
+  const chips = cats.map(c=>`<button data-cat="${esc(c)}" class="${filtroCategoria===c?'active':''}">${esc(c)}</button>`).join('');
+  const termo = estoqueBusca.trim().toLowerCase();
+  const list = data.products
+    .filter(p=> filtroCategoria==='Todas' || p.category===filtroCategoria)
+    .filter(p=> !termo || p.name.toLowerCase().includes(termo))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+
+  const grouped = {};
+  list.forEach(p=>{ (grouped[p.category] = grouped[p.category]||[]).push(p); });
+
+  let listHtml = `<button class="primary" id="btn-entrada-abrir" style="margin-bottom:12px;">+ Registrar entrada</button>`;
+  listHtml += `<div class="search-row"><input id="est-busca" type="text" placeholder="Buscar produto..." value="${esc(estoqueBusca)}"></div>`;
+  listHtml += `<div class="filter-chips">${chips}</div>`;
+  if(list.length===0){
+    listHtml += `<div class="empty">Nenhum produto encontrado.</div>`;
+  }
+  for(const cat in grouped){
+    listHtml += `<div class="section-title">${esc(cat)}</div><div class="card">`;
+    listHtml += grouped[cat].map(p=>{
+      const zerado = p.qty<=0;
+      const baixo = !zerado && p.qty <= p.min;
+      const cls = zerado?'zerado':(baixo?'baixo':'');
+      const tag = zerado?'<span class="tag-zerado">zerado</span>':(baixo?'<span class="tag-baixo">baixo</span>':'');
+      return `<div class="prod-item clickable" data-open="${esc(p.id)}">
+        <div>
+          <div class="prod-name">${esc(p.name)} ${tag}</div>
+          <div class="prod-cat">mín. ${esc(p.min)} ${esc(p.unit)}</div>
+        </div>
+        <div class="prod-qty ${cls}">${esc(p.qty)} ${esc(p.unit)}</div>
+      </div>`;
+    }).join('');
+    listHtml += `</div>`;
+  }
+  listHtml += `<button class="report-btn" id="btn-report-estoque">Gerar relatório de estoque (PDF)</button>`;
+
+  const baixoItems = data.products.filter(p=>p.qty>0 && p.qty<=p.min);
+  const zeradoItems = data.products.filter(p=>p.qty<=0);
+
+  let drawerHtml = '';
+  if(estoqueDrawer){
+    const items = estoqueDrawer==='baixo' ? baixoItems : zeradoItems;
+    const grp = {};
+    items.forEach(p=>{ (grp[p.category]=grp[p.category]||[]).push(p); });
+    let body = '';
+    if(items.length===0){
+      body = `<div class="empty">Nenhum item nesta condição.</div>`;
+    }else{
+      for(const cat in grp){
+        body += `<div class="prod-cat" style="margin:8px 0 4px;">${esc(cat)}</div>`;
+        body += grp[cat].map(p=>`<div class="prod-item clickable" data-open="${esc(p.id)}"><div class="prod-name">${esc(p.name)}</div><div class="prod-qty">${esc(p.qty)} ${esc(p.unit)}</div></div>`).join('');
+      }
+    }
+    drawerHtml = `<div class="card drawer">
+      <div class="drawer-head">
+        <div class="drawer-title">${estoqueDrawer==='baixo' ? 'Estoque baixo — todas as categorias' : 'Estoque zerado — todas as categorias'}</div>
+        <button class="link" id="btn-drawer-close">Fechar ✕</button>
+      </div>
+      ${body}
+    </div>`;
+  }
+
+  return `
+  <div class="estoque-layout">
+    <div class="estoque-list">${listHtml}</div>
+    <div class="estoque-side">
+      <button class="alert-box baixo" id="box-baixo">
+        <span class="num">${baixoItems.length}</span>
+        <span class="lbl">Estoque baixo</span>
+      </button>
+      <button class="alert-box zerado" id="box-zerado">
+        <span class="num">${zeradoItems.length}</span>
+        <span class="lbl">Estoque zerado</span>
+      </button>
+    </div>
+  </div>
+  ${drawerHtml}
+  `;
+}
+
+function renderProductDetail(p){
+  const moves = data.movements
+    .filter(m=>m.productId===p.id)
+    .sort((a,b)=> new Date(b.date) - new Date(a.date))
+    .slice(0,10);
+
+  let movHtml = `<div class="empty">Sem movimentações registradas para este produto.</div>`;
+  if(moves.length){
+    movHtml = moves.map(m=>{
+      const cls = m.type==='entrada' ? 'hist-entrada' : 'hist-saida';
+      const sign = m.type==='entrada' ? '+' : '−';
+      return `<div class="hist-item">
+        <div>
+          <div class="hist-top"><span>${fmtDate(m.date)}</span><span class="${cls}">${sign} ${esc(m.qty)} ${esc(p.unit)}</span></div>
+          <div class="hist-meta">${esc(m.reason||'')}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  return `
+  <button class="back-link" id="btn-back-produto">← Voltar ao estoque</button>
+  <div class="card">
+    <div class="section-title">${esc(p.category)}</div>
+    <div class="detail-heading">${esc(p.name)}</div>
+
+    <label>Nome</label>
+    <input id="pd-nome" type="text" value="${esc(p.name)}">
+    <div class="row2">
+      <div><label>Categoria</label><input id="pd-cat" type="text" value="${esc(p.category)}"></div>
+      <div><label>Unidade</label><input id="pd-un" type="text" value="${esc(p.unit)}"></div>
+    </div>
+    <div class="row2">
+      <div><label>Quantidade atual</label><input id="pd-qtd" type="number" min="0" step="any" value="${esc(p.qty)}"></div>
+      <div><label>Estoque mínimo</label><input id="pd-min" type="number" min="0" step="any" value="${esc(p.min)}"></div>
+    </div>
+    <label>Valor por unidade (R$) — usado para calcular custo dos manejos</label>
+    <input id="pd-valor" type="number" min="0" step="any" value="${esc(p.valor||'')}">
+    <label>Observações</label>
+    <textarea id="pd-obs" placeholder="Ex: comprado no fornecedor X, validade, particularidades...">${esc(p.obs||'')}</textarea>
+
+    <button class="primary" id="btn-salvar-produto">Salvar alterações</button>
+    <button class="link" id="btn-excluir-produto" style="margin-top:6px;">Excluir produto</button>
+  </div>
+
+  <div class="section-title">Últimas movimentações</div>
+  <div class="card">${movHtml}</div>
+  `;
+}
+
+// ---------- ENTRADA ----------
+function renderEntrada(){
+  const termo = entBusca.trim().toLowerCase();
+  const opts = data.products.slice().sort((a,b)=>a.name.localeCompare(b.name))
+    .filter(p=> !termo || p.name.toLowerCase().includes(termo))
+    .map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.category)})</option>`).join('');
+  const cats = categorias().filter(c=>c!=='Todas');
+
+  return `
+  <div class="card">
+    <div class="toggle-tabs">
+      <button data-modo="existente" class="${entradaModo==='existente'?'active':''}">Produto existente</button>
+      <button data-modo="novo" class="${entradaModo==='novo'?'active':''}">Produto novo</button>
+    </div>
+
+    ${entradaModo==='existente' ? `
+      <label>Buscar produto</label>
+      <input id="ent-busca" type="text" placeholder="Digite para filtrar..." value="${esc(entBusca)}" style="margin-bottom:8px;">
+      <label>Produto</label>
+      <select id="ent-produto">${opts || '<option value="">Nenhum produto encontrado</option>'}</select>
+      <label>Quantidade a somar</label>
+      <input id="ent-qtd" type="number" min="0" step="any" placeholder="0">
+      <label>Valor por unidade desta compra (R$) — opcional, atualiza o cadastro</label>
+      <input id="ent-valor" type="number" min="0" step="any" placeholder="0">
+    ` : `
+      <label>Nome do produto</label>
+      <input id="ent-nome" type="text" placeholder="Ex: Fio de nylon 3mm">
+      <div class="row2">
+        <div>
+          <label>Categoria</label>
+          <input id="ent-cat" list="cat-list" placeholder="Ex: Herbicida/Insumo">
+          <datalist id="cat-list">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+        </div>
+        <div><label>Unidade</label><input id="ent-un" type="text" placeholder="un / L / kg"></div>
+      </div>
+      <div class="row2">
+        <div><label>Quantidade inicial</label><input id="ent-qtd-novo" type="number" min="0" step="any" placeholder="0"></div>
+        <div><label>Estoque mínimo</label><input id="ent-min-novo" type="number" min="0" step="any" placeholder="0"></div>
+      </div>
+      <label>Valor por unidade (R$)</label>
+      <input id="ent-valor-novo" type="number" min="0" step="any" placeholder="0">
+      <label>Observações</label>
+      <textarea id="ent-obs-novo" placeholder="Ex: comprado no fornecedor X, validade, particularidades..."></textarea>
+    `}
+
+    <button class="primary" id="btn-entrada">Registrar entrada</button>
+  </div>`;
+}
+
+// ---------- MANEJOS (cadastro) ----------
+const CAMPO_OPCOES = ['Campo 1','Campo 2','Campo 3','Campo 4','Sede','Outro'];
+
+function renderManejos(){
+  const catOpts = manTipo==='campo' ? TIPOS_CAMPO : TIPOS_IMPL;
+  if(!catOpts.includes(manCat)) manCat = catOpts[0];
+  const produtosDatalist = manTipo==='campo'
+    ? data.products.filter(p=>p.category!=='Peças' && p.category!=='Implemento')
+    : data.products.filter(p=>p.category!=='Implemento');
+  const nomesProdutos = produtosDatalist.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const datalistHtml = `<datalist id="produtos-datalist">${nomesProdutos.map(p=>`<option value="${esc(p.name)}">`).join('')}</datalist>`;
+  const placeholderProduto = manTipo==='campo' ? 'Nome do insumo/herbicida' : 'Nome da peça';
+
+  const itensHtml = manejoItens.map((it, idx)=>`
+    <div class="item-row">
+      <input data-idx="${idx}" class="manejo-nome" list="produtos-datalist" type="text" placeholder="${placeholderProduto}" value="${esc(it.name)}">
+      <input data-idx="${idx}" class="manejo-qtd" type="number" min="0" step="any" placeholder="Qtd" value="${esc(it.qty)}">
+      <button type="button" class="link" data-remove="${idx}">✕</button>
+    </div>
+  `).join('');
+
+  const implementos = data.products.filter(p=>p.category==='Implemento').sort((a,b)=>a.name.localeCompare(b.name));
+  const implementoOpts = implementos.map(p=>`<option value="${esc(p.id)}" ${manImplementoId===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+
+  return `
+  <div class="card">
+    <div class="section-title">${manEditId ? 'Alterar manejo' : 'Novo manejo'}</div>
+
+    <label>Este manejo é sobre</label>
+    <div class="toggle-tabs">
+      <button data-tipo="campo" class="${manTipo==='campo'?'active':''}">Campo</button>
+      <button data-tipo="implemento" class="${manTipo==='implemento'?'active':''}">Implemento</button>
+    </div>
+
+    ${manTipo==='campo' ? `
+      <label>Qual campo</label>
+      <select id="man-campo">
+        ${CAMPO_OPCOES.map(c=>`<option value="${esc(c)}" ${manCampo===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+      <div id="man-campo-outro-wrap" style="display:${manCampo==='Outro'?'block':'none'};">
+        <label>Especifique o local</label>
+        <input id="man-campo-outro" type="text" placeholder="Ex: faixa oeste do Campo 2" value="${esc(manCampoOutro)}">
+      </div>
+    ` : `
+      <label>Qual implemento</label>
+      <select id="man-implemento">
+        <option value="">Selecione o implemento</option>
+        ${implementoOpts}
+      </select>
+      <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
+        <button type="button" class="link" id="btn-novo-implemento" style="padding:0;">+ Novo implemento</button>
+        <button type="button" class="link" id="btn-editar-implemento" style="padding:0;">Editar</button>
+        <button type="button" class="link" id="btn-excluir-implemento" style="padding:0;">Excluir</button>
+      </div>
+      ${manNovoImplementoAberto ? `
+        <div class="row2" style="margin-top:8px;">
+          <div><label>Nome do novo implemento</label><input id="man-novo-implemento-nome" type="text" placeholder="Ex: Roçadeira 5" value="${esc(manNovoImplementoNome)}"></div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="secondary" id="btn-confirmar-novo-implemento">Adicionar implemento</button>
+          <button type="button" class="link" id="btn-cancelar-novo-implemento">Cancelar</button>
+        </div>
+      ` : ''}
+    `}
+
+    <label>Tipo de manejo</label>
+    <select id="man-cat">${catOpts.map(c=>`<option ${manCat===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+
+    <label>Data</label>
+    <input id="man-data" type="date" value="${esc(manData)}">
+    <label>Descrição do manejo realizado</label>
+    <textarea id="man-desc" placeholder="Ex: aplicação de herbicida pós-emergente, roçada mecânica...">${esc(manDesc)}</textarea>
+
+    <div class="section-title">Produtos utilizados (saída de estoque)</div>
+    <div id="manejo-itens">${itensHtml}</div>
+    ${datalistHtml}
+    <button type="button" class="secondary" id="btn-add-item">+ adicionar produto</button>
+    <label>Outros custos (R$) — mão de obra, serviço de terceiro (opcional)</label>
+    <input id="man-extra" type="number" min="0" step="any" placeholder="0" value="${esc(manExtra)}">
+
+    <button class="primary" id="btn-manejo">${manEditId ? 'Salvar alteração' : 'Registrar manejo e dar baixa'}</button>
+    ${manEditId ? '<button class="link" id="btn-cancelar-edicao" style="margin-top:6px;">Cancelar alteração</button>' : ''}
+    <button class="report-btn" id="btn-report-manejos">Gerar relatório de manejos (PDF)</button>
+  </div>`;
+}
+
+
+// ---------- INÍCIO (campos desenhados) ----------
+const TIPOS_CAMPO = ['Areia','Roçadeira vertical','Herbicida','Adubação','Roçada','Irrigação','Outro'];
+const TIPOS_IMPL = ['Manutenção preventiva','Conserto'];
+const TIPOS_INICIO = ['Areia','Roçadeira vertical','Herbicida','Adubação'];
+const CAMPOS_INICIO = ['Campo 1','Campo 2','Campo 3','Campo 4'];
+const META_AREIA = 500;
+
+function brl(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function fmtQ(v){ return (Math.round((v||0)*100)/100).toLocaleString('pt-BR'); }
+
+// Manejos antigos não têm "tipo de manejo": descobrimos pelo texto e pelos produtos.
+function tipoManejo(m){
+  if(m.categoria) return m.categoria;
+  if(m.tipo==='implemento') return 'Manutenção preventiva';
+  const prods = (m.itens||[]).map(it=>{ const p=findProduct(it.productId); return p ? (p.name+' '+p.category) : ''; }).join(' ');
+  const t = ((m.descricao||'')+' '+prods).toLowerCase();
+  if(/areia/.test(t)) return 'Areia';
+  if(/vertical/.test(t)) return 'Roçadeira vertical';
+  if(/herbicida|glifosato|roundup|2,4|capim/.test(t)) return 'Herbicida';
+  if(/adub|npk|ureia|ureía|calc[aá]rio|fertiliz/.test(t)) return 'Adubação';
+  if(/irrig/.test(t)) return 'Irrigação';
+  if(/ro[cç]ad|ro[cç]ar|corte/.test(t)) return 'Roçada';
+  if(/insumo/.test(t)) return 'Herbicida';
+  return 'Outro';
+}
+
+function custoManejo(m){
+  const itens = (m.itens||[]).reduce((a,it)=>{
+    const p = findProduct(it.productId);
+    const v = (it.valor!==undefined && it.valor!==null) ? it.valor : ((p&&p.valor)||0);
+    return a + (it.qty||0)*v;
+  },0);
+  return itens + (m.extra||0);
+}
+
+function manejosDoCampo(local, ano){
+  return data.manejos
+    .filter(m=> (m.tipo||'campo')!=='implemento' && m.local===local
+      && new Date(m.date).getFullYear()===ano && TIPOS_INICIO.includes(tipoManejo(m)))
+    .sort((a,b)=> new Date(b.date) - new Date(a.date));
+}
+
+function resumoCampo(local, ano){
+  const list = manejosDoCampo(local, ano);
+  const cont = {}; TIPOS_INICIO.forEach(t=>cont[t]=0);
+  const prods = {};
+  let areia = 0, custo = 0;
+  list.forEach(m=>{
+    cont[tipoManejo(m)]++;
+    custo += custoManejo(m);
+    (m.itens||[]).forEach(it=>{
+      const p = findProduct(it.productId);
+      const nome = p ? p.name : '(produto removido)';
+      const un = p ? p.unit : '';
+      const k = it.productId;
+      if(!prods[k]) prods[k] = {nome, un, qty:0, areia: /areia/i.test(nome)};
+      prods[k].qty += it.qty||0;
+      if(prods[k].areia) areia += it.qty||0;
+    });
+  });
+  return { list, cont, prods: Object.values(prods).sort((a,b)=>a.nome.localeCompare(b.nome)), areia, custo };
+}
+
+function cardManejo(m){
+  const itens = (m.itens||[]).map(it=>{
+    const p = findProduct(it.productId);
+    return `<span>• ${p?esc(p.name):'(produto removido)'} — ${esc(fmtQ(it.qty))} ${p?esc(p.unit):''}</span>`;
+  }).join('<br>');
+  const c = custoManejo(m);
+  return `<div class="card" style="margin-bottom:10px;">
+    <div class="hist-top">
+      <span style="font-weight:700;">${fmtDateOnly(m.date)} · <span class="tag-tipo">${esc(tipoManejo(m))}</span></span>
+      <span style="font-weight:600;">${c>0?brl(c):''}</span>
+    </div>
+    ${m.tipo==='implemento'||true ? `<div class="manejo-desc" style="color:var(--text-muted);font-size:.85rem;">${esc(m.local||'')}</div>`:''}
+    <div class="manejo-desc">${esc(m.descricao) || ''}</div>
+    <div class="manejo-itens" style="margin-top:6px;">${itens || '<span style="color:var(--text-muted)">(sem produtos utilizados)</span>'}</div>
+    <div class="card-acoes">
+      <button type="button" class="acao-btn" data-editmanejo="${esc(m.id)}">✎ Alterar</button>
+      <button type="button" class="acao-btn perigo" data-delmanejo="${esc(m.id)}">🗑 Excluir</button>
+    </div>
+  </div>`;
+}
+
+function attachManejoCardHandlers(){
+  document.querySelectorAll('[data-delmanejo]').forEach(el=>{ el.onclick = ()=> deleteManejo(el.dataset.delmanejo); });
+  document.querySelectorAll('[data-editmanejo]').forEach(el=>{ el.onclick = ()=> editarManejo(el.dataset.editmanejo); });
+}
+
+function selectAno(){
+  const anos = new Set([new Date().getFullYear(), anoSel]);
+  data.manejos.forEach(m=>anos.add(new Date(m.date).getFullYear()));
+  return `<select id="ini-ano" class="ano-sel">${[...anos].sort((a,b)=>b-a).map(a=>`<option ${a===anoSel?'selected':''}>${a}</option>`).join('')}</select>`;
+}
+
+function renderInicio(){
+  if(campoSel) return renderCampoDetalhe(campoSel);
+  const campos = CAMPOS_INICIO.map(c=>{
+    const r = resumoCampo(c, anoSel);
+    const pct = Math.min(100, r.areia/META_AREIA*100);
+    const chips = TIPOS_INICIO.map(t=>`<span class="chip-man${r.cont[t]?' on':''}">${t==='Roçadeira vertical'?'Vertical':t} ${r.cont[t]}×</span>`).join('');
+    const outros = r.prods.filter(p=>!p.areia).map(p=>`<div class="linha-prod"><span>${esc(p.nome)}</span><b>${esc(fmtQ(p.qty))} ${esc(p.un)}</b></div>`).join('');
+    return `<div class="campo" data-campo="${esc(c)}">
+      <div class="campo-linha campo-meio"></div><div class="campo-circ"></div>
+      <div class="campo-gol esq"></div><div class="campo-gol dir"></div>
+      <div class="campo-painel">
+        <div class="campo-nome">${esc(c)}</div>
+        <div class="campo-areia"><span>Areia ${anoSel}</span><b>${fmtQ(r.areia)} m³</b></div>
+        <div class="campo-bar"><i style="width:${pct}%"></i></div>
+        <div class="campo-meta">meta ${META_AREIA} m³ · faltam ${fmtQ(Math.max(0,META_AREIA-r.areia))}</div>
+        <div class="campo-chips">${chips}</div>
+        ${outros ? `<div class="campo-prods">${outros}</div>` : ''}
+        <div class="campo-ver">Toque para ver os manejos ›</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="ini-topo"><div class="section-title" style="margin:0;">Campos — ${anoSel}</div>${selectAno()}</div>
+  <div class="ini-nota">Aqui aparecem areia, roçadeira vertical, herbicida e adubação. Roçada e irrigação ficam só no Histórico.</div>
+  <div class="campo-grid">${campos}</div>`;
+}
+
+function renderCampoDetalhe(c){
+  const r = resumoCampo(c, anoSel);
+  const prods = r.prods.map(p=>`<div class="linha-prod"><span>${esc(p.nome)}</span><b>${esc(fmtQ(p.qty))} ${esc(p.un)}</b></div>`).join('') || '<div class="empty">Nenhum produto usado neste ano.</div>';
+  const chips = TIPOS_INICIO.map(t=>`<span class="chip-man${r.cont[t]?' on':''}">${t} ${r.cont[t]}×</span>`).join('');
+  const lista = r.list.length ? r.list.map(m=>cardManejo(m)).join('') : '<div class="card"><div class="empty">Nenhum manejo neste ano.</div></div>';
+  return `
+  <button class="back-link" id="btn-campo-voltar">← Voltar aos campos</button>
+  <div class="ini-topo"><div class="section-title" style="margin:0;">${esc(c)} — ${anoSel}</div>${selectAno()}</div>
+  <div class="card">
+    <div class="campo-chips" style="margin-bottom:10px;">${chips}</div>
+    <div class="section-title">Total de produtos no ano</div>
+    ${prods}
+    <div class="linha-prod" style="margin-top:8px;"><span>Custo no ano</span><b>${brl(r.custo)}</b></div>
+  </div>
+  <button class="primary" id="btn-novo-manejo-campo" style="margin-bottom:12px;">+ Novo manejo neste campo</button>
+  <div class="section-title">Manejos do ano</div>
+  ${lista}`;
+}
+
+function attachInicioHandlers(){
+  const ano = document.getElementById('ini-ano');
+  if(ano) ano.onchange = ()=>{ anoSel = parseInt(ano.value); render(); };
+  document.querySelectorAll('[data-campo]').forEach(el=>{
+    el.onclick = ()=>{ campoSel = el.dataset.campo; render(); window.scrollTo(0,0); };
+  });
+  const voltar = document.getElementById('btn-campo-voltar');
+  if(voltar) voltar.onclick = ()=>{ campoSel = null; render(); };
+  const novo = document.getElementById('btn-novo-manejo-campo');
+  if(novo) novo.onclick = ()=>{ limparFormManejo(); manCampo = campoSel; currentTab = 'manejos'; render(); window.scrollTo(0,0); };
+  attachManejoCardHandlers();
+}
+
+// ---------- MOVIMENTAÇÃO GERAL ----------
+function getFilteredMovements(){
+  const termo = movBusca.trim().toLowerCase();
+  let moves = data.movements.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(termo){
+    moves = moves.filter(m=>{
+      const p = findProduct(m.productId);
+      const nome = p ? p.name.toLowerCase() : '';
+      const motivo = (m.reason||'').toLowerCase();
+      return nome.includes(termo) || motivo.includes(termo);
+    });
+  }
+  return moves;
+}
+
+function renderMovimentacao(){
+  const termo = movBusca.trim().toLowerCase();
+  const moves = getFilteredMovements();
+  const searchHtml = `<div class="search-row"><input id="mov-busca" type="text" placeholder="Buscar por produto ou motivo..." value="${esc(movBusca)}"></div>`;
+  let listHtml;
+  if(moves.length===0){
+    listHtml = `<div class="empty">${termo ? 'Nenhuma movimentação encontrada.' : 'Nenhuma movimentação registrada ainda.'}</div>`;
+  }else{
+    listHtml = moves.map(m=>{
+      const p = findProduct(m.productId);
+      const cls = m.type==='entrada' ? 'hist-entrada' : 'hist-saida';
+      const sign = m.type==='entrada' ? '+' : '−';
+      return `<div class="hist-item">
+        <div style="flex:1;">
+          <div class="hist-top">
+            <span>${p?esc(p.name):'(produto removido)'}</span>
+            <span class="${cls}">${sign} ${esc(m.qty)} ${p?esc(p.unit):''}</span>
+          </div>
+          <div class="hist-meta">${fmtDate(m.date)} ${m.reason?'· '+esc(m.reason):''}</div>
+        </div>
+        <button class="del-btn" data-delmove="${esc(m.id)}" title="Excluir lançamento">✕</button>
+      </div>`;
+    }).join('');
+  }
+  return `${searchHtml}<div class="card">${listHtml}</div>
+  <button class="report-btn" id="btn-report-mov">Gerar relatório${termo ? ' filtrado' : ''} de movimentação (PDF)</button>`;
+}
+
+// ---------- HISTÓRICO (manejos realizados) ----------
+function getFilteredManejos(){
+  const term = histSearch.trim().toLowerCase();
+  let list = data.manejos.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(term){
+    list = list.filter(m => (m.descricao||'').toLowerCase().includes(term) || (m.local||'').toLowerCase().includes(term));
+  }
+  if(histTipoFiltro==='Campo') list = list.filter(m=> m.tipo!=='implemento');
+  else if(histTipoFiltro==='Implemento') list = list.filter(m=> m.tipo==='implemento');
+  return list;
+}
+
+function renderHistoricoResumoLocais(){
+  const list = getFilteredManejos();
+  if(list.length===0) return `<div class="card"><div class="empty">Nenhum manejo encontrado.</div></div>`;
+  const groups = {};
+  list.forEach(m=>{
+    const key = (m.tipo||'campo') + '::' + (m.local||'(sem local)');
+    if(!groups[key]) groups[key] = { local: m.local||'(sem local)', tipo: m.tipo||'campo', count:0, last:m.date };
+    groups[key].count++;
+    if(new Date(m.date) > new Date(groups[key].last)) groups[key].last = m.date;
+  });
+  const rows = Object.values(groups).sort((a,b)=> a.local.localeCompare(b.local));
+  const html = rows.map(g=>{
+    const tipoLabel = g.tipo==='implemento' ? 'Implemento' : 'Campo';
+    return `<div class="prod-item clickable" data-histlocal="${esc(g.local)}" data-histlocaltipo="${esc(g.tipo)}">
+      <div>
+        <div class="prod-name">${esc(g.local)}</div>
+        <div class="prod-cat">${tipoLabel} · ${g.count} manejo(s) · último em ${fmtDateOnly(g.last)}</div>
+      </div>
+      <div class="prod-qty">›</div>
+    </div>`;
+  }).join('');
+  return `<div class="section-title">Resumo por campo/implemento</div><div class="card">${html}</div>`;
+}
+
+function renderHistoricoLocalDetail(){
+  const { local, tipo } = histLocalSelecionado;
+  const manejosDoLocal = data.manejos
+    .filter(m=> m.local===local && (m.tipo||'campo')===tipo)
+    .sort((a,b)=> new Date(b.date) - new Date(a.date));
+  const tipoLabel = tipo==='implemento' ? 'Implemento' : 'Campo';
+  const custoTotal = manejosDoLocal.reduce((a,m)=>a+custoManejo(m),0);
+
+  const body = manejosDoLocal.length===0
+    ? `<div class="card"><div class="empty">Nenhum manejo registrado aqui ainda.</div></div>`
+    : manejosDoLocal.map(m=>cardManejo(m)).join('');
+
+  return `
+  <button class="back-link" id="btn-histlocal-voltar">← Voltar ao histórico</button>
+  <div class="section-title">${tipoLabel} — ${esc(local)}</div>
+  <div style="margin:-6px 0 10px;color:var(--text-muted);font-size:.85rem;">${manejosDoLocal.length} manejo(s) registrado(s) · custo total ${brl(custoTotal)}</div>
+  ${body}
+  `;
+}
+
+function renderHistorico(){
+  if(histLocalSelecionado) return renderHistoricoLocalDetail();
+
+  const tipos = ['Todos','Campo','Implemento'];
+  const chips = tipos.map(t=>`<button data-histtipo="${esc(t)}" class="${histTipoFiltro===t?'active':''}">${esc(t)}</button>`).join('');
+  return `
+  <div class="search-row">
+    <input id="hist-search" type="text" placeholder="Buscar por descrição ou local do manejo..." value="${esc(histSearch)}">
+  </div>
+  <div class="filter-chips">${chips}</div>
+  ${renderHistoricoResumoLocais()}
+  <button class="report-btn" id="btn-report-hist">Gerar relatório de manejos filtrados (PDF)</button>
+  `;
+}
+
+// ---------- RELATÓRIOS (seleção personalizada + pedido de compra) ----------
+function renderRelatoriosSelecao(){
+  const term = relBusca.trim().toLowerCase();
+  const cats = categorias();
+  const chips = cats.map(c=>`<button data-relcat="${esc(c)}" class="${relFiltroCategoria===c?'active':''}">${esc(c)}</button>`).join('');
+
+  let list = data.products.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(relFiltroCategoria!=='Todas') list = list.filter(p=>p.category===relFiltroCategoria);
+  if(term) list = list.filter(p=>p.name.toLowerCase().includes(term));
+  if(relFiltroBaixo==='sim') list = list.filter(p=> p.qty<=0 || p.qty<=p.min);
+
+  const grouped = {};
+  list.forEach(p=>{ (grouped[p.category]=grouped[p.category]||[]).push(p); });
+
+  let itemsHtml = '';
+  if(list.length===0){
+    itemsHtml = `<div class="empty">Nenhum produto ou implemento encontrado.</div>`;
+  } else {
+    for(const cat in grouped){
+      itemsHtml += `<div class="section-title">${esc(cat)}</div><div class="card">`;
+      itemsHtml += grouped[cat].map(p=>{
+        const checked = relSelecionados.has(p.id) ? 'checked' : '';
+        const zerado = p.qty<=0, baixo = !zerado && p.qty<=p.min;
+        const cls = zerado?'zerado':(baixo?'baixo':'');
+        return `<label class="prod-item rel-row">
+          <div class="rel-left">
+            <input type="checkbox" class="rel-check" data-relid="${esc(p.id)}" ${checked}>
+            <div>
+              <div class="prod-name">${esc(p.name)}</div>
+              <div class="prod-cat">mín. ${esc(p.min)} ${esc(p.unit)}</div>
+            </div>
+          </div>
+          <div class="prod-qty ${cls}">${esc(p.qty)} ${esc(p.unit)}</div>
+        </label>`;
+      }).join('');
+      itemsHtml += `</div>`;
+    }
+  }
+
+  return `
+  <div class="card">
+    <div class="section-title">Relatório personalizado</div>
+    <div>Escolha quais produtos, implementos ou itens de estoque entram no relatório ou no pedido de compra.</div>
+    <div class="search-row" style="margin-top:12px;">
+      <input id="rel-busca" type="text" placeholder="Buscar produto ou implemento..." value="${esc(relBusca)}">
+    </div>
+    <div class="filter-chips">${chips}</div>
+    <label>Só perto do mínimo / zerado</label>
+    <select id="rel-filtro-baixo">
+      <option value="nao" ${relFiltroBaixo==='nao'?'selected':''}>Não</option>
+      <option value="sim" ${relFiltroBaixo==='sim'?'selected':''}>Sim</option>
+    </select>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+      <button type="button" class="link" id="btn-rel-todos" style="padding:0;">Selecionar todos os filtrados</button>
+      <button type="button" class="link" id="btn-rel-limpar" style="padding:0;">Limpar seleção</button>
+    </div>
+  </div>
+  ${itemsHtml}
+  <div class="card rel-bar">
+    <div class="rel-bar-row" style="flex-wrap:wrap;">
+      <span id="rel-count" style="font-weight:700;">${relSelecionados.size} selecionado(s)</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="secondary" id="btn-rel-gerar" style="width:auto;margin-top:0;">Relatório dos selecionados</button>
+        <button class="primary" id="btn-rel-pedido-ir" style="width:auto;margin-top:0;">Gerar pedido dos selecionados</button>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function renderRelatoriosPedido(){
+  const selecionados = data.products.filter(p=>relSelecionados.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
+
+  if(selecionados.length===0){
+    return `
+    <button class="back-link" id="btn-pedido-voltar">← Voltar à seleção</button>
+    <div class="card"><div class="empty">Nenhum produto selecionado ainda. Volte e marque os produtos que quer incluir no pedido.</div></div>
+    `;
+  }
+
+  const grouped = {};
+  selecionados.forEach(p=>{ (grouped[p.category]=grouped[p.category]||[]).push(p); });
+
+  let itemsHtml = '';
+  for(const cat in grouped){
+    itemsHtml += `<div class="section-title">${esc(cat)}</div><div class="card">`;
+    itemsHtml += grouped[cat].map(p=>{
+      const val = relPedidoQtd[p.id] || '';
+      return `<div class="prod-item">
+        <div>
+          <div class="prod-name">${esc(p.name)}</div>
+          <div class="prod-cat">estoque atual: ${esc(p.qty)} ${esc(p.unit)}</div>
+        </div>
+        <input type="number" min="0" step="any" class="rel-pedido-qtd" data-relpedidoid="${esc(p.id)}" placeholder="Qtd. a pedir" value="${esc(val)}">
+      </div>`;
+    }).join('');
+    itemsHtml += `</div>`;
+  }
+
+  const pedidoCount = selecionados.filter(p=>parseFloat(relPedidoQtd[p.id])>0).length;
+
+  return `
+  <button class="back-link" id="btn-pedido-voltar">← Voltar à seleção</button>
+  <div class="card">
+    <div class="section-title">Pedido de compra</div>
+    <div>Informe a quantidade a pedir de cada item selecionado.</div>
+  </div>
+  ${itemsHtml}
+  <div class="card">
+    <label>Observação (opcional)</label>
+    <textarea id="rel-pedido-obs" placeholder="Ex: entregar até sexta, fornecedor preferido...">${esc(relPedidoObs)}</textarea>
+  </div>
+  <div class="card rel-bar">
+    <div class="rel-bar-row">
+      <span id="rel-pedido-count" style="font-weight:700;">${pedidoCount} item(ns) no pedido</span>
+      <button class="primary" id="btn-rel-pedido-gerar">Gerar PDF do pedido</button>
+    </div>
+  </div>
+  `;
+}
+
+function renderRelatorios(){
+  return relModo==='pedido' ? renderRelatoriosPedido() : renderRelatoriosSelecao();
+}
+
+// ---------- AUDITORIA ----------
+const ACAO_LABELS = {
+  produto_criado: 'Produto cadastrado',
+  produto_editado: 'Produto editado',
+  produto_excluido: 'Produto excluído',
+  entrada_estoque: 'Entrada de estoque',
+  manejo_registrado: 'Manejo registrado',
+  manejo_excluido: 'Manejo excluído',
+  movimentacao_excluida: 'Movimentação excluída',
+  implemento_criado: 'Implemento criado',
+  implemento_excluido: 'Implemento excluído',
+  pedido_gerado: 'Pedido de compra gerado',
+  backup_importado: 'Backup importado'
+};
+
+function getFilteredAudit(){
+  const term = audBusca.trim().toLowerCase();
+  let list = data.audit.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(audFiltroUsuario!=='Todos') list = list.filter(a=> a.userEmail===audFiltroUsuario);
+  if(term){
+    list = list.filter(a=>{
+      const label = (ACAO_LABELS[a.acao]||a.acao||'').toLowerCase();
+      return label.includes(term) || (a.detalhes||'').toLowerCase().includes(term) || (a.userEmail||'').toLowerCase().includes(term);
+    });
+  }
+  return list;
+}
+
+function renderAuditoria(){
+  const usuarios = ['Todos', ...new Set(data.audit.map(a=>a.userEmail).filter(Boolean))].sort();
+  const opts = usuarios.map(u=>`<option value="${esc(u)}" ${audFiltroUsuario===u?'selected':''}>${esc(u)}</option>`).join('');
+  const list = getFilteredAudit();
+
+  let listHtml;
+  if(list.length===0){
+    listHtml = `<div class="empty">Nenhum registro encontrado.</div>`;
+  } else {
+    listHtml = list.map(a=>{
+      return `<div class="hist-item">
+        <div style="flex:1;">
+          <div class="hist-top">
+            <span>${esc(ACAO_LABELS[a.acao]||a.acao)}</span>
+            <span>${fmtDate(a.date)}</span>
+          </div>
+          <div class="hist-meta">${esc(a.userEmail)}${a.detalhes? ' · '+esc(a.detalhes) : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  return `
+  <div class="card">
+    <div class="section-title">Auditoria</div>
+    <div>Veja quem cadastrou, alterou ou excluiu qualquer coisa no sistema.</div>
+    <div class="search-row" style="margin-top:12px;">
+      <input id="aud-busca" type="text" placeholder="Buscar por ação, detalhe ou usuário..." value="${esc(audBusca)}">
+    </div>
+    <label>Usuário</label>
+    <select id="aud-filtro-usuario">${opts}</select>
+  </div>
+  <div class="card">${listHtml}</div>
+  `;
+}
+
+// ---------- HANDLERS ----------
+function attachHandlers(){
+  if(currentTab==='estoque'){
+    if(estoqueMostrarEntrada){
+      document.getElementById('btn-entrada-voltar').onclick = ()=>{ estoqueMostrarEntrada=false; render(); };
+      document.querySelectorAll('[data-modo]').forEach(b=>{
+        b.onclick = ()=>{ entradaModo = b.dataset.modo; render(); };
+      });
+      const entBuscaEl = document.getElementById('ent-busca');
+      if(entBuscaEl) entBuscaEl.oninput = ()=>{
+        entBusca = entBuscaEl.value;
+        const sel = document.getElementById('ent-produto');
+        const termo = entBusca.trim().toLowerCase();
+        const filtrados = data.products.slice().sort((a,b)=>a.name.localeCompare(b.name))
+          .filter(p=> !termo || p.name.toLowerCase().includes(termo));
+        sel.innerHTML = filtrados.length
+          ? filtrados.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.category)})</option>`).join('')
+          : '<option value="">Nenhum produto encontrado</option>';
+      };
+      document.getElementById('btn-entrada').onclick = onEntrada;
+    } else if(selectedProductId){
+      document.getElementById('btn-back-produto').onclick = ()=>{ selectedProductId=null; render(); };
+      document.getElementById('btn-salvar-produto').onclick = onSalvarProduto;
+      document.getElementById('btn-excluir-produto').onclick = onExcluirProduto;
+    } else {
+      document.getElementById('btn-entrada-abrir').onclick = ()=>{ estoqueMostrarEntrada=true; render(); };
+      document.getElementById('est-busca').oninput = (e)=>{ estoqueBusca = e.target.value; render(); };
+      document.querySelectorAll('[data-cat]').forEach(b=>{
+        b.onclick = ()=>{ filtroCategoria = b.dataset.cat; render(); };
+      });
+      document.getElementById('box-baixo').onclick = ()=>{ estoqueDrawer = estoqueDrawer==='baixo' ? null : 'baixo'; render(); };
+      document.getElementById('box-zerado').onclick = ()=>{ estoqueDrawer = estoqueDrawer==='zerado' ? null : 'zerado'; render(); };
+      const dc = document.getElementById('btn-drawer-close');
+      if(dc) dc.onclick = ()=>{ estoqueDrawer=null; render(); };
+      document.getElementById('btn-report-estoque').onclick = ()=>openReport('estoque');
+      document.querySelectorAll('[data-open]').forEach(el=>{
+        el.onclick = ()=>{ selectedProductId = el.dataset.open; render(); };
+      });
+    }
+  }
+
+  if(currentTab==='manejos'){
+    const captureFormState = ()=>{
+      const campoEl = document.getElementById('man-campo');
+      if(campoEl) manCampo = campoEl.value;
+      const outroEl = document.getElementById('man-campo-outro');
+      if(outroEl) manCampoOutro = outroEl.value;
+      const implEl = document.getElementById('man-implemento');
+      if(implEl) manImplementoId = implEl.value;
+      manData = document.getElementById('man-data').value;
+      manDesc = document.getElementById('man-desc').value;
+      manCat = document.getElementById('man-cat').value;
+      manExtra = document.getElementById('man-extra').value;
+    };
+
+    document.querySelectorAll('[data-tipo]').forEach(b=>{
+      b.onclick = ()=>{
+        captureFormState();
+        manTipo = b.dataset.tipo;
+        manCat = '';
+        render();
+      };
+    });
+
+    const campoEl = document.getElementById('man-campo');
+    if(campoEl) campoEl.onchange = (e)=>{
+      manCampo = e.target.value;
+      const wrap = document.getElementById('man-campo-outro-wrap');
+      wrap.style.display = manCampo==='Outro' ? 'block' : 'none';
+    };
+    const outroEl = document.getElementById('man-campo-outro');
+    if(outroEl) outroEl.oninput = ()=>{ manCampoOutro = outroEl.value; };
+    const implEl = document.getElementById('man-implemento');
+    if(implEl) implEl.onchange = (e)=>{ manImplementoId = e.target.value; };
+    document.getElementById('man-data').onchange = (e)=>{ manData = e.target.value; };
+    document.getElementById('man-desc').oninput = (e)=>{ manDesc = e.target.value; };
+    document.getElementById('man-cat').onchange = (e)=>{ manCat = e.target.value; };
+    document.getElementById('man-extra').oninput = (e)=>{ manExtra = e.target.value; };
+    const btnCancelEd = document.getElementById('btn-cancelar-edicao');
+    if(btnCancelEd) btnCancelEd.onclick = ()=>{ limparFormManejo(); render(); };
+
+    const btnNovoImpl = document.getElementById('btn-novo-implemento');
+    if(btnNovoImpl) btnNovoImpl.onclick = ()=>{
+      captureFormState();
+      manNovoImplementoAberto = true;
+      manNovoImplementoNome = '';
+      render();
+    };
+    const btnCancelarNovoImpl = document.getElementById('btn-cancelar-novo-implemento');
+    if(btnCancelarNovoImpl) btnCancelarNovoImpl.onclick = ()=>{
+      captureFormState();
+      manNovoImplementoAberto = false;
+      render();
+    };
+    const nomeNovoImplEl = document.getElementById('man-novo-implemento-nome');
+    if(nomeNovoImplEl) nomeNovoImplEl.oninput = ()=>{ manNovoImplementoNome = nomeNovoImplEl.value; };
+    const btnConfirmarNovoImpl = document.getElementById('btn-confirmar-novo-implemento');
+    if(btnConfirmarNovoImpl) btnConfirmarNovoImpl.onclick = async ()=>{
+      const nome = document.getElementById('man-novo-implemento-nome').value.trim();
+      if(!nome) return;
+      const novo = {id: uid('p'), name:nome, category:'Implemento', unit:'un', qty:1, min:0, obs:''};
+      data.products.push(novo);
+      captureFormState();
+      manImplementoId = novo.id;
+      manNovoImplementoAberto = false;
+      manNovoImplementoNome = '';
+      render();
+      await persistProduct(novo);
+      showToast(`Implemento "${novo.name}" adicionado.`, 'ok');
+      logAudit('implemento_criado', novo.name);
+    };
+    const btnEditarImpl = document.getElementById('btn-editar-implemento');
+    if(btnEditarImpl) btnEditarImpl.onclick = ()=>{
+      if(!manImplementoId){ showToast('Selecione um implemento primeiro.', 'err'); return; }
+      captureFormState();
+      selectedProductId = manImplementoId;
+      currentTab = 'estoque';
+      render();
+    };
+    const btnExcluirImpl = document.getElementById('btn-excluir-implemento');
+    if(btnExcluirImpl) btnExcluirImpl.onclick = async ()=>{
+      if(!manImplementoId){ showToast('Selecione um implemento primeiro.', 'err'); return; }
+      const impl = findProduct(manImplementoId);
+      if(!impl) return;
+      const ok = await confirmModal(`Excluir o implemento "${impl.name}"? O histórico de manejos já registrado é mantido.`, {okLabel:'Excluir', danger:true});
+      if(!ok) return;
+      data.products = data.products.filter(p=>p.id!==manImplementoId);
+      captureFormState();
+      const removedId = manImplementoId;
+      manImplementoId = '';
+      render();
+      await deleteProductRemote(removedId);
+      showToast('Implemento excluído.', 'ok');
+      logAudit('implemento_excluido', impl.name);
+    };
+
+    document.getElementById('btn-add-item').onclick = ()=>{
+      captureFormState();
+      manejoItens.push({name:'', qty:''});
+      render();
+    };
+    document.querySelectorAll('[data-remove]').forEach(b=>{
+      b.onclick = ()=>{
+        captureFormState();
+        const idx = parseInt(b.dataset.remove);
+        if(manejoItens.length>1) manejoItens.splice(idx,1);
+        render();
+      };
+    });
+    document.querySelectorAll('.manejo-nome').forEach(inp=>{
+      inp.oninput = ()=>{ manejoItens[parseInt(inp.dataset.idx)].name = inp.value; };
+    });
+    document.querySelectorAll('.manejo-qtd').forEach(inp=>{
+      inp.oninput = ()=>{ manejoItens[parseInt(inp.dataset.idx)].qty = inp.value; };
+    });
+    document.getElementById('btn-manejo').onclick = onManejo;
+    document.getElementById('btn-report-manejos').onclick = ()=>openReport('manejos');
+  }
+
+  if(currentTab==='movimentacao'){
+    document.getElementById('mov-busca').oninput = (e)=>{ movBusca = e.target.value; render(); };
+    document.querySelectorAll('[data-delmove]').forEach(b=>{
+      b.onclick = ()=> deleteMovement(b.dataset.delmove);
+    });
+    document.getElementById('btn-report-mov').onclick = ()=>openReport('movimentacao', getFilteredMovements());
+  }
+
+  if(currentTab==='historico'){
+    if(histLocalSelecionado){
+      document.getElementById('btn-histlocal-voltar').onclick = ()=>{ histLocalSelecionado = null; render(); };
+      attachManejoCardHandlers();
+    } else {
+      document.getElementById('hist-search').oninput = (e)=>{ histSearch = e.target.value; render(); };
+      document.querySelectorAll('[data-histtipo]').forEach(b=>{
+        b.onclick = ()=>{ histTipoFiltro = b.dataset.histtipo; render(); };
+      });
+      document.querySelectorAll('[data-histlocal]').forEach(el=>{
+        el.onclick = ()=>{ histLocalSelecionado = { local: el.dataset.histlocal, tipo: el.dataset.histlocaltipo }; render(); };
+      });
+      document.getElementById('btn-report-hist').onclick = ()=>openReport('manejos', getFilteredManejos());
+    }
+  }
+
+  if(currentTab==='relatorios'){
+    if(relModo==='estoque'){
+      document.getElementById('rel-busca').oninput = (e)=>{ relBusca = e.target.value; render(); };
+      document.querySelectorAll('[data-relcat]').forEach(b=>{
+        b.onclick = ()=>{ relFiltroCategoria = b.dataset.relcat; render(); };
+      });
+      const filtroBaixoEl = document.getElementById('rel-filtro-baixo');
+      if(filtroBaixoEl) filtroBaixoEl.onchange = ()=>{ relFiltroBaixo = filtroBaixoEl.value; render(); };
+      document.querySelectorAll('.rel-check').forEach(chk=>{
+        chk.onchange = ()=>{
+          const id = chk.dataset.relid;
+          if(chk.checked) relSelecionados.add(id); else relSelecionados.delete(id);
+          updateRelCount();
+        };
+      });
+      document.getElementById('btn-rel-todos').onclick = ()=>{
+        document.querySelectorAll('.rel-check').forEach(chk=> relSelecionados.add(chk.dataset.relid));
+        render();
+      };
+      document.getElementById('btn-rel-limpar').onclick = ()=>{
+        relSelecionados.clear();
+        render();
+      };
+      document.getElementById('btn-rel-gerar').onclick = ()=>{
+        if(relSelecionados.size===0){ showToast('Selecione ao menos um item.', 'err'); return; }
+        openReport('personalizado');
+      };
+      document.getElementById('btn-rel-pedido-ir').onclick = ()=>{
+        if(relSelecionados.size===0){ showToast('Selecione ao menos um item.', 'err'); return; }
+        relModo = 'pedido';
+        render();
+      };
+    } else {
+      const voltarBtn = document.getElementById('btn-pedido-voltar');
+      if(voltarBtn) voltarBtn.onclick = ()=>{ relModo = 'estoque'; render(); };
+      document.querySelectorAll('.rel-pedido-qtd').forEach(inp=>{
+        inp.oninput = ()=>{
+          const id = inp.dataset.relpedidoid;
+          if(inp.value.trim()==='') delete relPedidoQtd[id];
+          else relPedidoQtd[id] = inp.value;
+          updatePedidoCount();
+        };
+      });
+      const obsEl = document.getElementById('rel-pedido-obs');
+      if(obsEl) obsEl.oninput = ()=>{ relPedidoObs = obsEl.value; };
+      const gerarBtn = document.getElementById('btn-rel-pedido-gerar');
+      if(gerarBtn) gerarBtn.onclick = ()=>{
+        const qtdItens = [...relSelecionados].filter(id=>parseFloat(relPedidoQtd[id])>0);
+        if(qtdItens.length===0){ showToast('Preencha a quantidade de ao menos um item.', 'err'); return; }
+        openReport('pedido');
+      };
+    }
+  }
+
+  if(currentTab==='inicio') attachInicioHandlers();
+
+  if(currentTab==='auditoria'){
+    document.getElementById('aud-busca').oninput = (e)=>{ audBusca = e.target.value; render(); };
+    document.getElementById('aud-filtro-usuario').onchange = (e)=>{ audFiltroUsuario = e.target.value; render(); };
+  }
+}
+
+function updatePedidoCount(){
+  const el = document.getElementById('rel-pedido-count');
+  if(el){
+    const n = [...relSelecionados].filter(id=>parseFloat(relPedidoQtd[id])>0).length;
+    el.textContent = n + ' item(ns) no pedido';
+  }
+}
+
+function updateRelCount(){
+  const el = document.getElementById('rel-count');
+  if(el) el.textContent = relSelecionados.size + ' selecionado(s)';
+}
+
+// ---------- ACTIONS ----------
+async function onEntrada(){
+  if(entradaModo==='existente'){
+    const id = document.getElementById('ent-produto').value;
+    const qtd = parseFloat(document.getElementById('ent-qtd').value);
+    if(!qtd || qtd<=0){ showToast('Informe uma quantidade válida.', 'err'); return; }
+    const p = findProduct(id);
+    if(!p){ showToast('Produto não encontrado.', 'err'); return; }
+    p.qty += qtd;
+    const vNovo = parseFloat(document.getElementById('ent-valor').value);
+    if(vNovo>0) p.valor = vNovo;
+    const mv = {id:uid('m'), date:new Date().toISOString(), type:'entrada', productId:id, qty:qtd, reason:'Reposição de estoque'};
+    data.movements.push(mv);
+    render();
+    await Promise.all([persistProduct(p), persistMovement(mv)]);
+    showToast(`Entrada registrada: +${qtd} ${p.unit} em ${p.name}.`, 'ok');
+    logAudit('entrada_estoque', `${p.name}: +${qtd} ${p.unit} (estoque atual: ${p.qty} ${p.unit})`);
+  } else {
+    const nome = document.getElementById('ent-nome').value.trim();
+    const cat = document.getElementById('ent-cat').value.trim() || 'Outros';
+    const un = document.getElementById('ent-un').value.trim() || 'un';
+    const qtd = parseFloat(document.getElementById('ent-qtd-novo').value) || 0;
+    const min = parseFloat(document.getElementById('ent-min-novo').value) || 0;
+    const obs = document.getElementById('ent-obs-novo').value.trim();
+    if(!nome){ showToast('Informe o nome do produto.', 'err'); return; }
+    const novo = {id: uid('p'), name:nome, category:cat, unit:un, qty:qtd, min:min, obs:obs, valor: parseFloat(document.getElementById('ent-valor-novo').value) || 0};
+    data.products.push(novo);
+    let mv = null;
+    if(qtd>0){
+      mv = {id:uid('m'), date:new Date().toISOString(), type:'entrada', productId:novo.id, qty:qtd, reason:'Cadastro inicial'};
+      data.movements.push(mv);
+    }
+    entradaModo = 'existente';
+    render();
+    await Promise.all([persistProduct(novo), mv ? persistMovement(mv) : Promise.resolve()]);
+    showToast(`Produto "${nome}" cadastrado.`, 'ok');
+    logAudit('produto_criado', `${nome} (${novo.category}) — qtd inicial: ${qtd} ${un}`);
+  }
+}
+
+function limparFormManejo(){
+  manejoItens = [{name:'', qty:''}];
+  manTipo = 'campo';
+  manCampo = 'Campo 1';
+  manCampoOutro = '';
+  manImplementoId = '';
+  manDesc = '';
+  manCat = '';
+  manExtra = '';
+  manEditId = null;
+  manData = new Date().toISOString().slice(0,10);
+}
+
+function editarManejo(id){
+  const m = data.manejos.find(x=>x.id===id);
+  if(!m) return;
+  manEditId = id;
+  manTipo = m.tipo==='implemento' ? 'implemento' : 'campo';
+  manImplementoId = m.implementoId || '';
+  if(manTipo==='campo'){
+    if(CAMPO_OPCOES.includes(m.local) && m.local!=='Outro'){ manCampo = m.local; manCampoOutro = ''; }
+    else { manCampo = 'Outro'; manCampoOutro = m.local || ''; }
+  }
+  manData = new Date(m.date).toISOString().slice(0,10);
+  manDesc = m.descricao || '';
+  manCat = tipoManejo(m);
+  manExtra = m.extra ? String(m.extra) : '';
+  manejoItens = (m.itens||[]).map(it=>{ const p = findProduct(it.productId); return {name: p?p.name:'', qty: String(it.qty)}; });
+  if(manejoItens.length===0) manejoItens = [{name:'', qty:''}];
+  currentTab = 'manejos';
+  render();
+  window.scrollTo(0,0);
+}
+
+async function onManejo(){
+  let local = '';
+  let implementoId = '';
+
+  if(manTipo==='campo'){
+    const campoSelV = document.getElementById('man-campo').value;
+    const campoOutroEl = document.getElementById('man-campo-outro');
+    const campoOutro = campoOutroEl ? campoOutroEl.value.trim() : '';
+    if(campoSelV==='Outro' && !campoOutro){ showToast('Especifique o local do campo selecionado como "Outro".', 'err'); return; }
+    local = campoSelV==='Outro' ? campoOutro : campoSelV;
+  } else {
+    implementoId = document.getElementById('man-implemento').value;
+    if(!implementoId){ showToast('Selecione qual implemento.', 'err'); return; }
+    const implProd = findProduct(implementoId);
+    if(!implProd){ showToast('Implemento inválido, selecione novamente.', 'err'); return; }
+    local = implProd.name;
+  }
+
+  const dataStr = document.getElementById('man-data').value;
+  const desc = document.getElementById('man-desc').value.trim();
+  const categoria = document.getElementById('man-cat').value;
+  const extra = parseFloat(document.getElementById('man-extra').value) || 0;
+
+  const linhas = manejoItens
+    .map((it,idx)=>({...it, idx}))
+    .filter(it=> it.name.trim() && parseFloat(it.qty) > 0);
+
+  // Roçada, irrigação e roçadeira vertical podem ser registradas sem produto.
+  const semProdutoOk = ['Roçada','Irrigação','Roçadeira vertical','Outro','Manutenção preventiva','Conserto'].includes(categoria);
+  if(linhas.length===0 && !semProdutoOk){ showToast('Adicione ao menos um produto utilizado com quantidade.', 'err'); return; }
+
+  const antigo = manEditId ? data.manejos.find(x=>x.id===manEditId) : null;
+  const devolver = {};
+  if(antigo) (antigo.itens||[]).forEach(it=>{ devolver[it.productId] = (devolver[it.productId]||0) + it.qty; });
+
+  const resolvidos = [];
+  for(const linha of linhas){
+    const nomeDigitado = linha.name.trim();
+    const qtd = parseFloat(linha.qty);
+    let p = data.products.find(x=> x.name.toLowerCase() === nomeDigitado.toLowerCase());
+
+    if(!p){
+      const cadastrar = await confirmModal(`O produto "${nomeDigitado}" não está cadastrado no estoque. Deseja cadastrá-lo agora?`, {okLabel:'Cadastrar'});
+      if(!cadastrar){
+        showToast(`Cadastre ou corrija o nome de "${nomeDigitado}" antes de continuar.`, 'err');
+        return;
+      }
+      p = {id: uid('p'), name: nomeDigitado, category:'Outros', unit:'un', qty:0, min:0, valor:0, obs:'Cadastrado automaticamente via manejo'};
+      data.products.push(p);
+    }
+
+    const disponivel = p.qty + (devolver[p.id]||0);
+    if(qtd > disponivel){
+      const prosseguir = await confirmModal(`Estoque insuficiente de "${p.name}" (disponível: ${disponivel} ${p.unit}). Deseja registrar essa saída mesmo assim? O estoque ficará zerado (nunca negativo).`, {okLabel:'Registrar mesmo assim'});
+      if(!prosseguir){
+        showToast(`Ajuste a quantidade de "${p.name}" ou faça uma entrada antes de continuar.`, 'err');
+        return;
+      }
+    }
+    resolvidos.push({ product: p, qtd });
+  }
+
+  // tudo validado: agora mexe no estoque
+  const tocados = new Map();
+  let movsRemover = [];
+  if(antigo){
+    (antigo.itens||[]).forEach(it=>{
+      const p = findProduct(it.productId);
+      if(p){ p.qty += it.qty; tocados.set(p.id, p); }
+    });
+    movsRemover = data.movements.filter(m=>m.manejoId === antigo.id).map(m=>m.id);
+    data.movements = data.movements.filter(m=>m.manejoId !== antigo.id);
+    data.manejos = data.manejos.filter(m=>m.id !== antigo.id);
+  }
+
+  const manejoId = antigo ? antigo.id : uid('mj');
+  const dataISO = dataStr ? new Date(dataStr+'T12:00:00').toISOString() : new Date().toISOString();
+  const novasMovs = [];
+
+  resolvidos.forEach(({product:p, qtd})=>{
+    p.qty = Math.max(0, p.qty - qtd);
+    tocados.set(p.id, p);
+    const mv = { id: uid('m'), date: dataISO, type:'saida', productId: p.id, qty: qtd,
+      reason: `Manejo (${categoria}): ${local}${desc?' — '+desc:''}`, manejoId };
+    data.movements.push(mv);
+    novasMovs.push(mv);
+  });
+
+  const manejo = {
+    id: manejoId, date: dataISO, tipo: manTipo, categoria, local, implementoId, descricao: desc, extra,
+    itens: resolvidos.map(r=>({productId: r.product.id, qty: r.qtd, valor: r.product.valor || 0}))
+  };
+  data.manejos.push(manejo);
+
+  const tipoLabelAudit = manTipo==='implemento' ? 'Implemento' : 'Campo';
+  const itensAudit = resolvidos.map(r=> `${r.product.name} -${r.qtd} ${r.product.unit}`).join(', ');
+  const foiEdicao = !!antigo;
+
+  limparFormManejo();
+  render();
+
+  await Promise.all([
+    ...[...tocados.values()].map(persistProduct),
+    ...movsRemover.map(deleteMovementRemote),
+    ...novasMovs.map(persistMovement),
+    persistManejo(manejo)
+  ]);
+  showToast(foiEdicao ? 'Manejo alterado e estoque corrigido.' : 'Manejo registrado e baixa de estoque realizada.', 'ok');
+  logAudit(foiEdicao ? 'manejo_alterado' : 'manejo_registrado', `[${tipoLabelAudit}/${categoria}] ${local}: ${itensAudit || 'sem produtos'}`);
+}
+
+async function onSalvarProduto(){
+  const p = findProduct(selectedProductId);
+  if(!p) return;
+  const nome = document.getElementById('pd-nome').value.trim();
+  const cat = document.getElementById('pd-cat').value.trim();
+  const un = document.getElementById('pd-un').value.trim();
+  const qtd = parseFloat(document.getElementById('pd-qtd').value);
+  const min = parseFloat(document.getElementById('pd-min').value);
+  const obs = document.getElementById('pd-obs').value.trim();
+  const valor = parseFloat(document.getElementById('pd-valor').value) || 0;
+
+  if(!nome){ showToast('Informe o nome do produto.', 'err'); return; }
+  if(isNaN(qtd) || qtd<0){ showToast('Informe uma quantidade atual válida.', 'err'); return; }
+  if(isNaN(min) || min<0){ showToast('Informe um estoque mínimo válido.', 'err'); return; }
+
+  const qtyAntes = p.qty, minAntes = p.min, nomeAntes = p.name;
+
+  let mv = null;
+  if(qtd !== p.qty){
+    const diff = qtd - p.qty;
+    mv = {
+      id:uid('m'), date:new Date().toISOString(),
+      type: diff>0 ? 'entrada':'saida', productId:p.id, qty:Math.abs(diff),
+      reason:'Ajuste manual de cadastro'
+    };
+    data.movements.push(mv);
+  }
+  p.name = nome;
+  p.category = cat || 'Outros';
+  p.unit = un || 'un';
+  p.qty = qtd;
+  p.min = min;
+  p.obs = obs;
+  p.valor = valor;
+
+  render();
+  await Promise.all([persistProduct(p), mv ? persistMovement(mv) : Promise.resolve()]);
+  showToast('Cadastro atualizado.', 'ok');
+  logAudit('produto_editado', `${nomeAntes}${nomeAntes!==nome?' → '+nome:''} — qtd: ${qtyAntes}→${qtd} ${un}, mín: ${minAntes}→${min}`);
+}
+
+async function onExcluirProduto(){
+  const p = findProduct(selectedProductId);
+  if(!p) return;
+  const ok = await confirmModal(`Excluir "${p.name}" do cadastro de estoque? O histórico de movimentações já registrado é mantido.`, {okLabel:'Excluir', danger:true});
+  if(!ok) return;
+  data.products = data.products.filter(x=>x.id!==p.id);
+  selectedProductId = null;
+  render();
+  await deleteProductRemote(p.id);
+  showToast('Produto excluído.', 'ok');
+  logAudit('produto_excluido', p.name);
+}
+
+async function deleteMovement(id){
+  const idx = data.movements.findIndex(m=>m.id===id);
+  if(idx<0) return;
+  const mv = data.movements[idx];
+  const isPartOfManejo = !!mv.manejoId;
+  const confirmMsg = isPartOfManejo
+    ? 'Este lançamento faz parte de um manejo registrado. Excluir vai devolver a quantidade ao estoque e remover este item do manejo. Confirmar?'
+    : 'Excluir este lançamento? O estoque será ajustado de volta.';
+  const ok = await confirmModal(confirmMsg, {okLabel:'Excluir', danger:true});
+  if(!ok) return;
+
+  const p = findProduct(mv.productId);
+  if(p){
+    if(mv.type==='entrada') p.qty = Math.max(0, p.qty - mv.qty);
+    else p.qty += mv.qty;
+  }
+  data.movements.splice(idx,1);
+
+  let manejoToDelete = null;
+  let manejoToUpdate = null;
+  if(mv.manejoId){
+    const manejo = data.manejos.find(mj=>mj.id===mv.manejoId);
+    if(manejo){
+      const iidx = manejo.itens.findIndex(it=>it.productId===mv.productId && it.qty===mv.qty);
+      if(iidx>=0) manejo.itens.splice(iidx,1);
+      if(manejo.itens.length===0){
+        data.manejos = data.manejos.filter(m=>m.id!==manejo.id);
+        manejoToDelete = manejo.id;
+      } else {
+        manejoToUpdate = manejo;
+      }
+    }
+  }
+
+  render();
+  const jobs = [deleteMovementRemote(id)];
+  if(p) jobs.push(persistProduct(p));
+  if(manejoToDelete) jobs.push(deleteManejoRemote(manejoToDelete));
+  if(manejoToUpdate) jobs.push(persistManejo(manejoToUpdate));
+  await Promise.all(jobs);
+  showToast('Lançamento excluído.', 'ok');
+  logAudit('movimentacao_excluida', `${p?p.name:'(produto removido)'}: ${mv.type==='entrada'?'entrada':'saída'} de ${mv.qty} excluída`);
+}
+
+async function deleteManejo(id){
+  const manejo = data.manejos.find(m=>m.id===id);
+  if(!manejo) return;
+  const ok = await confirmModal(`Excluir o manejo "${manejo.local}"? Isso devolve ao estoque todos os produtos usados nele e remove os lançamentos ligados.`, {okLabel:'Excluir', danger:true});
+  if(!ok) return;
+
+  const touchedProducts = [];
+  (manejo.itens||[]).forEach(it=>{
+    const p = findProduct(it.productId);
+    if(p){ p.qty += it.qty; touchedProducts.push(p); }
+  });
+  const removedMovIds = data.movements.filter(m=>m.manejoId === id).map(m=>m.id);
+  data.movements = data.movements.filter(m=>m.manejoId !== id);
+  data.manejos = data.manejos.filter(m=>m.id !== id);
+
+  render();
+  await Promise.all([
+    ...touchedProducts.map(persistProduct),
+    ...removedMovIds.map(deleteMovementRemote),
+    deleteManejoRemote(id)
+  ]);
+  showToast('Manejo excluído.', 'ok');
+  logAudit('manejo_excluido', `${manejo.local} (${fmtDateOnly(manejo.date)})`);
+}
+
+// ---------- UI: MODAL / TOAST ----------
+function confirmModal(message, opts){
+  opts = opts || {};
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    const okLabel = opts.okLabel || 'Confirmar';
+    const cancelLabel = opts.cancelLabel || 'Cancelar';
+    const dangerCls = opts.danger ? ' danger' : '';
+    overlay.innerHTML = `
+      <div class="modal-box" role="alertdialog" aria-modal="true">
+        <p class="modal-msg">${esc(message)}</p>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="modal-cancel">${esc(cancelLabel)}</button>
+          <button type="button" class="primary${dangerCls}" id="modal-ok">${esc(okLabel)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (val)=>{
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      resolve(val);
+    };
+    const onKey = (e)=>{ if(e.key==='Escape') cleanup(false); };
+    overlay.querySelector('#modal-cancel').onclick = ()=>cleanup(false);
+    overlay.querySelector('#modal-ok').onclick = ()=>cleanup(true);
+    overlay.onclick = (e)=>{ if(e.target===overlay) cleanup(false); };
+    document.addEventListener('keydown', onKey);
+    overlay.querySelector('#modal-ok').focus();
+  });
+}
+
+function showToast(text, type){
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type||'ok');
+  el.textContent = text;
+  wrap.appendChild(el);
+  requestAnimationFrame(()=> el.classList.add('show'));
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=> el.remove(), 250);
+  }, 3800);
+}
+
+// ---------- RELATÓRIOS / PDF ----------
+const PDF_MARGIN = 15;
+const PDF_PAGE_W = 210;
+const PDF_PAGE_H = 297;
+const PDF_ROW_H = 6;
+
+function pdfTruncate(s, n){
+  s = String(s==null?'':s);
+  return s.length>n ? s.slice(0,n-1)+'…' : s;
+}
+
+function pdfNewDoc(title, subtitle){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  doc.text(title, PDF_MARGIN, 18);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.setTextColor(110);
+  doc.text(subtitle, PDF_MARGIN, 24);
+  doc.setTextColor(25);
+  doc._y = 32;
+  return doc;
+}
+
+function pdfEnsureSpace(doc, needed){
+  if(doc._y + needed > PDF_PAGE_H - PDF_MARGIN){
+    doc.addPage();
+    doc._y = 20;
+  }
+}
+
+function pdfSectionTitle(doc, text){
+  pdfEnsureSpace(doc, 10);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(25);
+  doc.text(text, PDF_MARGIN, doc._y);
+  doc._y += 6;
+}
+
+function pdfParagraph(doc, text){
+  const maxWidth = PDF_PAGE_W - PDF_MARGIN*2;
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(60);
+  const lines = doc.splitTextToSize(String(text||''), maxWidth);
+  lines.forEach(line=>{
+    pdfEnsureSpace(doc, 5);
+    doc.text(line, PDF_MARGIN, doc._y);
+    doc._y += 5;
+  });
+  doc.setTextColor(25);
+  doc._y += 1;
+}
+
+function pdfTableHeader(doc, headers, colWidths){
+  const totalW = colWidths.reduce((a,b)=>a+b,0);
+  doc.setFillColor(238,235,224);
+  doc.setDrawColor(200,195,175);
+  doc.rect(PDF_MARGIN, doc._y-4.3, totalW, PDF_ROW_H, 'FD');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8.3);
+  doc.setTextColor(25);
+  let x = PDF_MARGIN;
+  headers.forEach((h,i)=>{ doc.text(String(h), x+1.5, doc._y); x += colWidths[i]; });
+  doc._y += PDF_ROW_H;
+}
+
+function pdfTable(doc, headers, colWidths, rows){
+  pdfEnsureSpace(doc, PDF_ROW_H*2);
+  pdfTableHeader(doc, headers, colWidths);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8.3);
+  rows.forEach(cells=>{
+    const wasNewPage = doc._y + PDF_ROW_H > PDF_PAGE_H - PDF_MARGIN;
+    pdfEnsureSpace(doc, PDF_ROW_H);
+    if(wasNewPage) pdfTableHeader(doc, headers, colWidths);
+    let x = PDF_MARGIN;
+    cells.forEach((c,i)=>{
+      const w = colWidths[i];
+      doc.text(pdfTruncate(c, Math.floor(w/1.7)), x+1.5, doc._y);
+      x += w;
+    });
+    doc._y += PDF_ROW_H;
+  });
+  doc._y += 4;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+
+async function exportPdf(doc, filename){
+  try{
+    const blob = doc.output('blob');
+    downloadBlob(blob, filename);
+    showToast('PDF gerado.', 'ok');
+  }catch(e){
+    console.error(e);
+    showToast('Não foi possível gerar o PDF.', 'err');
+  }
+}
+
+function buildStockDoc(products, title){
+  const doc = pdfNewDoc(title, `Mata Chica Polo Club · Gerado em ${fmtDate(new Date().toISOString())} · ${products.length} item(ns)`);
+  const cats = {};
+  products.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+    (cats[p.category] = cats[p.category] || []).push(p);
+  });
+  const headers = ['Produto','Qtd.','Unid.','Mín.','Status','Observações'];
+  const widths = [50,16,16,16,20,62];
+  for(const cat in cats){
+    pdfSectionTitle(doc, cat);
+    const rows = cats[cat].map(p=>{
+      const status = p.qty<=0 ? 'ZERADO' : (p.qty<=p.min ? 'BAIXO' : 'OK');
+      return [p.name, String(p.qty), p.unit, String(p.min), status, p.obs||''];
+    });
+    pdfTable(doc, headers, widths, rows);
+  }
+  return doc;
+}
+
+function openReport(type, listOverride){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    showToast('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.', 'err');
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0,10);
+
+  if(type==='estoque'){
+    const doc = buildStockDoc(data.products, 'Mata Chica Polo Club — Relatório de Estoque');
+    exportPdf(doc, `mata-chica-estoque-${stamp}.pdf`);
+
+  } else if(type==='movimentacao'){
+    const moves = listOverride || data.movements.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const subtitle = `Gerado em ${fmtDate(new Date().toISOString())}${movBusca && listOverride ? ' · filtro: "'+movBusca+'"' : ''} · ${moves.length} lançamento(s)`;
+    const doc = pdfNewDoc('Mata Chica Polo Club — Movimentação Geral', subtitle);
+    const headers = ['Data','Tipo','Produto','Qtd.','Motivo'];
+    const widths = [28,18,44,20,70];
+    const rows = moves.map(m=>{
+      const p = findProduct(m.productId);
+      return [fmtDate(m.date), m.type==='entrada'?'Entrada':'Saída', p?p.name:'(produto removido)', `${m.qty} ${p?p.unit:''}`, m.reason||''];
+    });
+    if(rows.length===0){
+      doc.setFont('helvetica','normal'); doc.setFontSize(10);
+      doc.text('Nenhuma movimentação registrada.', PDF_MARGIN, doc._y);
+    } else {
+      pdfTable(doc, headers, widths, rows);
+    }
+    exportPdf(doc, `mata-chica-movimentacao-${stamp}.pdf`);
+
+  } else if(type==='manejos'){
+    const list = listOverride || data.manejos.slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const subtitle = `Gerado em ${fmtDate(new Date().toISOString())}${histSearch && listOverride ? ' · filtro: "'+histSearch+'"' : ''} · ${list.length} manejo(s)`;
+    const doc = pdfNewDoc('Mata Chica Polo Club — Manejos Realizados', subtitle);
+    if(list.length===0){
+      doc.setFont('helvetica','normal'); doc.setFontSize(10);
+      doc.text('Nenhum manejo encontrado.', PDF_MARGIN, doc._y);
+    } else {
+      list.forEach(m=>{
+        const tipoLabel = m.tipo==='implemento' ? 'Implemento' : 'Campo';
+        pdfSectionTitle(doc, `[${tipoLabel}] ${m.local} — ${fmtDateOnly(m.date)}`);
+        pdfParagraph(doc, m.descricao || '(sem descrição)');
+        const rows = (m.itens||[]).map(it=>{
+          const p = findProduct(it.productId);
+          return [p?p.name:'(produto removido)', `${it.qty} ${p?p.unit:''}`];
+        });
+        pdfTable(doc, ['Produto','Qtd. utilizada'], [130,50], rows);
+      });
+    }
+    exportPdf(doc, `mata-chica-manejos-${stamp}.pdf`);
+
+  } else if(type==='personalizado'){
+    const selected = data.products.filter(p=>relSelecionados.has(p.id));
+    const doc = buildStockDoc(selected, 'Mata Chica Polo Club — Relatório Personalizado');
+    exportPdf(doc, `mata-chica-relatorio-${stamp}.pdf`);
+
+  } else if(type==='pedido'){
+    const itens = [...relSelecionados]
+      .map(id=>({product: findProduct(id), qtd: relPedidoQtd[id]}))
+      .filter(it=> it.product && parseFloat(it.qtd)>0)
+      .sort((a,b)=>a.product.name.localeCompare(b.product.name));
+
+    const subtitle = `Mata Chica Polo Club · Data: ${fmtDateOnly(new Date().toISOString())} · ${itens.length} item(ns)`;
+    const doc = pdfNewDoc('Mata Chica Polo Club — Pedido de Compra', subtitle);
+
+    if(relPedidoObs.trim()){
+      pdfSectionTitle(doc, 'Observações');
+      pdfParagraph(doc, relPedidoObs.trim());
+    }
+
+    if(itens.length===0){
+      doc.setFont('helvetica','normal'); doc.setFontSize(10);
+      doc.text('Nenhum item com quantidade preenchida.', PDF_MARGIN, doc._y);
+    } else {
+      const cats = {};
+      itens.forEach(it=>{ (cats[it.product.category] = cats[it.product.category]||[]).push(it); });
+      const headers = ['Produto','Estoque atual','Unid.','Qtd. a pedir'];
+      const widths = [80,32,20,48];
+      for(const cat in cats){
+        pdfSectionTitle(doc, cat);
+        const rows = cats[cat].map(it=> [it.product.name, String(it.product.qty), it.product.unit, String(it.qtd)]);
+        pdfTable(doc, headers, widths, rows);
+      }
+    }
+    exportPdf(doc, `mata-chica-pedido-${stamp}.pdf`);
+    if(itens.length>0){
+      const resumo = itens.map(it=> `${it.product.name} (${it.qtd} ${it.product.unit})`).join(', ');
+      logAudit('pedido_gerado', `${itens.length} item(ns): ${resumo}${relPedidoObs.trim() ? ' — Obs: '+relPedidoObs.trim() : ''}`);
+    }
+  }
+}
+
+// ---------- BACKUP: EXPORTAR / IMPORTAR ----------
+async function exportarBackup(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    club: 'Mata Chica Polo Club',
+    products: data.products,
+    movements: data.movements,
+    manejos: data.manejos
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const stamp = new Date().toISOString().slice(0,10);
+  try{
+    const blob = new Blob([json], {type:'application/json'});
+    downloadBlob(blob, `mata-chica-estoque-backup-${stamp}.json`);
+    showToast('Backup salvo.', 'ok');
+  }catch(e){
+    console.error(e);
+    showToast('Não foi possível salvar o backup.', 'err');
+  }
+}
+
+async function importarBackupArquivo(file){
+  try{
+    const texto = await file.text();
+    const imported = JSON.parse(texto);
+
+    if(!imported || (!Array.isArray(imported.products) && !Array.isArray(imported.manejos) && !Array.isArray(imported.movements))){
+      showToast('Arquivo de backup inválido: não encontrei produtos, movimentações ou manejos nele.', 'err');
+      return;
+    }
+
+    const novosProdutos = [], novasMovs = [], novosManejos = [];
+
+    if(Array.isArray(imported.products)){
+      imported.products.forEach(p=>{
+        if(p && p.id && !data.products.find(x=>x.id===p.id)){
+          const clean = {id:p.id, name:p.name||'', category:p.category||'Outros', unit:p.unit||'un', qty:Number(p.qty)||0, min:Number(p.min)||0, obs:typeof p.obs==='string'?p.obs:''};
+          data.products.push(clean);
+          novosProdutos.push(clean);
+        }
+      });
+    }
+    if(Array.isArray(imported.movements)){
+      imported.movements.forEach(m=>{
+        if(m && m.id && !data.movements.find(x=>x.id===m.id)){
+          data.movements.push(m);
+          novasMovs.push(m);
+        }
+      });
+    }
+    if(Array.isArray(imported.manejos)){
+      imported.manejos.forEach(mj=>{
+        if(mj && mj.id && !data.manejos.find(x=>x.id===mj.id)){
+          data.manejos.push(mj);
+          novosManejos.push(mj);
+        }
+      });
+    }
+
+    render();
+    await Promise.all([
+      ...novosProdutos.map(persistProduct),
+      ...novasMovs.map(persistMovement),
+      ...novosManejos.map(persistManejo)
+    ]);
+
+    showToast(`Backup importado sem apagar nada: ${novosProdutos.length} produto(s), ${novasMovs.length} movimentação(ões), ${novosManejos.length} manejo(s) adicionados.`, 'ok');
+    logAudit('backup_importado', `${novosProdutos.length} produto(s), ${novasMovs.length} movimentação(ões), ${novosManejos.length} manejo(s)`);
+  }catch(e){
+    console.error(e);
+    showToast('Não foi possível ler esse arquivo de backup. Verifique se é um .json exportado por este sistema.', 'err');
+  }
+}
+
+function initBackupBar(){
+  document.getElementById('btn-exportar-backup').onclick = exportarBackup;
+  const inputFile = document.getElementById('input-importar-backup');
+  document.getElementById('btn-importar-backup').onclick = ()=> inputFile.click();
+  inputFile.onchange = ()=>{
+    if(inputFile.files && inputFile.files[0]){
+      importarBackupArquivo(inputFile.files[0]);
+    }
+    inputFile.value = '';
+  };
+}
+
+initBackupBar();
+render();
+initApp();
+</script>
+</body>
+</html>
