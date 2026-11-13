@@ -424,6 +424,7 @@ let campoSel = null;
 let manCat = '';
 let manExtra = '';
 let manEditId = null;
+let manCarrinho = '';
 let entradaModo = 'existente';
 let manejoItens = [{name:'', qty:''}];
 let manTipo = 'campo';
@@ -1019,6 +1020,17 @@ function renderManejos(){
         <option value="">Selecione o implemento</option>
         ${implementoOpts}
       </select>
+      ${(()=>{
+        const impSel = findProduct(manImplementoId);
+        if(!impSel) return '';
+        const cars = impSel.carrinhos || [];
+        return `<label>Carrinho (manutenção por carrinho)</label>
+        <select id="man-carrinho"><option value="">— implemento inteiro —</option>${cars.map(c=>`<option ${manCarrinho===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
+        <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
+          <button type="button" class="link" id="btn-novo-carrinho" style="padding:0;">+ Novo carrinho</button>
+          <button type="button" class="link" id="btn-excluir-carrinho" style="padding:0;">Excluir carrinho</button>
+        </div>`;
+      })()}
       <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
         <button type="button" class="link" id="btn-novo-implemento" style="padding:0;">+ Novo implemento</button>
         <button type="button" class="link" id="btn-editar-implemento" style="padding:0;">Editar</button>
@@ -1131,7 +1143,7 @@ function cardManejo(m){
       <span style="font-weight:700;">${fmtDateOnly(m.date)} · <span class="tag-tipo">${esc(tipoManejo(m))}</span></span>
       <span style="font-weight:600;">${c>0?brl(c):''}</span>
     </div>
-    ${m.tipo==='implemento'||true ? `<div class="manejo-desc" style="color:var(--text-muted);font-size:.85rem;">${esc(m.local||'')}</div>`:''}
+    ${m.tipo==='implemento'||true ? `<div class="manejo-desc" style="color:var(--text-muted);font-size:.85rem;">${esc(m.local||'')}${m.carrinho?' · <b>'+esc(m.carrinho)+'</b>':''}</div>`:''}
     <div class="manejo-desc">${esc(m.descricao) || ''}</div>
     <div class="manejo-itens" style="margin-top:6px;">${itens || '<span style="color:var(--text-muted)">(sem produtos utilizados)</span>'}</div>
     <div class="card-acoes">
@@ -1297,6 +1309,10 @@ function renderHistoricoLocalDetail(){
     .sort((a,b)=> new Date(b.date) - new Date(a.date));
   const tipoLabel = tipo==='implemento' ? 'Implemento' : 'Campo';
   const custoTotal = manejosDoLocal.reduce((a,m)=>a+custoManejo(m),0);
+  const porCar = {};
+  manejosDoLocal.forEach(m=>{ const k = m.carrinho || '(implemento inteiro)'; (porCar[k] = porCar[k] || {n:0,c:0}); porCar[k].n++; porCar[k].c += custoManejo(m); });
+  const resumoCar = (tipo==='implemento' && Object.keys(porCar).some(k=>k!=='(implemento inteiro)'))
+    ? `<div class="card"><div class="section-title">Por carrinho</div>${Object.keys(porCar).sort().map(k=>`<div class="linha-prod"><span>${esc(k)} · ${porCar[k].n} manutenção(ões)</span><b>${brl(porCar[k].c)}</b></div>`).join('')}</div>` : '';
 
   const body = manejosDoLocal.length===0
     ? `<div class="card"><div class="empty">Nenhum manejo registrado aqui ainda.</div></div>`
@@ -1306,6 +1322,7 @@ function renderHistoricoLocalDetail(){
   <button class="back-link" id="btn-histlocal-voltar">← Voltar ao histórico</button>
   <div class="section-title">${tipoLabel} — ${esc(local)}</div>
   <div style="margin:-6px 0 10px;color:var(--text-muted);font-size:.85rem;">${manejosDoLocal.length} manejo(s) registrado(s) · custo total ${brl(custoTotal)}</div>
+  ${resumoCar}
   ${body}
   `;
 }
@@ -1565,6 +1582,8 @@ function attachHandlers(){
       if(implEl) manImplementoId = implEl.value;
       manData = document.getElementById('man-data').value;
       manDesc = document.getElementById('man-desc').value;
+      const carEl = document.getElementById('man-carrinho');
+      if(carEl) manCarrinho = carEl.value;
       manCat = document.getElementById('man-cat').value;
       manExtra = document.getElementById('man-extra').value;
     };
@@ -1587,7 +1606,34 @@ function attachHandlers(){
     const outroEl = document.getElementById('man-campo-outro');
     if(outroEl) outroEl.oninput = ()=>{ manCampoOutro = outroEl.value; };
     const implEl = document.getElementById('man-implemento');
-    if(implEl) implEl.onchange = (e)=>{ manImplementoId = e.target.value; };
+    if(implEl) implEl.onchange = (e)=>{ captureFormState(); manImplementoId = e.target.value; manCarrinho = ''; render(); };
+    const carEl2 = document.getElementById('man-carrinho');
+    if(carEl2) carEl2.onchange = (e)=>{ manCarrinho = e.target.value; };
+    const btnNovoCar = document.getElementById('btn-novo-carrinho');
+    if(btnNovoCar) btnNovoCar.onclick = async ()=>{
+      captureFormState();
+      const imp = findProduct(manImplementoId); if(!imp) return;
+      const nome = (window.prompt('Nome do carrinho (ex.: Carrinho 1):') || '').trim();
+      if(!nome) return;
+      imp.carrinhos = imp.carrinhos || [];
+      if(!imp.carrinhos.includes(nome)) imp.carrinhos.push(nome);
+      manCarrinho = nome;
+      render();
+      await persistProduct(imp);
+      logAudit('carrinho_criado', `${imp.name}: ${nome}`);
+    };
+    const btnExcCar = document.getElementById('btn-excluir-carrinho');
+    if(btnExcCar) btnExcCar.onclick = async ()=>{
+      captureFormState();
+      const imp = findProduct(manImplementoId);
+      if(!imp || !manCarrinho){ showToast('Escolha o carrinho que quer excluir.', 'err'); return; }
+      const ok = await confirmModal(`Excluir o carrinho "${manCarrinho}" de ${imp.name}? O histórico já registrado é mantido.`, {okLabel:'Excluir', danger:true});
+      if(!ok) return;
+      imp.carrinhos = (imp.carrinhos||[]).filter(c=>c!==manCarrinho);
+      manCarrinho = '';
+      render();
+      await persistProduct(imp);
+    };
     document.getElementById('man-data').onchange = (e)=>{ manData = e.target.value; };
     document.getElementById('man-desc').oninput = (e)=>{ manDesc = e.target.value; };
     document.getElementById('man-cat').onchange = (e)=>{ manCat = e.target.value; };
@@ -1821,6 +1867,7 @@ function limparFormManejo(){
   manDesc = '';
   manCat = '';
   manExtra = '';
+  manCarrinho = '';
   manEditId = null;
   manData = new Date().toISOString().slice(0,10);
 }
@@ -1839,6 +1886,7 @@ function editarManejo(id){
   manDesc = m.descricao || '';
   manCat = tipoManejo(m);
   manExtra = m.extra ? String(m.extra) : '';
+  manCarrinho = m.carrinho || '';
   manejoItens = (m.itens||[]).map(it=>{ const p = findProduct(it.productId); return {name: p?p.name:'', qty: String(it.qty)}; });
   if(manejoItens.length===0) manejoItens = [{name:'', qty:''}];
   currentTab = 'manejos';
@@ -1867,6 +1915,8 @@ async function onManejo(){
   const dataStr = document.getElementById('man-data').value;
   const desc = document.getElementById('man-desc').value.trim();
   const categoria = document.getElementById('man-cat').value;
+  const carEl3 = document.getElementById('man-carrinho');
+  const carrinho = (manTipo==='implemento' && carEl3) ? carEl3.value : '';
   const extra = parseFloat(document.getElementById('man-extra').value) || 0;
 
   const linhas = manejoItens
@@ -1929,13 +1979,13 @@ async function onManejo(){
     p.qty = Math.max(0, p.qty - qtd);
     tocados.set(p.id, p);
     const mv = { id: uid('m'), date: dataISO, type:'saida', productId: p.id, qty: qtd,
-      reason: `Manejo (${categoria}): ${local}${desc?' — '+desc:''}`, manejoId };
+      reason: `Manejo (${categoria}): ${local}${carrinho?' / '+carrinho:''}${desc?' — '+desc:''}`, manejoId };
     data.movements.push(mv);
     novasMovs.push(mv);
   });
 
   const manejo = {
-    id: manejoId, date: dataISO, tipo: manTipo, categoria, local, implementoId, descricao: desc, extra,
+    id: manejoId, date: dataISO, tipo: manTipo, categoria, carrinho, local, implementoId, descricao: desc, extra,
     itens: resolvidos.map(r=>({productId: r.product.id, qty: r.qtd, valor: r.product.valor || 0}))
   };
   data.manejos.push(manejo);
